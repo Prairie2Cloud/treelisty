@@ -5372,35 +5372,180 @@ ${jsonText}`;
                 fieldHints += '\n- Identify dependencies between items (what depends on what)';
             }
 
+            // Build pattern-specific field extraction guide
+            let patternFieldGuide = '';
+            if (pattern === 'philosophy') {
+                patternFieldGuide = `
+PHILOSOPHY PATTERN - EXTRACT THESE FIELDS FOR EVERY NODE:
+- speaker: Who is speaking (e.g., "Socrates", "Callias", "Narrator")
+- argumentType: Type of reasoning ("Deductive", "Inductive", "Dialectical", "Socratic Elenchus", "Reductio ad Absurdum")
+- validity: Logical soundness ("Valid", "Invalid", "Sound", "Unsound", "Uncertain")
+- keyTerms: Central concepts discussed (e.g., "justice, knowledge, virtue")
+- premise1: First premise of argument (if applicable)
+- premise2: Second premise of argument (if applicable)
+- conclusion: Logical conclusion drawn (if applicable)
+- objection: Counterargument raised (if applicable)
+- response: Reply to objection (if applicable)
+- textualReference: Location in text (e.g., "Movement 2, paragraph 3")
+- philosophicalSchool: Tradition or school (e.g., "Platonic", "Aristotelian", "Stoic")
+
+ITEM TYPES FOR PHILOSOPHY: Use specific types for each node:
+question, definition, refutation, premise, conclusion, objection, response, example, analogy, distinction, paradox, thought-experiment, aporia, metaphysical, epistemological, ethical, political, logical`;
+            } else if (pattern === 'sales') {
+                patternFieldGuide = `
+SALES PATTERN - EXTRACT THESE FIELDS:
+- dealValue: Revenue/contract value in numbers
+- probability: Win probability (0-100%)
+- leadTime: Expected time to close
+- dependencies: Prerequisites (other deals, approvals, etc.)`;
+            } else if (pattern === 'academic') {
+                patternFieldGuide = `
+ACADEMIC PATTERN - EXTRACT THESE FIELDS:
+- wordCount: Estimated word count for each section
+- citations: Number of citations (if mentioned)
+- dependencies: Which sections reference or build on others`;
+            } else if (pattern === 'software') {
+                patternFieldGuide = `
+SOFTWARE PATTERN - EXTRACT THESE FIELDS:
+- storyPoints: Complexity estimate (1, 2, 3, 5, 8, 13)
+- dependencies: Technical dependencies between features/tasks`;
+            }
+
             const prompt = `Convert this text into a detailed hierarchical project structure using the "${patternConfig.name}" pattern.
 
-PATTERN HIERARCHY (3 LEVELS):
+PATTERN HIERARCHY (4 LEVELS):
 - Root: ${levels.root}
 - Phase (Level 1): ${levels.phase}
 - Item (Level 2): ${levels.item}
 - Subtask (Level 3): ${levels.subtask}
+${patternFieldGuide}
 
 PATTERN-SPECIFIC FIELDS TO EXTRACT:${fieldHints || '\n- Extract name and description'}
 
-TEXT:
+TEXT TO ANALYZE:
 ${text}
 
-DEEP MODE INSTRUCTIONS - PRIORITIZE FIDELITY & DEPTH:
-1. Thoroughly analyze the text to identify ALL hierarchical relationships
-2. Create 3-6 phases (${levels.phase}s) - capture the full logical flow
-3. For each phase, create 3-8 items (${levels.item}s) - extract all significant claims/elements
-4. For EVERY complex item, add 2-5 subtasks (${levels.subtask}s) - show supporting evidence/reasoning
-5. Extract ALL pattern-specific field values mentioned in the text
-6. CRITICAL: Identify ALL logical dependencies and prerequisite relationships
-   - Look for: "depends on", "requires", "builds on", "follows from", "assumes"
-   - Format dependencies as: ["item-X-Y", "item-X-Z"]
-7. Use detailed descriptions (up to 250 characters) - capture nuance and context
-8. For philosophical/argumentative texts:
-   - Extract premises, conclusions, and supporting evidence
-   - Show how arguments build on each other
-   - Map objections to their responses
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+DEEP MODE INSTRUCTIONS - COMPREHENSIVE EXTRACTION
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-IMPORTANT: DEEP MODE = COMPREHENSIVE ANALYSIS. Extract maximum detail and show logical structure.
+⚠️ CRITICAL REQUIREMENTS - YOU MUST MEET THESE MINIMUMS:
+
+1. PHASES: Create 3-6 phases (${levels.phase}s)
+   → Do NOT summarize into fewer phases
+   → Each major section/movement/chapter = separate phase
+
+2. ITEMS PER PHASE: REQUIRED MINIMUM 3-8 items (${levels.item}s) per phase
+   → Do NOT create just 1 item per phase
+   → Extract ALL significant claims/arguments/features/sections
+   → Each distinct idea/component/argument = separate item
+
+3. SUBTASKS: For complex items, add 1-5 subtasks (${levels.subtask}s)
+   → Supporting evidence, premises, sub-components
+   → NOT every item needs subtasks, but complex ones MUST have them
+
+4. DEPTH: Go 3-4 levels deep in the hierarchy
+   → Phase → Item → Subtask → (nested subtask if needed)
+   → Do NOT stop at 2 levels
+
+5. FIELD POPULATION: Extract ALL pattern-specific field values
+   → speaker, argumentType, premise1, conclusion (for philosophy)
+   → dealValue, probability (for sales)
+   → wordCount, citations (for academic)
+   → Do NOT leave fields empty if information is available
+
+6. DEPENDENCIES: Identify ALL logical prerequisites
+   → Look for: "depends on", "requires", "builds on", "follows from", "assumes", "after"
+   → Format: ["item-X-Y", "item-Z-W"]
+   → Map both intra-phase and inter-phase dependencies
+
+7. NODE TYPES: Use specific types from pattern type list
+   → For philosophy: question, definition, refutation, premise, conclusion, objection, etc.
+   → Do NOT use generic "claim" for everything
+
+8. DESCRIPTIONS: Write detailed descriptions (100-250 characters)
+   → Capture nuance, context, and significance
+   → NOT just repetition of title
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+EXAMPLE OF PROPER DEPTH (Philosophy Pattern)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+If text contains: "Socrates asks: What is justice? Callias replies it is giving each what they are owed. Socrates refutes this with the mad debtor example."
+
+WRONG (too shallow):
+{
+  "phases": [{
+    "name": "Movement 1",
+    "items": [{"name": "Discussion of justice"}]
+  }]
+}
+
+CORRECT (proper depth):
+{
+  "phases": [{
+    "name": "Movement 1",
+    "subtitle": "The Initial Inquiry",
+    "items": [
+      {
+        "name": "Opening Question: What is Justice?",
+        "itemType": "question",
+        "speaker": "Socrates",
+        "description": "Socrates initiates inquiry by asking Callias to define justice",
+        "keyTerms": "justice, definition",
+        "dependencies": []
+      },
+      {
+        "name": "First Definition: Justice as Giving What is Owed",
+        "itemType": "definition",
+        "speaker": "Callias",
+        "description": "Callias proposes justice means giving each person what they are owed",
+        "keyTerms": "justice, debt, obligation",
+        "dependencies": []
+      },
+      {
+        "name": "Refutation via Mad Debtor Counterexample",
+        "itemType": "refutation",
+        "speaker": "Socrates",
+        "argumentType": "Socratic Elenchus",
+        "description": "Socrates refutes Callias's definition using case of returning sword to madman",
+        "dependencies": ["item-0-1"],
+        "subtasks": [
+          {
+            "name": "Premise: Returning sword to madman is dangerous",
+            "itemType": "premise",
+            "premise1": "The madman is owed the sword (per Callias's definition)",
+            "conclusion": "But returning it would be unjust (harmful)",
+            "description": "Creates contradiction in Callias's definition"
+          },
+          {
+            "name": "Conclusion: Definition is insufficient",
+            "itemType": "conclusion",
+            "description": "Justice cannot be merely giving what is owed, circumstances matter",
+            "dependencies": ["subtask-0-2-0"]
+          }
+        ]
+      }
+    ]
+  }]
+}
+
+See the difference? The CORRECT version:
+✓ Has 3 items (not 1)
+✓ Uses specific item types (question, definition, refutation)
+✓ Populates fields (speaker, argumentType, keyTerms, premises)
+✓ Has subtasks with proper nesting
+✓ Maps dependencies between nodes
+
+THIS IS THE LEVEL OF DETAIL REQUIRED IN DEEP MODE.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+FINAL REMINDER
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Deep Mode = COMPREHENSIVE EXTRACTION, not summarization
+Extract EVERYTHING with maximum granularity and detail
+Aim for 40-60+ total nodes for complex texts
 
 JSON FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
 - NO trailing commas after the last element in arrays or objects
@@ -5444,7 +5589,7 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt, '', 3500, false); // Deep Mode: More tokens for detailed, layered analysis
+            const response = await callClaudeAPI(prompt, '', 7000, false); // Deep Mode: 7000 tokens for comprehensive, multi-layered extraction
 
             try {
                 // Try to extract JSON from response
