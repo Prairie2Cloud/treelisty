@@ -5253,7 +5253,32 @@ CRITICAL: Respond with ONLY valid JSON. No markdown, no code blocks, no explanat
                     console.error(`JSON around error position ${errorPos}:`, jsonText.substring(contextStart, contextEnd));
                 }
 
-                throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
+                // Auto-heal: Ask Claude to fix the malformed JSON
+                console.log('🔧 Attempting to auto-fix malformed JSON...');
+                try {
+                    const fixPrompt = `The following JSON is malformed and caused this error: ${e.message}
+
+Fix this JSON to make it valid. Return ONLY the fixed JSON, nothing else:
+
+${jsonText}`;
+
+                    const fixedResponse = await callClaudeAPI(fixPrompt, 'You are a JSON repair expert. Fix malformed JSON to make it valid.', 4096);
+
+                    let fixedJson = fixedResponse.trim();
+                    fixedJson = fixedJson.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                    const firstBrace = fixedJson.indexOf('{');
+                    const lastBrace = fixedJson.lastIndexOf('}');
+                    if (firstBrace !== -1 && lastBrace !== -1) {
+                        fixedJson = fixedJson.substring(firstBrace, lastBrace + 1);
+                    }
+
+                    console.log('✅ JSON auto-fixed successfully');
+                    return JSON.parse(fixedJson);
+                } catch (fixError) {
+                    console.error('❌ Auto-fix failed:', fixError);
+                    throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
+                }
             }
         }
 
@@ -5372,7 +5397,32 @@ CRITICAL: Respond with ONLY valid JSON. No markdown, no code blocks, no explanat
                     console.error(`JSON around error position ${errorPos}:`, jsonText.substring(contextStart, contextEnd));
                 }
 
-                throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
+                // Auto-heal: Ask Claude to fix the malformed JSON
+                console.log('🔧 Attempting to auto-fix malformed JSON...');
+                try {
+                    const fixPrompt = `The following JSON is malformed and caused this error: ${e.message}
+
+Fix this JSON to make it valid. Return ONLY the fixed JSON, nothing else:
+
+${jsonText}`;
+
+                    const fixedResponse = await callClaudeAPI(fixPrompt, 'You are a JSON repair expert. Fix malformed JSON to make it valid.', 4096);
+
+                    let fixedJson = fixedResponse.trim();
+                    fixedJson = fixedJson.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                    const firstBrace = fixedJson.indexOf('{');
+                    const lastBrace = fixedJson.lastIndexOf('}');
+                    if (firstBrace !== -1 && lastBrace !== -1) {
+                        fixedJson = fixedJson.substring(firstBrace, lastBrace + 1);
+                    }
+
+                    console.log('✅ JSON auto-fixed successfully');
+                    return JSON.parse(fixedJson);
+                } catch (fixError) {
+                    console.error('❌ Auto-fix failed:', fixError);
+                    throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
+                }
             }
         }
 
