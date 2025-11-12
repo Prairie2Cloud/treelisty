@@ -5155,8 +5155,12 @@ Provide exactly 3 recommendations, ranked by confidence (1-10). Use these patter
                     .replace(/\t/g, '\\t');
             });
 
-            // Remove trailing commas before closing brackets/braces
-            jsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
+            // Remove trailing commas before closing brackets/braces (run multiple times to catch nested cases)
+            let previousText;
+            do {
+                previousText = jsonText;
+                jsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
+            } while (jsonText !== previousText);
 
             // Remove comments (// and /* */)
             jsonText = jsonText.replace(/\/\/.*$/gm, '');
