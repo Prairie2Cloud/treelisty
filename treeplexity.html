@@ -3012,9 +3012,17 @@ function hidePatternDescription() {
 
         // Utilities
         function formatCost(cost) {
-            if (cost >= 1000000) return '$' + (cost / 1000000).toFixed(1) + 'M';
-            if (cost >= 1000) return '$' + (cost / 1000).toFixed(0) + 'k';
-            return '$' + cost.toLocaleString();
+            // Handle null, undefined, or non-numeric values
+            if (cost === null || cost === undefined || cost === '' || isNaN(cost)) {
+                return '$0';
+            }
+
+            // Convert to number if it's a string
+            const numCost = typeof cost === 'string' ? parseFloat(cost) : cost;
+
+            if (numCost >= 1000000) return '$' + (numCost / 1000000).toFixed(1) + 'M';
+            if (numCost >= 1000) return '$' + (numCost / 1000).toFixed(0) + 'k';
+            return '$' + numCost.toLocaleString();
         }
 
         // Calculate total including all children (for root node)
