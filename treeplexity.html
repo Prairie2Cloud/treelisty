@@ -1701,6 +1701,14 @@ The AI will analyze the structure and convert it to a tree."
 
             const data = await response.json();
             console.log('✅ AI analysis successful');
+            console.log('API Response data:', data);
+
+            // Handle response - check if content exists
+            if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+                console.error('Invalid API response structure:', data);
+                throw new Error('Invalid response from AI service');
+            }
+
             return data.content[0].text;
         }
 
@@ -5237,7 +5245,7 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt, '', 4096, true); // Extended thinking enabled for careful JSON generation
+            const response = await callClaudeAPI(prompt, '', 4096, false); // Disabled - API version doesn't support extended thinking
 
             try {
                 // Try to extract JSON from response
@@ -5394,7 +5402,7 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt, '', 4096, true); // Extended thinking enabled for careful JSON generation
+            const response = await callClaudeAPI(prompt, '', 4096, false); // Disabled - API version doesn't support extended thinking
 
             try {
                 // Try to extract JSON from response
