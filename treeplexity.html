@@ -6517,12 +6517,89 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
         let analysisFileName = '';
 
         // Open Analysis Modal
+        // Track analysis mode (fresh or append)
+        let analysisAppendMode = false;
+
         document.getElementById('analyze-text-btn').addEventListener('click', () => {
             // Check if API key is configured
             if (!checkAPIKeyConfigured()) {
                 window.pendingAnalysisMode = true;
                 return;
             }
+
+            // If tree has content, ask user if they want to append or start fresh
+            if (hasExistingContent()) {
+                showAnalysisModeChoice();
+            } else {
+                openAnalysisModal(false); // false = start fresh
+            }
+        });
+
+        // Show modal to choose analysis mode
+        function showAnalysisModeChoice() {
+            const pattern = PATTERNS[currentPattern];
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🔍 Analyze Text Mode';
+
+            // Count existing items
+            const itemCount = capexTree.children?.reduce((sum, phase) =>
+                sum + (phase.items?.length || 0), 0) || 0;
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px;">
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
+                        Your tree already has <strong style="color: var(--treeplex-primary);">${itemCount} ${pattern.levels.item.toLowerCase()}(s)</strong>.
+                        How would you like to proceed?
+                    </p>
+
+                    <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                        <div id="analysis-mode-append" style="flex: 1; padding: 20px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--treeplex-primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                            <div style="font-size: 32px; margin-bottom: 12px; text-align: center;">➕</div>
+                            <div style="font-weight: 600; font-size: 16px; color: var(--text-primary); margin-bottom: 8px; text-align: center;">
+                                Append to Existing
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                                Analyze the text and add the results to your current tree. Great for combining multiple documents.
+                            </div>
+                        </div>
+
+                        <div id="analysis-mode-fresh" style="flex: 1; padding: 20px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--treeplex-primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                            <div style="font-size: 32px; margin-bottom: 12px; text-align: center;">🔄</div>
+                            <div style="font-weight: 600; font-size: 16px; color: var(--text-primary); margin-bottom: 8px; text-align: center;">
+                                Replace Tree
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                                Clear the current tree and replace it with the analysis results. Starts from scratch.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+                        💡 <strong>Tip:</strong> Append mode lets you analyze multiple documents and combine them into one comprehensive tree.
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Add click handlers
+            document.getElementById('analysis-mode-append').onclick = () => {
+                modal.style.display = 'none';
+                openAnalysisModal(true); // true = append mode
+            };
+
+            document.getElementById('analysis-mode-fresh').onclick = () => {
+                modal.style.display = 'none';
+                openAnalysisModal(false); // false = start fresh
+            };
+        }
+
+        // Open the analysis modal
+        function openAnalysisModal(appendMode) {
+            analysisAppendMode = appendMode;
 
             const modal = document.getElementById('analysis-modal');
             modal.style.display = 'flex';
@@ -6536,7 +6613,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             document.querySelector('input[name="analysis-mode"][value="quick"]').checked = true;
             analysisText = '';
             analysisFileName = '';
-        });
+        }
 
         // Close Analysis Modal
         document.getElementById('analysis-cancel').addEventListener('click', () => {
@@ -7530,7 +7607,7 @@ ${jsonText}`;
                         }
 
                         // Step 3: Preview and import
-                        showAnalysisPreview(treeData, selectedPattern);
+                        showAnalysisPreview(treeData, selectedPattern, analysisAppendMode);
 
                     } catch (error) {
                         modalBody.innerHTML = `
@@ -7575,7 +7652,7 @@ ${jsonText}`;
         });
 
         // Show preview before importing
-        function showAnalysisPreview(treeData, selectedPattern) {
+        function showAnalysisPreview(treeData, selectedPattern, appendMode = false) {
             const modal = document.getElementById('modal');
             const modalBody = document.getElementById('modal-body');
 
@@ -7619,10 +7696,12 @@ ${jsonText}`;
                         `).join('')}
                     </div>
 
-                    <div style="margin-top: 20px; padding: 12px 16px; background: rgba(255, 159, 67, 0.1); border: 1px solid rgba(255, 159, 67, 0.3); border-radius: 6px;">
-                        <div style="color: #ff9f43; font-weight: 600; margin-bottom: 4px;">⚠️ Import Warning</div>
+                    <div style="margin-top: 20px; padding: 12px 16px; background: rgba(${appendMode ? '76, 175, 80' : '255, 159, 67'}, 0.1); border: 1px solid rgba(${appendMode ? '76, 175, 80' : '255, 159, 67'}, 0.3); border-radius: 6px;">
+                        <div style="color: ${appendMode ? '#4caf50' : '#ff9f43'}; font-weight: 600; margin-bottom: 4px;">${appendMode ? '➕ Append Mode' : '⚠️ Replace Mode'}</div>
                         <div style="color: var(--text-secondary); font-size: 13px;">
-                            Importing will replace your current project. Your current project will be saved as a backup first.
+                            ${appendMode ?
+                                'This will add the analyzed content to your existing tree. Phases will be merged or added.' :
+                                'Importing will replace your current project. Your current project will be saved as a backup first.'}
                         </div>
                     </div>
                 </div>
@@ -7652,11 +7731,11 @@ ${jsonText}`;
             const importBtn = document.createElement('button');
             importBtn.className = 'btn btn-primary';
             importBtn.style.cssText = 'background: linear-gradient(135deg, #4caf50, #00a67d);';
-            importBtn.textContent = '📥 Import to TreeListy';
+            importBtn.textContent = appendMode ? '➕ Append to Tree' : '📥 Import to TreeListy';
             importBtn.onclick = () => {
-                console.log('🔄 Import button clicked!', { hasTreeData: !!treeData, hasPattern: !!selectedPattern });
+                console.log('🔄 Import button clicked!', { hasTreeData: !!treeData, hasPattern: !!selectedPattern, appendMode });
                 try {
-                    importAnalyzedTree(treeData, selectedPattern);
+                    importAnalyzedTree(treeData, selectedPattern, appendMode);
                     modal.style.display = 'none';
                 } catch (error) {
                     console.error('❌ Import failed:', error);
@@ -7672,17 +7751,19 @@ ${jsonText}`;
         }
 
         // Import analyzed tree into TreeListy
-        function importAnalyzedTree(treeData, selectedPattern) {
-            console.log('📥 Starting import...', { treeData, selectedPattern });
+        function importAnalyzedTree(treeData, selectedPattern, appendMode = false) {
+            console.log('📥 Starting import...', { treeData, selectedPattern, appendMode });
 
             // Backup current project first
             const backup = JSON.stringify(capexTree, null, 2);
             const backupName = `treelisty_backup_${Date.now()}.json`;
             console.log('💾 Current project backed up as:', backupName);
 
-            // Switch to selected pattern
-            currentPattern = selectedPattern;
-            document.getElementById('pattern-select').value = selectedPattern;
+            // Switch to selected pattern (only if not appending)
+            if (!appendMode) {
+                currentPattern = selectedPattern;
+                document.getElementById('pattern-select').value = selectedPattern;
+            }
 
             // Convert analyzed data to TreeListy format
             const newTree = {
@@ -7745,24 +7826,88 @@ ${jsonText}`;
                 })) || []
             };
 
-            // Replace current tree
-            capexTree = newTree;
+            if (appendMode) {
+                // Append mode: merge phases and items
+                console.log('➕ Append mode: merging trees...');
+
+                // Keep existing project name if different
+                if (capexTree.name !== newTree.name && capexTree.name !== 'My Project') {
+                    // User has a custom name, keep it
+                } else {
+                    capexTree.name = newTree.name;
+                }
+
+                // Merge phases
+                newTree.children.forEach((newPhase, newPhaseIndex) => {
+                    // Find matching phase in existing tree by index or name
+                    const existingPhase = capexTree.children?.[newPhaseIndex];
+
+                    if (existingPhase) {
+                        // Phase exists - append items to it
+                        console.log(`Appending ${newPhase.items?.length || 0} items to existing phase: ${existingPhase.name}`);
+
+                        // Update phase name if it was generic
+                        if (existingPhase.name === `Phase ${newPhaseIndex}` && newPhase.name !== `Phase ${newPhaseIndex}`) {
+                            existingPhase.name = newPhase.name;
+                        }
+
+                        // Append new items
+                        if (newPhase.items && newPhase.items.length > 0) {
+                            const currentItemCount = existingPhase.items?.length || 0;
+
+                            // Re-ID the new items to avoid conflicts
+                            const reIdedItems = newPhase.items.map((item, idx) => ({
+                                ...item,
+                                id: `item-${newPhaseIndex}-${currentItemCount + idx}`
+                            }));
+
+                            existingPhase.items = [...(existingPhase.items || []), ...reIdedItems];
+                        }
+                    } else {
+                        // Phase doesn't exist - add it as new
+                        console.log(`Adding new phase: ${newPhase.name}`);
+                        if (!capexTree.children) capexTree.children = [];
+
+                        // Re-ID the phase
+                        newPhase.id = `phase-${capexTree.children.length}`;
+                        newPhase.phase = capexTree.children.length;
+
+                        capexTree.children.push(newPhase);
+                    }
+                });
+
+                // Show success message for append
+                const addedItems = treeData.phases?.reduce((sum, p) => sum + (p.items?.length || 0), 0) || 0;
+                const addedSubtasks = treeData.phases?.reduce((sum, p) =>
+                    sum + (p.items?.reduce((subSum, item) => subSum + (item.subtasks?.length || 0), 0) || 0), 0) || 0;
+
+                let message = `✅ Successfully appended!\n\n${addedItems} items`;
+                if (addedSubtasks > 0) {
+                    message += ` and ${addedSubtasks} subtasks`;
+                }
+                message += ` have been added to your existing tree.`;
+                alert(message);
+
+            } else {
+                // Replace mode: completely replace tree
+                console.log('🔄 Replace mode: replacing tree...');
+                capexTree = newTree;
+
+                // Show success message for replace
+                const totalItems = treeData.phases?.reduce((sum, p) => sum + (p.items?.length || 0), 0) || 0;
+                const totalSubtasks = treeData.phases?.reduce((sum, p) =>
+                    sum + (p.items?.reduce((subSum, item) => subSum + (item.subtasks?.length || 0), 0) || 0), 0) || 0;
+
+                let message = `✅ Successfully imported!\n\n${treeData.phases?.length || 0} phases and ${totalItems} items`;
+                if (totalSubtasks > 0) {
+                    message += ` and ${totalSubtasks} subtasks`;
+                }
+                message += ` have been created.\n\nPattern: ${PATTERNS[selectedPattern].name}`;
+                alert(message);
+            }
 
             // Render
             render();
-
-            // Count total items and subtasks
-            const totalItems = treeData.phases?.reduce((sum, p) => sum + (p.items?.length || 0), 0) || 0;
-            const totalSubtasks = treeData.phases?.reduce((sum, p) =>
-                sum + (p.items?.reduce((subSum, item) => subSum + (item.subtasks?.length || 0), 0) || 0), 0) || 0;
-
-            // Show success message
-            let message = `✅ Successfully imported!\n\n${treeData.phases?.length || 0} phases and ${totalItems} items`;
-            if (totalSubtasks > 0) {
-                message += ` and ${totalSubtasks} subtasks`;
-            }
-            message += ` have been created.\n\nPattern: ${PATTERNS[selectedPattern].name}`;
-            alert(message);
         }
 
         // How to Use button
