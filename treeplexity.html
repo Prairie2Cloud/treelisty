@@ -1137,6 +1137,8 @@
     </style>
     <!-- SheetJS library for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- LZ-String library for URL compression -->
+    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
 </head>
 <body>
     <!-- TreeListy by geej Splash Screen -->
@@ -1166,6 +1168,7 @@
             <div class="control-section">
                 <button class="btn" id="save-json-btn" title="Save project as JSON">💾 Save</button>
                 <button class="btn" id="load-json-btn" title="Load project from JSON">📂 Load</button>
+                <button class="btn" id="share-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);" title="Generate shareable URL">📤 Share</button>
             </div>
 
             <div class="control-section">
@@ -1395,6 +1398,52 @@ The AI will analyze the structure and convert it to a tree."
             <div class="modal-footer">
                 <button class="btn" id="api-key-cancel">Cancel</button>
                 <button class="btn btn-primary" id="api-key-save" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">Save & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Share Modal -->
+    <div class="modal" id="share-modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">📤 Share Your Project</div>
+            <div class="modal-body">
+                <div style="margin-bottom: 20px;">
+                    <p style="color: var(--text-secondary); margin-bottom: 15px;">
+                        Share this link with anyone! The link contains your entire project data (no server storage).
+                    </p>
+                    <div style="background: var(--card-bg-light); padding: 15px; border-radius: 8px; border: 2px solid var(--border); margin-bottom: 15px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="share-url-input" readonly
+                                   style="flex: 1; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; user-select: all;"
+                                   value="">
+                            <button class="btn btn-primary" id="copy-share-url" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); white-space: nowrap;">
+                                📋 Copy
+                            </button>
+                        </div>
+                    </div>
+                    <div id="share-stats" style="display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary);">
+                        <div>📊 <span id="share-node-count">0</span> nodes</div>
+                        <div>📏 <span id="share-url-length">0</span> characters</div>
+                        <div id="share-size-warning" style="display: none; color: #f59e0b;">⚠️ Large project - URL may not work in all apps</div>
+                    </div>
+                </div>
+                <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border-left: 3px solid var(--treeplex-primary);">
+                    <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        <span>ℹ️</span> How it works
+                    </div>
+                    <ul style="margin-left: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
+                        <li>Your data is compressed and embedded in the URL (not stored on any server)</li>
+                        <li>Anyone with the link can view and edit their own copy</li>
+                        <li>Works best for projects with up to 40-50 nodes</li>
+                        <li>For larger projects, use "💾 Save" to download JSON instead</li>
+                    </ul>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="share-close">Close</button>
+                <button class="btn btn-primary" id="open-share-url" style="background: linear-gradient(135deg, #3B8FCC, #2B7AB8);">
+                    🔗 Open in New Tab
+                </button>
             </div>
         </div>
     </div>
@@ -4730,6 +4779,91 @@ function hidePatternDescription() {
         document.getElementById('save-json-btn').addEventListener('click', handleDownload);
         document.getElementById('load-json-btn').addEventListener('click', handleUpload);
 
+        // Share button - Generate shareable URL
+        document.getElementById('share-btn').addEventListener('click', () => {
+            const shareableURL = generateShareableURL();
+
+            // Show modal with URL
+            const modal = document.getElementById('share-modal');
+            const urlInput = document.getElementById('share-url-input');
+            urlInput.value = shareableURL;
+
+            // Update stats
+            const nodeCount = countAllNodes(capexTree);
+            document.getElementById('share-node-count').textContent = nodeCount;
+            document.getElementById('share-url-length').textContent = shareableURL.length;
+
+            // Show warning if URL is very long (>2000 chars might have issues in some apps)
+            const warning = document.getElementById('share-size-warning');
+            if (shareableURL.length > 2000) {
+                warning.style.display = 'block';
+            } else {
+                warning.style.display = 'none';
+            }
+
+            modal.style.display = 'flex';
+
+            // Select the URL text for easy copying
+            setTimeout(() => urlInput.select(), 100);
+        });
+
+        // Share modal - Copy button
+        document.getElementById('copy-share-url').addEventListener('click', () => {
+            const urlInput = document.getElementById('share-url-input');
+            urlInput.select();
+            document.execCommand('copy');
+
+            // Change button text temporarily
+            const btn = document.getElementById('copy-share-url');
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copied!';
+            btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+
+            setTimeout(() => {
+                btn.textContent = originalText;
+                btn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+            }, 2000);
+        });
+
+        // Share modal - Open in new tab button
+        document.getElementById('open-share-url').addEventListener('click', () => {
+            const url = document.getElementById('share-url-input').value;
+            window.open(url, '_blank');
+        });
+
+        // Share modal - Close button
+        document.getElementById('share-close').addEventListener('click', () => {
+            document.getElementById('share-modal').style.display = 'none';
+        });
+
+        // Generate shareable URL with compressed data
+        function generateShareableURL() {
+            const jsonData = JSON.stringify(capexTree);
+            const compressed = LZString.compressToEncodedURIComponent(jsonData);
+            const baseURL = window.location.origin + window.location.pathname;
+            return `${baseURL}?p=${compressed}`;
+        }
+
+        // Count all nodes in tree (for stats)
+        function countAllNodes(node) {
+            let count = 1; // Count this node
+            if (node.children) {
+                node.children.forEach(child => {
+                    if (child.items) {
+                        count += child.items.length;
+                        child.items.forEach(item => {
+                            if (item.subtasks) {
+                                count += item.subtasks.length;
+                            }
+                        });
+                    } else {
+                        count += countAllNodes(child);
+                    }
+                });
+            }
+            return count;
+        }
+
         // AI Modal - Overall Project Analysis (Dynamic AI-Generated)
         document.getElementById('ai-btn').addEventListener('click', async () => {
             // Check if API key is configured
@@ -6512,6 +6646,61 @@ ${jsonText}`;
         const treeContainer = document.getElementById('tree-container');
         treeContainer.addEventListener('scroll', drawDependencyLines);
         window.addEventListener('resize', drawDependencyLines);
+
+        // Load from shared URL if present
+        (function loadFromURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const compressedData = urlParams.get('p');
+
+            if (compressedData) {
+                try {
+                    console.log('Loading shared project from URL...');
+                    const decompressed = LZString.decompressFromEncodedURIComponent(compressedData);
+                    const loadedTree = JSON.parse(decompressed);
+
+                    // Replace capexTree with loaded data
+                    capexTree = loadedTree;
+
+                    // Update currentPattern if it's in the loaded data
+                    if (capexTree.pattern && capexTree.pattern.key) {
+                        currentPattern = capexTree.pattern.key;
+                    }
+
+                    console.log('✅ Shared project loaded successfully!');
+                    console.log('Project:', capexTree.name || capexTree.title);
+                    console.log('Pattern:', currentPattern);
+
+                    // Show a brief success message
+                    setTimeout(() => {
+                        const toast = document.createElement('div');
+                        toast.textContent = '✅ Shared project loaded!';
+                        toast.style.cssText = `
+                            position: fixed;
+                            top: 80px;
+                            right: 20px;
+                            background: linear-gradient(135deg, #10b981, #059669);
+                            color: white;
+                            padding: 15px 25px;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                            z-index: 10000;
+                            font-weight: 600;
+                            animation: slideIn 0.3s ease-out;
+                        `;
+                        document.body.appendChild(toast);
+
+                        setTimeout(() => {
+                            toast.style.animation = 'slideOut 0.3s ease-in';
+                            setTimeout(() => toast.remove(), 300);
+                        }, 3000);
+                    }, 500);
+
+                } catch (error) {
+                    console.error('❌ Failed to load shared project:', error);
+                    alert('Failed to load shared project. The URL may be corrupted or invalid.');
+                }
+            }
+        })();
 
         // Initial render
         render();
