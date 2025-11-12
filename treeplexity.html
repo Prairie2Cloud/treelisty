@@ -3107,7 +3107,9 @@ function hidePatternDescription() {
 
                                 // Visit dependencies first (only same-phase dependencies)
                                 if (item.dependencies) {
-                                    item.dependencies.forEach(depId => {
+                                    // Handle both array and string formats
+                                    const deps = Array.isArray(item.dependencies) ? item.dependencies : [];
+                                    deps.forEach(depId => {
                                         if (phaseIds.includes(depId)) {
                                             const depItem = items.find(i => i.id === depId);
                                             if (depItem) {
@@ -5424,7 +5426,7 @@ ALWAYS include in treeUpdate:
 - Phases (3-6 typical)
 - Items per phase (2-5 typical)
 - Subtasks for complex items (2-5 steps)
-- Dependencies where order matters
+- Dependency info in descriptions (e.g., "After Phase 1 completes...")
 - Pattern-specific fields (infer from conversation)
 
 NEVER ask about:
@@ -5447,9 +5449,8 @@ RESPONSE FORMAT - ONLY JSON, NO OTHER TEXT:
         "items": [
           {
             "name": "Item name",
-            "description": "Item description",
+            "description": "Item description (include dependency notes like 'Requires X to complete first' if order matters)",
             "itemType": "type",
-            "dependencies": "Previous item or prerequisite",
             "subtasks": [
               {"name": "Step 1", "description": "Detail"},
               {"name": "Step 2", "description": "Detail"}
@@ -5549,11 +5550,17 @@ RESPONSE FORMAT - ONLY JSON, NO OTHER TEXT:
                                 </div>`;
                             }
 
-                            // Dependencies
+                            // Dependencies (if present - for backward compatibility)
                             if (item.dependencies) {
-                                html += `<div style="color: #f59e0b; font-size: 11px; margin-top: 4px; margin-left: 20px;">
-                                    ⚠️ Depends on: ${item.dependencies}
-                                </div>`;
+                                // Handle both array and string formats
+                                const depText = Array.isArray(item.dependencies)
+                                    ? item.dependencies.join(', ')
+                                    : item.dependencies;
+                                if (depText && depText.length > 0) {
+                                    html += `<div style="color: #f59e0b; font-size: 11px; margin-top: 4px; margin-left: 20px;">
+                                        ⚠️ Depends on: ${depText}
+                                    </div>`;
+                                }
                             }
 
                             // Subtasks
