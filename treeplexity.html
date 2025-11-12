@@ -5115,12 +5115,15 @@ function hidePatternDescription() {
             const estimatedTokens = Math.ceil(charCount / 4);
             const estimatedWords = Math.ceil(charCount / 5);
 
-            if (charCount > 50000) { // Will be truncated
+            if (charCount > 100000) { // Will be truncated
                 warningEl.style.display = 'block';
-                warningText.textContent = `⚠️ Text is ${charCount.toLocaleString()} characters (~${estimatedWords.toLocaleString()} words). Will be automatically truncated to 50,000 characters (~12,500 words) to prevent timeouts. Consider pasting a shorter excerpt for best results.`;
-            } else if (charCount > 30000) { // Large but ok
+                warningText.textContent = `⚠️ Text is ${charCount.toLocaleString()} characters (~${estimatedWords.toLocaleString()} words). Will be automatically truncated to 100,000 characters (~25,000 words) to prevent timeouts. Consider pasting a shorter excerpt for best results.`;
+            } else if (charCount > 75000) { // Large but ok
                 warningEl.style.display = 'block';
-                warningText.textContent = `Large text (${charCount.toLocaleString()} characters, ~${estimatedWords.toLocaleString()} words). Analysis may take 10-20 seconds. Quick Mode recommended.`;
+                warningText.textContent = `Very large text (${charCount.toLocaleString()} characters, ~${estimatedWords.toLocaleString()} words). Analysis may take 15-25 seconds. Quick Mode strongly recommended.`;
+            } else if (charCount > 50000) { // Large
+                warningEl.style.display = 'block';
+                warningText.textContent = `Large text (${charCount.toLocaleString()} characters, ~${estimatedWords.toLocaleString()} words). Deep Mode will provide richer analysis but may take 20-30 seconds.`;
             } else if (charCount > 5000) {
                 warningEl.style.display = 'block';
                 warningText.textContent = `Medium text (${charCount.toLocaleString()} characters, ~${estimatedWords.toLocaleString()} words). Analysis should take 15-30 seconds.`;
@@ -5382,16 +5385,22 @@ PATTERN-SPECIFIC FIELDS TO EXTRACT:${fieldHints || '\n- Extract name and descrip
 TEXT:
 ${text}
 
-INSTRUCTIONS (BE CONCISE TO AVOID TIMEOUT):
-1. Analyze the text and identify hierarchical structure
-2. Create 2-4 phases (${levels.phase}s) - MAXIMUM 4
-3. For each phase, create 2-5 items (${levels.item}s) - MAXIMUM 5 per phase
-4. For complex items, add 1-3 subtasks (${levels.subtask}s) - MAXIMUM 3 per item
-5. Extract pattern-specific field values ONLY if clearly stated
-6. Identify dependencies ONLY if explicitly mentioned (format: "item-X-Y")
-7. Keep descriptions SHORT (under 150 characters)
+DEEP MODE INSTRUCTIONS - PRIORITIZE FIDELITY & DEPTH:
+1. Thoroughly analyze the text to identify ALL hierarchical relationships
+2. Create 3-6 phases (${levels.phase}s) - capture the full logical flow
+3. For each phase, create 3-8 items (${levels.item}s) - extract all significant claims/elements
+4. For EVERY complex item, add 2-5 subtasks (${levels.subtask}s) - show supporting evidence/reasoning
+5. Extract ALL pattern-specific field values mentioned in the text
+6. CRITICAL: Identify ALL logical dependencies and prerequisite relationships
+   - Look for: "depends on", "requires", "builds on", "follows from", "assumes"
+   - Format dependencies as: ["item-X-Y", "item-X-Z"]
+7. Use detailed descriptions (up to 250 characters) - capture nuance and context
+8. For philosophical/argumentative texts:
+   - Extract premises, conclusions, and supporting evidence
+   - Show how arguments build on each other
+   - Map objections to their responses
 
-IMPORTANT: PRIORITIZE SPEED. Only extract the most critical elements.
+IMPORTANT: DEEP MODE = COMPREHENSIVE ANALYSIS. Extract maximum detail and show logical structure.
 
 JSON FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
 - NO trailing commas after the last element in arrays or objects
@@ -5435,7 +5444,7 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt, '', 1500, false); // Reduced to avoid Netlify timeout
+            const response = await callClaudeAPI(prompt, '', 3500, false); // Deep Mode: More tokens for detailed, layered analysis
 
             try {
                 // Try to extract JSON from response
@@ -5514,7 +5523,7 @@ ${jsonText}`;
             }
 
             // Auto-truncate very long texts to prevent timeouts
-            const MAX_CHARS = 50000; // ~12,500 words max (increased for Haiku speed)
+            const MAX_CHARS = 100000; // ~25,000 words max (Haiku can handle it!)
             let wasTruncated = false;
             if (finalText.length > MAX_CHARS) {
                 wasTruncated = true;
