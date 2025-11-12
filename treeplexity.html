@@ -1179,7 +1179,25 @@
                 <button class="btn" id="expand-btn" title="Expand all phases">⬇️ Expand</button>
                 <button class="btn" id="collapse-btn" title="Collapse all phases">⬆️ Collapse</button>
             </div>
-<div class="control-section pattern-selector">                <select class="pattern-select" id="pattern-select" title="Choose naming pattern">                    <option value="generic" data-desc="Universal: Project → Phase → Item → Task">📋 Generic Project</option>                    <option value="sales" data-desc="Sales: Pipeline → Quarter → Deal → Action">💼 Sales Pipeline</option>                    <option value="thesis" data-desc="Academic: Thesis → Chapter → Section → Point">🎓 Academic Writing</option>                    <option value="roadmap" data-desc="Product: Product → Quarter → Feature → Story">🚀 Product Roadmap</option>                    <option value="book" data-desc="Writing: Book → Part → Chapter → Scene">📚 Book Writing</option>                    <option value="event" data-desc="Events: Event → Stage → Activity → Task">🎉 Event Planning</option>                    <option value="fitness" data-desc="Fitness: Program → Phase → Workout → Exercise">💪 Fitness Program</option>                    <option value="strategy" data-desc="Business: Strategy → Pillar → Initiative → Action">📊 Strategic Plan</option>                    <option value="course" data-desc="Education: Course → Unit → Lesson → Exercise">📖 Course Design</option>                    <option value="film" data-desc="Production: Film → Phase → Scene → Shot">🎬 Film Production</option>                    <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>                    <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>                    <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>                    <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>                </select>            </div>
+
+            <div class="control-section pattern-selector">
+                <select class="pattern-select" id="pattern-select" title="Choose naming pattern">
+                    <option value="generic" data-desc="Universal: Project → Phase → Item → Task">📋 Generic Project</option>
+                    <option value="sales" data-desc="Sales: Pipeline → Quarter → Deal → Action">💼 Sales Pipeline</option>
+                    <option value="thesis" data-desc="Academic: Thesis → Chapter → Section → Point">🎓 Academic Writing</option>
+                    <option value="roadmap" data-desc="Product: Product → Quarter → Feature → Story">🚀 Product Roadmap</option>
+                    <option value="book" data-desc="Writing: Book → Part → Chapter → Scene">📚 Book Writing</option>
+                    <option value="event" data-desc="Events: Event → Stage → Activity → Task">🎉 Event Planning</option>
+                    <option value="fitness" data-desc="Fitness: Program → Phase → Workout → Exercise">💪 Fitness Program</option>
+                    <option value="strategy" data-desc="Business: Strategy → Pillar → Initiative → Action">📊 Strategic Plan</option>
+                    <option value="course" data-desc="Education: Course → Unit → Lesson → Exercise">📖 Course Design</option>
+                    <option value="film" data-desc="Production: Film → Phase → Scene → Shot">🎬 Film Production</option>
+                    <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>
+                    <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>
+                    <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
+                    <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
+                </select>
+            </div>
 
             <div class="control-section">
                 <button class="btn" id="analyze-text-btn" title="Analyze text to detect pattern and create tree structure" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔍 Analyze Text</button>
@@ -5102,28 +5120,39 @@ function hidePatternDescription() {
             e.target.value = '';
         });
 
-        // Controls
-        document.getElementById('expand-btn').addEventListener('click', () => {
-            function expandAll(node) {
-                if (node.children) {
-                    node.expanded = true;
-                    node.children.forEach(expandAll);
-                }
-            }
-            expandAll(capexTree);
-            render();
-        });
+        // Controls - Expand/Collapse All
+        const expandBtn = document.getElementById('expand-btn');
+        const collapseBtn = document.getElementById('collapse-btn');
 
-        document.getElementById('collapse-btn').addEventListener('click', () => {
-            function collapseAll(node) {
-                if (node.children) {
-                    node.expanded = false;
-                    node.children.forEach(collapseAll);
+        if (expandBtn) {
+            expandBtn.addEventListener('click', () => {
+                function expandAll(node) {
+                    if (node.children) {
+                        node.expanded = true;
+                        node.children.forEach(expandAll);
+                    }
                 }
-            }
-            capexTree.children.forEach(collapseAll);
-            render();
-        });
+                expandAll(capexTree);
+                render();
+            });
+        } else {
+            console.error('Expand button not found!');
+        }
+
+        if (collapseBtn) {
+            collapseBtn.addEventListener('click', () => {
+                function collapseAll(node) {
+                    if (node.children) {
+                        node.expanded = false;
+                        node.children.forEach(collapseAll);
+                    }
+                }
+                capexTree.children.forEach(collapseAll);
+                render();
+            });
+        } else {
+            console.error('Collapse button not found!');
+        }
 
         // Save and Load JSON buttons in console
         document.getElementById('save-json-btn').addEventListener('click', handleDownload);
