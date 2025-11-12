@@ -1582,7 +1582,8 @@ The AI will analyze the structure and convert it to a tree."
         }
 
         // Call Claude API - supports both local API key and Netlify function
-        async function callClaudeAPI(prompt, systemPrompt = '', maxTokens = 1024, useExtendedThinking = false) {
+        async function callClaudeAPI(prompt, systemPrompt = '', maxTokens = 1024, useExtendedThinking = false, retryCount = 0) {
+            const MAX_RETRIES = 2;
             const localApiKey = getLocalAPIKey();
 
             const requestData = {
@@ -1688,7 +1689,24 @@ The AI will analyze the structure and convert it to a tree."
                     throw new Error('Netlify function not found (404). The serverless function may not be deployed.');
                 }
                 if (response.status === 429) {
+                    // Rate limit - retry with exponential backoff
+                    if (retryCount < MAX_RETRIES) {
+                        const delay = Math.pow(2, retryCount) * 3000; // 3s, 6s
+                        console.log(`🔄 Rate limit hit. Retrying in ${delay/1000} seconds... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
+                    }
                     throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+                }
+                if (response.status === 529) {
+                    // API overloaded - retry with exponential backoff
+                    if (retryCount < MAX_RETRIES) {
+                        const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s
+                        console.log(`🔄 API overloaded. Retrying in ${delay/1000} seconds... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                        return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
+                    }
+                    throw new Error('Anthropic API is temporarily overloaded. Please wait 10-30 seconds and try again.');
                 }
                 if (response.status === 500 && error.error?.message?.includes('configuration')) {
                     throw new Error('AI service is not configured. Please set up your API key.');
