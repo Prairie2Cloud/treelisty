@@ -1176,6 +1176,7 @@
             </div>
 
             <div class="control-section">
+                <button class="btn" id="undo-btn" title="Undo last action" disabled style="opacity: 0.5;">↩️ Undo</button>
                 <button class="btn" id="expand-btn" title="Expand all phases">⬇️ Expand</button>
                 <button class="btn" id="collapse-btn" title="Collapse all phases">⬆️ Collapse</button>
             </div>
@@ -2362,6 +2363,157 @@ Focus on logical structure and content organization best practices.`;
                 }
             ]
         };
+
+        // =============================================================================
+        // UNDO/REDO SYSTEM
+        // =============================================================================
+
+        // History stack for undo functionality
+        const historyStack = [];
+        const MAX_HISTORY = 50; // Keep last 50 states
+
+        // Save current state to history before making changes
+        function saveState(actionName = 'Unknown action') {
+            const state = {
+                tree: JSON.parse(JSON.stringify(capexTree)), // Deep copy
+                pattern: currentPattern,
+                timestamp: Date.now(),
+                action: actionName
+            };
+
+            historyStack.push(state);
+
+            // Limit history size
+            if (historyStack.length > MAX_HISTORY) {
+                historyStack.shift(); // Remove oldest
+            }
+
+            updateUndoButton();
+            console.log(`💾 State saved: ${actionName} (${historyStack.length} states in history)`);
+        }
+
+        // Undo last action
+        function undo() {
+            if (historyStack.length === 0) {
+                console.warn('⚠️ No history to undo');
+                return;
+            }
+
+            const previousState = historyStack.pop();
+
+            // Restore previous state
+            capexTree = previousState.tree;
+            currentPattern = previousState.pattern;
+            document.getElementById('pattern-select').value = currentPattern;
+
+            // Re-render
+            render();
+
+            updateUndoButton();
+
+            console.log(`↩️ Undo: Restored state from "${previousState.action}" (${historyStack.length} states remaining)`);
+
+            // Show toast notification
+            showToast(`Undone: ${previousState.action}`);
+        }
+
+        // Update undo button state
+        function updateUndoButton() {
+            const undoBtn = document.getElementById('undo-btn');
+            if (undoBtn) {
+                if (historyStack.length > 0) {
+                    undoBtn.disabled = false;
+                    undoBtn.style.opacity = '1';
+                    const lastAction = historyStack[historyStack.length - 1].action;
+                    undoBtn.title = `Undo: ${lastAction}`;
+                } else {
+                    undoBtn.disabled = true;
+                    undoBtn.style.opacity = '0.5';
+                    undoBtn.title = 'Nothing to undo';
+                }
+            }
+        }
+
+        // Toast notification for undo
+        function showToast(message) {
+            // Remove existing toast if any
+            const existingToast = document.getElementById('undo-toast');
+            if (existingToast) {
+                existingToast.remove();
+            }
+
+            // Create toast
+            const toast = document.createElement('div');
+            toast.id = 'undo-toast';
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 30px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(0, 0, 0, 0.85);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 14px;
+                z-index: 10000;
+                box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+                animation: slideUp 0.3s ease-out;
+            `;
+            toast.textContent = message;
+
+            // Add animation
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes slideUp {
+                    from {
+                        opacity: 0;
+                        transform: translateX(-50%) translateY(20px);
+                    }
+                    to {
+                        opacity: 1;
+                        transform: translateX(-50%) translateY(0);
+                    }
+                }
+            `;
+            document.head.appendChild(style);
+
+            document.body.appendChild(toast);
+
+            // Auto-remove after 2 seconds
+            setTimeout(() => {
+                toast.style.animation = 'slideUp 0.3s ease-out reverse';
+                setTimeout(() => toast.remove(), 300);
+            }, 2000);
+        }
+
+        // Attach undo button handler
+        const undoBtnEl = document.getElementById('undo-btn');
+        if (undoBtnEl) {
+            undoBtnEl.addEventListener('click', undo);
+        }
+
+        // Keyboard shortcut for undo (Ctrl+Z / Cmd+Z)
+        document.addEventListener('keydown', (e) => {
+            // Check for Ctrl+Z (Windows/Linux) or Cmd+Z (Mac)
+            if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                // Don't trigger undo if user is typing in an input/textarea
+                const activeElement = document.activeElement;
+                if (activeElement &&
+                    (activeElement.tagName === 'INPUT' ||
+                     activeElement.tagName === 'TEXTAREA' ||
+                     activeElement.isContentEditable)) {
+                    return; // Let the browser handle undo in text fields
+                }
+
+                e.preventDefault();
+                undo();
+            }
+        });
+
+        // =============================================================================
+        // END UNDO/REDO SYSTEM
+        // =============================================================================
+
 // TREEPLEXITY PATTERN SELECTOR
 // Insert this code into treelisty.html
 
@@ -4724,6 +4876,9 @@ function hidePatternDescription() {
 
         function handleCreate() {
             if (activeNode && activeNode.type === 'phase') {
+                // Save state for undo
+                saveState(`Create item in ${activeNode.name}`);
+
                 // Create new item in this phase
                 const labels = getPatternLabels();
                 const defaultType = PATTERNS[currentPattern].types[0].value;
@@ -4755,6 +4910,9 @@ function hidePatternDescription() {
                 // Prompt for sub-task name
                 const subtaskName = prompt(`Enter ${promptLabel} name:`, `New ${isNestedSubtask ? 'Nested ' : ''}${labels.subtask}`);
                 if (!subtaskName) return;
+
+                // Save state for undo
+                saveState(`Add subtask to ${activeNode.name}`);
 
                 // Get today's date in YYYY-MM-DD format
                 const today = new Date().toISOString().split('T')[0];
@@ -4800,7 +4958,9 @@ function hidePatternDescription() {
         function handleDelete() {
             if (activeNode && (activeNode.type === 'item' || activeNode.type === 'subtask')) {
                 const itemType = activeNode.type === 'subtask' ? 'sub-task' : 'item';
-                if (confirm(`Delete "${activeNode.name}" ${itemType}? This cannot be undone.`)) {
+                if (confirm(`Delete "${activeNode.name}" ${itemType}?`)) {
+                    // Save state for undo
+                    saveState(`Delete ${itemType}: ${activeNode.name}`);
                     if (activeNode.type === 'subtask') {
                         // Remove subtask from its parent item
                         function removeSubtask(subtaskId, node = capexTree) {
@@ -5007,6 +5167,9 @@ function hidePatternDescription() {
         // Edit modal save/cancel handlers
         document.getElementById('edit-save').addEventListener('click', () => {
             if (activeNode) {
+                // Save state for undo
+                saveState(`Edit ${activeNode.type}: ${activeNode.name}`);
+
                 // Save universal fields
                 activeNode.name = document.getElementById('edit-name').value;
                 activeNode.description = document.getElementById('edit-description').value;
@@ -6027,6 +6190,9 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
         // Finish wizard
         document.getElementById('wizard-done').addEventListener('click', () => {
+            // Save state for undo
+            saveState('AI Wizard: Apply changes');
+
             // Apply working tree to main tree
             capexTree = wizardState.workingTree;
             currentPattern = wizardState.patternKey;
@@ -7753,6 +7919,9 @@ ${jsonText}`;
         // Import analyzed tree into TreeListy
         function importAnalyzedTree(treeData, selectedPattern, appendMode = false) {
             console.log('📥 Starting import...', { treeData, selectedPattern, appendMode });
+
+            // Save state for undo
+            saveState(appendMode ? 'Analyze Text: Append' : 'Analyze Text: Import');
 
             // Backup current project first
             const backup = JSON.stringify(capexTree, null, 2);
