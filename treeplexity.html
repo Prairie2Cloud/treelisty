@@ -5331,7 +5331,8 @@ function hidePatternDescription() {
                 awaitingResponse: false,
                 workingTree: JSON.parse(JSON.stringify(capexTree)), // Deep copy
                 patternKey: currentPattern,
-                enhanceMode: enhanceMode
+                enhanceMode: enhanceMode,
+                retryCount: 0 // Track recovery attempts
             };
 
             // Get pattern info
@@ -5414,7 +5415,7 @@ function hidePatternDescription() {
                 console.log('🪄 System prompt length:', systemPrompt.length);
                 console.log('🪄 User prompt length:', userPrompt.length);
 
-                const response = await callClaudeAPI(userPrompt, systemPrompt, 3000);
+                const response = await callClaudeAPI(userPrompt, systemPrompt, 4000); // Increased to 4000 (Haiku max) to reduce truncation
 
                 console.log('🪄 AI Raw Response:', response);
 
@@ -5484,7 +5485,35 @@ function hidePatternDescription() {
                 }
 
                 if (endPos === -1) {
-                    throw new Error('Incomplete JSON object in AI response (no closing brace found).');
+                    console.error('🪄 Incomplete JSON - Wizard response was cut off!');
+                    console.error('🪄 Full response length:', response.length);
+                    console.error('🪄 Response (first 500 chars):', response.substring(0, 500));
+                    console.error('🪄 Response (last 500 chars):', response.substring(Math.max(0, response.length - 500)));
+
+                    // Check retry limit
+                    wizardState.retryCount = (wizardState.retryCount || 0) + 1;
+                    if (wizardState.retryCount > 2) {
+                        throw new Error('Response was cut off multiple times. Try asking the wizard to add fewer items at once, or click "Finish & Apply" to save current progress.');
+                    }
+
+                    // Try to recover by asking AI to simplify
+                    console.log('🪄 Attempting auto-recovery (attempt ' + wizardState.retryCount + '/2)...');
+
+                    // Add a recovery message to conversation
+                    wizardState.conversation.push({
+                        role: 'system',
+                        content: 'Your last response was cut off (too long). Please provide a MUCH SHORTER response with only 2-3 items MAX. Be extremely concise.'
+                    });
+
+                    // Show user-friendly message
+                    addWizardMessage('ai', "Oops! My response was too long and got cut off. Let me try with a shorter answer...");
+
+                    // Retry with simplified prompt
+                    document.getElementById('wizard-user-input').disabled = false;
+                    document.getElementById('wizard-send').disabled = false;
+                    wizardState.awaitingResponse = false;
+                    setTimeout(() => wizardAsk(), 500);
+                    return;
                 }
 
                 jsonStr = jsonStr.substring(firstBrace, endPos);
@@ -5564,6 +5593,9 @@ function hidePatternDescription() {
                 if (!parsed.message) {
                     throw new Error('AI response missing "message" field');
                 }
+
+                // Success! Reset retry count
+                wizardState.retryCount = 0;
 
                 // Add AI message to conversation history
                 wizardState.conversation.push({role: 'assistant', content: parsed.message});
@@ -5819,6 +5851,7 @@ Your ENTIRE response must be ONLY this JSON object:
 
 🎯 CRITICAL RULES:
 - Return ONLY JSON, no text before/after
+- ⚠️ KEEP RESPONSES CONCISE: Don't add too many items at once (max 5-7 items per turn)
 - Turn 1: Build MINIMAL tree (just project name), ask about GOAL
 - Turn 2+: Include treeUpdate with 2-4+ new items per turn
 - INFER AGGRESSIVELY: Add details based on context, let user correct
@@ -5826,6 +5859,7 @@ Your ENTIRE response must be ONLY this JSON object:
 - Follow the QUESTIONING ORDER above (Goal → Structure → Details → Validation)
 - Track progress field accurately (0.0 → 1.0)
 - Set done=true when tree is complete (typically turn 5)
+- If tree is getting large (>20 items), add fewer items per turn to avoid truncation
 
 🚀 FIRST RESPONSE INSTRUCTION:
 ${wizardState.enhanceMode ? `
