@@ -1820,15 +1820,12 @@ Your expertise includes:
 
 Provide concise, accurate insights with detailed context formatted with clear sections and bullet points.`;
 
-                userPrompt = `Analyze this project line item for data center project:
+                userPrompt = `Analyze this project line item:
 
 **Item:** ${item.name}
 **Type:** ${item.itemType || 'N/A'}
-**Cost:** $${(item.cost || 0).toLocaleString()}
-**Description:** ${item.description || 'N/A'}
-**Lead Time:** ${item.leadTime || 'Not specified'}
-**Alternate Source:** ${item.alternateSource || 'Not specified'}
-**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+${PATTERNS[currentPattern].fields?.cost ? `**Cost:** $${(item.cost || 0).toLocaleString()}\n` : ''}**Description:** ${item.description || 'N/A'}
+${PATTERNS[currentPattern].fields?.leadTime ? `**Lead Time:** ${item.leadTime || 'Not specified'}\n` : ''}${PATTERNS[currentPattern].fields?.alternateSource ? `**Alternate Source:** ${item.alternateSource || 'Not specified'}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
 **Context Notes:** ${item.notes || 'None provided'}
 
 Provide a focused analysis covering:
@@ -1861,12 +1858,12 @@ ${Object.entries(itemsByPhase).map(([phase, items]) => {
     return `- ${phase}: ${items.length} items, $${phaseTotal.toLocaleString()}`;
 }).join('\n')}
 
-**Major Line Items (>$1M):**
+${PATTERNS[currentPattern].fields?.cost ? `**Major Line Items (>$1M):**
 ${allItems.filter(i => i.cost > 1000000).map(i =>
     `- ${i.name}: $${i.cost.toLocaleString()} (${i.itemType})`
 ).join('\n') || 'None'}
 
-**Key Dependencies:**
+` : ''}**Key Dependencies:**
 ${allItems.filter(i => i.dependencies?.length > 0).map(i =>
     `- ${i.name} depends on ${i.dependencies.length} item(s)`
 ).join('\n') || 'No dependencies defined'}
@@ -3606,10 +3603,12 @@ function hidePatternDescription() {
                     <h4>ID</h4>
                     <p><code style="background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">${node.id || 'N/A'}</code></p>
                 </div>
+                ${PATTERNS[currentPattern].fields?.cost ? `
                 <div class="info-section">
                     <h4>Cost</h4>
                     <p class="value">${formatCost(node.cost || 0)}</p>
                 </div>
+                ` : ''}
                 <div class="info-section">
                     <h4>Description</h4>
                     <p>${node.description || node.subtitle || 'N/A'}</p>
