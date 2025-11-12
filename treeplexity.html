@@ -5230,15 +5230,97 @@ function hidePatternDescription() {
             patternKey: null
         };
 
-        // Start wizard
-        document.getElementById('wizard-btn').addEventListener('click', startWizard);
+        // Check if tree has meaningful content
+        function hasExistingContent() {
+            // Check if any phase has items
+            if (capexTree.children) {
+                for (const phase of capexTree.children) {
+                    if (phase.items && phase.items.length > 0) {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
 
-        async function startWizard() {
+        // Start wizard
+        document.getElementById('wizard-btn').addEventListener('click', () => {
             // Check if API key is configured
             if (!checkAPIKeyConfigured()) {
                 return;
             }
 
+            // If tree has content, ask user if they want to enhance or start fresh
+            if (hasExistingContent()) {
+                showWizardModeChoice();
+            } else {
+                startWizard(false); // false = start fresh
+            }
+        });
+
+        // Show modal to choose wizard mode
+        function showWizardModeChoice() {
+            const pattern = PATTERNS[currentPattern];
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🪄 AI Wizard Mode';
+
+            // Count existing items
+            const itemCount = capexTree.children?.reduce((sum, phase) =>
+                sum + (phase.items?.length || 0), 0) || 0;
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px;">
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 24px;">
+                        Your tree already has <strong style="color: var(--treeplex-primary);">${itemCount} ${pattern.levels.item.toLowerCase()}(s)</strong>.
+                        How would you like to proceed?
+                    </p>
+
+                    <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                        <div id="mode-enhance" style="flex: 1; padding: 20px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--treeplex-primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                            <div style="font-size: 32px; margin-bottom: 12px; text-align: center;">✨</div>
+                            <div style="font-weight: 600; font-size: 16px; color: var(--text-primary); margin-bottom: 8px; text-align: center;">
+                                Enhance Existing
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                                Keep your current tree and use the wizard to add more detail, fill gaps, or expand sections.
+                            </div>
+                        </div>
+
+                        <div id="mode-fresh" style="flex: 1; padding: 20px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;" onmouseover="this.style.borderColor='var(--treeplex-primary)'" onmouseout="this.style.borderColor='var(--border)'">
+                            <div style="font-size: 32px; margin-bottom: 12px; text-align: center;">🌱</div>
+                            <div style="font-weight: 600; font-size: 16px; color: var(--text-primary); margin-bottom: 8px; text-align: center;">
+                                Start Fresh
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                                Clear the current tree and build a completely new structure from scratch.
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: 16px; padding: 12px; background: rgba(163, 85, 247, 0.1); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+                        💡 <strong>Tip:</strong> Enhancement mode is great for iterative refinement. The wizard will see your existing structure and help you improve it.
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Add click handlers
+            document.getElementById('mode-enhance').onclick = () => {
+                modal.style.display = 'none';
+                startWizard(true); // true = enhance mode
+            };
+
+            document.getElementById('mode-fresh').onclick = () => {
+                modal.style.display = 'none';
+                startWizard(false); // false = start fresh
+            };
+        }
+
+        async function startWizard(enhanceMode = false) {
             // Reset wizard state
             wizardState = {
                 active: true,
@@ -5248,7 +5330,8 @@ function hidePatternDescription() {
                 totalFields: 0,
                 awaitingResponse: false,
                 workingTree: JSON.parse(JSON.stringify(capexTree)), // Deep copy
-                patternKey: currentPattern
+                patternKey: currentPattern,
+                enhanceMode: enhanceMode
             };
 
             // Get pattern info
@@ -5257,7 +5340,8 @@ function hidePatternDescription() {
             wizardState.totalFields = Object.keys(patternFields).length;
 
             // Update modal title
-            document.getElementById('wizard-title').textContent = `🪄 AI Wizard - Building Your ${pattern.name}`;
+            const modeLabel = enhanceMode ? '✨ Enhancing' : '🪄 Building';
+            document.getElementById('wizard-title').textContent = `${modeLabel} Your ${pattern.name}`;
             document.getElementById('wizard-fields-total').textContent = wizardState.totalFields;
 
             // Clear chat and preview
@@ -5322,7 +5406,9 @@ function hidePatternDescription() {
                 ).join('\n\n');
 
                 const userPrompt = conversationContext ||
-                    "Start the wizard conversation. Ask the user what they want to build.";
+                    (wizardState.enhanceMode ?
+                        "The user wants to enhance their existing tree. Acknowledge what they have and ask how you can help improve it." :
+                        "Start the wizard conversation. Ask the user what they want to build.");
 
                 console.log('🪄 Wizard asking AI...');
                 console.log('🪄 System prompt length:', systemPrompt.length);
@@ -5561,16 +5647,62 @@ function hidePatternDescription() {
             const itemCount = (wizardState.workingTree.children || []).reduce((acc, phase) =>
                 acc + (phase.items || []).length, 0);
 
+            // Build detailed existing structure summary for enhance mode
+            let existingStructure = '';
+            if (wizardState.enhanceMode && itemCount > 0) {
+                existingStructure = '\n\n🌳 EXISTING TREE STRUCTURE (DO NOT DELETE - ADD TO THIS):\n\n';
+                existingStructure += `**${wizardState.workingTree.name}**\n`;
+                if (wizardState.workingTree.description) {
+                    existingStructure += `Description: ${wizardState.workingTree.description}\n`;
+                }
+                existingStructure += '\n';
+
+                (wizardState.workingTree.children || []).forEach((phase, idx) => {
+                    existingStructure += `${levels.phase} ${idx + 1}: ${phase.name}`;
+                    if (phase.subtitle) existingStructure += ` (${phase.subtitle})`;
+                    existingStructure += `\n`;
+
+                    if (phase.items && phase.items.length > 0) {
+                        phase.items.forEach(item => {
+                            existingStructure += `  - ${item.name}`;
+                            if (item.description) {
+                                existingStructure += `: ${item.description.substring(0, 60)}${item.description.length > 60 ? '...' : ''}`;
+                            }
+                            existingStructure += `\n`;
+
+                            if (item.subtasks && item.subtasks.length > 0) {
+                                existingStructure += `    (${item.subtasks.length} subtasks)\n`;
+                            }
+                        });
+                    } else {
+                        existingStructure += `  (no items yet)\n`;
+                    }
+                    existingStructure += '\n';
+                });
+
+                existingStructure += `Total: ${phaseCount} ${levels.phase.toLowerCase()}(s), ${itemCount} ${levels.item.toLowerCase()}(s)\n\n`;
+                existingStructure += `🎯 YOUR MISSION: Help the user ENHANCE this existing tree by:\n`;
+                existingStructure += `- Adding more detail to existing items\n`;
+                existingStructure += `- Filling gaps or missing sections\n`;
+                existingStructure += `- Expanding phases that seem incomplete\n`;
+                existingStructure += `- Adding subtasks to items that need them\n\n`;
+                existingStructure += `⚠️ CRITICAL: Keep ALL existing structure in your treeUpdate. ADD to it, don't replace it.\n`;
+            }
+
+            const modeInstruction = wizardState.enhanceMode ?
+                `You are ENHANCING an existing ${pattern.name} project. The user already has a tree with ${itemCount} items. Help them improve, expand, or fill gaps.` :
+                `You are BUILDING a complete ${pattern.name} project from scratch. Extract NECESSARY and SUFFICIENT data in MINIMUM questions.`;
+
             return `⚠️ CRITICAL OUTPUT FORMAT: You MUST return ONLY a valid JSON object. NO text before the opening {. NO text after the closing }. NO explanations. NO commentary. JUST JSON.
 
-You are an EXPERT INFORMATION EXTRACTION WIZARD building a complete ${pattern.name} project. Extract NECESSARY and SUFFICIENT data in MINIMUM questions.
+You are an EXPERT INFORMATION EXTRACTION WIZARD. ${modeInstruction}
 
 CURRENT STATE:
 - Pattern: ${pattern.name}
 - Structure: ${levels.root} → ${levels.phase} → ${levels.item} → ${levels.subtask}
 - Fields: ${Object.keys(fields).join(', ') || 'none'}
 - Completed Fields: ${Array.from(wizardState.fieldsCompleted).join(', ') || 'none'}
-- Tree: ${treeSummary} (${phaseCount} phases, ${itemCount} items)
+- Tree: ${treeSummary} (${phaseCount} phases, ${itemCount} items)${existingStructure}
 
 🎯 CORE MISSION: Extract 100% of required information in ≤5 strategic questions
 
@@ -5696,12 +5828,21 @@ Your ENTIRE response must be ONLY this JSON object:
 - Set done=true when tree is complete (typically turn 5)
 
 🚀 FIRST RESPONSE INSTRUCTION:
-When user first describes what they want to build:
+${wizardState.enhanceMode ? `
+ENHANCE MODE - First response:
+1. Return the EXISTING tree structure in treeUpdate (keep everything)
+2. Set progress based on how complete the tree already is (0.5 to 0.8 typical)
+3. Ask: "I can see you have [X]. What would you like me to help you with? Add more ${levels.item.toLowerCase()}s, expand existing ones with more detail, add subtasks, or fill gaps?"
+
+CRITICAL: Include ALL existing phases, items, and subtasks in your first treeUpdate. Don't remove anything.
+` : `
+BUILD MODE - First response:
 1. Create minimal tree with just project name and empty description
 2. Set progress to 0.1
-3. Ask: "What is the exact GOAL of this prompt? What specific output/result should it produce?"
+3. Ask: "What is the exact GOAL of this ${pattern.name.toLowerCase()}? What specific output/result should it produce?"
 
-DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal first.`;
+DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal first.
+`}`;
         }
 
         // Merge tree update into working tree
