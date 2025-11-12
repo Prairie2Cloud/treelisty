@@ -5948,9 +5948,10 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
             const modal = document.getElementById('modal');
             const modalBody = document.getElementById('modal-body');
-            document.getElementById('modal-title').textContent = '✨ AI Project Analysis';
+            const pattern = PATTERNS[currentPattern];
+            const levels = pattern.levels;
 
-            const totalCost = calculateTotal(capexTree);
+            document.getElementById('modal-title').textContent = `✨ ${pattern.name} Analysis`;
 
             // Count items by phase
             function countItems(node, counts = {p0: 0, p1: 0, p2: 0}) {
@@ -5965,19 +5966,22 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
             const itemCounts = countItems(capexTree);
 
-            // Calculate phase costs (items only, not children)
-            function getPhaseCost(phaseId) {
-                const phase = findNode(phaseId);
-                return phase ? calculatePhaseTotal(phase) : 0;
-            }
+            // Pattern-aware summary cards
+            let summaryHTML = '';
 
-            const phase0Cost = getPhaseCost('phase-0');
-            const phase1Cost = getPhaseCost('phase-1');
-            const phase2Cost = getPhaseCost('phase-2');
+            // For financial patterns (generic, sales, roadmap, strategy)
+            if (pattern.fields && pattern.fields.cost) {
+                const totalCost = calculateTotal(capexTree);
+                const getPhaseCost = (phaseId) => {
+                    const phase = findNode(phaseId);
+                    return phase ? calculatePhaseTotal(phase) : 0;
+                };
 
-            // Show static summary cards first + loading state for AI analysis
-            modalBody.innerHTML = `
-                <div style="padding: 20px;">
+                const phase0Cost = getPhaseCost('phase-0');
+                const phase1Cost = getPhaseCost('phase-1');
+                const phase2Cost = getPhaseCost('phase-2');
+
+                summaryHTML = `
                     <div style="background: linear-gradient(135deg, var(--treeplex-primary), #009977); color: white; padding: 24px; border-radius: 12px; margin-bottom: 24px;">
                         <h2 style="margin-bottom: 8px; font-size: 32px;">${formatCost(totalCost)}</h2>
                         <p style="opacity: 0.9; font-size: 14px;">Total Project Investment</p>
@@ -5985,41 +5989,64 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
                     <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
                         <div style="background: #e8f5e9; padding: 16px; border-radius: 8px; border-left: 4px solid var(--phase-0);">
-                            <div style="font-size: 11px; font-weight: 600; color: #2e7d32; margin-bottom: 4px;">PHASE 0 • PRE-SEED</div>
+                            <div style="font-size: 11px; font-weight: 600; color: #2e7d32; margin-bottom: 4px;">${levels.phase.toUpperCase()} 1</div>
                             <div style="font-size: 20px; font-weight: 700; color: #1b5e20; margin-bottom: 4px;">${formatCost(phase0Cost)}</div>
-                            <div style="font-size: 12px; color: #2e7d32;">${itemCounts.p0} items</div>
+                            <div style="font-size: 12px; color: #2e7d32;">${itemCounts.p0} ${levels.item.toLowerCase()}s</div>
                         </div>
                         <div style="background: #e3f2fd; padding: 16px; border-radius: 8px; border-left: 4px solid var(--phase-1);">
-                            <div style="font-size: 11px; font-weight: 600; color: #1565c0; margin-bottom: 4px;">PHASE 1 • SEED</div>
+                            <div style="font-size: 11px; font-weight: 600; color: #1565c0; margin-bottom: 4px;">${levels.phase.toUpperCase()} 2</div>
                             <div style="font-size: 20px; font-weight: 700; color: #0d47a1; margin-bottom: 4px;">${formatCost(phase1Cost)}</div>
-                            <div style="font-size: 12px; color: #1565c0;">${itemCounts.p1} items</div>
+                            <div style="font-size: 12px; color: #1565c0;">${itemCounts.p1} ${levels.item.toLowerCase()}s</div>
                         </div>
                         <div style="background: #fff3e0; padding: 16px; border-radius: 8px; border-left: 4px solid var(--phase-2);">
-                            <div style="font-size: 11px; font-weight: 600; color: #e65100; margin-bottom: 4px;">PHASE 2 • BUILD</div>
+                            <div style="font-size: 11px; font-weight: 600; color: #e65100; margin-bottom: 4px;">${levels.phase.toUpperCase()} 3</div>
                             <div style="font-size: 20px; font-weight: 700; color: #bf360c; margin-bottom: 4px;">${formatCost(phase2Cost)}</div>
-                            <div style="font-size: 12px; color: #e65100;">${itemCounts.p2} items</div>
+                            <div style="font-size: 12px; color: #e65100;">${itemCounts.p2} ${levels.item.toLowerCase()}s</div>
                         </div>
+                    </div>`;
+            } else {
+                // For non-financial patterns (AI Prompt Design, Philosophy, etc.)
+                const totalItems = itemCounts.p0 + itemCounts.p1 + itemCounts.p2;
+                const totalSubtasks = capexTree.children?.reduce((acc, phase) => {
+                    return acc + (phase.items?.reduce((itemAcc, item) => {
+                        return itemAcc + (item.subtasks?.length || 0);
+                    }, 0) || 0);
+                }, 0) || 0;
+
+                summaryHTML = `
+                    <div style="background: linear-gradient(135deg, var(--treeplex-primary), #8b5cf6); color: white; padding: 24px; border-radius: 12px; margin-bottom: 24px;">
+                        <h2 style="margin-bottom: 8px; font-size: 32px;">${pattern.icon} ${capexTree.name || pattern.levels.root}</h2>
+                        <p style="opacity: 0.9; font-size: 14px;">${capexTree.children?.length || 0} ${levels.phase}s • ${totalItems} ${levels.item}s • ${totalSubtasks} ${levels.subtask}s</p>
                     </div>
 
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="font-size: 13px; font-weight: 600; margin-bottom: 12px; color: var(--text-secondary);">CAPITAL STRUCTURE</h4>
-                        <p style="font-size: 14px; line-height: 1.6; margin-bottom: 12px; color: var(--text-primary);">
-                            The project follows a phased capital deployment strategy with approximately
-                            <strong>${((phase0Cost/totalCost)*100).toFixed(1)}%</strong> in Pre-Seed,
-                            <strong>${((phase1Cost/totalCost)*100).toFixed(1)}%</strong> in Seed, and
-                            <strong>${((phase2Cost/totalCost)*100).toFixed(1)}%</strong> in Build phases.
-                        </p>
-                        <div style="background: var(--bg); height: 24px; border-radius: 12px; overflow: hidden; display: flex;">
-                            <div style="width: ${(phase0Cost/totalCost)*100}%; background: var(--phase-0);"></div>
-                            <div style="width: ${(phase1Cost/totalCost)*100}%; background: var(--phase-1);"></div>
-                            <div style="width: ${(phase2Cost/totalCost)*100}%; background: var(--phase-2);"></div>
+                    <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px;">
+                        <div style="background: #e8f5e9; padding: 16px; border-radius: 8px; border-left: 4px solid var(--phase-0);">
+                            <div style="font-size: 11px; font-weight: 600; color: #2e7d32; margin-bottom: 4px;">${levels.phase.toUpperCase()} 1</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #1b5e20; margin-bottom: 4px;">${itemCounts.p0}</div>
+                            <div style="font-size: 12px; color: #2e7d32;">${levels.item.toLowerCase()}s</div>
                         </div>
-                    </div>
+                        <div style="background: #e3f2fd; padding: 16px; border-radius: 8px; border-left: 4px solid var(--phase-1);">
+                            <div style="font-size: 11px; font-weight: 600; color: #1565c0; margin-bottom: 4px;">${levels.phase.toUpperCase()} 2</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #0d47a1; margin-bottom: 4px;">${itemCounts.p1}</div>
+                            <div style="font-size: 12px; color: #1565c0;">${levels.item.toLowerCase()}s</div>
+                        </div>
+                        <div style="background: #fff3e0; padding: 16px; border-radius: 8px; border-left: 4px solid var(--phase-2);">
+                            <div style="font-size: 11px; font-weight: 600; color: #e65100; margin-bottom: 4px;">${levels.phase.toUpperCase()} 3</div>
+                            <div style="font-size: 20px; font-weight: 700; color: #bf360c; margin-bottom: 4px;">${itemCounts.p2}</div>
+                            <div style="font-size: 12px; color: #e65100;">${levels.item.toLowerCase()}s</div>
+                        </div>
+                    </div>`;
+            }
+
+            // Show summary + loading state for AI analysis
+            modalBody.innerHTML = `
+                <div style="padding: 20px;">
+                    ${summaryHTML}
 
                     <div id="ai-analysis-loading" style="padding: 40px; text-align: center; background: var(--card-bg); border-radius: 12px; margin-top: 20px;">
                         <div class="spinner" style="margin: 0 auto 20px;"></div>
-                        <p style="color: var(--text-secondary); font-size: 14px;">AI is analyzing your project...</p>
-                        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">Generating Critical Path, Risk Assessment & Strategic Recommendations</p>
+                        <p style="color: var(--text-secondary); font-size: 14px;">AI is analyzing your ${pattern.name.toLowerCase()}...</p>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">Generating insights and recommendations</p>
                         <p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px;">Powered by Claude Sonnet</p>
                     </div>
                 </div>
