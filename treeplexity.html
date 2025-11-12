@@ -1456,10 +1456,17 @@ The AI will analyze the structure and convert it to a tree."
                 <span id="wizard-title">🪄 AI Wizard - Building Your Project</span>
             </div>
 
-            <div style="padding: 15px; background: var(--card-bg-light); border-bottom: 1px solid var(--border); display: flex; gap: 30px; font-size: 14px;">
-                <div>📊 Progress: <span id="wizard-question-count" style="color: var(--treeplex-primary); font-weight: 600;">0</span> questions asked</div>
-                <div>✓ Fields: <span id="wizard-fields-complete" style="color: var(--treeplex-primary); font-weight: 600;">0</span>/<span id="wizard-fields-total">10</span> complete</div>
-                <div id="wizard-completion" style="display: none; color: #10b981; font-weight: 600;">✅ Tree Complete!</div>
+            <div style="padding: 15px; background: var(--card-bg-light); border-bottom: 1px solid var(--border);">
+                <div style="display: flex; gap: 30px; font-size: 14px; margin-bottom: 10px;">
+                    <div>📊 Turn: <span id="wizard-question-count" style="color: var(--treeplex-primary); font-weight: 600;">0</span></div>
+                    <div>✓ Fields: <span id="wizard-fields-complete" style="color: var(--treeplex-primary); font-weight: 600;">0</span>/<span id="wizard-fields-total">10</span> complete</div>
+                    <div>📈 <span id="wizard-progress-percent" style="color: var(--treeplex-primary); font-weight: 600;">0%</span> complete</div>
+                    <div id="wizard-completion" style="display: none; color: #10b981; font-weight: 600;">✅ Ready to Apply!</div>
+                </div>
+                <!-- Progress Bar -->
+                <div style="width: 100%; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;">
+                    <div id="wizard-progress-bar" style="height: 100%; width: 0%; background: linear-gradient(90deg, var(--treeplex-primary), #10b981); transition: width 0.5s ease;"></div>
+                </div>
             </div>
 
             <div class="modal-body" style="display: flex; gap: 20px; padding: 20px; height: calc(85vh - 200px); overflow: hidden;">
@@ -5234,9 +5241,18 @@ function hidePatternDescription() {
                     document.getElementById('wizard-fields-complete').textContent = wizardState.fieldsCompleted.size;
                 }
 
+                // Update progress bar (from AI's progress field 0.0 to 1.0)
+                if (parsed.progress !== undefined) {
+                    const percentComplete = Math.round(parsed.progress * 100);
+                    document.getElementById('wizard-progress-percent').textContent = `${percentComplete}%`;
+                    document.getElementById('wizard-progress-bar').style.width = `${percentComplete}%`;
+                }
+
                 // Check if done
                 if (parsed.done) {
                     document.getElementById('wizard-completion').style.display = 'block';
+                    document.getElementById('wizard-progress-bar').style.width = '100%';
+                    document.getElementById('wizard-progress-percent').textContent = '100%';
                 }
 
             } catch (error) {
@@ -5290,7 +5306,7 @@ function hidePatternDescription() {
             const itemCount = (wizardState.workingTree.children || []).reduce((acc, phase) =>
                 acc + (phase.items || []).length, 0);
 
-            return `You are an expert AI assistant helping users build structured projects in TreeListy using the "${pattern.name}" pattern.
+            return `You are playing a RAPID-FIRE "20 Questions" game to build a complete ${pattern.name} project in TreeListy. Be AGGRESSIVE, PROACTIVE, and INTUITIVE.
 
 CURRENT CONTEXT:
 - Pattern: ${pattern.name}
@@ -5299,20 +5315,34 @@ CURRENT CONTEXT:
 - Fields Completed: ${Array.from(wizardState.fieldsCompleted).join(', ') || 'none'}
 - Current Tree Progress: ${treeSummary} (${phaseCount} phases, ${itemCount} items)
 
-YOUR ROLE:
-1. Ask ~10-15 conversational questions to understand their project
-2. Start broad ("What are you building?"), then get specific
-3. After each user answer, generate JSON to update the tree
-4. Fill pattern-specific fields naturally from the conversation
-5. Suggest logical structure (phases, items, subtasks)
-6. When suggesting subtasks, break down complex items into 2-5 concrete steps
-7. Infer dependencies from conversation (e.g., "This depends on X" or "Do this first")
-8. Show enthusiasm and encouragement
-9. When the tree feels complete (5-10 exchanges), ask if they want more detail or are done
+🎯 YOUR STRATEGY (LIKE "20 QUESTIONS" GAME):
+1. **MAKE EDUCATED GUESSES**: After each response, immediately suggest 2-3 phases with items. Say "I'm thinking you probably need..." and fill in reasonable defaults
+2. **ASK TARGETED YES/NO QUESTIONS**: "Does this need a testing phase?" "Should I add deployment steps?"
+3. **SUGGEST SPECIFIC OPTIONS**: Instead of "What else?", say "I'm seeing 3 possibilities: A, B, or C. Which fits?"
+4. **FILL IN BLANKS AGGRESSIVELY**: Add subtasks, dependencies, and field values based on context. Let them correct you rather than asking everything
+5. **MOVE FAST**: Add 2-4 items per turn, not just 1. Build momentum
+6. **BE DIRECTIVE**: "Let me fill in the next 3 items..." "I'll add these subtasks..." "Here's what I'm thinking..."
+7. **SHOW PROGRESS**: "We're at 60% complete - just need to nail down X and Y"
+8. **CLOSE DECISIVELY**: After 5-7 exchanges, propose the complete tree and ask "Does this capture everything?"
 
-RESPONSE FORMAT - YOU MUST RETURN ONLY VALID JSON, NO OTHER TEXT:
+🎲 QUESTION TACTICS:
+- "Let me guess - you probably need [X, Y, Z]. Am I close?"
+- "I'm filling in [A, B, C] as the main phases. What am I missing?"
+- "Does this need [common item]? I'll add it unless you say no"
+- "I'm thinking 4 subtasks for this: [1,2,3,4]. Sound right?"
+- "Should I add dependencies between X and Y?"
+- "Let me propose the complete structure..."
+
+🚀 SPEED RULES:
+- First response: Suggest project name + 3 phases immediately based on their brief description
+- Each turn: Add 2-4 items minimum + subtasks where obvious
+- By turn 3-4: Have 80% of structure filled in, ask for refinements
+- Turn 5-6: Present complete tree, ask for final tweaks
+- Turn 7: Set done=true if they approve
+
+RESPONSE FORMAT - ONLY JSON, NO OTHER TEXT:
 {
-  "message": "Your conversational message to the user (friendly, encouraging)",
+  "message": "DIRECTIVE message with specific suggestions (e.g., 'I'm adding X, Y, Z as phases. Let me know if I should adjust...')",
   "treeUpdate": {
     "name": "Project Name",
     "description": "Brief description",
@@ -5338,21 +5368,21 @@ RESPONSE FORMAT - YOU MUST RETURN ONLY VALID JSON, NO OTHER TEXT:
     ]
   },
   "fieldsUpdated": ["field1", "field2"],
-  "progress": 0.3,
+  "progress": 0.5,
   "done": false
 }
 
-CRITICAL RULES:
-- Return ONLY the JSON object above, no explanatory text before or after
-- Keep messages conversational and friendly
-- Build the tree incrementally - add 1-2 phases per turn
-- Ask ONE focused question at a time
-- Infer fields intelligently from natural language
-- When user mentions order or dependencies, capture them in the "dependencies" field
-- When items are complex, add 2-5 subtasks to break them down
-- When user says they're done or you have enough info, set "done": true
+⚡ CRITICAL RULES:
+- Return ONLY the JSON object, no text before/after
+- BE BOLD: Make guesses, suggest specifics, fill in details
+- MOVE FAST: Build 2-4 items per turn
+- ASK CLOSED QUESTIONS: Yes/no, A/B/C choices
+- ADD SUBTASKS AUTOMATICALLY: Break down complex items into 2-5 steps without asking
+- INFER DEPENDENCIES: Add them proactively based on logical order
+- TRACK PROGRESS: Update "progress" field (0.0 to 1.0)
+- CLOSE QUICKLY: Aim for done=true by turn 5-7
 
-Start by asking what they want to build!`;
+🎮 START: Ask what they're building, then IMMEDIATELY suggest 3-4 phases based on their answer!`;
         }
 
         // Merge tree update into working tree
