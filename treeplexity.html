@@ -5144,12 +5144,41 @@ function hidePatternDescription() {
                     "Start the wizard conversation. Ask the user what they want to build.";
 
                 console.log('🪄 Wizard asking AI...');
-                const response = await callClaudeAPI(userPrompt, systemPrompt, 2000);
+                console.log('🪄 System prompt length:', systemPrompt.length);
+                console.log('🪄 User prompt length:', userPrompt.length);
 
-                console.log('🪄 AI Response:', response.substring(0, 200) + '...');
+                const response = await callClaudeAPI(userPrompt, systemPrompt, 3000);
+
+                console.log('🪄 AI Raw Response:', response);
+
+                // Try to extract JSON if AI added text before/after
+                let jsonStr = response.trim();
+
+                // If response has markdown code blocks, extract JSON from them
+                if (jsonStr.includes('```json')) {
+                    const match = jsonStr.match(/```json\s*\n([\s\S]*?)\n```/);
+                    if (match) jsonStr = match[1];
+                } else if (jsonStr.includes('```')) {
+                    const match = jsonStr.match(/```\s*\n([\s\S]*?)\n```/);
+                    if (match) jsonStr = match[1];
+                }
+
+                // Find JSON object boundaries
+                const firstBrace = jsonStr.indexOf('{');
+                const lastBrace = jsonStr.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    jsonStr = jsonStr.substring(firstBrace, lastBrace + 1);
+                }
+
+                console.log('🪄 Extracted JSON:', jsonStr);
 
                 // Parse JSON response
-                const parsed = JSON.parse(response);
+                const parsed = JSON.parse(jsonStr);
+
+                // Validate required fields
+                if (!parsed.message) {
+                    throw new Error('AI response missing "message" field');
+                }
 
                 // Add AI message to conversation history
                 wizardState.conversation.push({role: 'assistant', content: parsed.message});
@@ -5174,8 +5203,12 @@ function hidePatternDescription() {
                 }
 
             } catch (error) {
-                console.error('🪄 Wizard error:', error);
-                addWizardMessage('ai', "I'm having trouble right now. Could you try rephrasing that?");
+                console.error('🪄 Wizard error details:', {
+                    error: error.message,
+                    stack: error.stack,
+                    conversation: wizardState.conversation
+                });
+                addWizardMessage('ai', "I'm having trouble right now. Could you try rephrasing that? (Check console for details)");
             }
 
             // Re-enable input
@@ -5211,14 +5244,20 @@ function hidePatternDescription() {
             const levels = pattern.levels;
             const fields = pattern.fields || {};
 
+            // Build a summary of current tree (not full JSON to save tokens)
+            const treeSummary = wizardState.workingTree.name || 'Empty';
+            const phaseCount = (wizardState.workingTree.children || []).length;
+            const itemCount = (wizardState.workingTree.children || []).reduce((acc, phase) =>
+                acc + (phase.items || []).length, 0);
+
             return `You are an expert AI assistant helping users build structured projects in TreeListy using the "${pattern.name}" pattern.
 
 CURRENT CONTEXT:
 - Pattern: ${pattern.name}
 - Structure: ${levels.root} → ${levels.phase} → ${levels.item} → ${levels.subtask}
-- Fields Available: ${JSON.stringify(Object.keys(fields))}
+- Fields Available: ${Object.keys(fields).join(', ') || 'none'}
 - Fields Completed: ${Array.from(wizardState.fieldsCompleted).join(', ') || 'none'}
-- Current Tree: ${JSON.stringify(wizardState.workingTree, null, 2)}
+- Current Tree Progress: ${treeSummary} (${phaseCount} phases, ${itemCount} items)
 
 YOUR ROLE:
 1. Ask ~10-15 conversational questions to understand their project
@@ -5226,10 +5265,12 @@ YOUR ROLE:
 3. After each user answer, generate JSON to update the tree
 4. Fill pattern-specific fields naturally from the conversation
 5. Suggest logical structure (phases, items, subtasks)
-6. Show enthusiasm and encouragement
-7. When the tree feels complete (5-10 exchanges), ask if they want more detail or are done
+6. When suggesting subtasks, break down complex items into 2-5 concrete steps
+7. Infer dependencies from conversation (e.g., "This depends on X" or "Do this first")
+8. Show enthusiasm and encouragement
+9. When the tree feels complete (5-10 exchanges), ask if they want more detail or are done
 
-RESPONSE FORMAT (critical - must be valid JSON):
+RESPONSE FORMAT - YOU MUST RETURN ONLY VALID JSON, NO OTHER TEXT:
 {
   "message": "Your conversational message to the user (friendly, encouraging)",
   "treeUpdate": {
@@ -5246,7 +5287,11 @@ RESPONSE FORMAT (critical - must be valid JSON):
             "name": "Item name",
             "description": "Item description",
             "itemType": "type",
-            "fieldName": "fieldValue"
+            "dependencies": "Previous item or prerequisite",
+            "subtasks": [
+              {"name": "Step 1", "description": "Detail"},
+              {"name": "Step 2", "description": "Detail"}
+            ]
           }
         ]
       }
@@ -5257,12 +5302,14 @@ RESPONSE FORMAT (critical - must be valid JSON):
   "done": false
 }
 
-IMPORTANT:
+CRITICAL RULES:
+- Return ONLY the JSON object above, no explanatory text before or after
 - Keep messages conversational and friendly
-- Only update what's relevant from the latest user response
-- Don't overwhelm - build incrementally
+- Build the tree incrementally - add 1-2 phases per turn
 - Ask ONE focused question at a time
 - Infer fields intelligently from natural language
+- When user mentions order or dependencies, capture them in the "dependencies" field
+- When items are complex, add 2-5 subtasks to break them down
 - When user says they're done or you have enough info, set "done": true
 
 Start by asking what they want to build!`;
