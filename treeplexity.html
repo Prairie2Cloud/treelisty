@@ -5166,57 +5166,77 @@ function hidePatternDescription() {
                 // If response has markdown code blocks, extract JSON from them
                 if (jsonStr.includes('```json')) {
                     const match = jsonStr.match(/```json\s*\n([\s\S]*?)\n```/);
-                    if (match) jsonStr = match[1];
+                    if (match) {
+                        jsonStr = match[1];
+                        console.log('🪄 Extracted from ```json block');
+                    }
                 } else if (jsonStr.includes('```')) {
                     const match = jsonStr.match(/```\s*\n([\s\S]*?)\n```/);
-                    if (match) jsonStr = match[1];
+                    if (match) {
+                        jsonStr = match[1];
+                        console.log('🪄 Extracted from ``` block');
+                    }
                 }
 
                 // Find the FIRST complete JSON object using proper brace matching
-                // This handles cases where AI adds text after the JSON
+                // This handles cases where AI adds text before/after the JSON
                 const firstBrace = jsonStr.indexOf('{');
-                if (firstBrace !== -1) {
-                    let depth = 0;
-                    let endPos = -1;
-                    let inString = false;
-                    let escapeNext = false;
 
-                    for (let i = firstBrace; i < jsonStr.length; i++) {
-                        const char = jsonStr[i];
+                if (firstBrace === -1) {
+                    throw new Error('No JSON object found in AI response. AI may not be following instructions.');
+                }
 
-                        if (escapeNext) {
-                            escapeNext = false;
-                            continue;
-                        }
+                if (firstBrace > 0) {
+                    console.log('🪄 Skipping text before JSON:', jsonStr.substring(0, firstBrace));
+                }
 
-                        if (char === '\\') {
-                            escapeNext = true;
-                            continue;
-                        }
+                let depth = 0;
+                let endPos = -1;
+                let inString = false;
+                let escapeNext = false;
 
-                        if (char === '"') {
-                            inString = !inString;
-                            continue;
-                        }
+                for (let i = firstBrace; i < jsonStr.length; i++) {
+                    const char = jsonStr[i];
 
-                        if (!inString) {
-                            if (char === '{') depth++;
-                            else if (char === '}') {
-                                depth--;
-                                if (depth === 0) {
-                                    endPos = i + 1;
-                                    break;
-                                }
+                    if (escapeNext) {
+                        escapeNext = false;
+                        continue;
+                    }
+
+                    if (char === '\\') {
+                        escapeNext = true;
+                        continue;
+                    }
+
+                    if (char === '"') {
+                        inString = !inString;
+                        continue;
+                    }
+
+                    if (!inString) {
+                        if (char === '{') depth++;
+                        else if (char === '}') {
+                            depth--;
+                            if (depth === 0) {
+                                endPos = i + 1;
+                                break;
                             }
                         }
                     }
-
-                    if (endPos !== -1) {
-                        jsonStr = jsonStr.substring(firstBrace, endPos);
-                    }
                 }
 
-                console.log('🪄 Extracted JSON:', jsonStr.substring(0, 200) + '...');
+                if (endPos === -1) {
+                    throw new Error('Incomplete JSON object in AI response (no closing brace found).');
+                }
+
+                jsonStr = jsonStr.substring(firstBrace, endPos);
+
+                if (endPos < response.length) {
+                    console.log('🪄 Skipping text after JSON:', response.substring(endPos, endPos + 50) + '...');
+                }
+
+                console.log('🪄 Extracted JSON (first 200 chars):', jsonStr.substring(0, 200) + '...');
+                console.log('🪄 JSON length:', jsonStr.length);
 
                 // Sanitize JSON: Fix control characters in string values
                 // This handles cases where AI generates unescaped newlines/tabs in strings
@@ -5369,7 +5389,9 @@ function hidePatternDescription() {
             const itemCount = (wizardState.workingTree.children || []).reduce((acc, phase) =>
                 acc + (phase.items || []).length, 0);
 
-            return `You are an EXPERT INFORMATION EXTRACTION WIZARD building a complete ${pattern.name} project. Extract NECESSARY and SUFFICIENT data in MINIMUM questions.
+            return `⚠️ CRITICAL OUTPUT FORMAT: You MUST return ONLY a valid JSON object. NO text before the opening {. NO text after the closing }. NO explanations. NO commentary. JUST JSON.
+
+You are an EXPERT INFORMATION EXTRACTION WIZARD building a complete ${pattern.name} project. Extract NECESSARY and SUFFICIENT data in MINIMUM questions.
 
 CURRENT STATE:
 - Pattern: ${pattern.name}
@@ -5434,7 +5456,12 @@ NEVER ask about:
 - Nice-to-have details that can be added later
 - Information already inferrable from context
 
-RESPONSE FORMAT - ONLY JSON, NO OTHER TEXT:
+═══════════════════════════════════════════════════════════
+⚠️ RESPONSE FORMAT - MANDATORY: Return ONLY the JSON below ⚠️
+═══════════════════════════════════════════════════════════
+
+DO NOT write ANY text before or after the JSON.
+Your ENTIRE response must be ONLY this JSON object:
 {
   "message": "I've built [X phases, Y items]. [State what you added]. The only gap I see is [specific gap]. [Ask ONE strategic follow-up question that maximizes information gain]",
   "treeUpdate": {
