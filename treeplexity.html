@@ -1582,18 +1582,26 @@ The AI will analyze the structure and convert it to a tree."
         }
 
         // Call Claude API - supports both local API key and Netlify function
-        async function callClaudeAPI(prompt, systemPrompt = '', maxTokens = 1024) {
+        async function callClaudeAPI(prompt, systemPrompt = '', maxTokens = 1024, useExtendedThinking = false) {
             const localApiKey = getLocalAPIKey();
 
             const requestData = {
                 model: AI_CONFIG.model,
-                max_tokens: maxTokens, // Reduced from 2048 for faster responses
+                max_tokens: maxTokens,
                 system: systemPrompt || 'You are an expert project analyst specializing in breaking down complex projects into manageable components.',
                 messages: [{
                     role: 'user',
                     content: prompt
                 }]
             };
+
+            // Use extended thinking for JSON generation to avoid syntax errors
+            if (useExtendedThinking) {
+                requestData.thinking = {
+                    type: "enabled",
+                    budget_tokens: 2000
+                };
+            }
 
             let response;
 
@@ -5229,7 +5237,7 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt);
+            const response = await callClaudeAPI(prompt, '', 4096, true); // Extended thinking enabled for careful JSON generation
 
             try {
                 // Try to extract JSON from response
@@ -5386,7 +5394,7 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt);
+            const response = await callClaudeAPI(prompt, '', 4096, true); // Extended thinking enabled for careful JSON generation
 
             try {
                 // Try to extract JSON from response
