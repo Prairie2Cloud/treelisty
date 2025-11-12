@@ -1184,6 +1184,7 @@
             <div class="control-section">
                 <button class="btn" id="analyze-text-btn" title="Analyze text to detect pattern and create tree structure" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔍 Analyze Text</button>
                 <button class="btn" id="wizard-btn" title="AI Wizard will guide you through building your tree" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600;">🪄 AI Wizard</button>
+                <button class="btn" id="generate-prompt-btn" title="Generate a complete prompt from your tree structure" style="background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 600;">📝 Generate Prompt</button>
             </div>
 
             <div class="control-section">
@@ -1506,6 +1507,65 @@ The AI will analyze the structure and convert it to a tree."
                 <button class="btn btn-primary" id="wizard-done" style="background: linear-gradient(135deg, #10b981, #059669);">
                     ✅ Finish & Apply
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Generate Prompt Modal -->
+    <div class="modal" id="generate-prompt-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; max-height: 85vh;">
+            <div class="modal-header">
+                <span id="generate-prompt-title">📝 Generated Prompt</span>
+            </div>
+
+            <div class="modal-body" style="padding: 20px; overflow-y: auto; max-height: calc(85vh - 140px);">
+                <div style="margin-bottom: 15px; color: var(--text-secondary); font-size: 13px;">
+                    This prompt was generated from your tree structure. Copy and paste it to use with AI systems.
+                </div>
+
+                <div style="position: relative;">
+                    <textarea id="generated-prompt-text" readonly style="
+                        width: 100%;
+                        min-height: 400px;
+                        padding: 15px;
+                        font-family: 'Monaco', 'Menlo', 'Ubuntu Mono', monospace;
+                        font-size: 13px;
+                        line-height: 1.6;
+                        border: 1px solid var(--border);
+                        border-radius: 8px;
+                        background: var(--card-bg);
+                        color: var(--text-primary);
+                        resize: vertical;
+                    "></textarea>
+
+                    <button id="copy-prompt-btn" style="
+                        position: absolute;
+                        top: 10px;
+                        right: 10px;
+                        padding: 8px 16px;
+                        background: var(--treeplex-primary);
+                        color: white;
+                        border: none;
+                        border-radius: 6px;
+                        cursor: pointer;
+                        font-size: 12px;
+                        font-weight: 600;
+                    ">📋 Copy</button>
+                </div>
+
+                <div id="copy-success-message" style="
+                    margin-top: 10px;
+                    padding: 10px;
+                    background: #10b981;
+                    color: white;
+                    border-radius: 6px;
+                    text-align: center;
+                    display: none;
+                ">✅ Copied to clipboard!</div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn" id="close-prompt-modal">Close</button>
             </div>
         </div>
     </div>
@@ -5666,6 +5726,210 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 document.getElementById('wizard-modal').style.display = 'none';
             }
         });
+
+        // =============================================================================
+        // GENERATE PROMPT SYSTEM
+        // =============================================================================
+
+        // Generate Prompt button
+        document.getElementById('generate-prompt-btn').addEventListener('click', () => {
+            const promptText = generatePromptFromTree();
+            document.getElementById('generated-prompt-text').value = promptText;
+            document.getElementById('generate-prompt-modal').style.display = 'flex';
+        });
+
+        // Close prompt modal
+        document.getElementById('close-prompt-modal').addEventListener('click', () => {
+            document.getElementById('generate-prompt-modal').style.display = 'none';
+        });
+
+        // Copy prompt to clipboard
+        document.getElementById('copy-prompt-btn').addEventListener('click', async () => {
+            const textArea = document.getElementById('generated-prompt-text');
+            try {
+                await navigator.clipboard.writeText(textArea.value);
+                const successMsg = document.getElementById('copy-success-message');
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 2000);
+            } catch (err) {
+                // Fallback for older browsers
+                textArea.select();
+                document.execCommand('copy');
+                const successMsg = document.getElementById('copy-success-message');
+                successMsg.style.display = 'block';
+                setTimeout(() => {
+                    successMsg.style.display = 'none';
+                }, 2000);
+            }
+        });
+
+        // Generate prompt from tree structure
+        function generatePromptFromTree() {
+            const pattern = PATTERNS[currentPattern];
+            const levels = pattern.levels;
+            const tree = capexTree;
+
+            let prompt = '';
+
+            // Header based on pattern
+            if (currentPattern === 'prompting') {
+                prompt += generateAIPromptDesignPrompt(tree, pattern);
+            } else {
+                prompt += generateGenericPrompt(tree, pattern);
+            }
+
+            return prompt;
+        }
+
+        // Generate AI Prompt Design specific format
+        function generateAIPromptDesignPrompt(tree, pattern) {
+            let prompt = `# ${tree.icon || '🧠'} ${tree.name || 'AI Prompt'}\n\n`;
+
+            if (tree.description) {
+                prompt += `${tree.description}\n\n`;
+            }
+
+            prompt += `---\n\n`;
+
+            // Add system instructions
+            prompt += `You are an expert AI assistant. Follow this structured workflow:\n\n`;
+
+            // Process each stage (phase)
+            if (tree.children && tree.children.length > 0) {
+                tree.children.forEach((phase, phaseIdx) => {
+                    prompt += `## Stage ${phaseIdx + 1}: ${phase.name}\n`;
+                    if (phase.subtitle) {
+                        prompt += `*${phase.subtitle}*\n`;
+                    }
+                    prompt += `\n`;
+
+                    // Add modules (items)
+                    if (phase.items && phase.items.length > 0) {
+                        phase.items.forEach((item, itemIdx) => {
+                            prompt += `### ${itemIdx + 1}. ${item.name}\n`;
+
+                            if (item.description) {
+                                prompt += `${item.description}\n`;
+                            }
+
+                            // Add pattern-specific fields
+                            if (item.useCase) prompt += `- **Use Case**: ${item.useCase}\n`;
+                            if (item.modelTarget) prompt += `- **Target Model**: ${item.modelTarget}\n`;
+                            if (item.temperature !== undefined) prompt += `- **Temperature**: ${item.temperature}\n`;
+                            if (item.maxTokens) prompt += `- **Max Tokens**: ${item.maxTokens}\n`;
+                            if (item.inputs) prompt += `- **Inputs**: ${item.inputs}\n`;
+                            if (item.outputs) prompt += `- **Expected Output**: ${item.outputs}\n`;
+
+                            // Add steps (subtasks)
+                            if (item.subtasks && item.subtasks.length > 0) {
+                                prompt += `\nSteps:\n`;
+                                item.subtasks.forEach((subtask, subIdx) => {
+                                    prompt += `${subIdx + 1}. ${subtask.name}`;
+                                    if (subtask.description) {
+                                        prompt += `: ${subtask.description}`;
+                                    }
+                                    prompt += `\n`;
+                                });
+                            }
+
+                            prompt += `\n`;
+                        });
+                    }
+
+                    prompt += `\n`;
+                });
+            }
+
+            // Footer
+            prompt += `---\n\n`;
+            prompt += `Provide your response following this structured format, ensuring each stage is completed thoroughly.\n`;
+
+            return prompt;
+        }
+
+        // Generate generic prompt format
+        function generateGenericPrompt(tree, pattern) {
+            let prompt = `# ${tree.icon || '📋'} ${tree.name || 'Project'}\n\n`;
+
+            if (tree.description) {
+                prompt += `${tree.description}\n\n`;
+            }
+
+            prompt += `---\n\n`;
+
+            // Introduction based on pattern
+            const patternIntros = {
+                'sales': `You are a sales analyst. Follow this structured sales pipeline analysis:`,
+                'thesis': `You are an academic advisor. Follow this thesis structure:`,
+                'roadmap': `You are a product manager. Follow this product roadmap:`,
+                'book': `You are a writing coach. Follow this book structure:`,
+                'event': `You are an event planner. Follow this event plan:`,
+                'fitness': `You are a fitness coach. Follow this training program:`,
+                'strategy': `You are a business strategist. Follow this strategic plan:`,
+                'course': `You are an educator. Follow this course structure:`,
+                'film': `You are a film director. Follow this production plan:`,
+                'philosophy': `You are a philosophy scholar. Follow this philosophical argument:`,
+                'familytree': `You are a genealogist. Follow this family tree structure:`,
+                'generic': `Follow this structured workflow:`
+            };
+
+            prompt += `${patternIntros[currentPattern] || patternIntros['generic']}\n\n`;
+
+            // Process each phase
+            if (tree.children && tree.children.length > 0) {
+                tree.children.forEach((phase, phaseIdx) => {
+                    prompt += `## ${pattern.levels.phase} ${phaseIdx + 1}: ${phase.name}\n`;
+                    if (phase.subtitle) {
+                        prompt += `*${phase.subtitle}*\n`;
+                    }
+                    prompt += `\n`;
+
+                    // Add items
+                    if (phase.items && phase.items.length > 0) {
+                        phase.items.forEach((item, itemIdx) => {
+                            prompt += `### ${itemIdx + 1}. ${item.name}\n`;
+
+                            if (item.description) {
+                                prompt += `${item.description}\n`;
+                            }
+
+                            // Add relevant fields based on pattern
+                            if (item.dealValue) prompt += `- **Value**: ${formatCost(item.dealValue)}\n`;
+                            if (item.probability) prompt += `- **Probability**: ${item.probability}%\n`;
+                            if (item.accountExecutive) prompt += `- **Owner**: ${item.accountExecutive}\n`;
+                            if (item.dependencies) {
+                                const deps = Array.isArray(item.dependencies) ? item.dependencies.join(', ') : item.dependencies;
+                                if (deps) prompt += `- **Dependencies**: ${deps}\n`;
+                            }
+
+                            // Add subtasks
+                            if (item.subtasks && item.subtasks.length > 0) {
+                                prompt += `\nAction steps:\n`;
+                                item.subtasks.forEach((subtask, subIdx) => {
+                                    prompt += `${subIdx + 1}. ${subtask.name}`;
+                                    if (subtask.description) {
+                                        prompt += `: ${subtask.description}`;
+                                    }
+                                    prompt += `\n`;
+                                });
+                            }
+
+                            prompt += `\n`;
+                        });
+                    }
+
+                    prompt += `\n`;
+                });
+            }
+
+            // Footer
+            prompt += `---\n\n`;
+            prompt += `Provide a comprehensive response following this structure, addressing each ${pattern.levels.phase.toLowerCase()} and ${pattern.levels.item.toLowerCase()} systematically.\n`;
+
+            return prompt;
+        }
 
         // AI Modal - Overall Project Analysis (Dynamic AI-Generated)
         document.getElementById('ai-btn').addEventListener('click', async () => {
