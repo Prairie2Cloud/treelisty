@@ -1179,7 +1179,7 @@
                 <button class="btn" id="expand-btn" title="Expand all phases">⬇️ Expand</button>
                 <button class="btn" id="collapse-btn" title="Collapse all phases">⬆️ Collapse</button>
             </div>
-<div class="control-section pattern-selector">                <select class="pattern-select" id="pattern-select" title="Choose naming pattern">                    <option value="generic" data-desc="Universal: Project → Phase → Item → Task">📋 Generic Project</option>                    <option value="sales" data-desc="Sales: Pipeline → Quarter → Deal → Action">💼 Sales Pipeline</option>                    <option value="thesis" data-desc="Academic: Thesis → Chapter → Section → Point">🎓 Academic Writing</option>                    <option value="roadmap" data-desc="Product: Product → Quarter → Feature → Story">🚀 Product Roadmap</option>                    <option value="book" data-desc="Writing: Book → Part → Chapter → Scene">📚 Book Writing</option>                    <option value="event" data-desc="Events: Event → Stage → Activity → Task">🎉 Event Planning</option>                    <option value="fitness" data-desc="Fitness: Program → Phase → Workout → Exercise">💪 Fitness Program</option>                    <option value="strategy" data-desc="Business: Strategy → Pillar → Initiative → Action">📊 Strategic Plan</option>                    <option value="course" data-desc="Education: Course → Unit → Lesson → Exercise">📖 Course Design</option>                    <option value="film" data-desc="Production: Film → Phase → Scene → Shot">🎬 Film Production</option>                    <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>                    <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>                    <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>                </select>            </div>
+<div class="control-section pattern-selector">                <select class="pattern-select" id="pattern-select" title="Choose naming pattern">                    <option value="generic" data-desc="Universal: Project → Phase → Item → Task">📋 Generic Project</option>                    <option value="sales" data-desc="Sales: Pipeline → Quarter → Deal → Action">💼 Sales Pipeline</option>                    <option value="thesis" data-desc="Academic: Thesis → Chapter → Section → Point">🎓 Academic Writing</option>                    <option value="roadmap" data-desc="Product: Product → Quarter → Feature → Story">🚀 Product Roadmap</option>                    <option value="book" data-desc="Writing: Book → Part → Chapter → Scene">📚 Book Writing</option>                    <option value="event" data-desc="Events: Event → Stage → Activity → Task">🎉 Event Planning</option>                    <option value="fitness" data-desc="Fitness: Program → Phase → Workout → Exercise">💪 Fitness Program</option>                    <option value="strategy" data-desc="Business: Strategy → Pillar → Initiative → Action">📊 Strategic Plan</option>                    <option value="course" data-desc="Education: Course → Unit → Lesson → Exercise">📖 Course Design</option>                    <option value="film" data-desc="Production: Film → Phase → Scene → Shot">🎬 Film Production</option>                    <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>                    <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>                    <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>                    <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>                </select>            </div>
 
             <div class="control-section">
                 <button class="btn" id="analyze-text-btn" title="Analyze text to detect pattern and create tree structure" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔍 Analyze Text</button>
@@ -2499,6 +2499,120 @@ const PATTERNS = {
             philosophicalSchool: { label: 'School of Thought', type: 'select', options: ['Pre-Socratic', 'Platonic', 'Aristotelian', 'Stoic', 'Epicurean', 'Skeptic', 'Medieval', 'Rationalist', 'Empiricist', 'Kantian', 'Hegelian', 'Phenomenological', 'Analytic', 'Continental', 'Pragmatist', 'Other'], helpText: '🏛️ Philosophical tradition or school' },
             includeDependencies: true,
             includeTracking: false
+        }
+    },
+    prompting: {
+        name: 'AI Prompt Design',
+        icon: '🧠',
+        levels: {
+            root: 'Prompt Workbook',
+            phase: 'Stage',
+            item: 'Prompt Module',
+            subtask: 'Prompt Step'
+        },
+        phaseSubtitles: ['Research & Requirements', 'Prompt Drafting', 'Testing & Optimization', 'Deployment & Monitoring'],
+        types: [
+            { value: 'system-persona', label: 'System Persona' },
+            { value: 'user-template', label: 'User Prompt Template' },
+            { value: 'tool-call', label: 'Tool / Function Call' },
+            { value: 'agent-hand-off', label: 'Agent Hand-off' },
+            { value: 'evaluator', label: 'Evaluator / Judge' },
+            { value: 'safety', label: 'Safety / Guardrail' },
+            { value: 'workflow', label: 'Workflow Orchestration' },
+            { value: 'test-set', label: 'Test Dataset' }
+        ],
+        description: 'Design multi-stage prompts, agents, and evaluation harnesses for AI systems',
+        fields: {
+            useCase: {
+                label: 'Use Case',
+                type: 'select',
+                options: ['Retrieval / RAG', 'Chain-of-Thought', 'Tool Invocation', 'Agent Workflow', 'Evaluation', 'Guardrail', 'Content Generation', 'Summarization'],
+                helpText: '🎯 Primary job this module performs'
+            },
+            modelTarget: {
+                label: 'Target Model',
+                type: 'text',
+                placeholder: 'Claude 3.5 Sonnet, GPT-4o, internal LLM...',
+                helpText: '🧬 Which LLM(s) this prompt is tuned for'
+            },
+            temperature: {
+                label: 'Temperature',
+                type: 'number',
+                min: 0,
+                max: 1,
+                step: 0.05,
+                helpText: '🔥 Generation randomness (0 = deterministic)'
+            },
+            maxTokens: {
+                label: 'Max Tokens',
+                type: 'number',
+                min: 0,
+                step: 50,
+                helpText: '📏 Cap on completion tokens'
+            },
+            stopSequences: {
+                label: 'Stop Sequences',
+                type: 'textarea',
+                placeholder: '|||, END_PROMPT, </end>',
+                helpText: '⛔ Strings that should terminate the response'
+            },
+            inputs: {
+                label: 'Input Variables',
+                type: 'textarea',
+                placeholder: '{{customer_issue}}, {{context}}, {{tools}}...',
+                helpText: '🧩 Required placeholders or dynamic values'
+            },
+            outputs: {
+                label: 'Expected Output',
+                type: 'textarea',
+                placeholder: 'JSON schema, bulleted plan, structured text...',
+                helpText: '📤 Desired response structure'
+            },
+            evaluationCriteria: {
+                label: 'Evaluation Criteria',
+                type: 'textarea',
+                placeholder: 'Clarity, accuracy, latency, formatting...',
+                helpText: '🧪 How success is measured'
+            },
+            safetyConsiderations: {
+                label: 'Safety Considerations',
+                type: 'textarea',
+                placeholder: 'PII handling, jailbreak risks, bias notes...',
+                helpText: '🛡️ Guardrails and mitigations'
+            },
+            hallucinationRisks: {
+                label: 'Hallucination Risks',
+                type: 'textarea',
+                placeholder: 'Where the model may fabricate',
+                helpText: '⚠️ Known failure modes'
+            },
+            promptExamples: {
+                label: 'Prompt Examples',
+                type: 'textarea',
+                placeholder: 'System/User/Assistant samples...',
+                helpText: '🗃️ Reference snippets'
+            },
+            testStatus: {
+                label: 'Test Status',
+                type: 'select',
+                options: ['Idea', 'Drafted', 'Testing', 'Validated', 'Production'],
+                helpText: '✅ Validation stage'
+            },
+            benchmarks: {
+                label: 'Benchmark / Metrics',
+                type: 'text',
+                placeholder: 'Win rate 72%, latency 1.2s...',
+                helpText: '📈 Quantitative performance'
+            },
+            agentHandOff: {
+                label: 'Agent Hand-off Notes',
+                type: 'textarea',
+                placeholder: 'How this module hands off to next agent/tool',
+                helpText: '🤝 Coordination details for multi-agent workflows'
+            },
+            includeDependencies: true,
+            includeTracking: true,
+            trackingFor: ['subtask']
         }
     },
     familytree: {
@@ -6287,13 +6401,55 @@ ${jsonText}`;
             const allItems = [];
             const allTasks = []; // Subtasks for separate PM sheet (recursive)
 
-            // RECURSIVE function to collect nested subtasks
+            // RECURSIVE function to collect nested subtasks from multiple data shapes
             function collectSubtasks(parentItem, parentName, phaseName, phaseSubtitle, phaseNumber, nestLevel = 0) {
-                if (!parentItem.subItems || !Array.isArray(parentItem.subItems)) {
+                const subtaskCandidates = [];
+                const seenIds = new Set();
+
+                if (Array.isArray(parentItem.subItems) && parentItem.subItems.length > 0) {
+                    parentItem.subItems.forEach((subtask, index) => {
+                        const id = subtask.id || `${parentItem.id || 'item'}-sub-${index}`;
+                        if (!seenIds.has(id)) {
+                            seenIds.add(id);
+                            subtaskCandidates.push({ ...subtask, id });
+                        }
+                    });
+                }
+
+                if (Array.isArray(parentItem.children) && parentItem.children.length > 0) {
+                    parentItem.children
+                        .filter(child => child.type === 'subtask')
+                        .forEach((child, index) => {
+                            const id = child.id || `${parentItem.id || 'item'}-child-${index}`;
+                            if (!seenIds.has(id)) {
+                                seenIds.add(id);
+                                subtaskCandidates.push({ ...child, id });
+                            }
+                        });
+                }
+
+                if (Array.isArray(parentItem.subtasks) && parentItem.subtasks.length > 0) {
+                    parentItem.subtasks.forEach((entry, index) => {
+                        const normalized = typeof entry === 'string'
+                            ? { name: entry }
+                            : { ...entry };
+                        const id = normalized.id || `${parentItem.id || 'item'}-simple-${index}`;
+                        if (!seenIds.has(id)) {
+                            seenIds.add(id);
+                            subtaskCandidates.push({
+                                type: normalized.type || 'subtask',
+                                ...normalized,
+                                id
+                            });
+                        }
+                    });
+                }
+
+                if (subtaskCandidates.length === 0) {
                     return;
                 }
 
-                parentItem.subItems.forEach(subtask => {
+                subtaskCandidates.forEach(subtask => {
                     const indent = '  '.repeat(nestLevel); // Indentation for hierarchy
                     allTasks.push({
                         ...subtask,
@@ -6303,11 +6459,11 @@ ${jsonText}`;
                         phaseSubtitle: phaseSubtitle,
                         phaseNumber: phaseNumber,
                         nestLevel: nestLevel,
-                        taskName: indent + subtask.name  // Indented name for Excel
+                        taskName: indent + (subtask.name || 'Subtask')
                     });
 
                     // RECURSIVELY collect nested subtasks
-                    collectSubtasks(subtask, subtask.name, phaseName, phaseSubtitle, phaseNumber, nestLevel + 1);
+                    collectSubtasks(subtask, subtask.name || parentName, phaseName, phaseSubtitle, phaseNumber, nestLevel + 1);
                 });
             }
 
@@ -6353,12 +6509,30 @@ ${jsonText}`;
             // =================================================================
             // SHEET 1: EXECUTIVE SUMMARY
             // =================================================================
+            const resolvePatternName = () => {
+                if (capexTree.pattern && capexTree.pattern.key) {
+                    if (capexTree.pattern.key === 'custom') {
+                        const labels = capexTree.pattern.labels || {};
+                        return labels.root ? `Custom (${labels.root})` : 'Custom Pattern';
+                    }
+                    if (PATTERNS[capexTree.pattern.key]) {
+                        return PATTERNS[capexTree.pattern.key].name;
+                    }
+                }
+                if (PATTERNS[currentPattern]) {
+                    return PATTERNS[currentPattern].name;
+                }
+                return 'Generic Project';
+            };
+
+            const patternNameForSummary = resolvePatternName();
+
             const summaryData = [
                 ['TREEPLEXITY - PROJECT SUMMARY'],
                 ['by geej', '', '', ''],
                 [],
                 ['Project:', capexTree.name || 'Project Plan'],
-                ['Pattern:', capexTree.pattern && capexTree.pattern.key ? PATTERNS[capexTree.pattern.key].name : 'Generic Project'],
+                ['Pattern:', patternNameForSummary],
                 ['Total Cost:', `$${(totalCost / 1000000).toFixed(2)}M`],
                 ['Items Count:', allItems.length],
                 ['Report Date:', new Date().toLocaleDateString()],
@@ -6372,16 +6546,17 @@ ${jsonText}`;
             Object.entries(phaseBreakdown)
                 .sort((a, b) => (a[1].phaseNumber || 0) - (b[1].phaseNumber || 0))
                 .forEach(([phaseName, data]) => {
+                    const phasePercentage = totalCost > 0 ? `${((data.total / totalCost) * 100).toFixed(1)}%` : '0%';
                     summaryData.push([
                         phaseName,
                         `$${(data.total / 1000000).toFixed(2)}M`,
-                        `${((data.total / totalCost) * 100).toFixed(1)}%`,
+                        phasePercentage,
                         data.count
                     ]);
                 });
 
             // Add total row
-            summaryData.push(['TOTAL', `$${(totalCost / 1000000).toFixed(2)}M`, '100.0%', allItems.length]);
+            summaryData.push(['TOTAL', `$${(totalCost / 1000000).toFixed(2)}M`, totalCost > 0 ? '100.0%' : '0%', allItems.length]);
 
             // Add key metrics
             summaryData.push([]);
