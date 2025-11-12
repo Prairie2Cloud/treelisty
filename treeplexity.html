@@ -5143,6 +5143,18 @@ Provide exactly 3 recommendations, ranked by confidence (1-10). Use these patter
 
         // Helper function to fix common JSON issues
         function repairJSON(jsonText) {
+            // First, escape control characters that might appear in string values
+            // We need to do this carefully to not break the JSON structure
+
+            // Find all string values and escape control characters within them
+            jsonText = jsonText.replace(/"([^"\\]*(\\.[^"\\]*)*)"/g, function(match) {
+                // Within each string, escape control characters
+                return match
+                    .replace(/\n/g, '\\n')
+                    .replace(/\r/g, '\\r')
+                    .replace(/\t/g, '\\t');
+            });
+
             // Remove trailing commas before closing brackets/braces
             jsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
 
