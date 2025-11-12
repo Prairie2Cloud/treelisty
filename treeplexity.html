@@ -5165,7 +5165,7 @@ INSTRUCTIONS:
 5. Keep it simple - focus on clear structure
 6. Extract names and basic descriptions
 
-Respond with ONLY a valid JSON object:
+CRITICAL: Respond with ONLY valid JSON. No markdown, no code blocks, no explanations. Just the JSON object below:
 {
   "projectName": "Extracted or inferred project name",
   "phases": [
@@ -5190,13 +5190,28 @@ Respond with ONLY a valid JSON object:
             const response = await callClaudeAPI(prompt);
 
             try {
-                const jsonMatch = response.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    return JSON.parse(jsonMatch[0]);
+                // Try to extract JSON from response
+                let jsonText = response.trim();
+
+                // Remove markdown code blocks if present
+                jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                // Find the first { and last }
+                const firstBrace = jsonText.indexOf('{');
+                const lastBrace = jsonText.lastIndexOf('}');
+
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    jsonText = jsonText.substring(firstBrace, lastBrace + 1);
                 }
+
+                // Log the extracted JSON for debugging
+                console.log('Extracted JSON:', jsonText.substring(0, 500) + '...');
+
+                return JSON.parse(jsonText);
             } catch (e) {
                 console.error('Failed to parse quick conversion response:', e);
-                throw new Error('Failed to convert text to tree structure. Please try again.');
+                console.error('AI Response:', response);
+                throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
             }
         }
 
@@ -5248,7 +5263,7 @@ INSTRUCTIONS:
 
 IMPORTANT: Be concise. Quality over quantity. Focus on the main structure.
 
-Respond with ONLY a valid JSON object:
+CRITICAL: Respond with ONLY valid JSON. No markdown, no code blocks, no explanations. Just the JSON object below:
 {
   "projectName": "Extracted or inferred project name",
   "phases": [
@@ -5280,13 +5295,28 @@ Respond with ONLY a valid JSON object:
             const response = await callClaudeAPI(prompt);
 
             try {
-                const jsonMatch = response.match(/\{[\s\S]*\}/);
-                if (jsonMatch) {
-                    return JSON.parse(jsonMatch[0]);
+                // Try to extract JSON from response
+                let jsonText = response.trim();
+
+                // Remove markdown code blocks if present
+                jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                // Find the first { and last }
+                const firstBrace = jsonText.indexOf('{');
+                const lastBrace = jsonText.lastIndexOf('}');
+
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    jsonText = jsonText.substring(firstBrace, lastBrace + 1);
                 }
+
+                // Log the extracted JSON for debugging
+                console.log('Extracted JSON (Deep):', jsonText.substring(0, 500) + '...');
+
+                return JSON.parse(jsonText);
             } catch (e) {
                 console.error('Failed to parse deep conversion response:', e);
-                throw new Error('Failed to convert text to tree structure. Please try again.');
+                console.error('AI Response:', response);
+                throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
             }
         }
 
