@@ -5424,40 +5424,68 @@ RESPONSE FORMAT - ONLY JSON, NO OTHER TEXT:
             const preview = document.getElementById('wizard-tree-preview');
             const tree = wizardState.workingTree;
 
-            let html = `<div style="font-weight: 600; font-size: 14px; margin-bottom: 15px; color: var(--treeplex-primary);">
+            let html = `<div style="font-weight: 600; font-size: 16px; margin-bottom: 10px; color: var(--treeplex-primary); border-bottom: 2px solid var(--treeplex-primary); padding-bottom: 8px;">
                 ${tree.icon || '🌳'} ${tree.name || 'Untitled Project'}
             </div>`;
 
             if (tree.description) {
-                html += `<div style="color: var(--text-secondary); margin-bottom: 15px; font-size: 13px;">
+                html += `<div style="color: var(--text-secondary); margin-bottom: 20px; font-size: 13px; font-style: italic;">
                     ${tree.description}
                 </div>`;
             }
 
             if (tree.children && tree.children.length > 0) {
-                tree.children.forEach(phase => {
-                    html += `<div style="margin-left: 20px; margin-bottom: 15px;">
-                        <div style="font-weight: 600; color: var(--treeplex-primary);">
+                tree.children.forEach((phase, phaseIdx) => {
+                    // Phase header with background
+                    html += `<div style="margin-bottom: 20px; border-left: 3px solid var(--treeplex-primary); padding-left: 12px;">
+                        <div style="font-weight: 600; font-size: 14px; color: var(--treeplex-primary); margin-bottom: 8px;">
                             ${phase.icon || '📋'} ${phase.name}
-                            ${phase.subtitle ? `<span style="color: var(--text-secondary); font-weight: 400;"> - ${phase.subtitle}</span>` : ''}
+                            ${phase.subtitle ? `<div style="color: var(--text-secondary); font-weight: 400; font-size: 12px; margin-top: 2px;">${phase.subtitle}</div>` : ''}
                         </div>`;
 
                     if (phase.items && phase.items.length > 0) {
-                        phase.items.forEach(item => {
-                            html += `<div style="margin-left: 20px; margin-top: 8px;">
-                                <div style="color: var(--text-primary);">
+                        phase.items.forEach((item, itemIdx) => {
+                            // Item
+                            html += `<div style="margin-left: 15px; margin-bottom: 10px; padding: 8px; background: var(--card-bg-light); border-radius: 6px;">
+                                <div style="color: var(--text-primary); font-weight: 500; font-size: 13px;">
                                     ${item.icon || '📄'} ${item.name}
-                                </div>
-                                ${item.description ? `<div style="color: var(--text-secondary); font-size: 12px; margin-left: 20px;">${item.description}</div>` : ''}
-                            </div>`;
+                                </div>`;
+
+                            // Item description
+                            if (item.description) {
+                                html += `<div style="color: var(--text-secondary); font-size: 11px; margin-top: 4px; margin-left: 20px;">
+                                    ${item.description}
+                                </div>`;
+                            }
+
+                            // Dependencies
+                            if (item.dependencies) {
+                                html += `<div style="color: #f59e0b; font-size: 11px; margin-top: 4px; margin-left: 20px;">
+                                    ⚠️ Depends on: ${item.dependencies}
+                                </div>`;
+                            }
+
+                            // Subtasks
+                            if (item.subtasks && item.subtasks.length > 0) {
+                                html += `<div style="margin-left: 20px; margin-top: 6px;">`;
+                                item.subtasks.forEach((subtask, subIdx) => {
+                                    html += `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 3px;">
+                                        ▸ ${subtask.name}${subtask.description ? ': ' + subtask.description : ''}
+                                    </div>`;
+                                });
+                                html += `</div>`;
+                            }
+
+                            html += `</div>`; // End item
                         });
                     }
 
-                    html += `</div>`;
+                    html += `</div>`; // End phase
                 });
             } else {
-                html += `<div style="color: var(--text-secondary); text-align: center; margin-top: 40px;">
-                    Waiting for conversation to start building the tree...
+                html += `<div style="color: var(--text-secondary); text-align: center; margin-top: 40px; padding: 40px 20px; border: 2px dashed var(--border); border-radius: 8px;">
+                    <div style="font-size: 24px; margin-bottom: 10px;">🌱</div>
+                    <div>Waiting for conversation to start building the tree...</div>
                 </div>`;
             }
 
