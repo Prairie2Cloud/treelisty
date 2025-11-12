@@ -5216,8 +5216,69 @@ function hidePatternDescription() {
 
                 console.log('🪄 Extracted JSON:', jsonStr.substring(0, 200) + '...');
 
-                // Parse JSON response
-                const parsed = JSON.parse(jsonStr);
+                // Sanitize JSON: Fix control characters in string values
+                // This handles cases where AI generates unescaped newlines/tabs in strings
+                let parsed;
+                try {
+                    // First, try parsing as-is
+                    parsed = JSON.parse(jsonStr);
+                } catch (firstError) {
+                    console.warn('🪄 JSON parse failed, attempting sanitization...', firstError.message);
+
+                    // Sanitize by escaping control characters within string values
+                    // Strategy: Replace literal newlines/tabs/etc with escaped versions
+                    // but only within quoted string values (not in JSON structure)
+
+                    let sanitized = '';
+                    let inString = false;
+                    let escapeNext = false;
+
+                    for (let i = 0; i < jsonStr.length; i++) {
+                        const char = jsonStr[i];
+
+                        if (escapeNext) {
+                            sanitized += char;
+                            escapeNext = false;
+                            continue;
+                        }
+
+                        if (char === '\\') {
+                            sanitized += char;
+                            escapeNext = true;
+                            continue;
+                        }
+
+                        if (char === '"') {
+                            sanitized += char;
+                            inString = !inString;
+                            continue;
+                        }
+
+                        // If we're inside a string value, escape control characters
+                        if (inString) {
+                            if (char === '\n') {
+                                sanitized += '\\n';
+                            } else if (char === '\r') {
+                                sanitized += '\\r';
+                            } else if (char === '\t') {
+                                sanitized += '\\t';
+                            } else if (char.charCodeAt(0) < 32) {
+                                // Other control characters - escape as unicode
+                                sanitized += '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+                            } else {
+                                sanitized += char;
+                            }
+                        } else {
+                            sanitized += char;
+                        }
+                    }
+
+                    jsonStr = sanitized;
+                    console.log('🪄 Sanitized JSON:', jsonStr.substring(0, 200) + '...');
+
+                    // Try parsing again after sanitization
+                    parsed = JSON.parse(jsonStr);
+                }
 
                 // Validate required fields
                 if (!parsed.message) {
