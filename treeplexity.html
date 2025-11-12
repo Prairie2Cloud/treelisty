@@ -5141,6 +5141,18 @@ Provide exactly 3 recommendations, ranked by confidence (1-10). Use these patter
             }];
         }
 
+        // Helper function to fix common JSON issues
+        function repairJSON(jsonText) {
+            // Remove trailing commas before closing brackets/braces
+            jsonText = jsonText.replace(/,(\s*[}\]])/g, '$1');
+
+            // Remove comments (// and /* */)
+            jsonText = jsonText.replace(/\/\/.*$/gm, '');
+            jsonText = jsonText.replace(/\/\*[\s\S]*?\*\//g, '');
+
+            return jsonText;
+        }
+
         // Quick Mode: Basic structure conversion
         async function convertTextToTreeQuick(text, pattern) {
             const patternConfig = PATTERNS[pattern];
@@ -5204,13 +5216,17 @@ CRITICAL: Respond with ONLY valid JSON. No markdown, no code blocks, no explanat
                     jsonText = jsonText.substring(firstBrace, lastBrace + 1);
                 }
 
+                // Repair common JSON issues
+                jsonText = repairJSON(jsonText);
+
                 // Log the extracted JSON for debugging
-                console.log('Extracted JSON:', jsonText.substring(0, 500) + '...');
+                console.log('Extracted JSON (Quick):', jsonText.substring(0, 500) + '...');
 
                 return JSON.parse(jsonText);
             } catch (e) {
                 console.error('Failed to parse quick conversion response:', e);
-                console.error('AI Response:', response);
+                console.error('AI Response (first 1000 chars):', response.substring(0, 1000));
+                console.error('Extracted JSON (first 1000 chars):', jsonText.substring(0, 1000));
                 throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
             }
         }
@@ -5309,13 +5325,17 @@ CRITICAL: Respond with ONLY valid JSON. No markdown, no code blocks, no explanat
                     jsonText = jsonText.substring(firstBrace, lastBrace + 1);
                 }
 
+                // Repair common JSON issues
+                jsonText = repairJSON(jsonText);
+
                 // Log the extracted JSON for debugging
                 console.log('Extracted JSON (Deep):', jsonText.substring(0, 500) + '...');
 
                 return JSON.parse(jsonText);
             } catch (e) {
                 console.error('Failed to parse deep conversion response:', e);
-                console.error('AI Response:', response);
+                console.error('AI Response (first 1000 chars):', response.substring(0, 1000));
+                console.error('Extracted JSON (first 1000 chars):', jsonText.substring(0, 1000));
                 throw new Error(`Failed to convert text to tree structure. JSON parsing error: ${e.message}`);
             }
         }
