@@ -6589,13 +6589,64 @@ Respond with ONLY valid, parseable JSON:
 
                 jsonText = jsonText.substring(firstBrace, endPos);
 
-                // Repair common JSON issues
-                jsonText = repairJSON(jsonText);
+                console.log('🪄 [Quick] Extracted JSON length:', jsonText.length);
 
-                // Log the extracted JSON for debugging
-                console.log('Extracted JSON (Quick):', jsonText.substring(0, 500) + '...');
+                // Sanitize JSON: Fix control characters in string values (same as wizard)
+                let parsed;
+                try {
+                    parsed = JSON.parse(jsonText);
+                } catch (firstError) {
+                    console.warn('🪄 [Quick] JSON parse failed, attempting sanitization...', firstError.message);
 
-                return JSON.parse(jsonText);
+                    let sanitized = '';
+                    let inString = false;
+                    let escapeNext = false;
+
+                    for (let i = 0; i < jsonText.length; i++) {
+                        const char = jsonText[i];
+
+                        if (escapeNext) {
+                            sanitized += char;
+                            escapeNext = false;
+                            continue;
+                        }
+
+                        if (char === '\\') {
+                            sanitized += char;
+                            escapeNext = true;
+                            continue;
+                        }
+
+                        if (char === '"') {
+                            sanitized += char;
+                            inString = !inString;
+                            continue;
+                        }
+
+                        // If we're inside a string value, escape control characters
+                        if (inString) {
+                            if (char === '\n') {
+                                sanitized += '\\n';
+                            } else if (char === '\r') {
+                                sanitized += '\\r';
+                            } else if (char === '\t') {
+                                sanitized += '\\t';
+                            } else if (char.charCodeAt(0) < 32) {
+                                sanitized += '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+                            } else {
+                                sanitized += char;
+                            }
+                        } else {
+                            sanitized += char;
+                        }
+                    }
+
+                    jsonText = sanitized;
+                    console.log('✅ [Quick] JSON sanitized successfully');
+                    parsed = JSON.parse(jsonText);
+                }
+
+                return parsed;
             } catch (e) {
                 console.error('Failed to parse quick conversion response:', e);
                 console.error('AI Response (first 1000 chars):', response.substring(0, 1000));
@@ -6945,13 +6996,64 @@ Respond with ONLY valid, parseable JSON:
 
                 jsonText = jsonText.substring(firstBrace, endPos);
 
-                // Repair common JSON issues
-                jsonText = repairJSON(jsonText);
+                console.log('🪄 [Deep] Extracted JSON length:', jsonText.length);
 
-                // Log the extracted JSON for debugging
-                console.log('Extracted JSON (Deep):', jsonText.substring(0, 500) + '...');
+                // Sanitize JSON: Fix control characters in string values (same as wizard)
+                let parsed;
+                try {
+                    parsed = JSON.parse(jsonText);
+                } catch (firstError) {
+                    console.warn('🪄 [Deep] JSON parse failed, attempting sanitization...', firstError.message);
 
-                return JSON.parse(jsonText);
+                    let sanitized = '';
+                    let inString = false;
+                    let escapeNext = false;
+
+                    for (let i = 0; i < jsonText.length; i++) {
+                        const char = jsonText[i];
+
+                        if (escapeNext) {
+                            sanitized += char;
+                            escapeNext = false;
+                            continue;
+                        }
+
+                        if (char === '\\') {
+                            sanitized += char;
+                            escapeNext = true;
+                            continue;
+                        }
+
+                        if (char === '"') {
+                            sanitized += char;
+                            inString = !inString;
+                            continue;
+                        }
+
+                        // If we're inside a string value, escape control characters
+                        if (inString) {
+                            if (char === '\n') {
+                                sanitized += '\\n';
+                            } else if (char === '\r') {
+                                sanitized += '\\r';
+                            } else if (char === '\t') {
+                                sanitized += '\\t';
+                            } else if (char.charCodeAt(0) < 32) {
+                                sanitized += '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+                            } else {
+                                sanitized += char;
+                            }
+                        } else {
+                            sanitized += char;
+                        }
+                    }
+
+                    jsonText = sanitized;
+                    console.log('✅ [Deep] JSON sanitized successfully');
+                    parsed = JSON.parse(jsonText);
+                }
+
+                return parsed;
             } catch (e) {
                 console.error('Failed to parse deep conversion response:', e);
                 console.error('AI Response (first 1000 chars):', response.substring(0, 1000));
