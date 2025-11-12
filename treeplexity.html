@@ -2013,43 +2013,144 @@ Provide a focused analysis covering:
 Prioritize accuracy, detail, and contextual information. Use specific numbers and examples where possible.`;
 
             } else if (analysisType === 'project') {
-                // Project-level analysis
+                // Project-level analysis (PATTERN-AWARE)
+                const pattern = PATTERNS[currentPattern];
+                const levels = pattern.levels;
                 const allItems = getAllProjectItems();
-                const totalCost = calculateTotal(capexTree);
-                const itemsByPhase = {
-                    'Phase 0': allItems.filter(i => i.id?.startsWith('p0')),
-                    'Phase 1': allItems.filter(i => i.id?.startsWith('p1')),
-                    'Phase 2': allItems.filter(i => i.id?.startsWith('p2'))
-                };
 
-                userPrompt = `Analyze this complete project plan for data center project:
+                // Build phase breakdown
+                const phaseBreakdown = capexTree.children?.map((phase, idx) => {
+                    const phaseItems = allItems.filter(i => i.id?.startsWith(`p${idx}`));
+                    let phaseLine = `- ${phase.name}`;
 
+                    if (phase.subtitle) phaseLine += ` (${phase.subtitle})`;
+                    phaseLine += `: ${phaseItems.length} ${levels.item.toLowerCase()}s`;
+
+                    if (pattern.fields?.cost) {
+                        const phaseTotal = phaseItems.reduce((sum, i) => sum + (i.cost || 0), 0);
+                        phaseLine += `, $${phaseTotal.toLocaleString()}`;
+                    }
+
+                    return phaseLine;
+                }).join('\n') || 'No phases defined';
+
+                // Pattern-specific prompts
+                if (pattern.id === 'book-writing') {
+                    systemPrompt = `You are a literary consultant specializing in narrative structure and book development. Provide insights on story structure, pacing, character development, and writing best practices.`;
+
+                    userPrompt = `Analyze this book writing project:
+
+**Title:** ${capexTree.name}
+**Pattern:** Book Writing
+
+**Structure Breakdown:**
+${phaseBreakdown}
+
+**Total:** ${allItems.length} ${levels.item.toLowerCase()}s across ${capexTree.children?.length || 0} ${levels.phase.toLowerCase()}s
+
+${allItems.filter(i => i.dependencies?.length > 0).length > 0 ? `**Story Dependencies:**
+${allItems.filter(i => i.dependencies?.length > 0).map(i =>
+    `- ${i.name} builds on ${i.dependencies.length} previous element(s)`
+).join('\n')}
+
+` : ''}Provide an executive summary for this book project covering:
+1. **Narrative Structure Assessment** - Is the part/chapter breakdown balanced and logical?
+2. **Story Flow** - Comment on pacing and progression based on dependencies
+3. **Development Recommendations** - Suggestions for strengthening the narrative structure
+4. **Potential Issues** - Any structural concerns or gaps in the story arc
+5. **Next Steps** - Actionable recommendations for the author
+
+Focus on narrative structure and storytelling best practices.`;
+
+                } else if (pattern.id === 'ai-prompt-design') {
+                    systemPrompt = `You are a prompt engineering expert specializing in LLM workflows, agent design, and AI system architecture. Provide insights on prompt structure, agent orchestration, and best practices.`;
+
+                    userPrompt = `Analyze this AI prompt design project:
+
+**Prompt Workbook:** ${capexTree.name}
+**Pattern:** AI Prompt Design
+
+**Structure Breakdown:**
+${phaseBreakdown}
+
+**Total:** ${allItems.length} ${levels.item.toLowerCase()}s across ${capexTree.children?.length || 0} ${levels.phase.toLowerCase()}s
+
+${allItems.filter(i => i.dependencies?.length > 0).length > 0 ? `**Agent Dependencies:**
+${allItems.filter(i => i.dependencies?.length > 0).map(i =>
+    `- ${i.name} requires ${i.dependencies.length} upstream component(s)`
+).join('\n')}
+
+` : ''}Provide an executive summary for this prompt engineering project covering:
+1. **Architecture Assessment** - Is the stage/module breakdown logical for an AI workflow?
+2. **Agent Orchestration** - Comment on dependencies and data flow between modules
+3. **Prompt Engineering Best Practices** - Recommendations for improving prompt quality
+4. **Potential Issues** - Any architectural concerns or missing components
+5. **Next Steps** - Actionable recommendations for the prompt engineer
+
+Focus on prompt engineering and agent design best practices.`;
+
+                } else if (pattern.fields?.cost) {
+                    // Financial patterns (generic, sales, roadmap, etc.)
+                    systemPrompt = `You are a senior project analyst specializing in project planning, budgeting, and execution strategy. Provide insights on project structure, resource allocation, and execution best practices.`;
+
+                    const totalCost = calculateTotal(capexTree);
+
+                    userPrompt = `Analyze this ${pattern.name.toLowerCase()} project:
+
+**Project:** ${capexTree.name}
+**Pattern:** ${pattern.name}
 **Total Budget:** $${totalCost.toLocaleString()}
 
-**Phase Breakdown:**
-${Object.entries(itemsByPhase).map(([phase, items]) => {
-    const phaseTotal = items.reduce((sum, i) => sum + (i.cost || 0), 0);
-    return `- ${phase}: ${items.length} items, $${phaseTotal.toLocaleString()}`;
-}).join('\n')}
+**${levels.phase} Breakdown:**
+${phaseBreakdown}
 
-${PATTERNS[currentPattern].fields?.cost ? `**Major Line Items (>$1M):**
+${allItems.filter(i => i.cost > 1000000).length > 0 ? `**Major Line Items (>$1M):**
 ${allItems.filter(i => i.cost > 1000000).map(i =>
-    `- ${i.name}: $${i.cost.toLocaleString()} (${i.itemType})`
-).join('\n') || 'None'}
+    `- ${i.name}: $${i.cost.toLocaleString()}${i.itemType ? ` (${i.itemType})` : ''}`
+).join('\n')}
 
-` : ''}**Key Dependencies:**
+` : ''}${allItems.filter(i => i.dependencies?.length > 0).length > 0 ? `**Key Dependencies:**
 ${allItems.filter(i => i.dependencies?.length > 0).map(i =>
     `- ${i.name} depends on ${i.dependencies.length} item(s)`
-).join('\n') || 'No dependencies defined'}
+).join('\n')}
 
-Provide an executive-level analysis covering:
-1. **Budget Assessment** - Is the allocation realistic for a data center project?
+` : ''}Provide an executive-level analysis covering:
+1. **Budget Assessment** - Is the allocation realistic for this type of project?
 2. **Critical Path** - Key dependencies and timeline bottlenecks
 3. **Risk Factors** - Top 3 risks to budget or timeline
 4. **Optimization Opportunities** - Potential cost savings or efficiency gains
-5. **Strategic Recommendations** - High-level guidance for investors/stakeholders
+5. **Strategic Recommendations** - High-level guidance for stakeholders
 
 Format for presentation to executives. Be concise but comprehensive.`;
+
+                } else {
+                    // Non-financial patterns (philosophy, thesis, etc.)
+                    systemPrompt = `You are an expert consultant specializing in structured thinking and project organization. Provide insights on project structure, logical flow, and development best practices.`;
+
+                    userPrompt = `Analyze this ${pattern.name.toLowerCase()} project:
+
+**Project:** ${capexTree.name}
+**Pattern:** ${pattern.name}
+
+**Structure Breakdown:**
+${phaseBreakdown}
+
+**Total:** ${allItems.length} ${levels.item.toLowerCase()}s across ${capexTree.children?.length || 0} ${levels.phase.toLowerCase()}s
+
+${allItems.filter(i => i.dependencies?.length > 0).length > 0 ? `**Logical Dependencies:**
+${allItems.filter(i => i.dependencies?.length > 0).map(i =>
+    `- ${i.name} builds on ${i.dependencies.length} previous element(s)`
+).join('\n')}
+
+` : ''}Provide an executive summary covering:
+1. **Structure Assessment** - Is the ${levels.phase.toLowerCase()}/${levels.item.toLowerCase()} breakdown logical and well-organized?
+2. **Logical Flow** - Comment on progression and dependencies between elements
+3. **Development Recommendations** - Suggestions for strengthening the structure
+4. **Potential Issues** - Any structural concerns or gaps in coverage
+5. **Next Steps** - Actionable recommendations for the author/creator
+
+Focus on logical structure and content organization best practices.`;
+                }
             }
 
             return await callClaudeAPI(userPrompt, systemPrompt);
