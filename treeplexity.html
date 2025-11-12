@@ -6526,13 +6526,61 @@ Respond with ONLY valid, parseable JSON:
                 // Remove markdown code blocks if present
                 jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
 
-                // Find the first { and last }
+                // Find the FIRST complete JSON object using proper brace matching
                 const firstBrace = jsonText.indexOf('{');
-                const lastBrace = jsonText.lastIndexOf('}');
 
-                if (firstBrace !== -1 && lastBrace !== -1) {
-                    jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+                if (firstBrace === -1) {
+                    throw new Error('No JSON object found in AI response.');
                 }
+
+                if (firstBrace > 0) {
+                    console.log('🪄 [Quick] Skipping text before JSON:', jsonText.substring(0, firstBrace));
+                }
+
+                let depth = 0;
+                let endPos = -1;
+                let inString = false;
+                let escapeNext = false;
+
+                for (let i = firstBrace; i < jsonText.length; i++) {
+                    const char = jsonText[i];
+
+                    if (escapeNext) {
+                        escapeNext = false;
+                        continue;
+                    }
+
+                    if (char === '\\') {
+                        escapeNext = true;
+                        continue;
+                    }
+
+                    if (char === '"') {
+                        inString = !inString;
+                        continue;
+                    }
+
+                    if (!inString) {
+                        if (char === '{') depth++;
+                        else if (char === '}') {
+                            depth--;
+                            if (depth === 0) {
+                                endPos = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (endPos === -1) {
+                    throw new Error('Incomplete JSON object in AI response (no closing brace found).');
+                }
+
+                if (endPos < jsonText.length) {
+                    console.log('🪄 [Quick] Skipping text after JSON:', jsonText.substring(endPos, Math.min(endPos + 100, jsonText.length)));
+                }
+
+                jsonText = jsonText.substring(firstBrace, endPos);
 
                 // Repair common JSON issues
                 jsonText = repairJSON(jsonText);
@@ -6834,13 +6882,61 @@ Respond with ONLY valid, parseable JSON:
                 // Remove markdown code blocks if present
                 jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
 
-                // Find the first { and last }
+                // Find the FIRST complete JSON object using proper brace matching
                 const firstBrace = jsonText.indexOf('{');
-                const lastBrace = jsonText.lastIndexOf('}');
 
-                if (firstBrace !== -1 && lastBrace !== -1) {
-                    jsonText = jsonText.substring(firstBrace, lastBrace + 1);
+                if (firstBrace === -1) {
+                    throw new Error('No JSON object found in AI response.');
                 }
+
+                if (firstBrace > 0) {
+                    console.log('🪄 [Deep] Skipping text before JSON:', jsonText.substring(0, firstBrace));
+                }
+
+                let depth = 0;
+                let endPos = -1;
+                let inString = false;
+                let escapeNext = false;
+
+                for (let i = firstBrace; i < jsonText.length; i++) {
+                    const char = jsonText[i];
+
+                    if (escapeNext) {
+                        escapeNext = false;
+                        continue;
+                    }
+
+                    if (char === '\\') {
+                        escapeNext = true;
+                        continue;
+                    }
+
+                    if (char === '"') {
+                        inString = !inString;
+                        continue;
+                    }
+
+                    if (!inString) {
+                        if (char === '{') depth++;
+                        else if (char === '}') {
+                            depth--;
+                            if (depth === 0) {
+                                endPos = i + 1;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (endPos === -1) {
+                    throw new Error('Incomplete JSON object in AI response (no closing brace found).');
+                }
+
+                if (endPos < jsonText.length) {
+                    console.log('🪄 [Deep] Skipping text after JSON:', jsonText.substring(endPos, Math.min(endPos + 100, jsonText.length)));
+                }
+
+                jsonText = jsonText.substring(firstBrace, endPos);
 
                 // Repair common JSON issues
                 jsonText = repairJSON(jsonText);
