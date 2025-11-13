@@ -1166,6 +1166,7 @@
         </div>
         <div class="controls">
             <div class="control-section">
+                <button class="btn" id="new-project-btn" style="background: linear-gradient(135deg, #059669, #10b981);" title="Start a new project">🆕 New</button>
                 <button class="btn" id="save-json-btn" title="Save project as JSON">💾 Save</button>
                 <button class="btn" id="load-json-btn" title="Load project from JSON">📂 Load</button>
                 <button class="btn" id="share-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);" title="Generate shareable URL">📤 Share</button>
@@ -5334,6 +5335,40 @@ function hidePatternDescription() {
         }
 
         // Save and Load JSON buttons in console
+        // New Project button - Start fresh
+        document.getElementById('new-project-btn').addEventListener('click', () => {
+            const confirmNew = confirm(
+                '🆕 Start New Project?\n\n' +
+                'This will clear your current project.\n\n' +
+                'Make sure to save first if you want to keep your work!'
+            );
+
+            if (confirmNew) {
+                saveState('New Project');
+
+                // Reset to fresh tree
+                capexTree = {
+                    id: 'root',
+                    name: 'My Project',
+                    type: 'root',
+                    icon: '🌳',
+                    expanded: true,
+                    children: [],
+                    pattern: {
+                        key: 'generic',
+                        labels: PATTERNS.generic.levels
+                    }
+                };
+
+                currentPattern = 'generic';
+                document.getElementById('pattern-select').value = 'generic';
+
+                render();
+                showToast('✅ New project started!');
+                console.log('🆕 New project created');
+            }
+        });
+
         document.getElementById('save-json-btn').addEventListener('click', handleDownload);
         document.getElementById('load-json-btn').addEventListener('click', handleUpload);
 
