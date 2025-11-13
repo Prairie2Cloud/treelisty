@@ -4370,10 +4370,9 @@ function hidePatternDescription() {
 
         // Smart Suggestion Engine with Contextual Intelligence
         function generateAISuggestion(fieldType, itemContext) {
-            const itemType = itemContext.itemType || 'equipment';
+            const pattern = PATTERNS[currentPattern];
+            const itemType = itemContext.itemType || '';
             const phase = itemContext.id ? itemContext.id.split('-')[0] : 'p0';
-            const phaseNames = { p0: 'Phase 0 (Pre-Seed)', p1: 'Phase 1 (Seed)', p2: 'Phase 2 (Build)' };
-            const phaseName = phaseNames[phase] || 'Unknown Phase';
             const notes = itemContext.notes || '';
 
             // Get all existing items for contextual analysis
@@ -4384,167 +4383,134 @@ function hidePatternDescription() {
             }
             const existingItems = getAllProjectItems();
 
-            // AI suggestion templates based on field type
-            const suggestions = {
-                name: {
-                    land: ['Land Acquisition & Title', 'Site Purchase & Legal', 'Property Option Agreement', 'Land Rights & Easements'],
-                    engineering: ['Engineering Design Services', 'Technical Specification Development', 'System Architecture Planning', 'Feasibility Study & Analysis'],
-                    equipment: ['Equipment Procurement', 'Hardware Purchase & Installation', 'Capital Equipment Acquisition', 'Technology Infrastructure'],
-                    infrastructure: ['Infrastructure Development', 'Site Preparation & Construction', 'Facility Build-Out', 'Utility Infrastructure'],
-                    corporate: ['Corporate Administration', 'Business Operations Support', 'Management & Overhead', 'Professional Services'],
-                    professional: ['Professional Services Engagement', 'Consulting & Advisory', 'Expert Services Retainer', 'Third-Party Assessment'],
-                    contingency: ['Contingency Reserve', 'Risk Mitigation Fund', 'Budget Reserve Allocation', 'Unforeseen Expenses Buffer']
+            // Pattern-aware AI suggestion templates - Subject matter experts for each domain
+            const patternSuggestions = {
+                philosophy: {
+                    name: ['Knowledge is Virtue', 'The Nature of Justice', 'Definition of Piety', 'Forms vs Particulars', 'The Good Life', 'Moral Relativism Critique', 'Socratic Paradox', 'The Cave Allegory', 'Mind-Body Problem', 'Free Will vs Determinism'],
+                    description: 'Dialectical examination of fundamental concepts through logical argumentation. Present premises systematically, consider objections, and respond with careful distinctions. Ground claims in textual evidence and philosophical tradition.',
+                    speaker: ['Socrates', 'Plato', 'Aristotle', 'Meno', 'Euthyphro', 'Thrasymachus', 'Glaucon', 'Adeimantus'],
+                    premise1: 'All humans desire what is genuinely good for them.',
+                    premise2: 'If someone pursues what is harmful, they must not recognize it as harmful.',
+                    conclusion: 'Therefore, wrongdoing is a form of ignorance, not deliberate evil.',
+                    objection: 'Some people knowingly pursue harmful pleasures despite understanding the consequences.',
+                    response: 'True knowledge of harm would necessarily prevent pursuit; what appears as knowledge may be mere belief.',
+                    keyTerms: 'virtue, knowledge, piety, justice, wisdom, excellence (arete)',
+                    textualReference: 'Meno 77b-78b, Protagoras 352-358',
+                    notes: 'Consider: logical validity of argument, strength of premises, historical context, counterexamples from lived experience, implications for ethics and epistemology.'
                 },
-                description: {
-                    land: 'Secure land rights and complete legal due diligence including title verification, environmental assessments, and zoning compliance. Critical prerequisite for all site development activities.',
-                    engineering: 'Comprehensive engineering design and technical specification development by qualified professionals. Includes peer review, regulatory compliance verification, and documentation for permitting.',
-                    equipment: 'Procurement of capital equipment with extended lead times. Requires vendor evaluation, competitive bidding, and early commitment to secure production slots. Includes installation and commissioning.',
-                    infrastructure: 'Site infrastructure development including construction, utility tie-ins, and facility preparation. Coordinate permits, weather dependencies, and contractor scheduling.',
-                    corporate: 'Corporate administration, legal compliance, insurance, and operational overhead necessary to maintain business operations throughout project timeline.',
-                    professional: 'Engagement of specialized consultants and professional services with relevant domain expertise. Deliverables include reports, recommendations, and strategic guidance.',
-                    contingency: 'Reserve allocation to address unforeseen expenses, scope changes, and risk mitigation. Recommended range 3-10% of phase budget depending on complexity and uncertainty.'
+                sales: {
+                    name: ['Enterprise Cloud Migration', 'SaaS Platform Expansion', 'Strategic Partnership Deal', 'Fortune 500 Account', 'Multi-Year Service Agreement', 'Technology Integration Project'],
+                    description: 'High-value opportunity requiring executive engagement and multi-stakeholder alignment. Key success factors: clear ROI demonstration, competitive differentiation, and relationship-building with economic buyer.',
+                    leadSource: 'Inbound marketing, industry conference referral, or strategic partner introduction',
+                    contactPerson: 'VP of IT, CFO, or Chief Digital Officer',
+                    competitorInfo: 'Competing against 2-3 established vendors. Differentiation: superior support, proven ROI, and industry-specific features.',
+                    notes: 'Key considerations: budget approval timing, decision-making process, technical evaluation criteria, procurement requirements, champion identification, stakeholder mapping.'
                 },
-                cost: {
-                    p0: [50000, 100000, 180000, 250000],
-                    p1: [500000, 1000000, 1500000, 2000000],
-                    p2: [25000000, 50000000, 100000000, 150000000]
+                thesis: {
+                    name: ['Literature Review', 'Theoretical Framework', 'Methodology Design', 'Data Analysis', 'Results Interpretation', 'Discussion of Findings', 'Limitations & Future Research'],
+                    description: 'Critical analysis of existing scholarship establishing theoretical foundation for research. Synthesize major debates, identify gaps in literature, and position current study within academic discourse.',
+                    keyArgument: 'Previous research has overlooked [specific aspect], creating need for [your contribution]. This study addresses gap through [your approach].',
+                    citations: 'Smith (2020), Johnson & Lee (2019), Martinez et al. (2018), Chen (2021)',
+                    evidenceType: 'Mixed: quantitative data analysis combined with qualitative case studies',
+                    notes: 'Key considerations: citation completeness, argument coherence, gap identification, methodological rigor, contribution to field, clarity of research questions.'
                 },
-                icon: {
-                    land: ['🏞️', '📄', '🗺️', '🏡'],
-                    engineering: ['📐', '🔧', '⚙️', '🔬'],
-                    equipment: ['⚡', '🔋', '🔌', '⚙️'],
-                    infrastructure: ['🏢', '🏗️', '🔗', '🌐'],
-                    corporate: ['💼', '📊', '🏛️', '📋'],
-                    professional: ['📜', '👔', '🎯', '💡'],
-                    contingency: ['💰', '🛡️', '⚖️', '📈']
+                roadmap: {
+                    name: ['User Authentication V2', 'Mobile App Redesign', 'API Performance Optimization', 'Analytics Dashboard', 'Third-Party Integration', 'Search Functionality'],
+                    description: 'User-facing feature delivering measurable business value. Requires cross-functional coordination between product, engineering, and design. Success metrics defined upfront.',
+                    userImpact: 'High - affects 80% of active users',
+                    technicalRisk: 'Medium - depends on third-party API stability',
+                    engineeringEstimate: '2 sprints (4 weeks)',
+                    featureFlag: 'feature_new_search_v2',
+                    notes: 'Key considerations: user testing requirements, performance benchmarks, rollout strategy, rollback plan, monitoring and alerting, documentation needs.'
                 },
-                notes: {
-                    land: 'Key considerations: location suitability, regulatory approvals required, environmental impact assessments, title clarity, zoning compliance, access to utilities and infrastructure.',
-                    engineering: 'Key considerations: technical feasibility, compliance standards, peer review requirements, timeline for design iterations, regulatory permits needed, documentation standards.',
-                    equipment: 'Key considerations: vendor lead times (typically 12-18 months), production capacity, competitive bidding process, installation requirements, commissioning timeline, warranty terms.',
-                    infrastructure: 'Key considerations: construction permits, utility coordination, seasonal/weather impacts, contractor availability, site preparation requirements, inspection schedules.',
-                    corporate: 'Key considerations: governance compliance, legal oversight, insurance coverage, operational continuity, stakeholder reporting, audit requirements, administrative capacity.',
-                    professional: 'Key considerations: consultant qualifications, domain expertise verification, deliverable specifications, success criteria, timeline expectations, budget allocation.',
-                    contingency: 'Key considerations: risk assessment, budget buffer percentage (3-10%), scope change provisions, unforeseen expense coverage, approval thresholds for contingency use.'
-                },
-                alternateSource: {
-                    land: ['Local real estate firms', 'Regional land brokers', 'Municipal land auctions', 'Adjacent property owners'],
-                    engineering: ['Alternative engineering consultancies', 'In-house engineering team', 'Offshore design firms', 'University research partnerships'],
-                    equipment: ['Secondary OEM suppliers', 'Refurbished equipment dealers', 'International manufacturers', 'Lease-to-own providers'],
-                    infrastructure: ['Regional contractors', 'Turnkey EPC firms', 'Modular construction vendors', 'Local construction cooperatives'],
-                    corporate: ['Alternative service providers', 'Shared services consortium', 'Outsourced business services', 'In-house capability development'],
-                    professional: ['Alternative consulting firms', 'Big 4 professional services', 'Boutique specialists', 'Industry veterans/freelancers'],
-                    contingency: ['Self-insurance reserves', 'Alternative financing sources', 'Risk pooling arrangements', 'Performance bonds']
-                },
-                leadTime: {
-                    p0: ['2-4 weeks', '30-45 days', '1-2 months', '6-8 weeks'],
-                    p1: ['3-6 months', '4-8 months', '90-120 days', '6 months'],
-                    p2: ['12-18 months', '18-24 months', '15-20 months', '2 years']
+                generic: {
+                    name: {
+                        land: ['Land Acquisition & Title', 'Site Purchase & Legal', 'Property Option Agreement'],
+                        engineering: ['Engineering Design Services', 'Technical Specification Development', 'System Architecture'],
+                        equipment: ['Equipment Procurement', 'Hardware Purchase & Installation', 'Capital Equipment'],
+                        infrastructure: ['Infrastructure Development', 'Site Preparation', 'Facility Build-Out'],
+                        corporate: ['Corporate Administration', 'Business Operations', 'Management Overhead'],
+                        professional: ['Professional Services', 'Consulting & Advisory', 'Expert Services'],
+                        contingency: ['Contingency Reserve', 'Risk Mitigation Fund', 'Budget Reserve']
+                    },
+                    description: {
+                        equipment: 'Procurement of capital equipment with extended lead times. Requires vendor evaluation, competitive bidding, and early commitment to secure production slots.',
+                        default: 'Detailed specification of deliverables, timeline, dependencies, and success criteria. Coordinate with stakeholders and manage risks proactively.'
+                    },
+                    cost: { p0: [50000, 100000, 250000], p1: [500000, 1000000, 2000000], p2: [25000000, 50000000, 100000000] },
+                    alternateSource: 'Secondary vendors, in-house capability, strategic partnerships, or alternative procurement strategies',
+                    leadTime: { p0: '2-8 weeks', p1: '3-6 months', p2: '12-24 months' },
+                    notes: 'Key considerations: timeline, budget allocation, vendor selection, risk mitigation, quality assurance, regulatory compliance.'
                 }
             };
 
-            // Generate suggestion based on field type
-            if (fieldType === 'name') {
-                const options = suggestions.name[itemType] || suggestions.name.equipment;
-                let suggestion = options[Math.floor(Math.random() * options.length)];
+            // PATTERN-AWARE SUGGESTION GENERATION - Each pattern acts as subject expert
+            const patternKey = currentPattern;
+            const patternData = patternSuggestions[patternKey] || patternSuggestions.generic;
 
-                // If notes contain specific keywords, adjust suggestion
-                if (notes) {
-                    const notesLower = notes.toLowerCase();
-                    if (notesLower.includes('turbine') || notesLower.includes('generator')) suggestion = itemType === 'equipment' ? 'Gas Turbine Generator Package' : suggestion;
-                    if (notesLower.includes('solar') || notesLower.includes('pv')) suggestion = itemType === 'equipment' ? 'Solar PV Array Installation' : suggestion;
-                    if (notesLower.includes('battery') || notesLower.includes('bess')) suggestion = itemType === 'equipment' ? 'Battery Energy Storage System' : suggestion;
-                    if (notesLower.includes('pipeline') || notesLower.includes('gas line')) suggestion = itemType === 'engineering' ? 'Pipeline Engineering & Design' : suggestion;
-                    if (notesLower.includes('permit') || notesLower.includes('regulatory')) suggestion = itemType === 'professional' ? 'Permitting & Regulatory Services' : suggestion;
+            // Handle pattern-specific fields (philosophy, sales, thesis, etc.)
+            if (patternData[fieldType]) {
+                const suggestion = patternData[fieldType];
+
+                // If array, pick random option
+                if (Array.isArray(suggestion)) {
+                    return suggestion[Math.floor(Math.random() * suggestion.length)];
                 }
 
+                // If string, return directly
                 return suggestion;
-            } else if (fieldType === 'description') {
-                let baseDescription = suggestions.description[itemType] || suggestions.description.equipment;
+            }
 
-                // Enhance description with context from notes
-                if (notes && notes.length > 20) {
-                    baseDescription += ` Additional context: ${notes.substring(0, 150)}${notes.length > 150 ? '...' : ''}`;
+            // Common fields handled for all patterns
+            if (fieldType === 'name') {
+                if (patternKey === 'generic' && patternData.name[itemType]) {
+                    const options = patternData.name[itemType];
+                    return options[Math.floor(Math.random() * options.length)];
                 }
+                return `New ${pattern.levels.item || 'Item'}`;
+            }
 
-                return baseDescription;
-            } else if (fieldType === 'cost') {
-                // INTELLIGENT COST SUGGESTION: Analyze similar items in project
-                const similarItems = existingItems.filter(item =>
-                    item.itemType === itemType && item.cost > 0
-                );
+            if (fieldType === 'description') {
+                if (patternKey === 'generic' && itemType) {
+                    return patternData.description[itemType] || patternData.description.default;
+                }
+                return patternData.description || 'Enter detailed description here...';
+            }
 
-                let suggestedCost;
+            if (fieldType === 'notes') {
+                return patternData.notes || 'Key considerations and implementation notes...';
+            }
 
+            if (fieldType === 'icon') {
+                const iconMap = {
+                    philosophy: ['🤔', '💭', '📜', '🏛️', '⚖️'],
+                    sales: ['💼', '💰', '📊', '🤝', '📈'],
+                    thesis: ['📚', '📝', '🎓', '📖', '✍️'],
+                    roadmap: ['🚀', '⚡', '🔧', '💡', '🎯'],
+                    generic: ['📦', '⚙️', '🔧', '📊', '💼']
+                };
+                const icons = iconMap[patternKey] || iconMap.generic;
+                return icons[Math.floor(Math.random() * icons.length)];
+            }
+
+            // Generic pattern: cost and leadTime (other patterns don't use these)
+            if (fieldType === 'cost' && patternKey === 'generic') {
+                const similarItems = existingItems.filter(item => item.itemType === itemType && item.cost > 0);
                 if (similarItems.length > 0) {
-                    // Use median cost of similar items for realistic suggestion
                     const costs = similarItems.map(i => i.cost).sort((a, b) => a - b);
                     const median = costs[Math.floor(costs.length / 2)];
-                    suggestedCost = median;
-
-                    // Add 10-20% variance to avoid exact duplicates
-                    const variance = 0.9 + (Math.random() * 0.2); // 90% to 110%
-                    suggestedCost = Math.round(suggestedCost * variance);
-                } else {
-                    // Fallback to phase-appropriate templates if no similar items exist
-                    const phaseKey = phase || 'p1';
-                    const costRanges = suggestions.cost[phaseKey] || suggestions.cost.p1;
-                    suggestedCost = costRanges[Math.floor(Math.random() * costRanges.length)];
+                    return Math.round(median * (0.9 + Math.random() * 0.2));
                 }
+                const costRanges = patternData.cost[phase] || patternData.cost.p1;
+                return costRanges[Math.floor(Math.random() * costRanges.length)];
+            }
 
-                // Adjust based on context notes
-                if (notes) {
-                    const notesLower = notes.toLowerCase();
-                    if (notesLower.includes('large scale') || notesLower.includes('major')) suggestedCost = Math.round(suggestedCost * 1.5);
-                    if (notesLower.includes('small') || notesLower.includes('minimal')) suggestedCost = Math.round(suggestedCost * 0.6);
-                    if (notesLower.includes('rush') || notesLower.includes('expedited')) suggestedCost = Math.round(suggestedCost * 1.2);
-                }
+            if (fieldType === 'leadTime' && patternKey === 'generic') {
+                return patternData.leadTime[phase] || patternData.leadTime.p1;
+            }
 
-                return suggestedCost;
-            } else if (fieldType === 'icon') {
-                const options = suggestions.icon[itemType] || suggestions.icon.equipment;
-                return options[Math.floor(Math.random() * options.length)];
-            } else if (fieldType === 'notes') {
-                return suggestions.notes[itemType] || suggestions.notes.equipment;
-            } else if (fieldType === 'alternateSource') {
-                const options = suggestions.alternateSource[itemType] || suggestions.alternateSource.equipment;
-                let suggestion = options[Math.floor(Math.random() * options.length)];
-
-                // Enhance with context from notes
-                if (notes) {
-                    const notesLower = notes.toLowerCase();
-                    if (notesLower.includes('siemens') || notesLower.includes('ge')) {
-                        suggestion = itemType === 'equipment' ? 'Alternative: GE, Siemens Energy, MAN Energy Solutions' : suggestion;
-                    }
-                    if (notesLower.includes('local') || notesLower.includes('canadian')) {
-                        suggestion = 'Canadian suppliers and regional vendors';
-                    }
-                }
-
-                return suggestion;
-            } else if (fieldType === 'leadTime') {
-                const phaseKey = phase || 'p1';
-                const leadTimeOptions = suggestions.leadTime[phaseKey] || suggestions.leadTime.p1;
-                let suggestion = leadTimeOptions[Math.floor(Math.random() * leadTimeOptions.length)];
-
-                // Adjust lead time based on notes keywords
-                if (notes) {
-                    const notesLower = notes.toLowerCase();
-                    if (notesLower.includes('rush') || notesLower.includes('expedited') || notesLower.includes('urgent')) {
-                        // Suggest shorter timeframe for urgent items
-                        if (phase === 'p2') suggestion = '10-12 months (expedited)';
-                        else if (phase === 'p1') suggestion = '2-3 months (expedited)';
-                        else suggestion = '2-3 weeks (expedited)';
-                    }
-                    if (notesLower.includes('custom') || notesLower.includes('bespoke') || notesLower.includes('specialized')) {
-                        // Suggest longer timeframe for custom items
-                        if (phase === 'p2') suggestion = '24-30 months (custom build)';
-                        else if (phase === 'p1') suggestion = '8-12 months (custom)';
-                        else suggestion = '3-4 months (custom)';
-                    }
-                }
-
-                return suggestion;
+            if (fieldType === 'alternateSource' && patternKey === 'generic') {
+                return patternData.alternateSource;
             }
 
             return '';
