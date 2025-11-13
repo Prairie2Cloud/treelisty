@@ -6794,11 +6794,260 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             return finalPrompt;
         }
 
+        // Generate Philosophy prompts (executable, professional)
+        function generatePhilosophyPrompt(tree, pattern) {
+            let output = `# ${tree.icon || '🤔'} ${tree.name || 'Philosophical Argument'}\n\n`;
+
+            if (tree.description) {
+                output += `${tree.description}\n\n`;
+            }
+
+            output += `**Professional Philosophy Prompt** - Copy-paste ready for Claude/GPT-4\n\n`;
+            output += `---\n\n`;
+
+            // Collect all arguments
+            const allArguments = [];
+            if (tree.children && tree.children.length > 0) {
+                tree.children.forEach(phase => {
+                    if (phase.items && phase.items.length > 0) {
+                        phase.items.forEach(item => {
+                            allArguments.push({
+                                ...item,
+                                phaseName: phase.name,
+                                phaseSubtitle: phase.subtitle
+                            });
+                        });
+                    }
+                });
+            }
+
+            if (allArguments.length === 0) {
+                output += `*No arguments defined yet. Add items to your tree.*\n`;
+                return output;
+            }
+
+            // Detect speakers and dialogue partners
+            const speakers = [...new Set(allArguments.map(a => a.speaker).filter(s => s))];
+            const primarySpeaker = speakers[0] || 'The Philosopher';
+            const isDialogue = speakers.length > 1;
+
+            // SYNTHESIZE: Create professional philosophical prompt
+
+            // 1. CONTEXT & ROLE
+            output += `## 📚 Context\n\n`;
+            output += `This is a ${isDialogue ? 'philosophical dialogue' : 'structured argument'} `;
+            if (speakers.length > 0) {
+                output += `featuring ${speakers.join(', ')}. `;
+            }
+            output += `The argument progresses through ${tree.children.length} major movements with ${allArguments.length} distinct claims.\n\n`;
+
+            // 2. MAIN PROMPT
+            output += `## 💭 Your Task\n\n`;
+            output += `You are a philosophy professor preparing a comprehensive critical analysis. Write a 2500-word essay that:\n\n`;
+
+            output += `**1. Reconstructs the Argument**\n`;
+            output += `- Present each major claim in logical order\n`;
+            output += `- Identify premises, inferences, and conclusions\n`;
+            output += `- Map the dependency structure (which claims build on others)\n\n`;
+
+            output += `**2. Evaluates Logical Validity**\n`;
+            output += `- Are the inferences sound?\n`;
+            output += `- Do the conclusions follow from the premises?\n`;
+            output += `- What hidden assumptions are made?\n`;
+            output += `- Are there logical fallacies?\n\n`;
+
+            output += `**3. Engages Philosophically**\n`;
+            output += `- What are the strongest objections to this view?\n`;
+            output += `- How might the author respond?\n`;
+            output += `- What implications does this have for ethics, epistemology, or metaphysics?\n`;
+            output += `- How does this compare to contemporary philosophical positions?\n\n`;
+
+            output += `**4. Applies to Modern Context**\n`;
+            output += `- What modern issues does this illuminate?\n`;
+            output += `- How would this argument address current debates?\n`;
+            output += `- Is this view still defensible today? Why or why not?\n\n`;
+
+            // 3. THE ARGUMENT STRUCTURE (as reference)
+            output += `---\n\n`;
+            output += `## 📖 The Argument Structure\n\n`;
+            output += `Use this as your reference material for the analysis above:\n\n`;
+
+            tree.children.forEach((phase, phaseIdx) => {
+                output += `### ${phase.name}\n`;
+                if (phase.subtitle) {
+                    output += `*${phase.subtitle}*\n`;
+                }
+                output += `\n`;
+
+                if (phase.items && phase.items.length > 0) {
+                    phase.items.forEach((item, itemIdx) => {
+                        output += `**Argument ${phaseIdx + 1}.${itemIdx + 1}: ${item.name}**\n\n`;
+
+                        if (item.description) {
+                            output += `${item.description}\n\n`;
+                        }
+
+                        // Build structured argument info
+                        const argDetails = [];
+
+                        if (item.speaker) argDetails.push(`*Speaker*: ${item.speaker}`);
+                        if (item.argumentType) argDetails.push(`*Type*: ${item.argumentType}`);
+                        if (item.keyTerms) argDetails.push(`*Key Terms*: ${item.keyTerms}`);
+
+                        if (argDetails.length > 0) {
+                            output += argDetails.join(' • ') + '\n\n';
+                        }
+
+                        // Premises and conclusion in structured format
+                        if (item.premise1 || item.premise2 || item.conclusion) {
+                            output += `<argument>\n`;
+                            if (item.premise1) output += `**P1**: ${item.premise1}\n\n`;
+                            if (item.premise2) output += `**P2**: ${item.premise2}\n\n`;
+                            if (item.premise3) output += `**P3**: ${item.premise3}\n\n`;
+                            if (item.conclusion) output += `**∴**: ${item.conclusion}\n`;
+                            output += `</argument>\n\n`;
+                        }
+
+                        // Dependencies
+                        if (item.dependencies && item.dependencies.length > 0) {
+                            output += `*Builds on*: ${item.dependencies.join(', ')}\n\n`;
+                        }
+
+                        // Subtasks as supporting points
+                        if (item.subtasks && item.subtasks.length > 0) {
+                            output += `*Supporting points*:\n`;
+                            item.subtasks.forEach(sub => {
+                                output += `- ${sub.name}`;
+                                if (sub.description) output += `: ${sub.description}`;
+                                output += `\n`;
+                            });
+                            output += `\n`;
+                        }
+                    });
+                }
+            });
+
+            // 4. OUTPUT STRUCTURE
+            output += `---\n\n`;
+            output += `## ✍️ Essay Structure\n\n`;
+            output += `Your 2500-word analysis should follow this structure:\n\n`;
+            output += `**Introduction (300 words)**\n`;
+            output += `- Introduce the philosophical problem\n`;
+            output += `- State the main thesis being examined\n`;
+            output += `- Preview your analytical approach\n\n`;
+
+            output += `**Part I: Argument Reconstruction (600 words)**\n`;
+            output += `- Present the argument structure clearly\n`;
+            output += `- Identify all major premises and conclusions\n`;
+            output += `- Map the logical flow and dependencies\n\n`;
+
+            output += `**Part II: Logical Analysis (500 words)**\n`;
+            output += `- Evaluate validity and soundness\n`;
+            output += `- Identify hidden assumptions\n`;
+            output += `- Note any fallacies or weak inferences\n\n`;
+
+            output += `**Part III: Philosophical Engagement (600 words)**\n`;
+            output += `- Present strongest objections\n`;
+            output += `- Consider author's possible responses\n`;
+            output += `- Discuss broader philosophical implications\n\n`;
+
+            output += `**Part IV: Modern Application (400 words)**\n`;
+            output += `- Connect to contemporary issues\n`;
+            output += `- Assess relevance and defensibility today\n`;
+            output += `- Suggest modifications or extensions\n\n`;
+
+            output += `**Conclusion (100 words)**\n`;
+            output += `- Summarize your analysis\n`;
+            output += `- State your final evaluation of the argument\n\n`;
+
+            // 5. EVALUATION CRITERIA
+            output += `---\n\n`;
+            output += `## ✓ Success Criteria\n\n`;
+            output += `Your essay should demonstrate:\n`;
+            output += `- ✅ Accurate reconstruction of all ${allArguments.length} arguments\n`;
+            output += `- ✅ Rigorous logical analysis using formal/informal logic\n`;
+            output += `- ✅ Engagement with key philosophical concepts: ${getKeyTerms(allArguments)}\n`;
+            output += `- ✅ Awareness of relevant philosophical traditions and debates\n`;
+            output += `- ✅ Clear, precise philosophical writing (avoid vagueness)\n`;
+            output += `- ✅ Fair-minded treatment (steel man, not straw man objections)\n`;
+            output += `- ✅ Creative application to modern contexts\n`;
+            output += `- ✅ Original insights, not mere summary\n\n`;
+
+            // 6. ALTERNATIVE PROMPT MODES
+            output += `---\n\n`;
+            output += `## 🔄 Alternative Prompt Modes\n\n`;
+
+            if (isDialogue) {
+                output += `**Mode 1: Continue the Dialogue**\n`;
+                output += `\`\`\`\n`;
+                output += `You are responding to ${primarySpeaker}'s arguments. Write a philosophical `;
+                output += `dialogue where you (as an interlocutor) raise 3 sophisticated objections, `;
+                output += `then have ${primarySpeaker} respond to each. Use the Socratic method `;
+                output += `of questioning to probe deeper.\n`;
+                output += `\`\`\`\n\n`;
+            }
+
+            output += `**Mode 2: Compare to Another Philosopher**\n`;
+            output += `\`\`\`\n`;
+            output += `Compare this argument to [Kant/Nietzsche/Rawls/Singer]. How would [philosopher] `;
+            output += `respond to these claims? Where would they agree/disagree and why? What synthesis `;
+            output += `might be possible between the two views?\n`;
+            output += `\`\`\`\n\n`;
+
+            output += `**Mode 3: Logical Formalization**\n`;
+            output += `\`\`\`\n`;
+            output += `Formalize this argument using predicate logic. Translate each premise and `;
+            output += `conclusion into logical notation (∀, ∃, →, ↔, ¬, ∧, ∨). Prove validity using `;
+            output += `natural deduction or truth tables. Identify which premises, if any, are dubious.\n`;
+            output += `\`\`\`\n\n`;
+
+            output += `**Mode 4: Teaching Guide**\n`;
+            output += `\`\`\`\n`;
+            output += `Create a teaching guide for undergraduate philosophy students. Include: `;
+            output += `(1) Pre-reading questions, (2) Key concepts glossary, (3) Discussion prompts, `;
+            output += `(4) Thought experiments to test understanding, (5) Essay topics.\n`;
+            output += `\`\`\`\n\n`;
+
+            // 7. PHILOSOPHICAL CONTEXT
+            if (allArguments.some(a => a.argumentType)) {
+                output += `---\n\n`;
+                output += `## 🎓 Philosophical Methods Used\n\n`;
+                const argTypes = [...new Set(allArguments.map(a => a.argumentType).filter(t => t))];
+                argTypes.forEach(type => {
+                    const count = allArguments.filter(a => a.argumentType === type).length;
+                    output += `- **${type}** (${count} argument${count > 1 ? 's' : ''})\n`;
+                });
+                output += `\n`;
+            }
+
+            return output;
+        }
+
+        // Helper: Extract key terms for Philosophy prompt
+        function getKeyTerms(arguments) {
+            const allTerms = arguments
+                .map(a => a.keyTerms)
+                .filter(t => t)
+                .join(', ')
+                .split(',')
+                .map(t => t.trim())
+                .filter(t => t.length > 0);
+
+            // Get unique terms, limit to top 8
+            const uniqueTerms = [...new Set(allTerms)].slice(0, 8);
+            return uniqueTerms.join(', ');
+        }
+
         // Generate generic prompt format
         function generateGenericPrompt(tree, pattern) {
             // SPECIAL CASE: AI Video Production uses different format
             if (currentPattern === 'film') {
                 return generateAIVideoPrompts(tree, pattern);
+            }
+
+            // SPECIAL CASE: Philosophy uses different format
+            if (currentPattern === 'philosophy') {
+                return generatePhilosophyPrompt(tree, pattern);
             }
 
             let prompt = `# ${tree.icon || '📋'} ${tree.name || 'Project'}\n\n`;
