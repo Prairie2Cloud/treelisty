@@ -5352,54 +5352,75 @@ function hidePatternDescription() {
             if (confirmNew) {
                 saveState('New Project');
 
-                // Reset to fresh tree with one phase containing one starter item
+                // Use current pattern from dropdown (pattern-aware)
+                const pattern = PATTERNS[currentPattern];
+                const levels = pattern.levels;
+                const fields = pattern.fields || {};
+
+                // Build starter item with only pattern-specific fields
+                const starterItem = {
+                    id: 'item-' + Date.now(),
+                    name: `New ${levels.item}`,
+                    description: 'Enter description',
+                    icon: '📦',
+                    itemType: '',
+                    type: 'item',
+                    dependencies: [],
+                    subItems: [],
+                    expanded: true
+                };
+
+                // Add pattern-specific fields
+                Object.keys(fields).forEach(fieldKey => {
+                    if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                        return; // Skip meta fields
+                    }
+
+                    const fieldConfig = fields[fieldKey];
+
+                    // Set default values based on field type
+                    if (fieldConfig.type === 'number') {
+                        starterItem[fieldKey] = 0;
+                    } else if (fieldConfig.type === 'date') {
+                        starterItem[fieldKey] = '';
+                    } else if (fieldConfig.type === 'select') {
+                        starterItem[fieldKey] = '';
+                    } else if (fieldConfig.type === 'textarea') {
+                        starterItem[fieldKey] = '';
+                    } else {
+                        starterItem[fieldKey] = '';
+                    }
+                });
+
+                // Reset to fresh tree with pattern-specific structure
                 capexTree = {
                     id: 'root',
-                    name: 'My Project',
+                    name: `My ${levels.root}`,
                     type: 'root',
-                    icon: '🌳',
+                    icon: pattern.icon,
                     expanded: true,
                     children: [
                         {
                             id: 'phase-0',
-                            name: 'Phase 0',
-                            subtitle: '',
+                            name: `${levels.phase} 0`,
+                            subtitle: pattern.phaseSubtitles ? pattern.phaseSubtitles[0] : '',
                             type: 'phase',
                             phase: 0,
                             icon: '1️⃣',
                             expanded: true,
-                            items: [
-                                {
-                                    id: 'item-' + Date.now(),
-                                    name: 'New Item',
-                                    description: 'Enter description',
-                                    cost: 0,
-                                    icon: '📦',
-                                    itemType: '',
-                                    type: 'item',
-                                    dependencies: [],
-                                    subItems: [],
-                                    expanded: true,
-                                    alternateSource: '',
-                                    leadTime: '',
-                                    notes: ''
-                                }
-                            ],
+                            items: [starterItem],
                             children: []
                         }
                     ],
                     pattern: {
-                        key: 'generic',
-                        labels: PATTERNS.generic.levels
+                        key: currentPattern,
+                        labels: levels
                     }
                 };
 
-                currentPattern = 'generic';
-                document.getElementById('pattern-select').value = 'generic';
-
                 render();
-                showToast('✅ New project started!');
-                console.log('🆕 New project created');
+                showToast(`✅ New ${pattern.name} project started!`);
+                console.log(`🆕 New ${pattern.name} project created`);
             }
         });
 
