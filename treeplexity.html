@@ -5396,7 +5396,16 @@ function hidePatternDescription() {
 
         // Generate shareable URL with compressed data
         function generateShareableURL() {
+            // DEBUG: Check cost values before serialization
+            if (capexTree.children && capexTree.children[0] && capexTree.children[0].items && capexTree.children[0].items[0]) {
+                console.log('First item cost before stringify:', capexTree.children[0].items[0].cost);
+            }
+
             const jsonData = JSON.stringify(capexTree);
+
+            // DEBUG: Log first 500 chars of JSON
+            console.log('JSON before compress (first 500 chars):', jsonData.substring(0, 500));
+
             const compressed = LZString.compressToEncodedURIComponent(jsonData);
             const baseURL = window.location.origin + window.location.pathname;
             return `${baseURL}?p=${compressed}`;
@@ -10010,7 +10019,16 @@ ${jsonText}`;
                 try {
                     console.log('Loading shared project from URL...');
                     const decompressed = LZString.decompressFromEncodedURIComponent(compressedData);
+
+                    // DEBUG: Log first 500 chars of decompressed JSON
+                    console.log('Decompressed JSON (first 500 chars):', decompressed.substring(0, 500));
+
                     const loadedTree = JSON.parse(decompressed);
+
+                    // DEBUG: Check cost values in loaded tree
+                    if (loadedTree.children && loadedTree.children[0] && loadedTree.children[0].items && loadedTree.children[0].items[0]) {
+                        console.log('First item cost in loaded JSON:', loadedTree.children[0].items[0].cost);
+                    }
 
                     // Replace capexTree with loaded data
                     capexTree = loadedTree;
