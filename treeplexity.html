@@ -9123,8 +9123,17 @@ ${jsonText}`;
                     // Convert items to tree structure
                     const newTree = convertExcelToTree(items, detectedPattern);
 
-                    // Show import confirmation modal
-                    showImportConfirmation(newTree, items.length, detectedPattern);
+                    // Auto-import TreeListy exports (simple confirmation only)
+                    const confirmMsg = `Import ${items.length} items from Excel?\n\nThis will replace your current tree.`;
+                    if (confirm(confirmMsg)) {
+                        saveState('Excel Import');
+                        capexTree = newTree;
+                        currentPattern = detectedPattern;
+                        document.getElementById('pattern-select').value = detectedPattern;
+                        render();
+                        showToast(`✅ Excel imported! ${items.length} items loaded`);
+                        console.log('✅ TreeListy export auto-imported');
+                    }
 
             } catch (err) {
                 console.error('❌ Excel import error:', err);
