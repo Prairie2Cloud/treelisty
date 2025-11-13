@@ -2902,113 +2902,131 @@ const PATTERNS = {
         }
     },
     prompting: {
-        name: 'AI Prompt Design',
+        name: 'Prompt Engineering',
         icon: '🧠',
         levels: {
-            root: 'Prompt Workbook',
-            phase: 'Stage',
-            item: 'Prompt Module',
-            subtask: 'Prompt Step'
+            root: 'Prompt Library',
+            phase: 'Use Case',
+            item: 'Prompt',
+            subtask: 'Test Case'
         },
-        phaseSubtitles: ['Research & Requirements', 'Prompt Drafting', 'Testing & Optimization', 'Deployment & Monitoring'],
+        phaseSubtitles: ['System Prompts', 'Task Prompts', 'Evaluation', 'Production'],
         types: [
-            { value: 'system-persona', label: 'System Persona' },
-            { value: 'user-template', label: 'User Prompt Template' },
-            { value: 'tool-call', label: 'Tool / Function Call' },
-            { value: 'agent-hand-off', label: 'Agent Hand-off' },
-            { value: 'evaluator', label: 'Evaluator / Judge' },
-            { value: 'safety', label: 'Safety / Guardrail' },
-            { value: 'workflow', label: 'Workflow Orchestration' },
-            { value: 'test-set', label: 'Test Dataset' }
+            { value: 'system-role', label: 'System Role Definition' },
+            { value: 'task-instruction', label: 'Task Instruction' },
+            { value: 'few-shot', label: 'Few-Shot Examples' },
+            { value: 'chain-of-thought', label: 'Chain-of-Thought' },
+            { value: 'xml-structured', label: 'XML Structured (Anthropic)' },
+            { value: 'prefill', label: 'Assistant Prefill (Claude)' },
+            { value: 'tool-use', label: 'Tool Use / Function Calling' },
+            { value: 'golden-set', label: 'Golden Test Set' }
         ],
-        description: 'Design multi-stage prompts, agents, and evaluation harnesses for AI systems',
+        description: 'Engineer prompts using OpenAI and Anthropic best practices',
         fields: {
-            useCase: {
-                label: 'Use Case',
-                type: 'select',
-                options: ['Retrieval / RAG', 'Chain-of-Thought', 'Tool Invocation', 'Agent Workflow', 'Evaluation', 'Guardrail', 'Content Generation', 'Summarization'],
-                helpText: '🎯 Primary job this module performs'
+            systemPrompt: {
+                label: 'System Prompt',
+                type: 'textarea',
+                placeholder: 'You are an expert customer support agent...',
+                helpText: '👤 Role definition, context, and behavioral guidelines (OpenAI system message / Anthropic system parameter)'
+            },
+            userPromptTemplate: {
+                label: 'User Prompt Template',
+                type: 'textarea',
+                placeholder: 'Analyze this customer issue:\n\n{{issue}}\n\nProvide...',
+                helpText: '💬 The actual task instruction with {{variables}} for dynamic content'
+            },
+            fewShotExamples: {
+                label: 'Few-Shot Examples',
+                type: 'textarea',
+                placeholder: '<example>\nUser: ...\nAssistant: ...\n</example>',
+                helpText: '📚 Input-output examples to guide model behavior (Anthropic: use <example> tags)'
+            },
+            structuralTags: {
+                label: 'Structural Tags (Anthropic)',
+                type: 'textarea',
+                placeholder: '<thinking>...</thinking>\n<answer>...</answer>',
+                helpText: '🏗️ XML tags to structure reasoning and output (e.g., <thinking>, <context>, <output>)'
+            },
+            assistantPrefill: {
+                label: 'Assistant Prefill (Claude)',
+                type: 'text',
+                placeholder: 'Here is my analysis:',
+                helpText: '🎯 Start Claude\'s response with specific text to guide tone/format (Anthropic-specific technique)'
+            },
+            chainOfThought: {
+                label: 'Chain-of-Thought Instruction',
+                type: 'textarea',
+                placeholder: 'Think step by step. Show your reasoning...',
+                helpText: '🧠 Prompt model to show reasoning process (OpenAI/Anthropic CoT best practice)'
+            },
+            outputFormat: {
+                label: 'Output Format Specification',
+                type: 'textarea',
+                placeholder: 'Return JSON: {"analysis": "...", "confidence": 0-1}',
+                helpText: '📐 Exact structure expected (JSON schema, markdown, structured text)'
             },
             modelTarget: {
                 label: 'Target Model',
-                type: 'text',
-                placeholder: 'Claude 3.5 Sonnet, GPT-4o, internal LLM...',
-                helpText: '🧬 Which LLM(s) this prompt is tuned for'
+                type: 'select',
+                options: ['Claude 3.5 Sonnet', 'Claude 3 Opus', 'GPT-4o', 'GPT-4 Turbo', 'GPT-3.5 Turbo', 'o1-preview', 'o1-mini'],
+                helpText: '🤖 Which model this prompt is optimized for'
             },
             temperature: {
                 label: 'Temperature',
                 type: 'number',
                 min: 0,
                 max: 1,
-                step: 0.05,
-                helpText: '🔥 Generation randomness (0 = deterministic)'
+                step: 0.1,
+                helpText: '🔥 0 = deterministic, 1 = creative (OpenAI/Anthropic standard parameter)'
             },
             maxTokens: {
                 label: 'Max Tokens',
                 type: 'number',
                 min: 0,
-                step: 50,
-                helpText: '📏 Cap on completion tokens'
+                step: 100,
+                helpText: '📏 Response length limit (affects cost and completeness)'
             },
-            stopSequences: {
-                label: 'Stop Sequences',
+            testResults: {
+                label: 'Test Results',
                 type: 'textarea',
-                placeholder: '|||, END_PROMPT, </end>',
-                helpText: '⛔ Strings that should terminate the response'
+                placeholder: 'Golden set: 95% accuracy\nLatency: avg 1.2s\nCost: $0.03/call',
+                helpText: '✅ Evaluation metrics from testing (accuracy, latency, cost)'
             },
-            inputs: {
-                label: 'Input Variables',
+            toolDefinitions: {
+                label: 'Tool / Function Definitions',
                 type: 'textarea',
-                placeholder: '{{customer_issue}}, {{context}}, {{tools}}...',
-                helpText: '🧩 Required placeholders or dynamic values'
+                placeholder: '{"name": "search", "description": "Search docs", "parameters": {...}}',
+                helpText: '🔧 Function calling schema (OpenAI functions / Anthropic tools)'
             },
-            outputs: {
-                label: 'Expected Output',
+            agentWorkflow: {
+                label: 'Agent Workflow',
                 type: 'textarea',
-                placeholder: 'JSON schema, bulleted plan, structured text...',
-                helpText: '📤 Desired response structure'
+                placeholder: 'Agent 1 (Router) → Agent 2 (Executor) → Agent 3 (Validator)',
+                helpText: '🤖 Multi-agent orchestration pattern (sequential, parallel, or hierarchical)'
             },
-            evaluationCriteria: {
-                label: 'Evaluation Criteria',
+            contextManagement: {
+                label: 'Context Management',
                 type: 'textarea',
-                placeholder: 'Clarity, accuracy, latency, formatting...',
-                helpText: '🧪 How success is measured'
+                placeholder: 'Sliding window: keep last 10 messages\nCompression: summarize after 4K tokens',
+                helpText: '💾 Strategy for managing conversation history and token limits'
             },
-            safetyConsiderations: {
-                label: 'Safety Considerations',
+            promptInjectionDefense: {
+                label: 'Prompt Injection Defense',
                 type: 'textarea',
-                placeholder: 'PII handling, jailbreak risks, bias notes...',
-                helpText: '🛡️ Guardrails and mitigations'
+                placeholder: 'Use delimiters: """user input"""\nValidate against known attacks',
+                helpText: '🛡️ Techniques to prevent prompt injection / jailbreaking (OpenAI/Anthropic security best practices)'
             },
-            hallucinationRisks: {
-                label: 'Hallucination Risks',
+            iterationNotes: {
+                label: 'Iteration Notes',
                 type: 'textarea',
-                placeholder: 'Where the model may fabricate',
-                helpText: '⚠️ Known failure modes'
-            },
-            promptExamples: {
-                label: 'Prompt Examples',
-                type: 'textarea',
-                placeholder: 'System/User/Assistant samples...',
-                helpText: '🗃️ Reference snippets'
+                placeholder: 'v1: Too verbose\nv2: Added examples, reduced temp to 0.3\nv3: Prefill improved formatting',
+                helpText: '📝 What changed between versions and why (prompt engineering log)'
             },
             testStatus: {
-                label: 'Test Status',
+                label: 'Status',
                 type: 'select',
-                options: ['Idea', 'Drafted', 'Testing', 'Validated', 'Production'],
-                helpText: '✅ Validation stage'
-            },
-            benchmarks: {
-                label: 'Benchmark / Metrics',
-                type: 'text',
-                placeholder: 'Win rate 72%, latency 1.2s...',
-                helpText: '📈 Quantitative performance'
-            },
-            agentHandOff: {
-                label: 'Agent Hand-off Notes',
-                type: 'textarea',
-                placeholder: 'How this module hands off to next agent/tool',
-                helpText: '🤝 Coordination details for multi-agent workflows'
+                options: ['Draft', 'Testing', 'Validated', 'Production', 'Deprecated'],
+                helpText: '✅ Development stage'
             },
             includeDependencies: true,
             includeTracking: true,
@@ -4425,16 +4443,25 @@ function hidePatternDescription() {
                     notes: 'Key considerations: user testing requirements, performance benchmarks, rollout strategy, rollback plan, monitoring and alerting, documentation needs.'
                 },
                 prompting: {
-                    name: ['Customer Support Agent', 'Code Review Evaluator', 'RAG Query Optimizer', 'Content Generation Pipeline', 'Multi-Agent Coordinator', 'Safety Guardrail', 'Chain-of-Thought Reasoner', 'Tool Invocation Handler'],
-                    description: 'Structured prompt module designed for production AI systems. Includes clear role definition, task specification, output format, edge case handling, and evaluation criteria. Optimized for reliability and consistency.',
-                    useCase: 'Retrieval / RAG',
+                    name: ['Customer Support Agent', 'Code Reviewer with CoT', 'RAG Query Handler', 'Content Generator', 'Multi-Agent Router', 'Safety Classifier', 'Summarizer with Examples', 'Function Calling Orchestrator'],
+                    description: 'Production prompt engineered using OpenAI/Anthropic best practices. Clear role definition, task breakdown, few-shot examples, output format specification, and evaluation criteria. Optimized for consistency and reliability.',
+                    systemPrompt: 'You are an expert customer support agent for a SaaS platform. Your goal is to resolve customer issues quickly while maintaining a friendly, professional tone. Always prioritize customer satisfaction. If you cannot resolve an issue, escalate appropriately with clear context.',
+                    userPromptTemplate: 'A customer has reported the following issue:\n\n<customer_issue>\n{{issue}}\n</customer_issue>\n\n<context>\nAccount: {{account_tier}}\nPrevious tickets: {{ticket_history}}\n</context>\n\nAnalyze the issue and provide: 1) Root cause, 2) Resolution steps, 3) Prevention advice.',
+                    fewShotExamples: '<examples>\n<example>\n<user>Login broken after password reset</user>\n<assistant>Root cause: Session cache not cleared. Resolution: Clear browser cache or wait 5 minutes for auto-refresh. Prevention: Use incognito mode during password changes.</assistant>\n</example>\n</examples>',
+                    structuralTags: '<thinking>\nAnalyze issue type and severity\n</thinking>\n\n<answer>\nProvide structured response\n</answer>',
+                    assistantPrefill: 'Here is my analysis of the customer issue:',
+                    chainOfThought: 'Think step by step: First identify the symptom, then trace back to root cause, then propose the minimal effective solution.',
+                    outputFormat: 'Use this structure:\n**Root Cause:** [one sentence]\n**Resolution:** [numbered steps]\n**Prevention:** [actionable advice]',
                     modelTarget: 'Claude 3.5 Sonnet',
-                    temperature: 0.7,
-                    maxTokens: 4096,
-                    inputs: 'User query, retrieved context chunks, conversation history',
-                    outputs: 'Structured response with citations, confidence scores, and follow-up suggestions',
-                    testStatus: 'Pass - 95% accuracy on eval set',
-                    notes: 'Key considerations: prompt injection prevention, hallucination mitigation, token budget management, latency optimization, fallback behaviors, version control, A/B testing strategy.'
+                    temperature: 0.3,
+                    maxTokens: 1500,
+                    testResults: 'Golden set: 94% accuracy on 200 support tickets\nAvg latency: 1.8s\nCost: $0.025 per call\nCustomer satisfaction: 4.7/5',
+                    toolDefinitions: '{\n  "escalate_ticket": {\n    "description": "Escalate to human agent",\n    "parameters": {"reason": "string", "priority": "high|medium|low"}\n  }\n}',
+                    agentWorkflow: 'Single agent (support responder)\n→ Optionally calls escalate_ticket function\n→ Human agent takes over if escalated',
+                    contextManagement: 'Sliding window: keep last 6 messages (3 turns)\nCompress older history with summarization\nToken budget: 8K context, 1.5K completion',
+                    promptInjectionDefense: 'Use XML tags to separate user input: <customer_issue>{{untrusted}}</customer_issue>\nValidate output doesn\'t leak system prompt\nMonitor for jailbreak patterns',
+                    iterationNotes: 'v1: Too verbose, 350 tokens avg\nv2: Added output format, reduced to 180 tokens\nv3: Few-shot examples improved consistency to 94%\nv4: Lowered temp from 0.7→0.3 for more deterministic responses',
+                    notes: 'OpenAI/Anthropic best practices applied:\n- Clear system role (Anthropic: system parameter)\n- XML tags for structure (Anthropic recommendation)\n- Few-shot examples in <examples> tags\n- Assistant prefill to guide tone (Claude-specific)\n- Chain-of-thought instruction for reasoning\n- Explicit output format\n- Prompt injection defense with delimiters\n- Golden test set for validation\n- Iterative refinement based on metrics'
                 },
                 book: {
                     name: ['Opening Scene', 'Character Introduction', 'Rising Action', 'Climactic Confrontation', 'Resolution', 'Twist Reveal', 'Emotional Payoff', 'Transition Chapter'],
