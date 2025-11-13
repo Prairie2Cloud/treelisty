@@ -6553,8 +6553,200 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             return prompt;
         }
 
+        // Generate AI Video Production prompts (Sora/Veo3 format)
+        function generateAIVideoPrompts(tree, pattern) {
+            let prompt = `# ${tree.icon || '🎬'} ${tree.name || 'Film'}\n\n`;
+            prompt += `**AI Video Generation Prompts** (Sora / Veo 3)\n\n`;
+
+            if (tree.description) {
+                prompt += `${tree.description}\n\n`;
+            }
+
+            prompt += `---\n\n`;
+            prompt += `## 🎬 Professional Video Prompts\n\n`;
+            prompt += `Each scene below is formatted as a complete, professional prompt for AI video generation (Sora, Veo 3, Runway Gen-3, Pika 2.0). Copy the prompt directly into your AI video platform.\n\n`;
+            prompt += `---\n\n`;
+
+            // Process each act (phase)
+            if (tree.children && tree.children.length > 0) {
+                tree.children.forEach((phase, phaseIdx) => {
+                    prompt += `## ${phase.name}\n`;
+                    if (phase.subtitle) {
+                        prompt += `*${phase.subtitle}*\n`;
+                    }
+                    prompt += `\n`;
+
+                    // Add scenes (items)
+                    if (phase.items && phase.items.length > 0) {
+                        phase.items.forEach((item, itemIdx) => {
+                            prompt += `### Scene ${phaseIdx + 1}.${itemIdx + 1}: ${item.name}\n\n`;
+
+                            // SYNTHESIZE ALL FIELDS INTO ONE PROFESSIONAL PROMPT
+                            const videoPrompt = synthesizeVideoPrompt(item);
+                            prompt += `**Platform**: ${item.aiPlatform || 'Sora (OpenAI)'}\n\n`;
+                            prompt += `**Prompt**:\n\`\`\`\n${videoPrompt}\n\`\`\`\n\n`;
+
+                            // Technical specs summary
+                            const specs = [];
+                            if (item.duration) specs.push(`Duration: ${item.duration}`);
+                            if (item.aspectRatio) specs.push(`Aspect: ${item.aspectRatio}`);
+                            if (item.visualStyle) specs.push(`Style: ${item.visualStyle}`);
+                            if (specs.length > 0) {
+                                prompt += `**Tech**: ${specs.join(' • ')}\n\n`;
+                            }
+
+                            // Iteration notes (if present)
+                            if (item.iterationNotes) {
+                                prompt += `**Notes**: ${item.iterationNotes}\n\n`;
+                            }
+
+                            prompt += `---\n\n`;
+                        });
+                    }
+                });
+            }
+
+            prompt += `\n## 📋 Usage Instructions\n\n`;
+            prompt += `1. Copy the prompt text (inside the code block)\n`;
+            prompt += `2. Paste into your AI video platform (Sora, Veo 3, Runway, Pika)\n`;
+            prompt += `3. Adjust technical settings (duration, aspect ratio) as specified\n`;
+            prompt += `4. Generate and review results\n`;
+            prompt += `5. Iterate based on the Notes section if needed\n`;
+
+            return prompt;
+        }
+
+        // Synthesize all video fields into one cohesive professional prompt
+        // Based on Sora/Veo3 best practices: comprehensive, detailed, cinematographic
+        function synthesizeVideoPrompt(item) {
+            let sections = [];
+
+            // SECTION 1: CORE SCENE DESCRIPTION
+            let sceneDesc = '';
+            if (item.videoPrompt) {
+                sceneDesc = item.videoPrompt;
+            } else if (item.description) {
+                sceneDesc = item.description;
+            } else {
+                sceneDesc = item.name;
+            }
+            sections.push(sceneDesc);
+
+            // SECTION 2: CAMERA SPECIFICATIONS
+            const cameraSpecs = [];
+
+            // Camera movement (critical for Sora/Veo3)
+            if (item.cameraMovement && item.cameraMovement !== 'Static') {
+                const movement = item.cameraMovement.toLowerCase();
+                if (!sceneDesc.toLowerCase().includes(movement)) {
+                    cameraSpecs.push(`${movement} camera`);
+                }
+            } else if (!sceneDesc.toLowerCase().includes('camera')) {
+                cameraSpecs.push('static camera');
+            }
+
+            // Motion intensity affects pacing
+            if (item.motionIntensity) {
+                const intensity = item.motionIntensity.toLowerCase();
+                if (!sceneDesc.toLowerCase().includes(intensity) && !sceneDesc.toLowerCase().includes('motion')) {
+                    cameraSpecs.push(`${intensity} motion`);
+                }
+            }
+
+            if (cameraSpecs.length > 0) {
+                sections.push(cameraSpecs.join(', '));
+            }
+
+            // SECTION 3: LIGHTING & ATMOSPHERE
+            const lightingDetails = [];
+
+            if (item.lightingMood) {
+                const mood = item.lightingMood.toLowerCase();
+                if (!sceneDesc.toLowerCase().includes(mood) && !sceneDesc.toLowerCase().includes('light')) {
+                    lightingDetails.push(`${mood} lighting`);
+                }
+            }
+
+            // Visual style affects overall aesthetic
+            if (item.visualStyle && item.visualStyle !== 'Photorealistic') {
+                const style = item.visualStyle.toLowerCase();
+                if (!sceneDesc.toLowerCase().includes(style)) {
+                    lightingDetails.push(`${style} aesthetic`);
+                }
+            }
+
+            if (lightingDetails.length > 0) {
+                sections.push(lightingDetails.join(', '));
+            }
+
+            // SECTION 4: TECHNICAL FORMAT (professional cinematography language)
+            const technicalDetails = [];
+
+            // Aspect ratio implies framing
+            if (item.aspectRatio) {
+                const ratio = item.aspectRatio;
+                if (ratio.includes('16:9')) {
+                    if (!sceneDesc.toLowerCase().includes('widescreen') && !sceneDesc.toLowerCase().includes('cinematic')) {
+                        technicalDetails.push('widescreen composition');
+                    }
+                } else if (ratio.includes('9:16')) {
+                    if (!sceneDesc.toLowerCase().includes('vertical')) {
+                        technicalDetails.push('vertical framing');
+                    }
+                } else if (ratio.includes('2.39')) {
+                    if (!sceneDesc.toLowerCase().includes('cinematic')) {
+                        technicalDetails.push('anamorphic widescreen');
+                    }
+                }
+            }
+
+            if (technicalDetails.length > 0) {
+                sections.push(technicalDetails.join(', '));
+            }
+
+            // SYNTHESIZE: Build comprehensive prompt
+            let finalPrompt = sections.filter(s => s && s.length > 0).join('. ');
+
+            // Ensure professional formatting
+            if (!finalPrompt.endsWith('.') && !finalPrompt.endsWith('!') && !finalPrompt.endsWith('?')) {
+                finalPrompt += '.';
+            }
+
+            // QUALITY CHECK: Professional prompts should be detailed (100+ chars minimum)
+            // If still too short, add generic cinematography guidance
+            if (finalPrompt.length < 100) {
+                const defaultEnhancements = [];
+
+                if (!finalPrompt.toLowerCase().includes('focus')) {
+                    defaultEnhancements.push('sharp focus on subject');
+                }
+
+                if (!finalPrompt.toLowerCase().includes('detail')) {
+                    defaultEnhancements.push('high attention to detail');
+                }
+
+                if (item.duration && item.duration.includes('seconds')) {
+                    const seconds = item.duration.match(/\d+/)?.[0];
+                    if (seconds) {
+                        defaultEnhancements.push(`${seconds}-second clip`);
+                    }
+                }
+
+                if (defaultEnhancements.length > 0) {
+                    finalPrompt += ` ${defaultEnhancements.join(', ')}.`;
+                }
+            }
+
+            return finalPrompt;
+        }
+
         // Generate generic prompt format
         function generateGenericPrompt(tree, pattern) {
+            // SPECIAL CASE: AI Video Production uses different format
+            if (currentPattern === 'film') {
+                return generateAIVideoPrompts(tree, pattern);
+            }
+
             let prompt = `# ${tree.icon || '📋'} ${tree.name || 'Project'}\n\n`;
 
             if (tree.description) {
@@ -6573,7 +6765,6 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 'fitness': `You are a fitness coach. Follow this training program:`,
                 'strategy': `You are a business strategist. Follow this strategic plan:`,
                 'course': `You are an educator. Follow this course structure:`,
-                'film': `You are a film director. Follow this production plan:`,
                 'philosophy': `You are a philosophy scholar. Follow this philosophical argument:`,
                 'familytree': `You are a genealogist. Follow this family tree structure:`,
                 'generic': `Follow this structured workflow:`
