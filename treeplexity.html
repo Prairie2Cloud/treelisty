@@ -1172,7 +1172,9 @@
             </div>
 
             <div class="control-section">
-                <button class="btn" id="excel-export-btn" style="background: linear-gradient(135deg, #1D6F42, #00A67D);" title="Export to Excel">📊 Excel</button>
+                <button class="btn" id="excel-export-btn" style="background: linear-gradient(135deg, #1D6F42, #00A67D);" title="Export to Excel">📊 Export Excel</button>
+                <button class="btn" id="excel-import-btn" style="background: linear-gradient(135deg, #00A67D, #1D6F42);" title="Import from Excel">📥 Import Excel</button>
+                <input type="file" id="excel-upload-input" accept=".xlsx,.xls" style="display: none;">
             </div>
 
             <div class="control-section">
@@ -5288,7 +5290,11 @@ function hidePatternDescription() {
         const collapseBtn = document.getElementById('collapse-btn');
 
         if (expandBtn) {
+            console.log('✅ Expand button found, attaching event listener');
             expandBtn.addEventListener('click', () => {
+                console.log('⬇️ Expand button clicked!');
+                console.log('Current tree state:', capexTree);
+
                 function expandAll(node) {
                     if (node.children) {
                         node.expanded = true;
@@ -5296,14 +5302,21 @@ function hidePatternDescription() {
                     }
                 }
                 expandAll(capexTree);
+
+                console.log('Tree after expand:', capexTree);
                 render();
+                console.log('Render complete');
             });
         } else {
-            console.error('Expand button not found!');
+            console.error('❌ Expand button not found!');
         }
 
         if (collapseBtn) {
+            console.log('✅ Collapse button found, attaching event listener');
             collapseBtn.addEventListener('click', () => {
+                console.log('⬆️ Collapse button clicked!');
+                console.log('Current tree state:', capexTree);
+
                 function collapseAll(node) {
                     if (node.children) {
                         node.expanded = false;
@@ -5311,10 +5324,13 @@ function hidePatternDescription() {
                     }
                 }
                 capexTree.children.forEach(collapseAll);
+
+                console.log('Tree after collapse:', capexTree);
                 render();
+                console.log('Render complete');
             });
         } else {
-            console.error('Collapse button not found!');
+            console.error('❌ Collapse button not found!');
         }
 
         // Save and Load JSON buttons in console
@@ -6300,13 +6316,49 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                 prompt += `${item.description}\n`;
                             }
 
-                            // Add pattern-specific fields
-                            if (item.useCase) prompt += `- **Use Case**: ${item.useCase}\n`;
-                            if (item.modelTarget) prompt += `- **Target Model**: ${item.modelTarget}\n`;
-                            if (item.temperature !== undefined) prompt += `- **Temperature**: ${item.temperature}\n`;
-                            if (item.maxTokens) prompt += `- **Max Tokens**: ${item.maxTokens}\n`;
-                            if (item.inputs) prompt += `- **Inputs**: ${item.inputs}\n`;
-                            if (item.outputs) prompt += `- **Expected Output**: ${item.outputs}\n`;
+                            // Add ALL pattern-specific fields dynamically
+                            prompt += `\n`;
+                            if (pattern.fields) {
+                                Object.keys(pattern.fields).forEach(fieldKey => {
+                                    const fieldConfig = pattern.fields[fieldKey];
+
+                                    // Skip non-field properties
+                                    if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                                        return;
+                                    }
+
+                                    const value = item[fieldKey];
+                                    if (value !== undefined && value !== null && value !== '') {
+                                        let displayValue = value;
+
+                                        // Format based on field type
+                                        if (fieldConfig.type === 'number') {
+                                            if (fieldKey === 'cost' || fieldKey === 'dealValue') {
+                                                displayValue = formatCost(value);
+                                            } else {
+                                                displayValue = value;
+                                            }
+                                        } else if (fieldConfig.type === 'date') {
+                                            displayValue = new Date(value).toLocaleDateString();
+                                        }
+
+                                        prompt += `- **${fieldConfig.label}**: ${displayValue}\n`;
+                                    }
+                                });
+                            }
+
+                            // Add dependencies
+                            if (item.dependencies && item.dependencies.length > 0) {
+                                const deps = Array.isArray(item.dependencies) ? item.dependencies.join(', ') : item.dependencies;
+                                prompt += `- **Dependencies**: ${deps}\n`;
+                            }
+
+                            // Add PM tracking fields if present
+                            if (item.pmStatus) prompt += `- **Status**: ${item.pmStatus}\n`;
+                            if (item.pmAssignee) prompt += `- **Assignee**: ${item.pmAssignee}\n`;
+                            if (item.pmProgress !== undefined) prompt += `- **Progress**: ${item.pmProgress}%\n`;
+                            if (item.pmPriority) prompt += `- **Priority**: ${item.pmPriority}\n`;
+                            if (item.pmDueDate) prompt += `- **Due Date**: ${new Date(item.pmDueDate).toLocaleDateString()}\n`;
 
                             // Add steps (subtasks)
                             if (item.subtasks && item.subtasks.length > 0) {
@@ -6315,6 +6367,14 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                     prompt += `${subIdx + 1}. ${subtask.name}`;
                                     if (subtask.description) {
                                         prompt += `: ${subtask.description}`;
+                                    }
+                                    // Add subtask PM tracking if present
+                                    const pmInfo = [];
+                                    if (subtask.pmStatus) pmInfo.push(`Status: ${subtask.pmStatus}`);
+                                    if (subtask.pmAssignee) pmInfo.push(`Assignee: ${subtask.pmAssignee}`);
+                                    if (subtask.pmProgress !== undefined) pmInfo.push(`${subtask.pmProgress}%`);
+                                    if (pmInfo.length > 0) {
+                                        prompt += ` [${pmInfo.join(', ')}]`;
                                     }
                                     prompt += `\n`;
                                 });
@@ -6381,14 +6441,49 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                 prompt += `${item.description}\n`;
                             }
 
-                            // Add relevant fields based on pattern
-                            if (item.dealValue) prompt += `- **Value**: ${formatCost(item.dealValue)}\n`;
-                            if (item.probability) prompt += `- **Probability**: ${item.probability}%\n`;
-                            if (item.accountExecutive) prompt += `- **Owner**: ${item.accountExecutive}\n`;
-                            if (item.dependencies) {
-                                const deps = Array.isArray(item.dependencies) ? item.dependencies.join(', ') : item.dependencies;
-                                if (deps) prompt += `- **Dependencies**: ${deps}\n`;
+                            // Add ALL pattern-specific fields dynamically
+                            prompt += `\n`;
+                            if (pattern.fields) {
+                                Object.keys(pattern.fields).forEach(fieldKey => {
+                                    const fieldConfig = pattern.fields[fieldKey];
+
+                                    // Skip non-field properties
+                                    if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                                        return;
+                                    }
+
+                                    const value = item[fieldKey];
+                                    if (value !== undefined && value !== null && value !== '') {
+                                        let displayValue = value;
+
+                                        // Format based on field type
+                                        if (fieldConfig.type === 'number') {
+                                            if (fieldKey === 'cost' || fieldKey === 'dealValue') {
+                                                displayValue = formatCost(value);
+                                            } else {
+                                                displayValue = value;
+                                            }
+                                        } else if (fieldConfig.type === 'date') {
+                                            displayValue = new Date(value).toLocaleDateString();
+                                        }
+
+                                        prompt += `- **${fieldConfig.label}**: ${displayValue}\n`;
+                                    }
+                                });
                             }
+
+                            // Add dependencies
+                            if (item.dependencies && item.dependencies.length > 0) {
+                                const deps = Array.isArray(item.dependencies) ? item.dependencies.join(', ') : item.dependencies;
+                                prompt += `- **Dependencies**: ${deps}\n`;
+                            }
+
+                            // Add PM tracking fields if present
+                            if (item.pmStatus) prompt += `- **Status**: ${item.pmStatus}\n`;
+                            if (item.pmAssignee) prompt += `- **Assignee**: ${item.pmAssignee}\n`;
+                            if (item.pmProgress !== undefined) prompt += `- **Progress**: ${item.pmProgress}%\n`;
+                            if (item.pmPriority) prompt += `- **Priority**: ${item.pmPriority}\n`;
+                            if (item.pmDueDate) prompt += `- **Due Date**: ${new Date(item.pmDueDate).toLocaleDateString()}\n`;
 
                             // Add subtasks
                             if (item.subtasks && item.subtasks.length > 0) {
@@ -6397,6 +6492,14 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                     prompt += `${subIdx + 1}. ${subtask.name}`;
                                     if (subtask.description) {
                                         prompt += `: ${subtask.description}`;
+                                    }
+                                    // Add subtask PM tracking if present
+                                    const pmInfo = [];
+                                    if (subtask.pmStatus) pmInfo.push(`Status: ${subtask.pmStatus}`);
+                                    if (subtask.pmAssignee) pmInfo.push(`Assignee: ${subtask.pmAssignee}`);
+                                    if (subtask.pmProgress !== undefined) pmInfo.push(`${subtask.pmProgress}%`);
+                                    if (pmInfo.length > 0) {
+                                        prompt += ` [${pmInfo.join(', ')}]`;
                                     }
                                     prompt += `\n`;
                                 });
@@ -7017,6 +7120,41 @@ Provide exactly 3 recommendations, ranked by confidence (1-10). Use these patter
         async function convertTextToTreeQuick(text, pattern) {
             const patternConfig = PATTERNS[pattern];
             const levels = patternConfig.levels;
+            const fields = patternConfig.fields || {};
+
+            // Generate quick field hints (top 5 most important fields)
+            let quickFieldHints = '';
+            const importantFields = [];
+
+            Object.keys(fields).forEach(fieldKey => {
+                const fieldConfig = fields[fieldKey];
+                // Skip non-field properties
+                if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                    return;
+                }
+                if (fieldConfig.label) {
+                    let hint = `- ${fieldKey}: ${fieldConfig.label}`;
+                    if (fieldConfig.type === 'number') {
+                        hint += ` (number)`;
+                    } else if (fieldConfig.type === 'date') {
+                        hint += ` (YYYY-MM-DD)`;
+                    } else if (fieldConfig.type === 'select' && fieldConfig.options) {
+                        hint += ` (${fieldConfig.options.slice(0, 3).join('/')})`;
+                    }
+                    importantFields.push(hint);
+                }
+            });
+
+            if (importantFields.length > 0) {
+                quickFieldHints = `\n\nKEY FIELDS TO EXTRACT (if mentioned in text):\n${importantFields.slice(0, 6).join('\n')}\n`;
+            }
+
+            // Add item types if available
+            let itemTypeHints = '';
+            if (patternConfig.types && patternConfig.types.length > 0) {
+                const typesList = patternConfig.types.slice(0, 8).map(t => t.value).join(', ');
+                itemTypeHints = `\n\nITEM TYPES: Use these specific types: ${typesList}\n`;
+            }
 
             const prompt = `Convert this text into a hierarchical project structure using the "${patternConfig.name}" pattern.
 
@@ -7025,6 +7163,7 @@ PATTERN HIERARCHY:
 - Phase (Level 1): ${levels.phase}
 - Item (Level 2): ${levels.item}
 - Subtask (Level 3): ${levels.subtask}
+${itemTypeHints}${quickFieldHints}
 
 TEXT:
 ${text}
@@ -7035,7 +7174,8 @@ INSTRUCTIONS (BE CONCISE TO AVOID TIMEOUT):
 3. For each phase, create 2-5 items (${levels.item}s) - MAXIMUM 5 per phase
 4. For complex items, add 1-3 subtasks (${levels.subtask}s) - MAXIMUM 3 per item
 5. Keep descriptions SHORT (under 100 characters)
-6. PRIORITIZE SPEED - extract only the most important elements
+6. Extract the key fields listed above if values are mentioned in the text
+7. PRIORITIZE SPEED - extract only the most important elements
 
 JSON FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
 - NO trailing commas after the last element in arrays or objects
@@ -7062,7 +7202,8 @@ Respond with ONLY valid, parseable JSON:
         {
           "name": "Item name",
           "description": "Brief description",
-          "itemType": "type-if-applicable",
+          "itemType": "type-from-list-above",
+          "... include any key fields from list above if mentioned ...": "value",
           "subtasks": [
             { "name": "Subtask name (optional)" }
           ]
@@ -7244,62 +7385,83 @@ ${jsonText}`;
             const levels = patternConfig.levels;
             const fields = patternConfig.fields || {};
 
-            // Build field hints for AI
-            let fieldHints = '';
-            if (fields.cost) {
-                fieldHints += '\n- Extract any cost/budget/price information as numbers';
-            }
-            if (fields.dealValue) {
-                fieldHints += '\n- Extract deal values and revenue numbers';
-            }
-            if (fields.wordCount) {
-                fieldHints += '\n- Estimate word counts for sections';
-            }
-            if (fields.storyPoints) {
-                fieldHints += '\n- Assign story points (1-13) based on complexity';
-            }
-            if (fields.includeDependencies) {
-                fieldHints += '\n- Identify dependencies between items (what depends on what)';
+            // Generate dynamic field extraction guide from pattern.fields
+            function generateFieldExtractionGuide(pattern) {
+                const patternDef = PATTERNS[pattern];
+                const fields = patternDef.fields || {};
+
+                let guide = `\n${patternDef.name.toUpperCase()} PATTERN - EXTRACT THESE FIELDS FOR EVERY ITEM:\n`;
+
+                Object.keys(fields).forEach(fieldKey => {
+                    const fieldConfig = fields[fieldKey];
+
+                    // Skip non-field properties
+                    if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                        return;
+                    }
+
+                    if (fieldConfig.label) {
+                        guide += `- ${fieldKey}: ${fieldConfig.label}`;
+
+                        // Add extraction hints based on field type
+                        if (fieldConfig.type === 'number') {
+                            guide += ` (extract numeric value`;
+                            if (fieldConfig.min !== undefined || fieldConfig.max !== undefined) {
+                                guide += `, valid range ${fieldConfig.min || 0}-${fieldConfig.max || '∞'}`;
+                            }
+                            if (fieldConfig.step !== undefined) {
+                                guide += `, use increments of ${fieldConfig.step}`;
+                            }
+                            guide += `)`;
+                        } else if (fieldConfig.type === 'date') {
+                            guide += ` (extract date, format as YYYY-MM-DD)`;
+                        } else if (fieldConfig.type === 'select' && fieldConfig.options) {
+                            guide += ` (choose from: ${fieldConfig.options.join(', ')})`;
+                        } else if (fieldConfig.type === 'textarea') {
+                            guide += ` (detailed text, 100-300 characters)`;
+                        } else if (fieldConfig.type === 'text' && fieldConfig.placeholder) {
+                            guide += ` (e.g., "${fieldConfig.placeholder}")`;
+                        }
+
+                        if (fieldConfig.helpText) {
+                            guide += ` - ${fieldConfig.helpText}`;
+                        }
+
+                        guide += `\n`;
+                    }
+                });
+
+                // Add item types
+                if (patternDef.types && patternDef.types.length > 0) {
+                    guide += `\nITEM TYPES FOR ${patternDef.name.toUpperCase()}: Use specific types from this list:\n`;
+                    const typesList = patternDef.types.map(t => t.value).join(', ');
+                    guide += typesList + '\n';
+                    guide += `(NOT generic types - use the specific types above to categorize each item)\n`;
+                }
+
+                // Add PM tracking fields if pattern supports it
+                if (fields.includeTracking && patternDef.fields.trackingFor) {
+                    guide += `\nPM TRACKING FIELDS (for ${patternDef.fields.trackingFor.join('/')}s):\n`;
+                    guide += `- pmStatus: Task status (choose from: To Do, In Progress, Blocked, Done)\n`;
+                    guide += `- pmAssignee: Person responsible (if mentioned in text)\n`;
+                    guide += `- pmProgress: Completion percentage (0-100)\n`;
+                    guide += `- pmPriority: Priority level (Low, Medium, High, Critical)\n`;
+                    guide += `- pmDueDate: Deadline (format YYYY-MM-DD if mentioned)\n`;
+                    guide += `- pmStartDate: Start date (format YYYY-MM-DD if mentioned)\n`;
+                }
+
+                // Add dependencies hint
+                if (fields.includeDependencies) {
+                    guide += `\nDEPENDENCIES:\n`;
+                    guide += `- Identify which ${levels.item}s depend on others\n`;
+                    guide += `- Look for: "depends on", "requires", "after", "builds on", "assumes"\n`;
+                    guide += `- Format as array of item IDs: ["item-0-1", "item-0-2"]\n`;
+                }
+
+                return guide;
             }
 
-            // Build pattern-specific field extraction guide
-            let patternFieldGuide = '';
-            if (pattern === 'philosophy') {
-                patternFieldGuide = `
-PHILOSOPHY PATTERN - EXTRACT THESE FIELDS FOR EVERY NODE:
-- speaker: Who is speaking (e.g., "Socrates", "Callias", "Narrator")
-- argumentType: Type of reasoning ("Deductive", "Inductive", "Dialectical", "Socratic Elenchus", "Reductio ad Absurdum")
-- validity: Logical soundness ("Valid", "Invalid", "Sound", "Unsound", "Uncertain")
-- keyTerms: Central concepts discussed (e.g., "justice, knowledge, virtue")
-- premise1: First premise of argument (if applicable)
-- premise2: Second premise of argument (if applicable)
-- conclusion: Logical conclusion drawn (if applicable)
-- objection: Counterargument raised (if applicable)
-- response: Reply to objection (if applicable)
-- textualReference: Location in text (e.g., "Movement 2, paragraph 3")
-- philosophicalSchool: Tradition or school (e.g., "Platonic", "Aristotelian", "Stoic")
-
-ITEM TYPES FOR PHILOSOPHY: Use specific types for each node:
-question, definition, refutation, premise, conclusion, objection, response, example, analogy, distinction, paradox, thought-experiment, aporia, metaphysical, epistemological, ethical, political, logical`;
-            } else if (pattern === 'sales') {
-                patternFieldGuide = `
-SALES PATTERN - EXTRACT THESE FIELDS:
-- dealValue: Revenue/contract value in numbers
-- probability: Win probability (0-100%)
-- leadTime: Expected time to close
-- dependencies: Prerequisites (other deals, approvals, etc.)`;
-            } else if (pattern === 'academic') {
-                patternFieldGuide = `
-ACADEMIC PATTERN - EXTRACT THESE FIELDS:
-- wordCount: Estimated word count for each section
-- citations: Number of citations (if mentioned)
-- dependencies: Which sections reference or build on others`;
-            } else if (pattern === 'software') {
-                patternFieldGuide = `
-SOFTWARE PATTERN - EXTRACT THESE FIELDS:
-- storyPoints: Complexity estimate (1, 2, 3, 5, 8, 13)
-- dependencies: Technical dependencies between features/tasks`;
-            }
+            const patternFieldGuide = generateFieldExtractionGuide(pattern);
 
             const prompt = `Convert this text into a detailed hierarchical project structure using the "${patternConfig.name}" pattern.
 
@@ -7309,8 +7471,6 @@ PATTERN HIERARCHY (4 LEVELS):
 - Item (Level 2): ${levels.item}
 - Subtask (Level 3): ${levels.subtask}
 ${patternFieldGuide}
-
-PATTERN-SPECIFIC FIELDS TO EXTRACT:${fieldHints || '\n- Extract name and description'}
 
 TEXT TO ANALYZE:
 ${text}
@@ -7338,20 +7498,21 @@ DEEP MODE INSTRUCTIONS - COMPREHENSIVE EXTRACTION
    → Phase → Item → Subtask → (nested subtask if needed)
    → Do NOT stop at 2 levels
 
-5. FIELD POPULATION: Extract ALL pattern-specific field values
-   → speaker, argumentType, premise1, conclusion (for philosophy)
-   → dealValue, probability (for sales)
-   → wordCount, citations (for academic)
-   → Do NOT leave fields empty if information is available
+5. FIELD POPULATION: Extract ALL pattern-specific field values listed above
+   → Populate EVERY field mentioned in the "${patternConfig.name.toUpperCase()}" pattern section
+   → Do NOT leave fields empty if information is available in the text
+   → If exact value not in text, make intelligent estimates (for word counts, story points, etc.)
+   → For dates, use YYYY-MM-DD format
 
 6. DEPENDENCIES: Identify ALL logical prerequisites
    → Look for: "depends on", "requires", "builds on", "follows from", "assumes", "after"
    → Format: ["item-X-Y", "item-Z-W"]
    → Map both intra-phase and inter-phase dependencies
 
-7. NODE TYPES: Use specific types from pattern type list
-   → For philosophy: question, definition, refutation, premise, conclusion, objection, etc.
-   → Do NOT use generic "claim" for everything
+7. NODE TYPES: Use specific types from the "${patternConfig.name.toUpperCase()}" item type list above
+   → Use the EXACT type values provided (not generic categories)
+   → Different items should have different types based on their function
+   → Do NOT use the same type for every item
 
 8. DESCRIPTIONS: Write detailed descriptions (100-250 characters)
    → Capture nuance, context, and significance
@@ -8087,113 +8248,179 @@ ${jsonText}`;
                 <div style="padding: 20px; line-height: 1.8;">
                     <h3 style="color: var(--treeplex-primary); margin-bottom: 16px; font-size: 20px;">💡 What is TreeListy?</h3>
                     <p style="margin-bottom: 20px; font-size: 14px;">
-                        <strong>TreeListy</strong> is a universal tool for breaking down any complex project, problem, or process into manageable parts.\n                        Structure your work into phases, track dependencies between components, and analyze your entire plan at a glance.\n                        Use it for software projects, events, research, personal goals, or anything else that benefits from structured thinking! 🌳✨🎯
+                        <strong>TreeListy</strong> is a universal tool for breaking down any complex project, problem, or process into manageable parts.
+                        Structure your work into phases, track dependencies between components, and analyze your entire plan at a glance.
+                        Use it for software projects, sales pipelines, academic writing, product roadmaps, AI prompt design, or anything else that benefits from structured thinking! 🌳✨🎯
                     </p>
 
-                    <h3 style="color: var(--phase-1); margin-bottom: 16px; font-size: 20px;">🚀 Getting Started</h3>
+                    <h3 style="color: var(--phase-1); margin-bottom: 16px; font-size: 20px;">🚀 Quick Start</h3>
                     <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid var(--phase-1);">
-                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>1. Create Items</strong></p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Right-click on any Phase → "Add Item"</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">• Fill in Name, Description, Cost, and Lead Time</p>
+                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>1. Choose Your Pattern</strong></p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• Use the Pattern dropdown (top) to select your project type:</p>
+                        <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">📋 Generic Project, 💼 Sales Pipeline, 🎓 Academic Writing</p>
+                        <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">🚀 Product Roadmap, 📚 Book Writing, 🧠 AI Prompt Design</p>
+                        <p style="font-size: 12px; margin-bottom: 12px; padding-left: 16px;">🏛️ Philosophy, 💡 Strategic Planning, ✏️ Custom Pattern</p>
 
-                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>2. Use Smart Suggestions 💡</strong></p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Right-click any text field → "Smart Suggest"</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Cost suggestions learn from similar items in your project!</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">• Add Context Notes for even better suggestions</p>
+                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>2. Build Your Tree (3 Ways)</strong></p>
 
-                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>3. Set Dependencies</strong></p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Edit an item → Check boxes in Dependencies section</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">• Watch dependency arrows appear automatically! 🎯</p>
+                        <p style="font-size: 13px; margin-bottom: 8px; font-weight: 600;">🧙 AI Wizard (Easiest!)</p>
+                        <p style="font-size: 13px; margin-bottom: 4px; padding-left: 16px;">• Click "🧙 AI Wizard" button in toolbar</p>
+                        <p style="font-size: 13px; margin-bottom: 4px; padding-left: 16px;">• Describe your project in plain language</p>
+                        <p style="font-size: 13px; margin-bottom: 4px; padding-left: 16px;">• AI asks strategic questions and builds your tree</p>
+                        <p style="font-size: 13px; margin-bottom: 12px; padding-left: 16px;">• Works for new trees or enhancing existing ones!</p>
 
-                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>4. Use AI Analysis 🤖</strong></p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Click any item → "🤖 AI Analysis" button</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Get intelligent insights powered by Claude Sonnet</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">• Risk analysis, cost optimization, and procurement strategy</p>
+                        <p style="font-size: 13px; margin-bottom: 8px; font-weight: 600;">📄 Analyze Text</p>
+                        <p style="font-size: 13px; margin-bottom: 4px; padding-left: 16px;">• Click "📄 Analyze Text" button</p>
+                        <p style="font-size: 13px; margin-bottom: 4px; padding-left: 16px;">• Paste any document (plans, specs, articles)</p>
+                        <p style="font-size: 13px; margin-bottom: 4px; padding-left: 16px;">• Choose Quick Mode (fast) or Deep Mode (thorough)</p>
+                        <p style="font-size: 13px; margin-bottom: 12px; padding-left: 16px;">• Can append to existing trees or replace completely</p>
 
-                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>5. Save Your Work 💾</strong></p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Click "💾 Save" button in the toolbar</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Or right-click Root/Phase → "Download JSON"</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">• Filename includes timestamp (treelisty-project-2025-11-02_143025.json)</p>
+                        <p style="font-size: 13px; margin-bottom: 8px; font-weight: 600;">✋ Manual Creation</p>
+                        <p style="font-size: 13px; margin-bottom: 4px; padding-left: 16px;">• Right-click on any Phase → "Add Item"</p>
+                        <p style="font-size: 13px; margin-bottom: 12px; padding-left: 16px;">• Fill in fields manually with full control</p>
 
-                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>6. Load Saved Projects 📂</strong></p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Click "📂 Load" button in the toolbar</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">• Or right-click Root/Phase → "Upload JSON"</p>
+                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>3. Use Smart Features</strong></p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Smart Suggestions 💡</strong> - Right-click any text field → "Smart Suggest"</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Dependencies</strong> - Edit an item → Check boxes in Dependencies section</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>AI Analysis 🤖</strong> - Click any item → "AI Analysis" for insights</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">• <strong>Undo</strong> - Click "↩️ Undo" or press Ctrl+Z (Cmd+Z on Mac)</p>
 
-                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>7. Export to Excel 📊</strong></p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Click "📊 Excel" button in the toolbar</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• Get 4-sheet professional workbook with executive summary</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">• Perfect for sharing with investors and stakeholders!</p>
+                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>4. Navigate & View</strong></p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Expand/Collapse</strong> - Click "⬇️ Expand" or "⬆️ Collapse" buttons</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Click nodes</strong> to expand/collapse individually or view details</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">• <strong>Pan/Zoom</strong> - Use mouse wheel or pan controls</p>
+
+                        <p style="font-size: 14px; margin-bottom: 12px;"><strong>5. Export & Share</strong></p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>📝 Generate Prompt</strong> - Export as AI-ready prompt (for Claude, GPT, etc.)</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>📊 Export Excel</strong> - Professional multi-sheet workbook</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>📥 Import Excel</strong> - Import Excel files back into TreeListy</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>💾 Save/Load</strong> - Save as JSON and reload anytime</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">• <strong>🔗 Share</strong> - Generate shareable URL</p>
                     </div>
 
-                    <h3 style="color: var(--phase-2); margin-bottom: 16px; font-size: 20px;">📊 Investor Presentations</h3>
+                    <h3 style="color: var(--phase-2); margin-bottom: 16px; font-size: 20px;">🤖 AI-Powered Features</h3>
                     <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid var(--phase-2);">
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🧙 AI Wizard</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • <strong>Interactive project building</strong> - AI asks strategic questions<br>
+                            • <strong>Conversational interface</strong> - Just describe what you need<br>
+                            • <strong>Enhance mode</strong> - Add to existing trees without starting over<br>
+                            • <strong>Real-time preview</strong> - Watch your tree build in the side panel<br>
+                            • <strong>Auto-recovery</strong> - Handles errors gracefully
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">📄 Analyze Text</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • <strong>Quick Mode</strong> - Fast analysis for straightforward documents<br>
+                            • <strong>Deep Mode</strong> - Thorough analysis for complex documents<br>
+                            • <strong>Append Mode</strong> - Combine multiple document analyses<br>
+                            • <strong>Smart extraction</strong> - Converts unstructured text to structured trees
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">📝 Generate Prompt</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • <strong>Export as AI prompt</strong> - Use with Claude, GPT-4, or any LLM<br>
+                            • <strong>Pattern-aware formatting</strong> - Adapts to your project type<br>
+                            • <strong>Copy to clipboard</strong> - One-click copy for easy sharing<br>
+                            • <strong>Complete context</strong> - Includes all phases, items, and subtasks
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🤖 AI Analysis (Per Item)</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • <strong>Risk assessments</strong> - Identify potential issues<br>
+                            • <strong>Cost optimization</strong> - Compare with similar items<br>
+                            • <strong>Strategic insights</strong> - Powered by Claude Sonnet<br>
+                            • <strong>Pattern-specific analysis</strong> - Tailored to your project type
+                        </p>
+                    </div>
+
+                    <h3 style="color: var(--phase-3); margin-bottom: 16px; font-size: 20px;">📊 Presentations & Sharing</h3>
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid var(--phase-3);">
                         <p style="font-size: 14px; margin-bottom: 12px;">
-                            <strong>TreeListy is your secret weapon for investor meetings!</strong> Here's how to wow your audience:
+                            <strong>TreeListy is perfect for investor meetings and stakeholder presentations!</strong>
                         </p>
 
                         <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🎯 Visual Impact</p>
                         <p style="font-size: 13px; margin-bottom: 12px;">
-                            • Expand all phases to show the complete project roadmap<br>
+                            • Use "⬇️ Expand" button to show complete roadmap<br>
                             • Dependency arrows show critical path in real-time<br>
-                            • Phase colors guide investors through the timeline
+                            • Phase colors guide audience through timeline<br>
+                            • Click individual nodes to drill down into details
                         </p>
 
-                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">💰 Financial Transparency</p>
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">📊 Excel Import & Export</p>
                         <p style="font-size: 13px; margin-bottom: 12px;">
-                            • Click any item to show detailed cost breakdowns<br>
-                            • Smart Analysis compares costs to similar items<br>
-                            • Automatic alerts for cost anomalies (+/- 50% from average)<br>
-                            • Phase totals show capital deployment strategy
+                            • <strong>Export:</strong> Professional 4-sheet workbook (Executive Summary, Details, Dependencies, PM Tracking)<br>
+                            • <strong>Import:</strong> Load Excel files back into TreeListy - edit in Excel, import changes<br>
+                            • <strong>Append Mode:</strong> Import multiple Excel files into one tree<br>
+                            • <strong>Pattern Detection:</strong> Automatically detects project type from Excel structure<br>
+                            • Perfect for board meetings, investor due diligence, and team collaboration
                         </p>
 
-                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">⚡ Risk Management</p>
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">💼 Pattern-Based Presentations</p>
                         <p style="font-size: 13px; margin-bottom: 12px;">
-                            • Show Alternate Sources for key equipment<br>
-                            • Lead Times demonstrate realistic planning<br>
-                            • Dependencies prove you've thought through execution
+                            • <strong>Sales Pipeline</strong> - Show deal flow and revenue forecast<br>
+                            • <strong>Product Roadmap</strong> - Display feature timeline and engineering estimates<br>
+                            • <strong>AI Prompt Design</strong> - Present prompt engineering workflows<br>
+                            • <strong>Strategic Planning</strong> - Show KPIs and strategic initiatives
                         </p>
 
-                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">📊 Excel Export for Presentations</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">
-                            • Click "📊 Export to Excel" for investor-ready spreadsheets<br>
-                            • 4 professional sheets: Executive Summary, Details, Dependencies, Cost Analysis<br>
-                            • Share with board members and stakeholders<br>
-                            • Auto-formatted with phase colors and totals
-                        </p>
-
-                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🤖 AI-Powered Insights</p>
-                        <p style="font-size: 13px; margin-bottom: 12px;">
-                            • Use "🤖 AI Analysis" for instant expert analysis<br>
-                            • Get risk assessments and cost optimization recommendations<br>
-                            • Claude Sonnet provides strategic procurement insights<br>
-                            • Perfect for due diligence questions
-                        </p>
-
-                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🎤 Pro Tip</p>
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🎤 Pro Tips</p>
                         <p style="font-size: 13px; margin-bottom: 8px; font-style: italic; color: var(--treeplex-primary);">
-                            During your pitch, use AI Analysis to demonstrate data-driven planning. Export to Excel
-                            before the meeting so stakeholders can follow along with printed materials. The combination
-                            of live visualization + professional spreadsheets = credibility! 😎
+                            • <strong>Excel Workflow:</strong> Export → Edit in Excel with team → Import back to TreeListy<br>
+                            • Use AI Wizard before meetings to quickly build comprehensive plans<br>
+                            • Generate Prompt to share project structure with AI assistants<br>
+                            • Import multiple Excel files using Append Mode to combine analyses<br>
+                            • Use Undo (Ctrl+Z) to safely experiment during live demos
                         </p>
                     </div>
 
-                    <h3 style="color: var(--treeplex-primary); margin-bottom: 16px; font-size: 20px;">🎨 Navigation Tips</h3>
-                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; border-left: 3px solid var(--treeplex-primary);">
-                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Toolbar buttons (top right)</strong> - Quick access to Save, Load, Excel, and AI</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Click any node</strong> to expand/collapse or view details</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Right-click anywhere</strong> for context menus with quick actions</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Indented items</strong> (shifted right) depend on items above them</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Dependency lines</strong> show cross-phase relationships</p>
-                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Phase backgrounds</strong> change color (green → blue → orange)</p>
-                        <p style="font-size: 13px;">• <strong>Hover over items</strong> to see them pop with 3D effects!</p>
+                    <h3 style="color: var(--treeplex-primary); margin-bottom: 16px; font-size: 20px;">⌨️ Keyboard Shortcuts & Tips</h3>
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid var(--treeplex-primary);">
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">Keyboard Shortcuts</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • <strong>Ctrl+Z / Cmd+Z</strong> - Undo last action (keeps 50 states in history)<br>
+                            • Works everywhere except when typing in text fields
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">Navigation</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • <strong>Click nodes</strong> to expand/collapse or view details<br>
+                            • <strong>Right-click anywhere</strong> for context menus<br>
+                            • <strong>⬇️ Expand / ⬆️ Collapse buttons</strong> - Control all phases at once<br>
+                            • <strong>Mouse wheel</strong> - Zoom in/out<br>
+                            • <strong>Pan controls</strong> - Navigate large trees
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">Visual Cues</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">
+                            • <strong>Indented items</strong> - Depend on items above them<br>
+                            • <strong>Dependency arrows</strong> - Show cross-phase relationships<br>
+                            • <strong>Phase colors</strong> - Guide through timeline (green → blue → orange → purple)<br>
+                            • <strong>Hover effects</strong> - 3D pop effects on items
+                        </p>
+                    </div>
+
+                    <h3 style="color: var(--phase-4); margin-bottom: 16px; font-size: 20px;">🔧 Advanced Features</h3>
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; border-left: 3px solid var(--phase-4);">
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Pattern System</strong> - 9 built-in patterns + custom pattern creator</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Smart Suggestions</strong> - AI learns from your project context</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Dependencies</strong> - Track relationships between items across phases</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>PM Tracking</strong> - Status, assignees, dates, progress, priorities, blocking issues</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Context Notes</strong> - Add project background for better AI suggestions</p>
+                        <p style="font-size: 13px; margin-bottom: 8px;">• <strong>Shareable URLs</strong> - Compress and share entire projects via URL</p>
+                        <p style="font-size: 13px;">• <strong>Auto-save</strong> - Your work is preserved in browser storage</p>
                     </div>
 
                     <div style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, rgba(0, 166, 125, 0.1), rgba(59, 143, 204, 0.1)); border-radius: 8px; text-align: center;">
                         <p style="font-size: 14px; font-weight: 600; color: var(--treeplex-primary); margin-bottom: 8px;">
                             🚀 Ready to build something amazing?
                         </p>
-                        <p style="font-size: 13px; opacity: 0.9;">
-                            Close this dialog and start planning your next billion-dollar project!
+                        <p style="font-size: 13px; opacity: 0.9; margin-bottom: 12px;">
+                            Start with the AI Wizard for instant guidance, or choose a pattern and dive in!
+                        </p>
+                        <p style="font-size: 12px; opacity: 0.7;">
+                            🧙 Pro tip: Try "🧙 AI Wizard" → describe your project → watch the magic happen
                         </p>
                     </div>
                 </div>
@@ -8394,47 +8621,144 @@ ${jsonText}`;
             XLSX.utils.book_append_sheet(wb, ws_summary, '📊 Executive Summary');
 
             // =================================================================
-            // SHEET 2: DETAILED ITEMS
+            // SHEET 2: DETAILED ITEMS (PATTERN-AWARE)
             // =================================================================
-            const itemsData = [
-                ['DETAILED PROJECT ITEMS'],
-                [],
-                ['Item Name', 'Phase', 'Type', 'Cost ($M)', 'Lead Time', 'Description', 'Alternate Source', 'Dependencies', 'Notes']
-            ];
 
-            allItems.forEach(item => {
-                const phaseDisplay = `${item.phaseName}${item.phaseSubtitle ? ' (' + item.phaseSubtitle + ')' : ''}`;
-                itemsData.push([
-                    item.name || '',
-                    phaseDisplay,
-                    item.itemType || '',
-                    item.cost ? (item.cost / 1000000).toFixed(2) : '0.00',
-                    item.leadTime || '',
-                    item.description || '',
-                    item.alternateSource || '',
-                    (item.dependencies || []).length > 0 ? item.dependencies.join(', ') : 'None',
-                    item.notes || ''
-                ]);
+            // Get current pattern for dynamic columns
+            const currentPatternDef = PATTERNS[currentPattern];
+            const patternFields = currentPatternDef.fields || {};
+
+            // Build dynamic column headers
+            const baseColumns = ['Item Name', 'Phase', 'Type', 'Description'];
+            const patternColumns = [];
+            const patternFieldKeys = []; // Track field keys for data extraction
+
+            // Add all pattern-specific fields dynamically
+            Object.keys(patternFields).forEach(fieldKey => {
+                const fieldConfig = patternFields[fieldKey];
+                // Skip non-field properties
+                if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                    return;
+                }
+                if (fieldConfig.label) {
+                    patternColumns.push(fieldConfig.label);
+                    patternFieldKeys.push(fieldKey);
+                }
             });
 
-            // Add total row
-            itemsData.push([]);
-            itemsData.push(['TOTAL', '', '', (totalCost / 1000000).toFixed(2), '', '', '', '', '']);
+            const endColumns = ['Dependencies', 'Notes'];
+            const allColumns = [...baseColumns, ...patternColumns, ...endColumns];
 
-            const ws_items = XLSX.utils.aoa_to_sheet(itemsData);
-
-            // Set column widths
-            ws_items['!cols'] = [
+            // Build column widths dynamically
+            const columnWidths = [
                 { wch: 30 },  // Item Name
                 { wch: 25 },  // Phase
                 { wch: 20 },  // Type
-                { wch: 12 },  // Cost
-                { wch: 15 },  // Lead Time
-                { wch: 40 },  // Description
-                { wch: 30 },  // Alternate Source
-                { wch: 30 },  // Dependencies
-                { wch: 40 }   // Notes
+                { wch: 40 }   // Description
             ];
+
+            // Add widths for pattern columns
+            patternColumns.forEach(col => {
+                // Determine width based on field type
+                if (col.includes('Date')) {
+                    columnWidths.push({ wch: 12 });
+                } else if (col.includes('$') || col.includes('Cost') || col.includes('Value')) {
+                    columnWidths.push({ wch: 15 });
+                } else if (col.includes('%') || col.includes('Points')) {
+                    columnWidths.push({ wch: 10 });
+                } else if (col.length > 20) {
+                    columnWidths.push({ wch: 35 }); // Long labels get more space
+                } else {
+                    columnWidths.push({ wch: 20 }); // Default width
+                }
+            });
+
+            columnWidths.push({ wch: 30 }); // Dependencies
+            columnWidths.push({ wch: 40 }); // Notes
+
+            const itemsData = [
+                [`DETAILED PROJECT ITEMS - ${currentPatternDef.name}`],
+                [],
+                allColumns
+            ];
+
+            // Add item rows with dynamic pattern fields
+            allItems.forEach(item => {
+                const phaseDisplay = `${item.phaseName}${item.phaseSubtitle ? ' (' + item.phaseSubtitle + ')' : ''}`;
+
+                const rowData = [
+                    item.name || '',
+                    phaseDisplay,
+                    item.itemType || '',
+                    item.description || ''
+                ];
+
+                // Add pattern-specific field values
+                patternFieldKeys.forEach(fieldKey => {
+                    const fieldConfig = patternFields[fieldKey];
+                    let value = item[fieldKey];
+
+                    if (value === undefined || value === null || value === '') {
+                        rowData.push('');
+                        return;
+                    }
+
+                    // Format based on field type
+                    if (fieldConfig.type === 'number') {
+                        // Special handling for cost (convert to millions)
+                        if (fieldKey === 'cost' && fieldConfig.label.includes('$')) {
+                            value = (value / 1000000).toFixed(2);
+                        } else if (fieldKey === 'dealValue' || fieldKey === 'cost') {
+                            value = (value / 1000).toFixed(0); // Thousands
+                        } else {
+                            value = value.toString();
+                        }
+                    } else if (fieldConfig.type === 'date') {
+                        value = value; // Keep as-is (Excel will format)
+                    } else if (fieldConfig.type === 'textarea') {
+                        value = value.replace(/\n/g, ' '); // Remove newlines for Excel
+                    }
+
+                    rowData.push(value);
+                });
+
+                // Add dependencies and notes
+                rowData.push((item.dependencies || []).length > 0 ? item.dependencies.join(', ') : 'None');
+                rowData.push(item.notes || '');
+
+                itemsData.push(rowData);
+            });
+
+            // Add total row (only for patterns with cost field)
+            itemsData.push([]);
+            if (patternFields.cost || patternFields.dealValue) {
+                const totalRow = ['TOTAL', '', '', ''];
+
+                // Find the cost column index
+                const costFieldKey = patternFields.cost ? 'cost' : 'dealValue';
+                const costIndex = patternFieldKeys.indexOf(costFieldKey);
+
+                // Fill blanks up to cost column
+                for (let i = 0; i < patternFieldKeys.length; i++) {
+                    if (i === costIndex) {
+                        if (costFieldKey === 'cost') {
+                            totalRow.push((totalCost / 1000000).toFixed(2));
+                        } else {
+                            // Sum dealValue for sales pipeline
+                            const totalDealValue = allItems.reduce((sum, item) => sum + (item.dealValue || 0), 0);
+                            totalRow.push((totalDealValue / 1000).toFixed(0));
+                        }
+                    } else {
+                        totalRow.push('');
+                    }
+                }
+
+                totalRow.push('', ''); // Dependencies, Notes
+                itemsData.push(totalRow);
+            }
+
+            const ws_items = XLSX.utils.aoa_to_sheet(itemsData);
+            ws_items['!cols'] = columnWidths;
 
             XLSX.utils.book_append_sheet(wb, ws_items, '📋 Detailed Items');
 
@@ -8628,6 +8952,1042 @@ ${jsonText}`;
 
         // Excel Export button handler
         document.getElementById('excel-export-btn').addEventListener('click', exportToExcel);
+
+        // =============================================================================
+        // EXCEL IMPORT - Import from Excel back to TreeListy
+        // =============================================================================
+
+        // =============================================================================
+        // FLEXIBLE EXCEL IMPORT - Import ANY Excel file with column mapping
+        // =============================================================================
+
+        let excelImportState = {
+            workbook: null,
+            file: null,
+            selectedSheet: null,
+            headers: [],
+            sampleData: [],
+            columnMapping: {},
+            hierarchyConfig: {},
+            pattern: null
+        };
+
+        function importFromExcel(file) {
+            const reader = new FileReader();
+
+            reader.onload = function(e) {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+
+                    console.log('📥 Excel workbook loaded:', workbook.SheetNames);
+
+                    excelImportState.workbook = workbook;
+                    excelImportState.file = file.name;
+
+                    // Check if this is a TreeListy export (fast path)
+                    if (workbook.SheetNames.includes('Detailed Items')) {
+                        // Show option: Fast import vs Custom mapping
+                        showImportModeChoice(workbook);
+                        return;
+                    }
+
+                    // Not a TreeListy export - use flexible import wizard
+                    startFlexibleImportWizard(workbook);
+
+                } catch (err) {
+                    console.error('❌ Excel import error:', err);
+                    alert('❌ Failed to read Excel file!\n\n' + err.message);
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function showImportModeChoice(workbook) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '📥 Excel Import Mode';
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px;">
+                    <p style="color: var(--text-secondary); margin-bottom: 24px;">
+                        This appears to be a TreeListy export. Choose how to import:
+                    </p>
+
+                    <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                        <div id="import-mode-fast" style="flex: 1; padding: 20px; border: 2px solid var(--treeplex-primary); border-radius: 12px; cursor: pointer; transition: all 0.2s; background: rgba(0, 166, 125, 0.05);">
+                            <div style="font-size: 32px; margin-bottom: 12px; text-align: center;">⚡</div>
+                            <div style="font-weight: 600; font-size: 16px; color: var(--text-primary); margin-bottom: 8px; text-align: center;">
+                                Fast Import
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                                Automatically import using TreeListy format. Perfect fidelity, instant import.
+                            </div>
+                        </div>
+
+                        <div id="import-mode-custom" style="flex: 1; padding: 20px; border: 2px solid var(--border); border-radius: 12px; cursor: pointer; transition: all 0.2s;">
+                            <div style="font-size: 32px; margin-bottom: 12px; text-align: center;">🎯</div>
+                            <div style="font-weight: 600; font-size: 16px; color: var(--text-primary); margin-bottom: 8px; text-align: center;">
+                                Custom Mapping
+                            </div>
+                            <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                                Map columns manually, customize field mappings, handle custom formats.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Hover effects
+            ['import-mode-fast', 'import-mode-custom'].forEach(id => {
+                const elem = document.getElementById(id);
+                elem.addEventListener('mouseenter', () => {
+                    elem.style.transform = 'translateY(-2px)';
+                    elem.style.boxShadow = '0 4px 12px rgba(0,0,0,0.15)';
+                });
+                elem.addEventListener('mouseleave', () => {
+                    elem.style.transform = 'translateY(0)';
+                    elem.style.boxShadow = 'none';
+                });
+            });
+
+            // Fast import handler
+            document.getElementById('import-mode-fast').addEventListener('click', () => {
+                modal.style.display = 'none';
+                importTreeListyExcel(workbook);
+            });
+
+            // Custom import handler
+            document.getElementById('import-mode-custom').addEventListener('click', () => {
+                modal.style.display = 'none';
+                startFlexibleImportWizard(workbook);
+            });
+        }
+
+        function importTreeListyExcel(workbook) {
+            try {
+
+                    // Parse the "Detailed Items" sheet
+                    const itemsSheet = workbook.Sheets['Detailed Items'];
+                    const itemsData = XLSX.utils.sheet_to_json(itemsSheet, { header: 1 });
+
+                    console.log('📋 Parsed items data:', itemsData.length, 'rows');
+
+                    // Find the header row (contains "Item Name")
+                    let headerRowIndex = -1;
+                    for (let i = 0; i < itemsData.length; i++) {
+                        if (itemsData[i][0] === 'Item Name') {
+                            headerRowIndex = i;
+                            break;
+                        }
+                    }
+
+                    if (headerRowIndex === -1) {
+                        alert('❌ Invalid Excel format!\n\nCould not find the "Item Name" header row.');
+                        return;
+                    }
+
+                    const headers = itemsData[headerRowIndex];
+                    console.log('📋 Headers:', headers);
+
+                    // Parse items (skip header and empty rows)
+                    const items = [];
+                    for (let i = headerRowIndex + 1; i < itemsData.length; i++) {
+                        const row = itemsData[i];
+
+                        // Skip empty rows or total row
+                        if (!row[0] || row[0] === 'TOTAL') continue;
+
+                        const item = {};
+                        headers.forEach((header, index) => {
+                            if (header && row[index] !== undefined && row[index] !== '') {
+                                item[header] = row[index];
+                            }
+                        });
+
+                        items.push(item);
+                    }
+
+                    console.log('✅ Parsed', items.length, 'items from Excel');
+
+                    // Detect pattern from the data structure
+                    const detectedPattern = detectPatternFromExcel(items, headers);
+                    console.log('🎨 Detected pattern:', detectedPattern);
+
+                    // Convert items to tree structure
+                    const newTree = convertExcelToTree(items, detectedPattern);
+
+                    // Show import confirmation modal
+                    showImportConfirmation(newTree, items.length, detectedPattern);
+
+                } catch (err) {
+                    console.error('❌ Excel import error:', err);
+                    alert('❌ Failed to import Excel file!\n\n' + err.message + '\n\nPlease ensure this is a valid TreeListy Excel export.');
+                }
+            };
+
+            reader.readAsArrayBuffer(file);
+        }
+
+        function detectPatternFromExcel(items, headers) {
+            // Check for pattern-specific columns
+            if (headers.includes('Deal Value ($)') || headers.includes('Stage Probability (%)')) {
+                return 'sales';
+            } else if (headers.includes('Word Count') || headers.includes('Draft Status')) {
+                return 'thesis';
+            } else if (headers.includes('Story Points') || headers.includes('Engineering Estimate')) {
+                return 'roadmap';
+            } else if (headers.includes('Use Case') || headers.includes('Target Model')) {
+                return 'prompt';
+            } else if (headers.includes('Chapter Number') || headers.includes('Section Type')) {
+                return 'book';
+            } else if (headers.includes('Argument Type') || headers.includes('Philosophical School')) {
+                return 'philosophy';
+            } else if (headers.includes('KPI') || headers.includes('Strategic Priority')) {
+                return 'strategy';
+            } else if (headers.includes('Cost ($M)') && headers.includes('Lead Time')) {
+                return 'generic';
+            }
+
+            // Default to current pattern
+            return currentPattern;
+        }
+
+        function convertExcelToTree(items, pattern) {
+            const patternDef = PATTERNS[pattern];
+            const levels = patternDef.levels;
+
+            // Group items by phase
+            const phaseMap = {};
+
+            items.forEach(item => {
+                const phaseName = item.Phase || item[levels.phase];
+
+                if (!phaseName) return;
+
+                // Extract phase number and subtitle if present
+                const phaseMatch = phaseName.match(/^(.+?)\s*\((.*?)\)$/);
+                const basePhaseName = phaseMatch ? phaseMatch[1].trim() : phaseName;
+                const phaseSubtitle = phaseMatch ? phaseMatch[2].trim() : '';
+
+                if (!phaseMap[basePhaseName]) {
+                    phaseMap[basePhaseName] = {
+                        name: basePhaseName,
+                        subtitle: phaseSubtitle,
+                        items: []
+                    };
+                }
+
+                // Convert item data back to tree format
+                const treeItem = {
+                    name: item['Item Name'] || item.name || 'Unnamed Item',
+                    description: item.Description || item.description || '',
+                    type: 'item',
+                    icon: '📦'
+                };
+
+                // Map pattern-specific fields dynamically
+                const fields = patternDef.fields;
+                if (fields) {
+                    Object.keys(fields).forEach(fieldKey => {
+                        const fieldConfig = fields[fieldKey];
+
+                        // Skip non-field properties
+                        if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                            return;
+                        }
+
+                        const excelColumnName = fieldConfig.label;
+
+                        if (item[excelColumnName] !== undefined && item[excelColumnName] !== '' && item[excelColumnName] !== null) {
+                            let value = item[excelColumnName];
+
+                            // Convert numeric fields
+                            if (fieldConfig.type === 'number') {
+                                // Handle cost (exported in millions, import back to raw)
+                                if (fieldKey === 'cost' && fieldConfig.label.includes('($M)')) {
+                                    value = parseFloat(value) * 1000000;
+                                } else if (fieldKey === 'dealValue') {
+                                    // dealValue exported in thousands, import back to raw
+                                    value = parseFloat(value) * 1000;
+                                } else {
+                                    value = parseFloat(value);
+                                }
+                            } else if (fieldConfig.type === 'date') {
+                                // Keep dates as-is (Excel format)
+                                value = value;
+                            } else if (fieldConfig.type === 'select') {
+                                // Ensure select value is string
+                                value = value.toString();
+                            } else if (fieldConfig.type === 'textarea') {
+                                // Textarea values are already strings
+                                value = value.toString();
+                            } else {
+                                // Text fields
+                                value = value.toString();
+                            }
+
+                            treeItem[fieldKey] = value;
+                        }
+                    });
+                }
+
+                // Handle dependencies
+                if (item.Dependencies && item.Dependencies !== 'None') {
+                    treeItem.dependencies = item.Dependencies.split(', ').map(d => d.trim());
+                }
+
+                // Handle item type
+                if (item.Type) {
+                    treeItem.itemType = item.Type;
+                }
+
+                phaseMap[basePhaseName].items.push(treeItem);
+            });
+
+            // Convert phase map to tree structure
+            const phases = Object.values(phaseMap).map((phase, index) => {
+                return {
+                    id: `phase-${index}`,
+                    type: 'phase',
+                    phase: index,
+                    name: phase.name,
+                    subtitle: phase.subtitle,
+                    icon: `${index + 1}️⃣`,
+                    expanded: false,
+                    items: phase.items.map((item, itemIndex) => ({
+                        ...item,
+                        id: `item-${index}-${itemIndex}`
+                    }))
+                };
+            });
+
+            // Create new tree
+            const newTree = {
+                id: 'root',
+                type: 'root',
+                name: items[0]?.Project || capexTree.name || 'Imported Project',
+                icon: '🌳',
+                expanded: true,
+                children: phases,
+                pattern: {
+                    key: pattern,
+                    labels: levels
+                }
+            };
+
+            return newTree;
+        }
+
+        function showImportConfirmation(newTree, itemCount, pattern) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '📥 Import from Excel';
+
+            const patternInfo = PATTERNS[pattern];
+            const phaseCount = newTree.children?.length || 0;
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px;">
+                    <div style="background: linear-gradient(135deg, rgba(29, 111, 66, 0.1), rgba(0, 166, 125, 0.1)); padding: 20px; border-radius: 12px; margin-bottom: 24px;">
+                        <h3 style="margin: 0 0 12px 0; color: var(--treeplex-primary);">📊 Import Summary</h3>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 14px;">
+                            <div>
+                                <div style="color: var(--text-secondary); font-size: 12px;">Pattern Detected</div>
+                                <div style="font-weight: 600;">${patternInfo.icon} ${patternInfo.levels.root}</div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-secondary); font-size: 12px;">${patternInfo.levels.phase}s</div>
+                                <div style="font-weight: 600;">${phaseCount}</div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-secondary); font-size: 12px;">${patternInfo.levels.item}s</div>
+                                <div style="font-weight: 600;">${itemCount}</div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-secondary); font-size: 12px;">Project Name</div>
+                                <div style="font-weight: 600;">${newTree.name}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 24px; border-left: 3px solid var(--treeplex-primary);">
+                        <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 600;">Import Mode</p>
+                        <p style="margin: 0 0 16px 0; font-size: 13px; color: var(--text-secondary);">
+                            How would you like to import this Excel file?
+                        </p>
+
+                        <div style="display: flex; gap: 12px;">
+                            <button id="import-replace-btn" class="btn" style="flex: 1; background: linear-gradient(135deg, #f59e0b, #d97706); padding: 12px;">
+                                🔄 Replace Current Tree
+                            </button>
+                            <button id="import-append-btn" class="btn" style="flex: 1; background: linear-gradient(135deg, var(--treeplex-primary), #059669); padding: 12px;">
+                                ➕ Append to Current Tree
+                            </button>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(239, 68, 68, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">
+                            ⚠️ <strong>Replace</strong> will overwrite your current project. <strong>Append</strong> will add items to existing phases.
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Handle replace
+            document.getElementById('import-replace-btn').addEventListener('click', () => {
+                saveState('Excel Import: Replace');
+
+                // Replace tree
+                capexTree = newTree;
+                currentPattern = pattern;
+                document.getElementById('pattern-select').value = pattern;
+
+                render();
+                modal.style.display = 'none';
+
+                showToast(`✅ Excel imported! ${itemCount} items loaded`);
+                console.log('✅ Excel import complete (replace mode)');
+            });
+
+            // Handle append
+            document.getElementById('import-append-btn').addEventListener('click', () => {
+                saveState('Excel Import: Append');
+
+                // Append phases and items
+                newTree.children.forEach((newPhase, newPhaseIndex) => {
+                    const existingPhase = capexTree.children?.[newPhaseIndex];
+
+                    if (existingPhase) {
+                        // Phase exists - append items
+                        if (newPhase.items && newPhase.items.length > 0) {
+                            const currentItemCount = existingPhase.items?.length || 0;
+
+                            // Re-ID items
+                            const reIdedItems = newPhase.items.map((item, idx) => ({
+                                ...item,
+                                id: `item-${newPhaseIndex}-${currentItemCount + idx}`
+                            }));
+
+                            existingPhase.items = [...(existingPhase.items || []), ...reIdedItems];
+                        }
+                    } else {
+                        // Phase doesn't exist - add it
+                        if (!capexTree.children) capexTree.children = [];
+                        newPhase.id = `phase-${capexTree.children.length}`;
+                        newPhase.phase = capexTree.children.length;
+                        capexTree.children.push(newPhase);
+                    }
+                });
+
+                render();
+                modal.style.display = 'none';
+
+                showToast(`✅ Excel imported! ${itemCount} items added`);
+                console.log('✅ Excel import complete (append mode)');
+            });
+        }
+
+        // =============================================================================
+        // FLEXIBLE EXCEL IMPORT WIZARD - Import any Excel file with column mapping
+        // =============================================================================
+
+        function startFlexibleImportWizard(workbook) {
+            console.log('🧙 Starting flexible import wizard...');
+
+            excelImportState.workbook = workbook;
+
+            // If only one sheet, skip to column mapping
+            if (workbook.SheetNames.length === 1) {
+                analyzeSheetStructure(workbook.SheetNames[0]);
+                return;
+            }
+
+            // Multiple sheets - show selection UI
+            showSheetSelection(workbook);
+        }
+
+        function showSheetSelection(workbook) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '📑 Select Sheet to Import';
+
+            let sheetsHTML = '';
+            workbook.SheetNames.forEach(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const rowCount = data.length;
+                const colCount = data[0]?.length || 0;
+
+                // Preview first 3 rows
+                const preview = data.slice(0, 3)
+                    .map(row => row.slice(0, 5).join(', '))
+                    .join('<br>');
+
+                sheetsHTML += `
+                    <div class="sheet-option" data-sheet="${sheetName}" style="border: 2px solid var(--border); padding: 16px; margin-bottom: 12px; border-radius: 8px; cursor: pointer; transition: all 0.2s;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">${sheetName}</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                            ${rowCount} rows × ${colCount} columns
+                        </div>
+                        <div style="font-size: 11px; font-family: monospace; color: var(--text-secondary); max-height: 60px; overflow: hidden;">
+                            ${preview}
+                        </div>
+                    </div>
+                `;
+            });
+
+            modalBody.innerHTML = `<div style="padding: 20px;">${sheetsHTML}</div>`;
+            modal.style.display = 'flex';
+
+            // Add click handlers
+            document.querySelectorAll('.sheet-option').forEach(elem => {
+                elem.addEventListener('click', () => {
+                    const sheetName = elem.dataset.sheet;
+                    analyzeSheetStructure(sheetName);
+                });
+
+                // Hover effect
+                elem.addEventListener('mouseenter', () => {
+                    elem.style.borderColor = 'var(--treeplex-primary)';
+                    elem.style.background = 'rgba(0, 166, 125, 0.05)';
+                });
+                elem.addEventListener('mouseleave', () => {
+                    elem.style.borderColor = 'var(--border)';
+                    elem.style.background = 'transparent';
+                });
+            });
+        }
+
+        function analyzeSheetStructure(sheetName) {
+            const sheet = excelImportState.workbook.Sheets[sheetName];
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            console.log('📊 Analyzing sheet:', sheetName);
+
+            // Find header row (first non-empty row)
+            let headerRowIndex = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] && data[i].some(cell => cell !== '' && cell !== null && cell !== undefined)) {
+                    headerRowIndex = i;
+                    break;
+                }
+            }
+
+            const headers = data[headerRowIndex].filter(h => h !== '' && h !== null && h !== undefined);
+            const sampleData = data.slice(headerRowIndex + 1, headerRowIndex + 6); // 5 sample rows
+
+            console.log('📋 Found headers:', headers);
+            console.log('📋 Sample data rows:', sampleData.length);
+
+            excelImportState.selectedSheet = sheetName;
+            excelImportState.headers = headers;
+            excelImportState.sampleData = sampleData;
+
+            // Auto-suggest column mappings
+            const suggestedMappings = autoSuggestColumnMappings(headers);
+            excelImportState.columnMapping = suggestedMappings;
+
+            console.log('🎯 Suggested mappings:', suggestedMappings);
+
+            // Show column mapping UI
+            showColumnMappingUI();
+        }
+
+        function autoSuggestColumnMappings(headers) {
+            const mapping = {
+                itemName: null,
+                phaseName: null,
+                description: null,
+                itemType: null,
+                dependencies: null
+            };
+
+            // Get current pattern for field suggestions
+            const patternDef = PATTERNS[currentPattern];
+            const fields = patternDef.fields || {};
+
+            // Try to match each header to a TreeListy field
+            headers.forEach((header, index) => {
+                const headerLower = header.toLowerCase().trim();
+
+                // Match core fields
+                if (headerLower.includes('name') || headerLower.includes('title') || headerLower.includes('item')) {
+                    if (!mapping.itemName) mapping.itemName = index;
+                } else if (headerLower.includes('phase') || headerLower.includes('quarter') || headerLower.includes('stage') || headerLower.includes('chapter') || headerLower.includes('category')) {
+                    if (!mapping.phaseName) mapping.phaseName = index;
+                } else if (headerLower.includes('description') || headerLower.includes('notes') || headerLower.includes('details')) {
+                    if (!mapping.description) mapping.description = index;
+                } else if (headerLower.includes('type') || headerLower.includes('status')) {
+                    if (!mapping.itemType) mapping.itemType = index;
+                } else if (headerLower.includes('depend') || headerLower.includes('prerequisite')) {
+                    if (!mapping.dependencies) mapping.dependencies = index;
+                }
+
+                // Try to match pattern-specific fields
+                Object.keys(fields).forEach(fieldKey => {
+                    const fieldConfig = fields[fieldKey];
+                    if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                        return;
+                    }
+
+                    if (!mapping[fieldKey] && fieldConfig.label) {
+                        const fieldLabelLower = fieldConfig.label.toLowerCase().replace(/[^a-z0-9]/g, '');
+                        const headerSimplified = headerLower.replace(/[^a-z0-9]/g, '');
+
+                        // Check for similarity
+                        if (fieldLabelLower === headerSimplified ||
+                            fieldLabelLower.includes(headerSimplified) ||
+                            headerSimplified.includes(fieldLabelLower)) {
+                            mapping[fieldKey] = index;
+                        }
+                    }
+                });
+            });
+
+            console.log('🔍 Auto-detected mappings:', mapping);
+            return mapping;
+        }
+
+        function showColumnMappingUI() {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🎯 Map Excel Columns to TreeListy Fields';
+
+            const patternDef = PATTERNS[currentPattern];
+            const fields = patternDef.fields || {};
+            const headers = excelImportState.headers;
+            const sampleData = excelImportState.sampleData;
+            const mapping = excelImportState.columnMapping;
+
+            // Build mapping rows
+            let mappingRowsHTML = '';
+
+            // Core fields
+            mappingRowsHTML += createMappingRow('Item Name', 'itemName', 'REQUIRED: Name of each item/task', mapping.itemName, true);
+            mappingRowsHTML += createMappingRow('Phase/Category', 'phaseName', 'Group items by phase (optional)', mapping.phaseName, false);
+            mappingRowsHTML += createMappingRow('Description', 'description', 'Item description', mapping.description, false);
+            mappingRowsHTML += createMappingRow('Item Type', 'itemType', 'Type/category of item', mapping.itemType, false);
+
+            // Pattern-specific fields
+            Object.keys(fields).forEach(fieldKey => {
+                const fieldConfig = fields[fieldKey];
+                if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                    return;
+                }
+
+                if (fieldConfig.label) {
+                    const helpText = fieldConfig.helpText || `${fieldConfig.label} field`;
+                    mappingRowsHTML += createMappingRow(
+                        fieldConfig.label,
+                        fieldKey,
+                        helpText,
+                        mapping[fieldKey],
+                        false
+                    );
+                }
+            });
+
+            // Dependencies
+            mappingRowsHTML += createMappingRow('Dependencies', 'dependencies', 'Comma-separated list of dependencies', mapping.dependencies, false);
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px; max-height: 70vh; overflow-y: auto;">
+                    <div style="background: linear-gradient(135deg, rgba(29, 111, 66, 0.1), rgba(0, 166, 125, 0.1)); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                            📋 <strong>Sheet:</strong> ${excelImportState.selectedSheet}<br>
+                            🎨 <strong>Pattern:</strong> ${patternDef.name}<br>
+                            📊 <strong>Rows:</strong> ${excelImportState.sampleData.length + ' (preview) / ' + (XLSX.utils.sheet_to_json(excelImportState.workbook.Sheets[excelImportState.selectedSheet], { header: 1 }).length - 1) + ' (total)'}
+                        </div>
+                    </div>
+
+                    <p style="color: var(--text-secondary); margin-bottom: 16px; font-size: 14px;">
+                        Map your Excel columns to TreeListy fields. We've pre-selected likely matches.
+                    </p>
+
+                    <table style="width: 100%; border-collapse: collapse;">
+                        <thead>
+                            <tr style="border-bottom: 2px solid var(--border);">
+                                <th style="text-align: left; padding: 8px; font-size: 13px; color: var(--text-secondary);">TreeListy Field</th>
+                                <th style="text-align: left; padding: 8px; font-size: 13px; color: var(--text-secondary);">Excel Column</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            ${mappingRowsHTML}
+                        </tbody>
+                    </table>
+
+                    <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end;">
+                        <button id="cancel-mapping-btn" style="padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px;">
+                            Cancel
+                        </button>
+                        <button id="preview-import-btn" style="padding: 10px 20px; border: none; border-radius: 8px; background: var(--treeplex-primary); color: white; cursor: pointer; font-size: 14px; font-weight: 600;">
+                            Preview Import →
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Update mapping when dropdowns change
+            document.querySelectorAll('.column-mapping-select').forEach(select => {
+                select.addEventListener('change', (e) => {
+                    const fieldKey = e.target.dataset.field;
+                    const columnIndex = e.target.value === '' ? null : parseInt(e.target.value);
+                    excelImportState.columnMapping[fieldKey] = columnIndex;
+                    console.log('🔄 Updated mapping:', fieldKey, '→', columnIndex);
+                });
+            });
+
+            // Cancel button
+            document.getElementById('cancel-mapping-btn').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            // Preview button
+            document.getElementById('preview-import-btn').addEventListener('click', () => {
+                // Validate required fields
+                if (excelImportState.columnMapping.itemName === null) {
+                    alert('❌ Required Field Missing\n\nYou must map the "Item Name" field to import.');
+                    return;
+                }
+
+                previewFlexibleImport();
+            });
+        }
+
+        function createMappingRow(label, fieldKey, helpText, selectedValue, required) {
+            const requiredBadge = required ? '<span style="color: var(--error); margin-left: 4px;">*</span>' : '';
+
+            // Build options with proper selected attribute
+            const headers = excelImportState.headers;
+            const sampleData = excelImportState.sampleData;
+
+            let options = '<option value="">-- Skip this column --</option>';
+            headers.forEach((h, i) => {
+                const isSelected = (selectedValue !== null && selectedValue !== undefined && selectedValue === i) ? 'selected' : '';
+                options += `<option value="${i}" ${isSelected}>${h} (sample: ${sampleData[0]?.[i] || 'N/A'})</option>`;
+            });
+
+            return `
+                <tr style="border-bottom: 1px solid var(--border);">
+                    <td style="padding: 12px 8px;">
+                        <div style="font-weight: 500; font-size: 14px;">
+                            ${label}${requiredBadge}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">
+                            ${helpText}
+                        </div>
+                    </td>
+                    <td style="padding: 12px 8px;">
+                        <select class="column-mapping-select" data-field="${fieldKey}" style="width: 100%; padding: 8px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 13px;">
+                            ${options}
+                        </select>
+                    </td>
+                </tr>
+            `;
+        }
+
+        function previewFlexibleImport() {
+            console.log('👀 Generating preview...');
+
+            const sheet = excelImportState.workbook.Sheets[excelImportState.selectedSheet];
+            const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+            // Find header row
+            let headerRowIndex = 0;
+            for (let i = 0; i < data.length; i++) {
+                if (data[i] && data[i].some(cell => cell !== '' && cell !== null && cell !== undefined)) {
+                    headerRowIndex = i;
+                    break;
+                }
+            }
+
+            const rows = data.slice(headerRowIndex + 1).filter(row => row && row.length > 0);
+            const mapping = excelImportState.columnMapping;
+            const patternDef = PATTERNS[currentPattern];
+            const fields = patternDef.fields || {};
+
+            // Extract items
+            const importedItems = [];
+            const phaseMap = {};
+
+            rows.forEach((row, rowIndex) => {
+                // Skip empty rows
+                if (!row[mapping.itemName] || row[mapping.itemName] === '') {
+                    return;
+                }
+
+                const item = {
+                    name: row[mapping.itemName] || `Item ${rowIndex + 1}`,
+                    description: mapping.description !== null ? (row[mapping.description] || '') : '',
+                    itemType: mapping.itemType !== null ? (row[mapping.itemType] || '') : '',
+                    type: 'item',
+                    icon: '📦'
+                };
+
+                // Map pattern-specific fields
+                Object.keys(fields).forEach(fieldKey => {
+                    const fieldConfig = fields[fieldKey];
+                    if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                        return;
+                    }
+
+                    const columnIndex = mapping[fieldKey];
+                    if (columnIndex !== null && columnIndex !== undefined && row[columnIndex] !== undefined && row[columnIndex] !== '') {
+                        let value = row[columnIndex];
+
+                        // Type conversion
+                        if (fieldConfig.type === 'number') {
+                            value = parseFloat(value) || 0;
+                            // Handle special scaling
+                            if (fieldKey === 'cost' && fieldConfig.label && fieldConfig.label.includes('($M)')) {
+                                value = value * 1000000;
+                            } else if (fieldKey === 'dealValue') {
+                                value = value * 1000;
+                            }
+                        }
+
+                        item[fieldKey] = value;
+                    }
+                });
+
+                // Handle dependencies
+                if (mapping.dependencies !== null && row[mapping.dependencies]) {
+                    const depString = String(row[mapping.dependencies]);
+                    if (depString !== '' && depString.toLowerCase() !== 'none') {
+                        item.dependencies = depString.split(/[,;|]/).map(d => d.trim()).filter(d => d);
+                    }
+                }
+
+                // Determine phase
+                const phaseName = mapping.phaseName !== null && row[mapping.phaseName]
+                    ? String(row[mapping.phaseName])
+                    : 'Default Phase';
+
+                if (!phaseMap[phaseName]) {
+                    phaseMap[phaseName] = [];
+                }
+
+                phaseMap[phaseName].push(item);
+                importedItems.push(item);
+            });
+
+            // Generate preview HTML
+            let previewHTML = '<div style="padding: 20px; max-height: 70vh; overflow-y: auto;">';
+
+            previewHTML += `
+                <div style="background: linear-gradient(135deg, rgba(29, 111, 66, 0.1), rgba(0, 166, 125, 0.1)); padding: 16px; border-radius: 8px; margin-bottom: 20px;">
+                    <h3 style="margin: 0 0 12px 0; color: var(--treeplex-primary);">📊 Import Preview</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; font-size: 14px;">
+                        <div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Pattern</div>
+                            <div style="font-weight: 600;">${patternDef.icon} ${patternDef.name}</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Phases</div>
+                            <div style="font-weight: 600;">${Object.keys(phaseMap).length}</div>
+                        </div>
+                        <div>
+                            <div style="color: var(--text-secondary); font-size: 12px;">Items</div>
+                            <div style="font-weight: 600;">${importedItems.length}</div>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Show preview of first 10 items
+            previewHTML += '<div style="font-weight: 600; margin-bottom: 12px;">Preview (first 10 items):</div>';
+            previewHTML += '<div style="font-family: monospace; font-size: 12px; background: var(--bg-secondary); padding: 16px; border-radius: 8px; line-height: 1.8;">';
+
+            let itemCount = 0;
+            Object.keys(phaseMap).forEach((phaseName, phaseIndex) => {
+                if (itemCount >= 10) return;
+
+                previewHTML += `<div style="color: var(--treeplex-primary); font-weight: 600; margin-top: ${phaseIndex > 0 ? '12px' : '0'};">${phaseName}</div>`;
+
+                phaseMap[phaseName].forEach((item, itemIndex) => {
+                    if (itemCount >= 10) return;
+                    itemCount++;
+
+                    previewHTML += `<div style="margin-left: 20px; color: var(--text-primary);">├─ ${item.name}`;
+                    if (item.itemType) previewHTML += ` [${item.itemType}]`;
+                    if (item.dependencies && item.dependencies.length > 0) {
+                        previewHTML += ` <span style="color: var(--text-secondary);">→ Depends on: ${item.dependencies.join(', ')}</span>`;
+                    }
+                    previewHTML += `</div>`;
+                });
+            });
+
+            if (importedItems.length > 10) {
+                previewHTML += `<div style="color: var(--text-secondary); margin-top: 8px;">... and ${importedItems.length - 10} more items</div>`;
+            }
+
+            previewHTML += '</div>';
+
+            // Action buttons
+            previewHTML += `
+                <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: space-between;">
+                    <button id="back-to-mapping-btn" style="padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px;">
+                        ← Back to Mapping
+                    </button>
+                    <div style="display: flex; gap: 12px;">
+                        <button id="execute-import-replace-btn" style="padding: 10px 20px; border: none; border-radius: 8px; background: var(--treeplex-primary); color: white; cursor: pointer; font-size: 14px; font-weight: 600;">
+                            Replace Current Tree
+                        </button>
+                        <button id="execute-import-append-btn" style="padding: 10px 20px; border: 1px solid var(--treeplex-primary); border-radius: 8px; background: transparent; color: var(--treeplex-primary); cursor: pointer; font-size: 14px; font-weight: 600;">
+                            Append to Tree
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            previewHTML += '</div>';
+
+            // Show modal
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '👀 Preview Import';
+            modalBody.innerHTML = previewHTML;
+            modal.style.display = 'flex';
+
+            // Store preview data
+            excelImportState.previewData = { phaseMap, importedItems };
+
+            // Button handlers
+            document.getElementById('back-to-mapping-btn').addEventListener('click', () => {
+                showColumnMappingUI();
+            });
+
+            document.getElementById('execute-import-replace-btn').addEventListener('click', () => {
+                executeFlexibleImport('replace');
+            });
+
+            document.getElementById('execute-import-append-btn').addEventListener('click', () => {
+                executeFlexibleImport('append');
+            });
+        }
+
+        function executeFlexibleImport(mode) {
+            console.log('🚀 Executing import in', mode, 'mode...');
+
+            const { phaseMap, importedItems } = excelImportState.previewData;
+            const patternDef = PATTERNS[currentPattern];
+
+            saveState(`Excel Import: ${mode === 'replace' ? 'Replace' : 'Append'}`);
+
+            if (mode === 'replace') {
+                // Create new tree from scratch
+                const phases = Object.keys(phaseMap).map((phaseName, phaseIndex) => {
+                    return {
+                        id: `phase-${phaseIndex}`,
+                        type: 'phase',
+                        phase: phaseIndex,
+                        name: phaseName,
+                        subtitle: '',
+                        icon: `${phaseIndex + 1}️⃣`,
+                        expanded: false,
+                        items: phaseMap[phaseName].map((item, itemIndex) => ({
+                            ...item,
+                            id: `item-${phaseIndex}-${itemIndex}`
+                        }))
+                    };
+                });
+
+                capexTree = {
+                    id: 'root',
+                    type: 'root',
+                    name: `Imported from ${excelImportState.file}`,
+                    icon: '🌳',
+                    expanded: true,
+                    children: phases,
+                    pattern: {
+                        key: currentPattern,
+                        labels: patternDef.levels
+                    }
+                };
+
+            } else {
+                // Append mode
+                if (!capexTree.children) capexTree.children = [];
+
+                Object.keys(phaseMap).forEach((phaseName) => {
+                    // Try to find existing phase
+                    let existingPhase = capexTree.children.find(p => p.name === phaseName);
+
+                    if (existingPhase) {
+                        // Append items to existing phase
+                        const currentItemCount = existingPhase.items?.length || 0;
+                        const phaseIndex = capexTree.children.indexOf(existingPhase);
+
+                        const newItems = phaseMap[phaseName].map((item, idx) => ({
+                            ...item,
+                            id: `item-${phaseIndex}-${currentItemCount + idx}`
+                        }));
+
+                        existingPhase.items = [...(existingPhase.items || []), ...newItems];
+                    } else {
+                        // Create new phase
+                        const phaseIndex = capexTree.children.length;
+                        const newPhase = {
+                            id: `phase-${phaseIndex}`,
+                            type: 'phase',
+                            phase: phaseIndex,
+                            name: phaseName,
+                            subtitle: '',
+                            icon: `${phaseIndex + 1}️⃣`,
+                            expanded: false,
+                            items: phaseMap[phaseName].map((item, itemIndex) => ({
+                                ...item,
+                                id: `item-${phaseIndex}-${itemIndex}`
+                            }))
+                        };
+
+                        capexTree.children.push(newPhase);
+                    }
+                });
+            }
+
+            // Update UI
+            render();
+            document.getElementById('modal').style.display = 'none';
+
+            showToast(`✅ Excel imported! ${importedItems.length} items ${mode === 'replace' ? 'loaded' : 'added'}`);
+            console.log('✅ Flexible import complete');
+        }
+
+        // Excel Import button handler
+        document.getElementById('excel-import-btn').addEventListener('click', () => {
+            document.getElementById('excel-upload-input').click();
+        });
+
+        // Excel file upload handler
+        document.getElementById('excel-upload-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                console.log('📥 Excel file selected:', file.name);
+                importFromExcel(file);
+            }
+            // Reset input
+            e.target.value = '';
+        });
 
         // Redraw lines on scroll or resize
         const treeContainer = document.getElementById('tree-container');
