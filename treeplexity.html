@@ -7979,10 +7979,20 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             }
         }
 
-        // Update tree preview (no longer needed - user sees main tree in real-time)
+        // Update tree preview - copy working tree to main tree and render in real-time
         function updateWizardPreview() {
-            // Side panel layout allows user to see main tree being updated in real-time
-            // No need to render a separate preview
+            // Copy working tree to main tree
+            capexTree = JSON.parse(JSON.stringify(wizardState.workingTree));
+
+            // Render to show real-time updates on the left
+            render();
+
+            console.log('✅ Tree updated in real-time:', {
+                name: capexTree.name,
+                phases: capexTree.children?.length || 0,
+                items: capexTree.children?.reduce((sum, p) => sum + (p.items?.length || 0), 0) || 0
+            });
+
             return;
 
             const preview = document.getElementById('wizard-tree-preview');
