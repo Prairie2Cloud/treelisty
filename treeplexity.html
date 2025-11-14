@@ -1311,12 +1311,15 @@
                         <label style="flex: 1; display: flex; align-items: flex-start; cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 6px; background: var(--card-bg); transition: all 0.2s;">
                             <input type="radio" name="analysis-mode" value="deep" style="margin-top: 3px; margin-right: 10px;" />
                             <div>
-                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">🔬 Deep Mode</div>
+                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">🔬 Deep Mode <span style="font-size: 11px; background: var(--treeplex-primary); color: white; padding: 2px 6px; border-radius: 3px; font-weight: 500;">Your API Key Required</span></div>
                                 <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
-                                    Detailed parsing + field extraction + dependencies. More accurate. (~4-6 API calls, ~$0.03-0.05)
+                                    Detailed parsing + field extraction + dependencies. More accurate. Requires your Anthropic API key. (~4-6 API calls, ~$0.03-0.05)
                                 </div>
                             </div>
                         </label>
+                    </div>
+                    <div style="margin-top: 12px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-left: 3px solid var(--treeplex-primary); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                        <strong style="color: var(--text-primary);">💡 Hybrid System:</strong> Quick Mode uses our server AI (free, rate limited). Deep Mode requires your API key (unlimited, more detailed analysis, no timeouts).
                     </div>
                 </div>
 
@@ -8888,6 +8891,16 @@ ${jsonText}`;
 
             // Get selected mode
             const mode = document.querySelector('input[name="analysis-mode"]:checked').value;
+
+            // Check if Deep Mode requires user's own API key
+            if (mode === 'deep') {
+                const userApiKey = getLocalAPIKey();
+                if (!userApiKey) {
+                    alert('🔬 Deep Mode requires your own Anthropic API key.\n\nWhy?\n• Deep Mode uses more tokens and takes longer\n• Prevents timeout on Netlify free tier (10s limit)\n• You only pay for what you use\n\nPlease:\n1. Click the 🔑 API Key button\n2. Enter your Anthropic API key\n3. Try Deep Mode again\n\nQuick Mode is available without an API key.');
+                    return;
+                }
+                console.log('✅ Deep Mode: Using your API key (bypasses rate limits and timeouts)');
+            }
 
             // Warn if text was truncated
             if (wasTruncated) {
