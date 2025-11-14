@@ -1780,7 +1780,29 @@ The AI will analyze the structure and convert it to a tree."
             apiKeyModal.style.display = 'flex';
         }
 
-        // Call Claude API - supports both local API key and Netlify function
+        // Helper: Direct API call to Anthropic (bypasses Netlify, no timeout limit)
+        async function callClaudeDirectAPI(requestData, apiKey) {
+            console.log('🚀 Direct API: Calling Anthropic directly (no Netlify timeout)');
+
+            const response = await fetch(AI_CONFIG.directEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'x-api-key': apiKey,
+                    'anthropic-version': '2023-06-01'
+                },
+                body: JSON.stringify(requestData)
+            });
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error?.message || `Direct API error: ${response.status}`);
+            }
+
+            return response;
+        }
+
+        // Call Claude API - with automatic fallback to direct API on timeout
         async function callClaudeAPI(prompt, systemPrompt = '', maxTokens = 1024, useExtendedThinking = false, retryCount = 0) {
             const MAX_RETRIES = 2;
             const localApiKey = getLocalAPIKey();
@@ -1805,8 +1827,7 @@ The AI will analyze the structure and convert it to a tree."
 
             let response;
 
-            // ALWAYS use Netlify serverless function (avoids CORS issues, works with file:// and https://)
-            // If user has local API key, send it to Netlify function to use
+            // Try Netlify function first (has CORS support, works everywhere)
             console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
 
             const netlifyRequestBody = {
@@ -1831,10 +1852,23 @@ The AI will analyze the structure and convert it to a tree."
                 clearTimeout(timeoutId);
             } catch (fetchError) {
                 clearTimeout(timeoutId);
-                if (fetchError.name === 'AbortError') {
-                    throw new Error('Request timeout - Netlify function took too long (>9s). Try again or use a simpler prompt.');
+
+                // AUTOMATIC FALLBACK: If timeout AND user has API key, try direct API
+                if (fetchError.name === 'AbortError' && localApiKey) {
+                    console.warn('⚠️ Netlify timeout detected. Falling back to direct API (no timeout limit)...');
+                    try {
+                        response = await callClaudeDirectAPI(requestData, localApiKey);
+                        console.log('✅ Direct API fallback successful!');
+                    } catch (directError) {
+                        console.error('❌ Direct API fallback failed:', directError);
+                        throw new Error(`Netlify timeout AND direct API failed. Error: ${directError.message}`);
+                    }
+                } else if (fetchError.name === 'AbortError') {
+                    // Timeout but no user API key - can't fallback
+                    throw new Error('Request timeout - Netlify function took too long (>9s). Add your API key (🔑 button) to enable automatic fallback to direct API with no timeout limit.');
+                } else {
+                    throw fetchError;
                 }
-                throw fetchError;
             }
 
             if (!response.ok) {
@@ -1862,7 +1896,28 @@ The AI will analyze the structure and convert it to a tree."
                 if (response.status === 404) {
                     throw new Error('Netlify function not found (404). The serverless function may not be deployed.');
                 }
-                if (response.status === 429) {
+                if (response.status === 504) {
+                    // Gateway timeout from Netlify
+                    if (localApiKey) {
+                        // Fallback to direct API if user has key
+                        console.warn('⚠️ Netlify 504 timeout. Falling back to direct API...');
+                        try {
+                            response = await callClaudeDirectAPI(requestData, localApiKey);
+                            console.log('✅ Direct API fallback successful after 504!');
+                            // Exit error handling - response is now successful
+                        } catch (directError) {
+                            console.error('❌ Direct API fallback failed:', directError);
+                            throw new Error(`Netlify 504 timeout AND direct API failed. Error: ${directError.message}`);
+                        }
+                    } else {
+                        throw new Error('Netlify function timeout (504). Add your API key (🔑 button) to enable automatic fallback to direct API.');
+                    }
+                }
+
+                // If response is now ok (after fallback), skip remaining error checks
+                if (response.ok) {
+                    // Continue to response parsing below
+                } else if (response.status === 429) {
                     // Rate limit - retry with exponential backoff
                     if (retryCount < MAX_RETRIES) {
                         const delay = Math.pow(2, retryCount) * 3000; // 3s, 6s
@@ -1871,8 +1926,7 @@ The AI will analyze the structure and convert it to a tree."
                         return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
                     }
                     throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-                }
-                if (response.status === 529) {
+                } else if (response.status === 529) {
                     // API overloaded - retry with exponential backoff
                     if (retryCount < MAX_RETRIES) {
                         const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s
@@ -1881,14 +1935,12 @@ The AI will analyze the structure and convert it to a tree."
                         return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
                     }
                     throw new Error('Anthropic API is temporarily overloaded. Please wait 10-30 seconds and try again.');
-                }
-                if (response.status === 500 && error.error?.message?.includes('configuration')) {
+                } else if (response.status === 500 && error.error?.message?.includes('configuration')) {
                     throw new Error('AI service is not configured. Please set up your API key.');
+                } else {
+                    // Generic error
+                    throw new Error(error.error?.message || `AI Service Error: ${response.status}`);
                 }
-                if (response.status === 504) {
-                    throw new Error('Request timed out. The text might be too long. Try:\n1. Use a shorter text excerpt (first 10-20 paragraphs)\n2. Use Quick Mode instead of Deep Mode\n3. Try again in a moment');
-                }
-                throw new Error(error.error?.message || `AI Service Error: ${response.status}`);
             }
 
             const data = await response.json();
