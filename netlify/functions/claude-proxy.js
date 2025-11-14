@@ -47,17 +47,37 @@ exports.handler = async (event, context) => {
     // Parse the request body
     const requestBody = JSON.parse(event.body);
 
+    // Extract userApiKey if provided (for users testing with their own key)
+    const { userApiKey, ...anthropicRequestBody } = requestBody;
+
+    // Use user's API key if provided, otherwise use server's key
+    const apiKeyToUse = userApiKey || ANTHROPIC_API_KEY;
+
+    if (!apiKeyToUse) {
+      console.error('No API key available (neither user-provided nor server-side)');
+      return {
+        statusCode: 401,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          error: {
+            message: 'API key required. Please set your API key in TreeListy (🔑 button) or configure ANTHROPIC_API_KEY environment variable in Netlify.'
+          }
+        })
+      };
+    }
+
+    console.log(userApiKey ? 'Using user-provided API key' : 'Using server API key');
     console.log('Proxying request to Anthropic API...');
 
-    // Forward request to Anthropic API
+    // Forward request to Anthropic API (without userApiKey field)
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-api-key': ANTHROPIC_API_KEY,
+        'x-api-key': apiKeyToUse,
         'anthropic-version': '2023-06-01'
       },
-      body: JSON.stringify(requestBody)
+      body: JSON.stringify(anthropicRequestBody)
     });
 
     const data = await response.json();

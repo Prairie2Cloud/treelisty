@@ -1802,62 +1802,23 @@ The AI will analyze the structure and convert it to a tree."
 
             let response;
 
-            // Use local API key if available (direct call to Anthropic via CORS proxy)
-            if (localApiKey) {
-                console.log('🔑 Using local API key for Anthropic API call (via CORS proxy for browser compatibility)');
+            // ALWAYS use Netlify serverless function (avoids CORS issues, works with file:// and https://)
+            // If user has local API key, send it to Netlify function to use
+            console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
 
-                // Try multiple CORS proxies in case one fails
-                const corsProxies = [
-                    'https://api.allorigins.win/raw?url=',
-                    'https://corsproxy.io/?'
-                ];
+            const netlifyRequestBody = {
+                ...requestData,
+                // Include local API key if available (Netlify function will use it)
+                userApiKey: localApiKey || undefined
+            };
 
-                let lastError = null;
-
-                // Try each proxy
-                for (const corsProxy of corsProxies) {
-                    try {
-                        console.log(`🔄 Trying CORS proxy: ${corsProxy.includes('allorigins') ? 'AllOrigins' : 'CorsProxy.io'}`);
-
-                        const apiUrl = encodeURIComponent(AI_CONFIG.directEndpoint);
-
-                        response = await fetch(corsProxy + apiUrl, {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json',
-                                'x-api-key': localApiKey,
-                                'anthropic-version': '2023-06-01'
-                            },
-                            body: JSON.stringify(requestData)
-                        });
-
-                        // If we got a response (even if not ok), break and handle it below
-                        if (response) {
-                            console.log(`✅ Got response from ${corsProxy.includes('allorigins') ? 'AllOrigins' : 'CorsProxy.io'}`);
-                            break;
-                        }
-                    } catch (proxyError) {
-                        console.warn(`⚠️ Proxy failed:`, proxyError);
-                        lastError = proxyError;
-                        continue; // Try next proxy
-                    }
-                }
-
-                // If all proxies failed, throw the last error
-                if (!response && lastError) {
-                    throw new Error(`All CORS proxies failed. Last error: ${lastError.message}`);
-                }
-            } else {
-                // Fallback to Netlify function (API key handled server-side)
-                console.log('🌐 Using Netlify serverless function');
-                response = await fetch(AI_CONFIG.apiEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(requestData)
-                });
-            }
+            response = await fetch(AI_CONFIG.apiEndpoint, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(netlifyRequestBody)
+            });
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
@@ -4387,8 +4348,324 @@ function hidePatternDescription() {
             if (activeNode) showInfo(activeNode);
         }
 
-        // Smart Suggestion Engine with Contextual Intelligence
-        function generateAISuggestion(fieldType, itemContext) {
+        // =============================================================================
+        // SMART SUGGESTION ENGINE - AI-Powered with Pattern Expertise
+        // =============================================================================
+
+        // Helper: Extract tree context for AI suggestions
+        function extractTreeContext(itemContext) {
+            const allItems = getAllProjectItems(capexTree);
+
+            // Find current phase
+            let currentPhase = null;
+            let siblingItems = [];
+            if (capexTree.children) {
+                for (const phase of capexTree.children) {
+                    if (phase.items && phase.items.find(item => item.id === itemContext.id)) {
+                        currentPhase = phase;
+                        siblingItems = phase.items.filter(item => item.id !== itemContext.id);
+                        break;
+                    }
+                }
+            }
+
+            // Find items this depends on
+            const dependencies = [];
+            if (itemContext.dependencies) {
+                itemContext.dependencies.forEach(depId => {
+                    const depItem = allItems.find(item => item.id === depId);
+                    if (depItem) dependencies.push(depItem);
+                });
+            }
+
+            // Find items that depend on this
+            const dependents = allItems.filter(item =>
+                item.dependencies && item.dependencies.includes(itemContext.id)
+            );
+
+            return {
+                projectName: capexTree.name || 'Project',
+                projectDescription: capexTree.description || '',
+                pattern: currentPattern,
+                totalItems: allItems.length,
+                currentPhase: currentPhase ? {
+                    name: currentPhase.name,
+                    subtitle: currentPhase.subtitle,
+                    itemCount: currentPhase.items?.length || 0
+                } : null,
+                siblingItems: siblingItems.slice(0, 5), // Limit to 5 for context
+                dependencies: dependencies.slice(0, 3),
+                dependents: dependents.slice(0, 3),
+                allItems: allItems.slice(0, 10) // Sample for pattern learning
+            };
+        }
+
+        // Helper: Build pattern-expert AI prompts
+        function buildPatternExpertPrompt(fieldType, itemContext, treeContext) {
+            const pattern = currentPattern;
+
+            // Base context shared across all patterns
+            let prompt = `You are a subject matter expert for ${pattern} pattern projects. `;
+
+            // Pattern-specific expert persona
+            const expertPersonas = {
+                philosophy: 'You are a philosophy professor specializing in classical and contemporary philosophical arguments.',
+                sales: 'You are a sales strategist with 20 years of enterprise B2B experience.',
+                thesis: 'You are an academic advisor helping graduate students structure rigorous research.',
+                roadmap: 'You are a product manager experienced in agile development and feature prioritization.',
+                prompting: 'You are an AI/ML engineer expert in prompt engineering for Claude and GPT-4.',
+                book: 'You are a professional fiction editor and writing coach.',
+                film: 'You are a cinematographer and AI video generation expert (Sora, Veo, Runway).',
+                course: 'You are an instructional designer with expertise in curriculum development.',
+                generic: 'You are a project manager experienced in complex deliverables.'
+            };
+
+            prompt += expertPersonas[pattern] || expertPersonas.generic;
+            prompt += `\n\n`;
+
+            // Project context
+            prompt += `PROJECT CONTEXT:\n`;
+            prompt += `- Project: ${treeContext.projectName}\n`;
+            if (treeContext.projectDescription) {
+                prompt += `- Description: ${treeContext.projectDescription}\n`;
+            }
+            if (treeContext.currentPhase) {
+                prompt += `- Current Phase: ${treeContext.currentPhase.name}`;
+                if (treeContext.currentPhase.subtitle) {
+                    prompt += ` (${treeContext.currentPhase.subtitle})`;
+                }
+                prompt += `\n`;
+            }
+            prompt += `- Total Items: ${treeContext.totalItems}\n\n`;
+
+            // Current item context
+            prompt += `CURRENT ITEM:\n`;
+            prompt += `- Name: ${itemContext.name || 'New Item'}\n`;
+            if (itemContext.description) {
+                prompt += `- Description: ${itemContext.description}\n`;
+            }
+
+            // Add existing field values for context
+            const relevantFields = ['speaker', 'conclusion', 'premise1', 'premise2',
+                                    'dealValue', 'contactPerson', 'leadSource',
+                                    'keyArgument', 'evidenceType',
+                                    'videoPrompt', 'visualStyle', 'cameraMovement',
+                                    'itemType', 'notes'];
+            relevantFields.forEach(field => {
+                if (itemContext[field] && field !== fieldType) {
+                    prompt += `- ${field}: ${itemContext[field]}\n`;
+                }
+            });
+
+            // Dependencies context
+            if (treeContext.dependencies.length > 0) {
+                prompt += `\nDEPENDENCIES (this builds on):\n`;
+                treeContext.dependencies.forEach(dep => {
+                    prompt += `- ${dep.name}`;
+                    if (dep.description) prompt += `: ${dep.description.substring(0, 100)}`;
+                    prompt += `\n`;
+                });
+            }
+
+            if (treeContext.dependents.length > 0) {
+                prompt += `\nDEPENDENTS (these build on this):\n`;
+                treeContext.dependents.forEach(dep => {
+                    prompt += `- ${dep.name}\n`;
+                });
+            }
+
+            // Sibling items for pattern learning
+            if (treeContext.siblingItems.length > 0) {
+                prompt += `\nOTHER ITEMS IN THIS PHASE:\n`;
+                treeContext.siblingItems.forEach(sib => {
+                    prompt += `- ${sib.name}`;
+                    if (sib[fieldType]) {
+                        prompt += ` [${fieldType}: ${String(sib[fieldType]).substring(0, 80)}]`;
+                    }
+                    prompt += `\n`;
+                });
+            }
+
+            prompt += `\n`;
+
+            // Pattern-specific field instructions
+            prompt += buildFieldInstructions(pattern, fieldType, itemContext);
+
+            prompt += `\n\nIMPORTANT:\n`;
+            prompt += `- Return ONLY the suggested ${fieldType} value\n`;
+            prompt += `- No explanations, no preamble\n`;
+            prompt += `- Match the style and quality of existing items\n`;
+            prompt += `- Be specific and actionable\n`;
+            prompt += `- Keep length appropriate (1-3 sentences for most fields)\n`;
+
+            return prompt;
+        }
+
+        // Helper: Pattern-specific field instructions
+        function buildFieldInstructions(pattern, fieldType, itemContext) {
+            let instructions = `YOUR TASK: Suggest a ${fieldType} for the current item.\n\n`;
+
+            // Philosophy pattern
+            if (pattern === 'philosophy') {
+                const fieldInstructions = {
+                    speaker: 'Suggest the most appropriate philosophical speaker/author for this argument based on the topic and historical context.',
+                    premise1: 'Suggest a first premise that would logically support the conclusion. Use clear, precise philosophical language.',
+                    premise2: 'Suggest a second premise that bridges premise1 to the conclusion, creating a valid logical inference.',
+                    premise3: 'Suggest a third premise if needed to complete the argument structure.',
+                    conclusion: 'Suggest a philosophical conclusion that follows from the premises. State it clearly and precisely.',
+                    objection: 'Suggest a strong objection to this argument - what would a critic say? Be specific and philosophically rigorous.',
+                    response: 'Suggest how the author would respond to the objection. Use careful distinctions and counterarguments.',
+                    keyTerms: 'List 3-5 key philosophical terms central to this argument (comma-separated).',
+                    textualReference: 'Suggest specific textual references (work and section numbers) where this argument appears or is discussed.',
+                    description: 'Write a 2-3 sentence description of this philosophical argument, its method, and its significance.',
+                    name: 'Suggest a concise title for this philosophical argument that captures its core claim.',
+                    notes: 'Suggest key considerations for evaluating this argument: validity, soundness, implications, objections.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Sales pattern
+            else if (pattern === 'sales') {
+                const fieldInstructions = {
+                    dealValue: 'Suggest a realistic deal value (in thousands $K) based on the deal type and company size.',
+                    contactPerson: 'Suggest the most likely decision-maker title for this type of deal.',
+                    leadSource: 'Suggest the most probable lead source for this deal type.',
+                    competitorInfo: 'Suggest realistic competitive intelligence: who are we competing against and how do we differentiate? (2-3 sentences)',
+                    expectedCloseDate: 'Suggest a realistic close date based on deal size and sales cycle.',
+                    stageProbability: 'Suggest a close probability (0-100) based on the deal stage and context.',
+                    description: 'Write a 2-3 sentence description of this sales opportunity, key stakeholders, and success factors.',
+                    name: 'Suggest a descriptive name for this deal that includes company type and solution.',
+                    notes: 'Suggest key considerations: budget timing, decision process, procurement, champion identification.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Thesis pattern
+            else if (pattern === 'thesis') {
+                const fieldInstructions = {
+                    keyArgument: 'Suggest the main thesis argument for this chapter/section. What gap does it address? What contribution does it make?',
+                    citations: 'Suggest 3-5 realistic academic citations (Author Year format) relevant to this topic.',
+                    evidenceType: 'Suggest the most appropriate evidence type (Empirical, Theoretical, Mixed, Case Study, etc.).',
+                    wordCount: 'Suggest a realistic current word count for this section.',
+                    targetWordCount: 'Suggest an appropriate target word count based on section type.',
+                    description: 'Write a 2-3 sentence description of this chapter/section: its argument, evidence, and contribution.',
+                    name: 'Suggest a clear chapter/section title that reflects its content and argument.',
+                    notes: 'Suggest key considerations: citation completeness, argument coherence, methodological rigor.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Film pattern
+            else if (pattern === 'film') {
+                const fieldInstructions = {
+                    videoPrompt: 'Suggest a detailed Sora/Veo prompt (100-200 chars) for this scene. Include: subject, action, camera movement, lighting, style. Be cinematic and specific.',
+                    cameraMovement: 'Suggest the most appropriate camera movement for this scene type and mood.',
+                    lightingMood: 'Suggest the best lighting mood based on time of day, genre, and emotional tone.',
+                    visualStyle: 'Suggest the visual style that best matches this scene\'s purpose and genre.',
+                    duration: 'Suggest appropriate clip duration based on scene complexity and action.',
+                    aiPlatform: 'Suggest the best AI platform (Sora, Veo 3, Runway Gen-3) for this scene type.',
+                    description: 'Write a 2-3 sentence description of this scene: what happens, mood, visual approach.',
+                    name: 'Suggest a concise scene name that captures the key action or emotion.',
+                    notes: 'Suggest key considerations: continuity, platform strengths, prompt specificity, motion artifacts.',
+                    iterationNotes: 'Suggest prompt engineering tips specific to this scene type.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Roadmap pattern
+            else if (pattern === 'roadmap') {
+                const fieldInstructions = {
+                    storyPoints: 'Suggest story point estimate (Fibonacci: 1,2,3,5,8,13) based on feature complexity.',
+                    userImpact: 'Suggest user impact level (Low/Medium/High/Critical) based on affected user percentage and importance.',
+                    technicalRisk: 'Suggest technical risk (Low/Medium/High) considering dependencies, unknowns, and complexity.',
+                    engineeringEstimate: 'Suggest time estimate in sprints/weeks based on complexity.',
+                    featureFlag: 'Suggest a feature flag name following naming conventions (feature_*).',
+                    description: 'Write 2-3 sentences: what this feature does, who it affects, and key success metrics.',
+                    name: 'Suggest a clear feature name that describes the user-facing capability.',
+                    notes: 'Suggest key considerations: testing requirements, rollout strategy, monitoring, documentation.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Prompting pattern
+            else if (pattern === 'prompting') {
+                const fieldInstructions = {
+                    systemPrompt: 'Suggest a clear, specific system prompt defining the AI\'s role, capabilities, and constraints. Use Anthropic best practices.',
+                    userPromptTemplate: 'Suggest a user prompt template with {{variables}} and XML tags for structure.',
+                    fewShotExamples: 'Suggest 1-2 few-shot examples in <examples><example> format showing input/output patterns.',
+                    chainOfThought: 'Suggest CoT instructions: "Think step by step..." tailored to this task.',
+                    outputFormat: 'Suggest the expected output structure (markdown, JSON, specific sections).',
+                    structuralTags: 'Suggest XML tags for this task (e.g., <thinking>, <answer>, <critique>).',
+                    assistantPrefill: 'Suggest an assistant prefill to guide tone and format.',
+                    toolDefinitions: 'Suggest tool/function definitions if this task needs tool calling (JSON schema).',
+                    modelTarget: 'Suggest the best model (Claude 3.5 Sonnet, GPT-4o, etc.) for this use case.',
+                    temperature: 'Suggest temperature (0-1). Use 0-0.3 for deterministic tasks, 0.7-1.0 for creative.',
+                    description: 'Write 2-3 sentences: what this prompt does, its approach, and optimization goals.',
+                    name: 'Suggest a descriptive name for this prompt use case.',
+                    notes: 'Suggest OpenAI/Anthropic best practices applied to this specific prompt.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Generic and other patterns
+            else {
+                instructions += `Consider the project context, dependencies, and sibling items. Suggest a realistic, specific ${fieldType} value that fits the pattern.`;
+            }
+
+            return instructions;
+        }
+
+        // MAIN AI SUGGESTION FUNCTION (async with AI integration)
+        async function generateAISuggestion(fieldType, itemContext) {
+            console.log('🤖 generateAISuggestion called:', fieldType);
+
+            // Check if API key is available
+            const apiKey = getLocalAPIKey();
+            console.log('🔑 API Key present:', !!apiKey);
+
+            if (!apiKey) {
+                console.log('⚠️ No API key, using static fallback');
+                // Fallback to static suggestions
+                return generateStaticSuggestion(fieldType, itemContext);
+            }
+
+            try {
+                // Extract full tree context
+                console.log('📊 Extracting tree context...');
+                const treeContext = extractTreeContext(itemContext);
+                console.log('📊 Tree context extracted:', treeContext);
+
+                // Build pattern-expert prompt
+                console.log('📝 Building expert prompt...');
+                const expertPrompt = buildPatternExpertPrompt(fieldType, itemContext, treeContext);
+                console.log('📝 Expert prompt built, length:', expertPrompt.length);
+
+                // Call Claude API for intelligent suggestion
+                console.log('☁️ Calling Claude API...');
+                const suggestion = await callClaudeAPI(expertPrompt);
+                console.log('☁️ Claude API response:', suggestion);
+
+                // Clean up the response (remove quotes, trim)
+                let cleaned = suggestion.trim();
+                if (cleaned.startsWith('"') && cleaned.endsWith('"')) {
+                    cleaned = cleaned.slice(1, -1);
+                }
+                if (cleaned.startsWith("'") && cleaned.endsWith("'")) {
+                    cleaned = cleaned.slice(1, -1);
+                }
+
+                console.log('✨ Returning cleaned suggestion:', cleaned);
+                return cleaned || generateStaticSuggestion(fieldType, itemContext);
+
+            } catch (error) {
+                console.error('❌ AI suggestion failed, falling back to static:', error);
+                console.error('Error details:', error.message, error.stack);
+                return generateStaticSuggestion(fieldType, itemContext);
+            }
+        }
+
+        // STATIC SUGGESTION ENGINE (fallback when no API key)
+        function generateStaticSuggestion(fieldType, itemContext) {
             const pattern = PATTERNS[currentPattern];
             const itemType = itemContext.itemType || '';
             const phase = itemContext.id ? itemContext.id.split('-')[0] : 'p0';
@@ -4615,12 +4892,17 @@ function hidePatternDescription() {
                 e.preventDefault();
                 e.stopPropagation();
 
+                // Check if API key available for AI mode
+                const hasAPIKey = getLocalAPIKey();
+                const modeLabel = hasAPIKey ? '✨ AI Suggest' : '💡 Quick Suggest';
+                const modeDesc = hasAPIKey ? 'AI-powered contextual suggestion' : 'Template-based suggestion (add API key for AI mode)';
+
                 // Show smart suggestion context menu
                 const menu = document.getElementById('context-menu');
                 menu.innerHTML = `
-                    <div class="context-item" id="ai-suggest-field">💡 Smart Suggest</div>
+                    <div class="context-item" id="ai-suggest-field">${modeLabel}</div>
                     <div class="context-divider"></div>
-                    <div class="context-item" style="font-size: 11px; color: var(--text-secondary); cursor: default; padding: 8px 14px;" onmouseover="this.style.background='transparent'">Contextual suggestions based on your project</div>
+                    <div class="context-item" style="font-size: 11px; color: var(--text-secondary); cursor: default; padding: 8px 14px;" onmouseover="this.style.background='transparent'">${modeDesc}</div>
                 `;
                 menu.style.display = 'block';
 
@@ -4648,9 +4930,12 @@ function hidePatternDescription() {
                 menu.style.left = finalX + 'px';
                 menu.style.top = finalY + 'px';
 
-                // Attach AI suggest handler
+                // Attach AI suggest handler (ASYNC)
                 const aiSuggestBtn = document.getElementById('ai-suggest-field');
-                aiSuggestBtn.onclick = () => {
+                aiSuggestBtn.onclick = async () => {
+                    console.log('🔍 Smart Suggest clicked:', fieldType, hasAPIKey ? 'AI mode' : 'Quick mode');
+                    menu.style.display = 'none';
+
                     // Get current context including notes field value
                     const currentContext = { ...itemContext };
                     const notesField = document.getElementById('edit-notes');
@@ -4658,20 +4943,56 @@ function hidePatternDescription() {
                         currentContext.notes = notesField.value;
                     }
 
-                    const suggestion = generateAISuggestion(fieldType, currentContext);
-                    fieldElement.value = suggestion;
+                    console.log('📋 Context:', currentContext);
 
-                    // Trigger input event for any listeners
-                    fieldElement.dispatchEvent(new Event('input', { bubbles: true }));
-
-                    // Visual feedback
+                    // Show loading state
+                    const originalValue = fieldElement.value;
+                    const originalPlaceholder = fieldElement.placeholder;
+                    fieldElement.value = '';
+                    fieldElement.placeholder = hasAPIKey ? '✨ AI is thinking...' : '💡 Generating suggestion...';
                     fieldElement.style.transition = 'all 0.3s';
-                    fieldElement.style.background = 'rgba(0, 166, 125, 0.15)';
-                    setTimeout(() => {
-                        fieldElement.style.background = 'var(--bg)';
-                    }, 600);
+                    fieldElement.style.background = 'rgba(99, 102, 241, 0.1)';
+                    fieldElement.disabled = true;
 
-                    menu.style.display = 'none';
+                    try {
+                        console.log('⏳ Calling generateAISuggestion...');
+                        // Call AI suggestion (async)
+                        const suggestion = await generateAISuggestion(fieldType, currentContext);
+                        console.log('✅ Got suggestion:', suggestion);
+
+                        // Apply suggestion
+                        fieldElement.value = suggestion;
+
+                        // Trigger input event for any listeners
+                        fieldElement.dispatchEvent(new Event('input', { bubbles: true }));
+
+                        // Success feedback
+                        fieldElement.style.background = 'rgba(0, 166, 125, 0.15)';
+                        setTimeout(() => {
+                            fieldElement.style.background = 'var(--bg)';
+                        }, 600);
+
+                    } catch (error) {
+                        console.error('❌ Smart Suggest error:', error);
+                        console.error('Error stack:', error.stack);
+
+                        // Restore original value on error
+                        fieldElement.value = originalValue;
+
+                        // Error feedback
+                        fieldElement.style.background = 'rgba(239, 68, 68, 0.1)';
+                        setTimeout(() => {
+                            fieldElement.style.background = 'var(--bg)';
+                        }, 600);
+
+                        // Show error to user
+                        alert(`Smart Suggest Error: ${error.message}\n\nCheck browser console (F12) for details.`);
+                    } finally {
+                        console.log('🔄 Re-enabling field');
+                        // Re-enable field
+                        fieldElement.disabled = false;
+                        fieldElement.placeholder = originalPlaceholder;
+                    }
                 };
             });
         }
