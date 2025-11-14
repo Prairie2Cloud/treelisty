@@ -1206,6 +1206,7 @@
             <div class="control-section">
                 <button class="btn" id="analyze-text-btn" title="Analyze text to detect pattern and create tree structure" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔍 Analyze Text</button>
                 <button class="btn" id="wizard-btn" title="AI Wizard will guide you through building your tree" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600;">🪄 AI Wizard</button>
+                <button class="btn" id="ai-review-btn" title="AI reviews your tree for completeness, logic, and pattern alignment" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 600;">🔬 AI Review</button>
                 <button class="btn" id="generate-prompt-btn" title="Generate a complete prompt from your tree structure" style="background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 600;">📝 Generate Prompt</button>
             </div>
 
@@ -1669,6 +1670,57 @@ The AI will analyze the structure and convert it to a tree."
 
             <div class="modal-footer">
                 <button class="btn" id="close-prompt-modal">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Review Modal -->
+    <div class="modal" id="ai-review-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 900px; max-height: 90vh;">
+            <div class="modal-header">
+                <span>🔬 AI Review & Enhance</span>
+            </div>
+
+            <div class="modal-body" style="padding: 20px; overflow-y: auto; max-height: calc(90vh - 140px);">
+                <!-- Status area -->
+                <div id="ai-review-status" style="margin-bottom: 20px;">
+                    <div style="padding: 15px; background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; border-radius: 6px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">🤖 AI is analyzing your tree...</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            Checking for completeness, redundancies, logical flow, and pattern alignment.
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Results area (hidden initially) -->
+                <div id="ai-review-results" style="display: none;">
+                    <!-- Summary section -->
+                    <div style="margin-bottom: 24px; padding: 16px; background: var(--card-bg-light); border-radius: 8px;">
+                        <h3 style="margin: 0 0 12px 0; font-size: 16px; color: var(--text-primary);">📊 Analysis Summary</h3>
+                        <div id="ai-review-summary"></div>
+                    </div>
+
+                    <!-- Suggestions section -->
+                    <div style="margin-bottom: 24px;">
+                        <h3 style="margin: 0 0 12px 0; font-size: 16px; color: var(--text-primary);">✨ Suggested Improvements</h3>
+                        <div id="ai-review-suggestions"></div>
+                    </div>
+
+                    <!-- Actions section -->
+                    <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 6px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">🎯 Next Steps</div>
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                            Review the suggestions above. You can manually apply changes to your tree, or let AI enhance specific areas.
+                        </div>
+                        <button class="btn" id="ai-review-again" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                            🔄 Re-analyze
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn" id="close-ai-review-modal">Close</button>
             </div>
         </div>
     </div>
@@ -10121,6 +10173,294 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             // No local key and serverless unavailable (or prompt requested) - show modal
             showApiKeyModal(false);
             return false;
+        }
+
+        // =============================================================================
+        // AI REVIEW & ENHANCE SYSTEM
+        // =============================================================================
+
+        // Open AI Review modal and analyze tree
+        document.getElementById('ai-review-btn').addEventListener('click', async () => {
+            // Check if AI is enabled
+            const aiMode = getGlobalAIMode();
+            if (aiMode === 'off') {
+                alert('❌ AI features are currently disabled.\n\nPlease enable AI mode in the header (🤖 AI dropdown) to use AI Review.');
+                return;
+            }
+
+            // Check if API key is configured
+            if (!checkAPIKeyConfigured()) {
+                return;
+            }
+
+            // Check if tree has content
+            if (!hasExistingContent()) {
+                alert('⚠️ Your tree is empty.\n\nPlease add some content first, then use AI Review to get suggestions for improvements.');
+                return;
+            }
+
+            // Open modal and start analysis
+            document.getElementById('ai-review-modal').style.display = 'flex';
+            document.getElementById('ai-review-status').style.display = 'block';
+            document.getElementById('ai-review-results').style.display = 'none';
+
+            await performAIReview();
+        });
+
+        // Close AI Review modal
+        document.getElementById('close-ai-review-modal').addEventListener('click', () => {
+            document.getElementById('ai-review-modal').style.display = 'none';
+        });
+
+        // Re-analyze button
+        document.getElementById('ai-review-again').addEventListener('click', async () => {
+            document.getElementById('ai-review-status').style.display = 'block';
+            document.getElementById('ai-review-results').style.display = 'none';
+            await performAIReview();
+        });
+
+        // Perform AI Review of the tree
+        async function performAIReview() {
+            const pattern = PATTERNS[currentPattern];
+            const tree = capexTree;
+
+            try {
+                // Build pattern-specific review prompt
+                const reviewPrompt = buildReviewPrompt(tree, pattern);
+
+                console.log('🔬 Starting AI Review...');
+                console.log('Pattern:', currentPattern);
+                console.log('Tree:', tree.name);
+
+                // Call AI with extended thinking for deep analysis
+                const aiMode = getGlobalAIMode();
+                const useExtendedThinking = aiMode === 'deep';
+
+                const response = await callClaudeAPI(
+                    reviewPrompt,
+                    `You are an expert ${pattern.name} analyst. Review the provided tree structure for completeness, redundancies, logical flow, and alignment with ${pattern.name} best practices. Provide specific, actionable suggestions.`,
+                    4096,
+                    useExtendedThinking
+                );
+
+                // Parse the AI response and display results
+                displayReviewResults(response);
+
+            } catch (error) {
+                console.error('❌ AI Review error:', error);
+                document.getElementById('ai-review-status').innerHTML = `
+                    <div style="padding: 15px; background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 6px;">
+                        <div style="font-weight: 600; margin-bottom: 8px;">❌ Error during analysis</div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            ${error.message}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+
+        // Build pattern-specific review prompt
+        function buildReviewPrompt(tree, pattern) {
+            const levels = pattern.levels;
+            let prompt = `# ${pattern.name} Tree Review\n\n`;
+            prompt += `**Project:** ${tree.name}\n`;
+            prompt += `**Pattern:** ${pattern.name}\n\n`;
+
+            // Count items
+            const itemCounts = {
+                phases: tree.children ? tree.children.length : 0,
+                items: 0,
+                subtasks: 0
+            };
+
+            if (tree.children) {
+                tree.children.forEach(phase => {
+                    if (phase.items) {
+                        itemCounts.items += phase.items.length;
+                        phase.items.forEach(item => {
+                            if (item.subtasks) {
+                                itemCounts.subtasks += item.subtasks.length;
+                            }
+                        });
+                    }
+                });
+            }
+
+            prompt += `**Current Structure:**\n`;
+            prompt += `- ${itemCounts.phases} ${levels.phase}(s)\n`;
+            prompt += `- ${itemCounts.items} ${levels.item}(s)\n`;
+            prompt += `- ${itemCounts.subtasks} ${levels.subtask}(s)\n\n`;
+
+            // Add tree content
+            prompt += `## Tree Structure\n\n`;
+            if (tree.children) {
+                tree.children.forEach((phase, pIdx) => {
+                    prompt += `### ${pIdx + 1}. ${phase.name}\n\n`;
+                    if (phase.description) {
+                        prompt += `${phase.description}\n\n`;
+                    }
+
+                    if (phase.items) {
+                        phase.items.forEach((item, iIdx) => {
+                            prompt += `  **${iIdx + 1}. ${item.name}**\n`;
+                            if (item.description) {
+                                prompt += `  ${item.description}\n`;
+                            }
+
+                            // Add pattern-specific fields
+                            const fields = Object.keys(item).filter(k =>
+                                !['id', 'name', 'icon', 'type', 'description', 'subtasks', 'children', 'dependencies'].includes(k)
+                            );
+
+                            if (fields.length > 0) {
+                                prompt += `  Fields: ${fields.join(', ')}\n`;
+                            }
+                            prompt += `\n`;
+                        });
+                    }
+                    prompt += `\n`;
+                });
+            }
+
+            // Pattern-specific review criteria
+            prompt += `\n## Review Criteria\n\n`;
+            prompt += `Please analyze this ${pattern.name} tree and provide:\n\n`;
+
+            prompt += `1. **Completeness Check:**\n`;
+            prompt += `   - Are all necessary ${levels.item.toLowerCase()}s present?\n`;
+            prompt += `   - Are there obvious gaps in the ${levels.phase.toLowerCase()} coverage?\n`;
+            prompt += `   - Are critical fields missing values?\n\n`;
+
+            prompt += `2. **Redundancy Analysis:**\n`;
+            prompt += `   - Are there duplicate or overlapping ${levels.item.toLowerCase()}s?\n`;
+            prompt += `   - Can any ${levels.item.toLowerCase()}s be merged or consolidated?\n\n`;
+
+            prompt += `3. **Logical Flow:**\n`;
+            prompt += `   - Do the ${levels.phase.toLowerCase()}s follow a logical sequence?\n`;
+            prompt += `   - Are dependencies properly structured?\n`;
+            prompt += `   - Does the tree structure make sense for this ${pattern.name}?\n\n`;
+
+            prompt += `4. **Pattern Alignment:**\n`;
+            prompt += `   - Does this follow ${pattern.name} best practices?\n`;
+            prompt += `   - Are pattern-specific fields used appropriately?\n`;
+            prompt += `   - What could improve alignment with ${pattern.name} standards?\n\n`;
+
+            // Pattern-specific additions
+            if (currentPattern === 'philosophy') {
+                prompt += `5. **Philosophical Rigor:**\n`;
+                prompt += `   - Are premises logically valid?\n`;
+                prompt += `   - Are objections comprehensive?\n`;
+                prompt += `   - Are textual references adequate?\n\n`;
+            } else if (currentPattern === 'sales') {
+                prompt += `5. **Pipeline Health:**\n`;
+                prompt += `   - Are all pipeline stages represented?\n`;
+                prompt += `   - Are deal values and probabilities realistic?\n`;
+                prompt += `   - Are key competitors identified?\n\n`;
+            } else if (currentPattern === 'thesis') {
+                prompt += `5. **Academic Standards:**\n`;
+                prompt += `   - Is the argument progression clear?\n`;
+                prompt += `   - Are citations sufficient?\n`;
+                prompt += `   - Is chapter balance appropriate?\n\n`;
+            } else if (currentPattern === 'roadmap') {
+                prompt += `5. **Execution Readiness:**\n`;
+                prompt += `   - Are user stories well-defined?\n`;
+                prompt += `   - Are story points assigned?\n`;
+                prompt += `   - Are technical risks identified?\n\n`;
+            } else if (currentPattern === 'book') {
+                prompt += `5. **Narrative Structure:**\n`;
+                prompt += `   - Does the story arc flow naturally?\n`;
+                prompt += `   - Are character arcs developed?\n`;
+                prompt += `   - Is pacing appropriate?\n\n`;
+            } else if (currentPattern === 'course') {
+                prompt += `5. **Instructional Design:**\n`;
+                prompt += `   - Is learning progression scaffolded?\n`;
+                prompt += `   - Are assessments aligned with objectives?\n`;
+                prompt += `   - Is content appropriately chunked?\n\n`;
+            }
+
+            prompt += `## Output Format\n\n`;
+            prompt += `Provide your analysis in the following format:\n\n`;
+            prompt += `**SUMMARY:** (2-3 sentences overview of tree quality)\n\n`;
+            prompt += `**STRENGTHS:** (Bullet list of what's working well)\n\n`;
+            prompt += `**GAPS:** (Specific missing items or fields)\n\n`;
+            prompt += `**REDUNDANCIES:** (Items that could be merged)\n\n`;
+            prompt += `**IMPROVEMENTS:** (Actionable suggestions to enhance the tree)\n\n`;
+
+            return prompt;
+        }
+
+        // Display AI review results
+        function displayReviewResults(response) {
+            // Hide status, show results
+            document.getElementById('ai-review-status').style.display = 'none';
+            document.getElementById('ai-review-results').style.display = 'block';
+
+            // Parse response sections
+            const sections = {
+                summary: extractSection(response, 'SUMMARY'),
+                strengths: extractSection(response, 'STRENGTHS'),
+                gaps: extractSection(response, 'GAPS'),
+                redundancies: extractSection(response, 'REDUNDANCIES'),
+                improvements: extractSection(response, 'IMPROVEMENTS')
+            };
+
+            // Build summary HTML
+            const summaryHTML = `
+                <div style="padding: 16px; background: var(--card-bg); border-radius: 8px; margin-bottom: 16px;">
+                    ${sections.summary || 'Analysis complete.'}
+                </div>
+
+                ${sections.strengths ? `
+                <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border-left: 3px solid #10b981; border-radius: 6px; margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 8px 0; color: #10b981; font-size: 14px;">✅ Strengths</h4>
+                    <div style="font-size: 13px; line-height: 1.6;">${formatMarkdown(sections.strengths)}</div>
+                </div>
+                ` : ''}
+
+                ${sections.gaps ? `
+                <div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border-left: 3px solid #ef4444; border-radius: 6px; margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 8px 0; color: #ef4444; font-size: 14px;">⚠️ Gaps</h4>
+                    <div style="font-size: 13px; line-height: 1.6;">${formatMarkdown(sections.gaps)}</div>
+                </div>
+                ` : ''}
+
+                ${sections.redundancies ? `
+                <div style="padding: 16px; background: rgba(245, 158, 11, 0.1); border-left: 3px solid #f59e0b; border-radius: 6px; margin-bottom: 16px;">
+                    <h4 style="margin: 0 0 8px 0; color: #f59e0b; font-size: 14px;">🔄 Redundancies</h4>
+                    <div style="font-size: 13px; line-height: 1.6;">${formatMarkdown(sections.redundancies)}</div>
+                </div>
+                ` : ''}
+            `;
+
+            document.getElementById('ai-review-summary').innerHTML = summaryHTML;
+
+            // Build suggestions HTML
+            const suggestionsHTML = sections.improvements ? `
+                <div style="padding: 16px; background: rgba(99, 102, 241, 0.1); border-left: 3px solid #6366f1; border-radius: 6px;">
+                    <div style="font-size: 13px; line-height: 1.6;">${formatMarkdown(sections.improvements)}</div>
+                </div>
+            ` : '<div style="color: var(--text-secondary);">No specific improvements suggested.</div>';
+
+            document.getElementById('ai-review-suggestions').innerHTML = suggestionsHTML;
+
+            console.log('✅ AI Review complete');
+        }
+
+        // Extract section from AI response
+        function extractSection(text, sectionName) {
+            const regex = new RegExp(`\\*\\*${sectionName}:\\*\\*\\s*([\\s\\S]*?)(?=\\n\\*\\*[A-Z]+:|$)`, 'i');
+            const match = text.match(regex);
+            return match ? match[1].trim() : '';
+        }
+
+        // Format markdown to HTML (simple version)
+        function formatMarkdown(text) {
+            return text
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>') // Bold
+                .replace(/\*(.*?)\*/g, '<em>$1</em>') // Italic
+                .replace(/^- (.+)$/gm, '<li>$1</li>') // List items
+                .replace(/(<li>.*<\/li>)/s, '<ul style="margin: 8px 0; padding-left: 20px;">$1</ul>') // Wrap in ul
+                .replace(/\n\n/g, '<br><br>'); // Paragraphs
         }
 
         // =============================================================================
