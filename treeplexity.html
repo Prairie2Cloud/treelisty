@@ -1218,22 +1218,22 @@
             </div>
 
             <div class="control-section">
-                <label for="ai-mode-select" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);">
-                    <span>🤖 AI Mode:</span>
-                    <select id="ai-mode-select" class="btn" style="padding: 6px 10px; cursor: pointer; font-weight: 600;" title="Choose AI processing level">
-                        <option value="off">Off</option>
-                        <option value="quick" selected>⚡ Quick</option>
-                        <option value="deep">🔬 Deep</option>
-                    </select>
-                </label>
-            </div>
-
-            <div class="control-section">
-                <label for="claude-model-select" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);">
-                    <span>🧠 Model:</span>
-                    <select id="claude-model-select" class="btn" style="padding: 6px 10px; cursor: pointer; font-weight: 600;" title="Choose Claude model (Haiku: fast/cheap, Sonnet: best reasoning)">
-                        <option value="haiku">⚡ Haiku (Fast)</option>
-                        <option value="sonnet" selected>🧠 Sonnet 4.5</option>
+                <label for="unified-ai-mode-select" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);">
+                    <span>🤖 AI:</span>
+                    <select id="unified-ai-mode-select" class="btn" style="padding: 6px 10px; cursor: pointer; font-weight: 600; min-width: 200px;" title="Choose AI provider and model - Server modes are free but rate limited, Your Key modes are unlimited">
+                        <optgroup label="🆓 Server (Free - Rate Limited: 200/hr)">
+                            <option value="server-haiku" title="Server Claude Haiku - Fast & cheap, 200 req/hr limit">⚡ Fast (Haiku)</option>
+                            <option value="server-sonnet" selected title="Server Claude Sonnet 4.5 - Best reasoning, 200 req/hr limit">🧠 Best (Sonnet 4.5)</option>
+                        </optgroup>
+                        <optgroup label="🔑 Your Key (Unlimited - Requires API Key)">
+                            <option value="user-haiku" title="Your Claude Haiku - Fast & cheap, unlimited with your key">⚡ Fast (Haiku)</option>
+                            <option value="user-sonnet" title="Your Claude Sonnet 4.5 - Best reasoning with extended thinking, unlimited">🧠 Best (Sonnet 4.5)</option>
+                            <option value="user-gemini" title="Your Gemini - Fast & cost-effective, requires Google API key">🔷 Gemini</option>
+                            <option value="user-chatgpt" title="Your ChatGPT - Versatile & popular, requires OpenAI API key">💬 ChatGPT</option>
+                        </optgroup>
+                        <optgroup label="Disable AI Features">
+                            <option value="off" title="Turn off all AI features">❌ Off</option>
+                        </optgroup>
                     </select>
                 </label>
             </div>
@@ -1860,45 +1860,96 @@ The AI will analyze the structure and convert it to a tree."
             localStorage.setItem('ai_redundancy_mode', enabled.toString());
         }
 
-        // Global AI Mode management (applies to ALL AI features)
-        function getGlobalAIMode() {
-            return localStorage.getItem('global_ai_mode') || 'quick';
+        // Unified AI Mode management (combines provider, model, and processing mode)
+        function getUnifiedAIMode() {
+            return localStorage.getItem('unified_ai_mode') || 'server-sonnet';
         }
 
-        function setGlobalAIMode(mode) {
-            localStorage.setItem('global_ai_mode', mode);
-            console.log(`✅ Global AI mode set to: ${mode}`);
+        function setUnifiedAIMode(mode) {
+            localStorage.setItem('unified_ai_mode', mode);
+            console.log(`✅ Unified AI mode set to: ${mode}`);
 
             // Update the dropdown
-            const select = document.getElementById('ai-mode-select');
+            const select = document.getElementById('unified-ai-mode-select');
             if (select) {
                 select.value = mode;
             }
         }
 
-        // Claude Model selection (Haiku vs Sonnet)
-        function getClaudeModel() {
-            return localStorage.getItem('claude_model') || 'sonnet'; // Default to Sonnet 4.5
+        // Parse unified mode into components
+        function parseUnifiedMode(mode = null) {
+            const unifiedMode = mode || getUnifiedAIMode();
+
+            if (unifiedMode === 'off') {
+                return {
+                    enabled: false,
+                    provider: null,
+                    model: null,
+                    mode: 'off',
+                    requiresKey: false,
+                    description: 'AI features disabled'
+                };
+            }
+
+            // server-haiku, server-sonnet, user-haiku, user-sonnet, user-gemini, user-chatgpt
+            const [source, target] = unifiedMode.split('-');
+            const useServerKey = source === 'server';
+            const processingMode = useServerKey ? 'quick' : 'deep';
+
+            let provider, model, modelId, description;
+
+            if (target === 'haiku') {
+                provider = 'anthropic';
+                model = 'haiku';
+                modelId = 'claude-3-haiku-20240307';
+                description = useServerKey
+                    ? 'Fast & cheap (~$0.25/1M in, $1.25/1M out) - 200 req/hr limit'
+                    : 'Fast & cheap (~$0.25/1M in, $1.25/1M out) - Unlimited with your key';
+            } else if (target === 'sonnet') {
+                provider = 'anthropic';
+                model = 'sonnet';
+                modelId = 'claude-sonnet-4-20250514';
+                description = useServerKey
+                    ? 'Best reasoning (~$3/1M in, $15/1M out) - 200 req/hr limit'
+                    : 'Best reasoning with extended thinking (~$3/1M in, $15/1M out) - Unlimited';
+            } else if (target === 'gemini') {
+                provider = 'gemini';
+                model = 'gemini';
+                modelId = 'gemini-2.0-flash-exp';
+                description = 'Fast & cost-effective (Free tier, then ~$0.075/1M) - Requires your key';
+            } else if (target === 'chatgpt') {
+                provider = 'openai';
+                model = 'gpt-4o';
+                modelId = 'gpt-4o';
+                description = 'Versatile & popular (~$2.50/1M in, $10/1M out) - Requires your key';
+            }
+
+            return {
+                enabled: true,
+                provider: provider,
+                model: model,
+                modelId: modelId,
+                mode: processingMode,
+                useServerKey: useServerKey,
+                requiresKey: !useServerKey,
+                description: description
+            };
         }
 
-        function setClaudeModel(model) {
-            localStorage.setItem('claude_model', model);
-            console.log(`✅ Claude model set to: ${model}`);
+        // Legacy compatibility functions (for existing code)
+        function getGlobalAIMode() {
+            const parsed = parseUnifiedMode();
+            return parsed.enabled ? parsed.mode : 'off';
+        }
 
-            // Update the dropdown
-            const select = document.getElementById('claude-model-select');
-            if (select) {
-                select.value = model;
-            }
+        function getAIProvider() {
+            const parsed = parseUnifiedMode();
+            return parsed.provider || 'anthropic';
         }
 
         function getClaudeModelId() {
-            const model = getClaudeModel();
-            if (model === 'haiku') {
-                return 'claude-3-haiku-20240307'; // Haiku: 10x faster, 20x cheaper
-            } else {
-                return 'claude-sonnet-4-20250514'; // Sonnet 4.5: Best reasoning, extended thinking
-            }
+            const parsed = parseUnifiedMode();
+            return parsed.modelId || 'claude-sonnet-4-20250514';
         }
 
         function canUseServerlessAI() {
@@ -9937,53 +9988,51 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             showApiKeyModal(true);
         });
 
-        // Global AI Mode selector
-        document.getElementById('ai-mode-select').addEventListener('change', (e) => {
-            const mode = e.target.value;
-            setGlobalAIMode(mode);
+        // Unified AI Mode selector
+        document.getElementById('unified-ai-mode-select').addEventListener('change', (e) => {
+            const newMode = e.target.value;
+            const parsed = parseUnifiedMode(newMode);
 
-            // Show informational message
-            if (mode === 'off') {
-                console.log('ℹ️ AI features disabled');
-            } else if (mode === 'quick') {
-                console.log('⚡ Quick Mode: Using server API key (rate limited, faster)');
-            } else if (mode === 'deep') {
-                const hasKey = getLocalAPIKey(getAIProvider());
+            // Check if this mode requires an API key
+            if (parsed.requiresKey) {
+                const provider = parsed.provider;
+                const hasKey = getLocalAPIKey(provider);
+
                 if (!hasKey) {
-                    alert('🔬 Deep Mode requires your own API key.\n\nPlease click the 🔑 API Key button to configure your key.');
-                    // Reset to quick mode
-                    setGlobalAIMode('quick');
-                } else {
-                    console.log('🔬 Deep Mode: Using your API key (unlimited, extended thinking)');
+                    // Show helpful message about needing API key
+                    const providerName = provider === 'anthropic' ? 'Claude' :
+                                       provider === 'gemini' ? 'Gemini' : 'OpenAI';
+
+                    alert(`🔑 This mode requires your ${providerName} API key.\n\nPlease click the 🔑 API Key button to configure your key, then try again.`);
+
+                    // Revert to previous mode
+                    const currentMode = getUnifiedAIMode();
+                    e.target.value = currentMode;
+                    return;
                 }
             }
-        });
 
-        // Claude Model selector (Haiku vs Sonnet)
-        document.getElementById('claude-model-select').addEventListener('change', (e) => {
-            const model = e.target.value;
-            setClaudeModel(model);
+            // Save the new mode
+            setUnifiedAIMode(newMode);
 
             // Show informational message
-            if (model === 'haiku') {
-                console.log('⚡ Haiku: Fast and cost-effective (~$0.25/1M input, $1.25/1M output)');
-            } else if (model === 'sonnet') {
-                console.log('🧠 Sonnet 4.5: Best reasoning and extended thinking (~$3/1M input, $15/1M output)');
+            console.log(`✅ AI Mode: ${parsed.description}`);
+
+            // Show user-friendly toast
+            if (parsed.enabled) {
+                const modeLabel = e.target.options[e.target.selectedIndex].text;
+                showToast(`✅ AI Mode: ${modeLabel}`);
+            } else {
+                showToast('❌ AI features disabled');
             }
         });
 
-        // Initialize AI mode selector and model selector on page load
+        // Initialize unified AI mode selector on page load
         window.addEventListener('DOMContentLoaded', () => {
-            const savedMode = getGlobalAIMode();
-            const modeSelect = document.getElementById('ai-mode-select');
-            if (modeSelect) {
-                modeSelect.value = savedMode;
-            }
-
-            const savedModel = getClaudeModel();
-            const modelSelect = document.getElementById('claude-model-select');
-            if (modelSelect) {
-                modelSelect.value = savedModel;
+            const savedMode = getUnifiedAIMode();
+            const select = document.getElementById('unified-ai-mode-select');
+            if (select) {
+                select.value = savedMode;
             }
         });
 
