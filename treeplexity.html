@@ -8242,6 +8242,376 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             return finalPrompt;
         }
 
+        // Generate Academic Thesis prompt (manuscript-ready, scholarly)
+        function generateThesisPrompt(tree, pattern) {
+            let output = `# ${tree.icon || '🎓'} ${tree.name || 'Thesis'}\n\n`;
+
+            if (tree.description) {
+                output += `> ${tree.description}\n\n`;
+            }
+
+            // Calculate manuscript metrics
+            let totalWordCount = 0;
+            let targetWordCount = 0;
+            let totalChapters = 0;
+            const chapterMetrics = [];
+
+            if (tree.children) {
+                tree.children.forEach(chapter => {
+                    if (chapter.type === 'phase' && chapter.items) {
+                        let chapterWords = 0;
+                        let chapterTarget = 0;
+                        let sectionCount = chapter.items.length;
+
+                        chapter.items.forEach(section => {
+                            chapterWords += section.wordCount || 0;
+                            chapterTarget += section.targetWordCount || 0;
+                        });
+
+                        chapterMetrics.push({
+                            name: chapter.name || `Chapter ${chapter.phase + 1}`,
+                            subtitle: chapter.subtitle,
+                            current: chapterWords,
+                            target: chapterTarget,
+                            sections: sectionCount,
+                            progress: chapterTarget > 0 ? Math.round((chapterWords / chapterTarget) * 100) : 0
+                        });
+
+                        totalWordCount += chapterWords;
+                        targetWordCount += chapterTarget;
+                        totalChapters++;
+                    }
+                });
+            }
+
+            const overallProgress = targetWordCount > 0 ? Math.round((totalWordCount / targetWordCount) * 100) : 0;
+
+            // Document Metadata
+            output += `## 📄 Document Metadata\n\n`;
+            output += `**Manuscript Status:**\n`;
+            output += `- Current Length: ${totalWordCount.toLocaleString()} words\n`;
+            output += `- Target Length: ${targetWordCount.toLocaleString()} words\n`;
+            output += `- Completion: ${overallProgress}% (${totalWordCount}/${targetWordCount})\n`;
+            output += `- Structure: ${totalChapters} chapters across ${pattern.levels.phase}\n`;
+            output += `- Average Chapter: ${Math.round(totalWordCount / totalChapters).toLocaleString()} words\n\n`;
+
+            // Chapter Breakdown with Progress
+            output += `## 📚 Chapter Structure\n\n`;
+            chapterMetrics.forEach((ch, idx) => {
+                const progressBar = '█'.repeat(Math.floor(ch.progress / 10)) + '░'.repeat(10 - Math.floor(ch.progress / 10));
+                output += `### ${ch.name}${ch.subtitle ? ` — ${ch.subtitle}` : ''}\n`;
+                output += `- Progress: [${progressBar}] ${ch.progress}%\n`;
+                output += `- Word Count: ${ch.current.toLocaleString()} / ${ch.target.toLocaleString()} words\n`;
+                output += `- Sections: ${ch.sections}\n\n`;
+            });
+
+            // Chapter Details
+            output += `---\n\n## 📖 Detailed Chapter Content\n\n`;
+
+            if (tree.children) {
+                tree.children.forEach((chapter, chIdx) => {
+                    if (chapter.type === 'phase' && chapter.items && chapter.items.length > 0) {
+                        output += `### ${chapter.name || `Chapter ${chIdx + 1}`}${chapter.subtitle ? ` — ${chapter.subtitle}` : ''}\n\n`;
+
+                        chapter.items.forEach((section, sIdx) => {
+                            output += `#### ${sIdx + 1}. ${section.name}\n\n`;
+
+                            // Section metadata
+                            if (section.keyArgument) {
+                                output += `**Central Argument:**\n`;
+                                output += `${section.keyArgument}\n\n`;
+                            }
+
+                            if (section.description) {
+                                output += `**Section Overview:**\n`;
+                                output += `${section.description}\n\n`;
+                            }
+
+                            // Evidence & Methodology
+                            const hasMethodology = section.evidenceType || section.citations;
+                            if (hasMethodology) {
+                                output += `**Evidence & Methods:**\n`;
+                                if (section.evidenceType) {
+                                    output += `- Evidence Type: ${section.evidenceType}\n`;
+                                }
+                                if (section.citations) {
+                                    output += `- Key Citations: ${section.citations}\n`;
+                                }
+                                output += `\n`;
+                            }
+
+                            // Writing Progress
+                            if (section.wordCount !== undefined || section.targetWordCount) {
+                                const sectionProgress = section.targetWordCount > 0 ? Math.round((section.wordCount || 0) / section.targetWordCount * 100) : 0;
+                                output += `**Writing Progress:**\n`;
+                                output += `- Current: ${section.wordCount || 0} words\n`;
+                                output += `- Target: ${section.targetWordCount || 'TBD'} words\n`;
+                                output += `- Status: ${sectionProgress}% complete`;
+                                if (section.draftStatus) {
+                                    output += ` (${section.draftStatus})`;
+                                }
+                                output += `\n\n`;
+                            }
+
+                            // Subsections/Arguments
+                            if (section.children && section.children.length > 0) {
+                                output += `**Sub-arguments:**\n`;
+                                section.children.forEach((sub, subIdx) => {
+                                    output += `${subIdx + 1}. ${sub.name}`;
+                                    if (sub.keyArgument) {
+                                        output += ` — ${sub.keyArgument}`;
+                                    }
+                                    if (sub.citations) {
+                                        output += ` [${sub.citations}]`;
+                                    }
+                                    output += `\n`;
+                                });
+                                output += `\n`;
+                            }
+
+                            // Dependencies
+                            if (section.dependencies && section.dependencies.length > 0) {
+                                output += `**⚠️ Dependencies:** This section builds on: ${section.dependencies.join(', ')}\n\n`;
+                            }
+
+                            output += `---\n\n`;
+                        });
+                    }
+                });
+            }
+
+            // Writing Recommendations
+            output += `## ✍️ Writing Recommendations\n\n`;
+            output += `**Manuscript Completeness:**\n`;
+            output += `- Overall Progress: ${overallProgress}% complete\n`;
+            if (overallProgress < 50) {
+                output += `- Status: Early draft stage — focus on completing first drafts of all chapters\n`;
+            } else if (overallProgress < 80) {
+                output += `- Status: Mid-stage — focus on deepening arguments and adding evidence\n`;
+            } else {
+                output += `- Status: Late stage — focus on revision, citations, and cohesion\n`;
+            }
+            output += `- Remaining: ${(targetWordCount - totalWordCount).toLocaleString()} words to target length\n\n`;
+
+            output += `**Chapter Balance:**\n`;
+            const chapterLengths = chapterMetrics.map(ch => ch.current);
+            const avgChapter = chapterLengths.reduce((a, b) => a + b, 0) / chapterLengths.length;
+            const imbalanced = chapterLengths.filter(len => len < avgChapter * 0.5 || len > avgChapter * 1.5);
+            if (imbalanced.length > 0) {
+                output += `- ⚠️ ${imbalanced.length} chapter(s) significantly differ from average length\n`;
+                output += `- Consider redistributing content or adjusting targets\n`;
+            } else {
+                output += `- ✓ Chapters are relatively balanced in length\n`;
+            }
+            output += `\n`;
+
+            output += `**Academic Quality Checks:**\n`;
+            output += `1. Citation Coverage: Ensure each major claim has 2-3 supporting citations\n`;
+            output += `2. Argument Coherence: Check logical flow within and between chapters\n`;
+            output += `3. Evidence Types: Balance theoretical, empirical, and case study evidence\n`;
+            output += `4. Literature Gaps: Identify missing perspectives or counter-arguments\n`;
+            output += `5. Methodological Rigor: Document methods, limitations, and validity\n\n`;
+
+            output += `**Next Steps:**\n`;
+            const incompleteSections = [];
+            if (tree.children) {
+                tree.children.forEach(chapter => {
+                    if (chapter.items) {
+                        chapter.items.forEach(section => {
+                            if (!section.wordCount || section.wordCount < (section.targetWordCount || 0) * 0.5) {
+                                incompleteSections.push(section.name);
+                            }
+                        });
+                    }
+                });
+            }
+            if (incompleteSections.length > 0) {
+                output += `- Priority: Complete ${incompleteSections.length} under-developed section(s)\n`;
+                output += `- Focus areas: ${incompleteSections.slice(0, 3).join(', ')}${incompleteSections.length > 3 ? '...' : ''}\n`;
+            }
+            output += `- Review: Get feedback from advisors on completed chapters\n`;
+            output += `- Citations: Update and complete bibliography\n`;
+            output += `- Editing: Professional copyediting for polished sections\n\n`;
+
+            output += `---\n\n`;
+            output += `**💡 AI Prompt Usage:** This academic manuscript can be used to:\n`;
+            output += `- Ask AI to critique arguments and suggest counter-arguments\n`;
+            output += `- Generate literature review summaries for each chapter\n`;
+            output += `- Draft section transitions and chapter conclusions\n`;
+            output += `- Suggest additional citations based on argument types\n`;
+            output += `- Create visual abstracts and conference presentations\n`;
+            output += `- Identify methodological weaknesses and suggest improvements\n`;
+            output += `- Generate research questions for future studies\n\n`;
+
+            return output;
+        }
+
+        // Generate Sales Pipeline prompt (executive-ready, action-oriented)
+        function generateSalesPrompt(tree, pattern) {
+            let output = `# ${tree.icon || '💼'} ${tree.name || 'Sales Pipeline'}\n\n`;
+
+            if (tree.description) {
+                output += `${tree.description}\n\n`;
+            }
+
+            // Calculate pipeline metrics
+            let totalPipelineValue = 0;
+            let weightedPipelineValue = 0;
+            let totalDeals = 0;
+            const quarterMetrics = [];
+
+            if (tree.children) {
+                tree.children.forEach(quarter => {
+                    if (quarter.type === 'phase' && quarter.items) {
+                        let quarterTotal = 0;
+                        let quarterWeighted = 0;
+                        let quarterDeals = quarter.items.length;
+
+                        quarter.items.forEach(deal => {
+                            const dealValue = deal.dealValue || 0;
+                            const probability = deal.stageProbability || deal.probability || 0;
+
+                            quarterTotal += dealValue;
+                            quarterWeighted += (dealValue * probability / 100);
+                        });
+
+                        quarterMetrics.push({
+                            name: quarter.name || `Quarter ${quarter.phase + 1}`,
+                            subtitle: quarter.subtitle,
+                            total: quarterTotal,
+                            weighted: quarterWeighted,
+                            deals: quarterDeals
+                        });
+
+                        totalPipelineValue += quarterTotal;
+                        weightedPipelineValue += quarterWeighted;
+                        totalDeals += quarterDeals;
+                    }
+                });
+            }
+
+            // Executive Summary
+            output += `## 📊 Executive Summary\n\n`;
+            output += `**Pipeline Health:**\n`;
+            output += `- Total Pipeline Value: $${totalPipelineValue.toLocaleString()}\n`;
+            output += `- Weighted Pipeline (Probability Adjusted): $${Math.round(weightedPipelineValue).toLocaleString()}\n`;
+            output += `- Total Active Deals: ${totalDeals}\n`;
+            output += `- Average Deal Size: $${Math.round(totalPipelineValue / totalDeals).toLocaleString()}\n`;
+            output += `- Weighted Close Rate: ${Math.round(weightedPipelineValue / totalPipelineValue * 100)}%\n\n`;
+
+            // Quarterly Breakdown
+            output += `## 📅 Quarterly Breakdown\n\n`;
+            quarterMetrics.forEach((q, idx) => {
+                output += `### ${q.name}${q.subtitle ? ` - ${q.subtitle}` : ''}\n`;
+                output += `- Pipeline: $${q.total.toLocaleString()} (${q.deals} deals)\n`;
+                output += `- Expected Revenue: $${Math.round(q.weighted).toLocaleString()}\n`;
+                output += `- Conversion Confidence: ${Math.round(q.weighted / q.total * 100)}%\n\n`;
+            });
+
+            // Deal Details by Quarter
+            output += `---\n\n## 💼 Deal Pipeline\n\n`;
+
+            if (tree.children) {
+                tree.children.forEach((quarter, qIdx) => {
+                    if (quarter.type === 'phase' && quarter.items && quarter.items.length > 0) {
+                        output += `### ${quarter.name || `Quarter ${qIdx + 1}`}\n\n`;
+
+                        quarter.items.forEach((deal, dIdx) => {
+                            const dealValue = deal.dealValue || 0;
+                            const probability = deal.stageProbability || deal.probability || 0;
+                            const expectedRevenue = Math.round(dealValue * probability / 100);
+
+                            output += `#### ${dIdx + 1}. ${deal.name}\n\n`;
+
+                            // Deal metrics bar
+                            output += `**Deal Snapshot:**\n`;
+                            output += `- 💰 Value: $${dealValue.toLocaleString()}\n`;
+                            output += `- 📊 Probability: ${probability}%\n`;
+                            output += `- 💵 Expected Revenue: $${expectedRevenue.toLocaleString()}\n`;
+                            if (deal.expectedCloseDate || deal.expectedClose) {
+                                output += `- 📅 Target Close: ${deal.expectedCloseDate || deal.expectedClose}\n`;
+                            }
+                            if (deal.accountExecutive) {
+                                output += `- 👤 Account Executive: ${deal.accountExecutive}\n`;
+                            }
+                            if (deal.itemType) {
+                                const typeLabel = pattern.types.find(t => t.value === deal.itemType)?.label || deal.itemType;
+                                output += `- 🏷️ Deal Type: ${typeLabel}\n`;
+                            }
+                            if (deal.status) {
+                                output += `- 📍 Status: ${deal.status}\n`;
+                            }
+                            if (deal.leadTime) {
+                                output += `- ⏱️ Sales Cycle: ${deal.leadTime}\n`;
+                            }
+                            output += `\n`;
+
+                            if (deal.description) {
+                                output += `**Overview:**\n${deal.description}\n\n`;
+                            }
+
+                            // Action items / Next steps
+                            if (deal.children && deal.children.length > 0) {
+                                output += `**Action Items:**\n`;
+                                deal.children.forEach((action, aIdx) => {
+                                    output += `${aIdx + 1}. **${action.name}**\n`;
+                                    if (action.description) {
+                                        output += `   ${action.description}\n`;
+                                    }
+                                    if (action.expectedClose || action.expectedCloseDate) {
+                                        output += `   _Due: ${action.expectedClose || action.expectedCloseDate}_\n`;
+                                    }
+                                    if (action.dependencies && action.dependencies.length > 0) {
+                                        output += `   _Depends on: ${action.dependencies.join(', ')}_\n`;
+                                    }
+                                    output += `\n`;
+                                });
+                            }
+
+                            // Competitive intelligence
+                            if (deal.competitorInfo) {
+                                output += `**🎯 Competitive Landscape:**\n${deal.competitorInfo}\n\n`;
+                            }
+
+                            // Dependencies/blockers
+                            if (deal.dependencies && deal.dependencies.length > 0) {
+                                output += `**⚠️ Dependencies:** This deal depends on: ${deal.dependencies.join(', ')}\n\n`;
+                            }
+
+                            output += `---\n\n`;
+                        });
+                    }
+                });
+            }
+
+            // Risk Analysis & Recommendations
+            output += `## ⚠️ Risk Analysis & Recommendations\n\n`;
+            output += `**Pipeline Coverage:**\n`;
+            const averageCloseRate = Math.round(weightedPipelineValue / totalPipelineValue * 100);
+            output += `- Current weighted close rate: ${averageCloseRate}%\n`;
+            output += `- To hit 100% of targets, maintain ${Math.round(100 / averageCloseRate)}x pipeline coverage\n`;
+            output += `- Low-probability deals (<50%): Focus on advancing or disqualifying quickly\n`;
+            output += `- High-value deals (>$500K): Ensure executive sponsorship and multi-threading\n\n`;
+
+            output += `**Key Actions:**\n`;
+            output += `1. Accelerate deals in late stages (>70% probability) to close within quarter\n`;
+            output += `2. Qualify out deals stuck in discovery for >2 months\n`;
+            output += `3. Build relationships with economic buyers, not just champions\n`;
+            output += `4. Document competitive wins and losses for pattern analysis\n`;
+            output += `5. Request customer references from recent wins for social proof\n\n`;
+
+            output += `---\n\n`;
+            output += `**💡 AI Prompt Usage:** This sales pipeline can be used to:\n`;
+            output += `- Ask AI to analyze deal health and suggest next best actions\n`;
+            output += `- Generate sales enablement materials (case studies, proposals, ROI calculators)\n`;
+            output += `- Forecast quarterly revenue with Monte Carlo simulations\n`;
+            output += `- Identify at-risk deals based on activity patterns\n`;
+            output += `- Draft personalized executive emails for each stakeholder\n`;
+            output += `- Create competitive battlecards from competitorInfo fields\n\n`;
+
+            return output;
+        }
+
         // Generate Philosophy prompts (executable, professional)
         function generatePhilosophyPrompt(tree, pattern) {
             let output = `# ${tree.icon || '🤔'} ${tree.name || 'Philosophical Argument'}\n\n`;
@@ -8496,6 +8866,16 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             // SPECIAL CASE: Philosophy uses different format
             if (currentPattern === 'philosophy') {
                 return generatePhilosophyPrompt(tree, pattern);
+            }
+
+            // SPECIAL CASE: Sales Pipeline uses different format
+            if (currentPattern === 'sales') {
+                return generateSalesPrompt(tree, pattern);
+            }
+
+            // SPECIAL CASE: Thesis/Academic uses different format
+            if (currentPattern === 'thesis') {
+                return generateThesisPrompt(tree, pattern);
             }
 
             let prompt = `# ${tree.icon || '📋'} ${tree.name || 'Project'}\n\n`;
