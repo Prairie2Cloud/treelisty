@@ -1812,13 +1812,27 @@ The AI will analyze the structure and convert it to a tree."
                 userApiKey: localApiKey || undefined
             };
 
-            response = await fetch(AI_CONFIG.apiEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(netlifyRequestBody)
-            });
+            // Add timeout to prevent hanging on Netlify's 10s function limit
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 9000); // 9s timeout (before Netlify's 10s)
+
+            try {
+                response = await fetch(AI_CONFIG.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(netlifyRequestBody),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+                if (fetchError.name === 'AbortError') {
+                    throw new Error('Request timeout - Netlify function took too long (>9s). Try again or use a simpler prompt.');
+                }
+                throw fetchError;
+            }
 
             if (!response.ok) {
                 const error = await response.json().catch(() => ({}));
@@ -4423,26 +4437,17 @@ function hidePatternDescription() {
             prompt += expertPersonas[pattern] || expertPersonas.generic;
             prompt += `\n\n`;
 
-            // Project context
-            prompt += `PROJECT CONTEXT:\n`;
-            prompt += `- Project: ${treeContext.projectName}\n`;
-            if (treeContext.projectDescription) {
-                prompt += `- Description: ${treeContext.projectDescription}\n`;
-            }
+            // Project context (trimmed for speed)
+            prompt += `PROJECT: ${treeContext.projectName}`;
             if (treeContext.currentPhase) {
-                prompt += `- Current Phase: ${treeContext.currentPhase.name}`;
-                if (treeContext.currentPhase.subtitle) {
-                    prompt += ` (${treeContext.currentPhase.subtitle})`;
-                }
-                prompt += `\n`;
+                prompt += ` - ${treeContext.currentPhase.name}`;
             }
-            prompt += `- Total Items: ${treeContext.totalItems}\n\n`;
+            prompt += `\n\n`;
 
-            // Current item context
-            prompt += `CURRENT ITEM:\n`;
-            prompt += `- Name: ${itemContext.name || 'New Item'}\n`;
-            if (itemContext.description) {
-                prompt += `- Description: ${itemContext.description}\n`;
+            // Current item context (trimmed)
+            prompt += `ITEM: ${itemContext.name || 'New Item'}\n`;
+            if (itemContext.description && itemContext.description.length < 200) {
+                prompt += `${itemContext.description.substring(0, 200)}\n`;
             }
 
             // Add existing field values for context
@@ -4457,33 +4462,20 @@ function hidePatternDescription() {
                 }
             });
 
-            // Dependencies context
+            // Dependencies (minimal, for speed)
             if (treeContext.dependencies.length > 0) {
-                prompt += `\nDEPENDENCIES (this builds on):\n`;
-                treeContext.dependencies.forEach(dep => {
-                    prompt += `- ${dep.name}`;
-                    if (dep.description) prompt += `: ${dep.description.substring(0, 100)}`;
-                    prompt += `\n`;
-                });
+                prompt += `Builds on: ${treeContext.dependencies.map(d => d.name).join(', ')}\n`;
             }
 
-            if (treeContext.dependents.length > 0) {
-                prompt += `\nDEPENDENTS (these build on this):\n`;
-                treeContext.dependents.forEach(dep => {
-                    prompt += `- ${dep.name}\n`;
-                });
-            }
-
-            // Sibling items for pattern learning
+            // Sibling examples (limit to 2, show only relevant field)
             if (treeContext.siblingItems.length > 0) {
-                prompt += `\nOTHER ITEMS IN THIS PHASE:\n`;
-                treeContext.siblingItems.forEach(sib => {
-                    prompt += `- ${sib.name}`;
-                    if (sib[fieldType]) {
-                        prompt += ` [${fieldType}: ${String(sib[fieldType]).substring(0, 80)}]`;
-                    }
-                    prompt += `\n`;
-                });
+                const examples = treeContext.siblingItems
+                    .filter(sib => sib[fieldType])
+                    .slice(0, 2)
+                    .map(sib => String(sib[fieldType]).substring(0, 60));
+                if (examples.length > 0) {
+                    prompt += `Examples: ${examples.join('; ')}\n`;
+                }
             }
 
             prompt += `\n`;
@@ -4491,12 +4483,7 @@ function hidePatternDescription() {
             // Pattern-specific field instructions
             prompt += buildFieldInstructions(pattern, fieldType, itemContext);
 
-            prompt += `\n\nIMPORTANT:\n`;
-            prompt += `- Return ONLY the suggested ${fieldType} value\n`;
-            prompt += `- No explanations, no preamble\n`;
-            prompt += `- Match the style and quality of existing items\n`;
-            prompt += `- Be specific and actionable\n`;
-            prompt += `- Keep length appropriate (1-3 sentences for most fields)\n`;
+            prompt += `\nReturn ONLY the ${fieldType} value (1-3 sentences, no explanation).\n`;
 
             return prompt;
         }
@@ -4640,9 +4627,9 @@ function hidePatternDescription() {
                 const expertPrompt = buildPatternExpertPrompt(fieldType, itemContext, treeContext);
                 console.log('📝 Expert prompt built, length:', expertPrompt.length);
 
-                // Call Claude API for intelligent suggestion
+                // Call Claude API for intelligent suggestion (low token limit for speed)
                 console.log('☁️ Calling Claude API...');
-                const suggestion = await callClaudeAPI(expertPrompt);
+                const suggestion = await callClaudeAPI(expertPrompt, '', 256); // 256 tokens max = faster, stays under 10s Netlify limit
                 console.log('☁️ Claude API response:', suggestion);
 
                 // Clean up the response (remove quotes, trim)
