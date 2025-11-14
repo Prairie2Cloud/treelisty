@@ -8242,6 +8242,180 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             return finalPrompt;
         }
 
+        // Generate Product Roadmap prompt (sprint-ready, execution-focused)
+        function generateRoadmapPrompt(tree, pattern) {
+            let output = `# ${tree.icon || '🚀'} ${tree.name || 'Product Roadmap'}\n\n`;
+
+            if (tree.description) {
+                output += `${tree.description}\n\n`;
+            }
+
+            // Calculate roadmap metrics
+            let totalStoryPoints = 0;
+            let highImpactFeatures = 0;
+            let highRiskFeatures = 0;
+            let totalFeatures = 0;
+            const quarterMetrics = [];
+
+            if (tree.children) {
+                tree.children.forEach(quarter => {
+                    if (quarter.type === 'phase' && quarter.items) {
+                        let quarterPoints = 0;
+                        let quarterHighImpact = 0;
+                        let quarterHighRisk = 0;
+
+                        quarter.items.forEach(feature => {
+                            quarterPoints += feature.storyPoints || 0;
+                            if (feature.userImpact === 'High' || feature.userImpact === 'Critical') {
+                                quarterHighImpact++;
+                            }
+                            if (feature.technicalRisk === 'High') {
+                                quarterHighRisk++;
+                            }
+                        });
+
+                        quarterMetrics.push({
+                            name: quarter.name || `Quarter ${quarter.phase + 1}`,
+                            subtitle: quarter.subtitle,
+                            features: quarter.items.length,
+                            points: quarterPoints,
+                            highImpact: quarterHighImpact,
+                            highRisk: quarterHighRisk
+                        });
+
+                        totalStoryPoints += quarterPoints;
+                        totalFeatures += quarter.items.length;
+                        highImpactFeatures += quarterHighImpact;
+                        highRiskFeatures += quarterHighRisk;
+                    }
+                });
+            }
+
+            // Roadmap Summary
+            output += `## 📊 Roadmap Summary\n\n`;
+            output += `**Delivery Capacity:**\n`;
+            output += `- Total Features: ${totalFeatures}\n`;
+            output += `- Total Story Points: ${totalStoryPoints}\n`;
+            output += `- Average Feature Size: ${Math.round(totalStoryPoints / totalFeatures)} points\n`;
+            output += `- High-Impact Features: ${highImpactFeatures} (${Math.round(highImpactFeatures / totalFeatures * 100)}%)\n`;
+            output += `- High-Risk Features: ${highRiskFeatures} (${Math.round(highRiskFeatures / totalFeatures * 100)}%)\n\n`;
+
+            // Quarterly Planning
+            output += `## 📅 Quarterly Planning\n\n`;
+            quarterMetrics.forEach((q, idx) => {
+                output += `### ${q.name}${q.subtitle ? ` — ${q.subtitle}` : ''}\n`;
+                output += `- Features: ${q.features} (${q.points} story points)\n`;
+                output += `- Velocity Target: ${Math.round(q.points / 6)} points/sprint (6 sprints)\n`;
+                output += `- High Impact: ${q.highImpact} features\n`;
+                output += `- High Risk: ${q.highRisk} features (${q.highRisk > 0 ? 'requires spike work' : 'low risk quarter'})\n\n`;
+            });
+
+            // Feature Details
+            output += `---\n\n## 🚀 Feature Specifications\n\n`;
+
+            if (tree.children) {
+                tree.children.forEach((quarter, qIdx) => {
+                    if (quarter.type === 'phase' && quarter.items && quarter.items.length > 0) {
+                        output += `### ${quarter.name || `Quarter ${qIdx + 1}`}\n\n`;
+
+                        quarter.items.forEach((feature, fIdx) => {
+                            const storyPoints = feature.storyPoints || 0;
+                            const userImpact = feature.userImpact || 'Medium';
+                            const techRisk = feature.technicalRisk || 'Medium';
+
+                            // Impact/Risk emoji indicators
+                            const impactEmoji = userImpact === 'Critical' ? '🔥' : userImpact === 'High' ? '⚡' : userImpact === 'Medium' ? '📊' : '📉';
+                            const riskEmoji = techRisk === 'High' ? '⚠️' : techRisk === 'Medium' ? '⚡' : '✅';
+
+                            output += `#### ${fIdx + 1}. ${feature.name}\n\n`;
+
+                            // Feature card
+                            output += `**Feature Overview:**\n`;
+                            output += `- ${impactEmoji} User Impact: ${userImpact}\n`;
+                            output += `- ${riskEmoji} Technical Risk: ${techRisk}\n`;
+                            output += `- 📏 Story Points: ${storyPoints} (${Math.ceil(storyPoints / 3)} sprints)\n`;
+                            if (feature.engineeringEstimate) {
+                                output += `- ⏱️ Engineering Estimate: ${feature.engineeringEstimate}\n`;
+                            }
+                            if (feature.featureFlag) {
+                                output += `- 🚩 Feature Flag: \`${feature.featureFlag}\`\n`;
+                            }
+                            output += `\n`;
+
+                            if (feature.description) {
+                                output += `**What it does:**\n${feature.description}\n\n`;
+                            }
+
+                            // Implementation tasks
+                            if (feature.children && feature.children.length > 0) {
+                                output += `**Implementation Tasks:**\n`;
+                                feature.children.forEach((task, tIdx) => {
+                                    output += `${tIdx + 1}. ${task.name}`;
+                                    if (task.storyPoints) {
+                                        output += ` (${task.storyPoints} pts)`;
+                                    }
+                                    output += `\n`;
+                                    if (task.description) {
+                                        output += `   ${task.description}\n`;
+                                    }
+                                });
+                                output += `\n`;
+                            }
+
+                            // Dependencies
+                            if (feature.dependencies && feature.dependencies.length > 0) {
+                                output += `**⚠️ Blocking Dependencies:** ${feature.dependencies.join(', ')}\n\n`;
+                            }
+
+                            output += `---\n\n`;
+                        });
+                    }
+                });
+            }
+
+            // Execution Recommendations
+            output += `## ⚡ Execution Recommendations\n\n`;
+            output += `**Sprint Planning:**\n`;
+            const avgVelocity = Math.round(totalStoryPoints / (quarterMetrics.length * 6)); // Assume 6 sprints per quarter
+            output += `- Target Velocity: ${avgVelocity} story points per sprint\n`;
+            output += `- High-risk features: Start with spike/POC stories (1-2 sprints)\n`;
+            output += `- Critical user impact: Prioritize for early quarters\n`;
+            output += `- Feature flags: Use for all features >5 story points\n\n`;
+
+            output += `**Risk Mitigation:**\n`;
+            output += `1. Technical Spikes: Create 2-point spike stories for high-risk features\n`;
+            output += `2. Dependency Management: Resolve blocking dependencies 1 sprint ahead\n`;
+            output += `3. Incremental Delivery: Break large features (>8 points) into smaller releases\n`;
+            output += `4. User Validation: Beta test high-impact features before GA\n`;
+            output += `5. Monitoring: Set up dashboards and alerts for each feature flag\n\n`;
+
+            output += `**Release Strategy:**\n`;
+            output += `- Feature Flags: All features behind flags for safe rollout\n`;
+            output += `- Phased Rollout: 10% → 50% → 100% over 2 weeks\n`;
+            output += `- Rollback Plan: Document rollback procedures in each PR\n`;
+            output += `- Success Metrics: Define KPIs before development starts\n\n`;
+
+            output += `---\n\n`;
+            output += `**💡 AI Prompt Usage - Actionable Deliverables:**\n`;
+            output += `\n`;
+            output += `**For Product Managers:**\n`;
+            output += `- "Generate PRD (Product Requirements Document) for [feature name]"\n`;
+            output += `- "Create user stories with acceptance criteria for [feature]"\n`;
+            output += `- "Write launch email announcing [feature] to customers"\n`;
+            output += `- "Design A/B test plan to validate [feature] impact"\n\n`;
+            output += `**For Engineering:**\n`;
+            output += `- "Create technical design doc for [feature] with architecture diagrams"\n`;
+            output += `- "Write API specification (OpenAPI/Swagger) for [feature] endpoints"\n`;
+            output += `- "Generate test plan covering happy path, edge cases, and error scenarios"\n`;
+            output += `- "Draft database migration script for [feature] schema changes"\n\n`;
+            output += `**For Research:**\n`;
+            output += `- "Find 3 competitor implementations of [feature] with screenshots"\n`;
+            output += `- "Research best practices for [feature type] in SaaS applications"\n`;
+            output += `- "Identify potential technical challenges for [feature] implementation"\n\n`;
+
+            return output;
+        }
+
         // Generate Academic Thesis prompt (manuscript-ready, scholarly)
         function generateThesisPrompt(tree, pattern) {
             let output = `# ${tree.icon || '🎓'} ${tree.name || 'Thesis'}\n\n`;
@@ -8876,6 +9050,11 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             // SPECIAL CASE: Thesis/Academic uses different format
             if (currentPattern === 'thesis') {
                 return generateThesisPrompt(tree, pattern);
+            }
+
+            // SPECIAL CASE: Product Roadmap uses different format
+            if (currentPattern === 'roadmap') {
+                return generateRoadmapPrompt(tree, pattern);
             }
 
             let prompt = `# ${tree.icon || '📋'} ${tree.name || 'Project'}\n\n`;
