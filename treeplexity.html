@@ -1313,7 +1313,7 @@
                             <div>
                                 <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">🔬 Deep Mode <span style="font-size: 11px; background: var(--treeplex-primary); color: white; padding: 2px 6px; border-radius: 3px; font-weight: 500;">Your API Key Required</span></div>
                                 <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
-                                    Detailed parsing + field extraction + dependencies. More accurate. Requires your Anthropic API key. (~4-6 API calls, ~$0.03-0.05)
+                                    Comprehensive parsing with extended thinking (8192 tokens, 5000 thinking tokens). Handles 3x more text. No timeouts. (~4-6 API calls, ~$0.05-0.08)
                                 </div>
                             </div>
                         </label>
@@ -1821,7 +1821,7 @@ The AI will analyze the structure and convert it to a tree."
             if (useExtendedThinking) {
                 requestData.thinking = {
                     type: "enabled",
-                    budget_tokens: 2000
+                    budget_tokens: 5000  // Increased from 2000 for Deep Mode (more reasoning time)
                 };
             }
 
@@ -8758,7 +8758,8 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt, '', 4096, false); // Deep Mode: 4096 tokens (Haiku's maximum) for detailed extraction
+            // Deep Mode: Higher limits with extended thinking (uses direct API fallback if needed)
+            const response = await callClaudeAPI(prompt, '', 8192, true); // 8192 tokens + extended thinking for comprehensive analysis
 
             try {
                 // Try to extract JSON from response
@@ -8935,17 +8936,21 @@ ${jsonText}`;
                 return;
             }
 
+            // Get selected mode first (needed for limits)
+            const mode = document.querySelector('input[name="analysis-mode"]:checked').value;
+
             // Auto-truncate very long texts to prevent timeouts
-            const MAX_CHARS = 100000; // ~25,000 words max (Haiku can handle it!)
+            // Different limits for Quick vs Deep Mode
+            const MAX_CHARS_QUICK = 100000; // ~25,000 words for Quick Mode
+            const MAX_CHARS_DEEP = 300000;  // ~75,000 words for Deep Mode (with user API key, no timeout)
+            const MAX_CHARS = mode === 'deep' ? MAX_CHARS_DEEP : MAX_CHARS_QUICK;
+
             let wasTruncated = false;
             if (finalText.length > MAX_CHARS) {
                 wasTruncated = true;
                 finalText = finalText.substring(0, MAX_CHARS);
-                console.warn(`⚠️ Text truncated from ${analysisText.length} to ${MAX_CHARS} characters to prevent timeout`);
+                console.warn(`⚠️ Text truncated from ${analysisText.length} to ${MAX_CHARS} characters for ${mode} mode`);
             }
-
-            // Get selected mode
-            const mode = document.querySelector('input[name="analysis-mode"]:checked').value;
 
             // Check if Deep Mode requires user's own API key
             if (mode === 'deep') {
