@@ -1229,6 +1229,16 @@
             </div>
 
             <div class="control-section">
+                <label for="claude-model-select" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);">
+                    <span>🧠 Model:</span>
+                    <select id="claude-model-select" class="btn" style="padding: 6px 10px; cursor: pointer; font-weight: 600;" title="Choose Claude model (Haiku: fast/cheap, Sonnet: best reasoning)">
+                        <option value="haiku">⚡ Haiku (Fast)</option>
+                        <option value="sonnet" selected>🧠 Sonnet 4.5</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="control-section">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy">📖 Help</button>
             </div>
         </div>
@@ -1809,7 +1819,10 @@ The AI will analyze the structure and convert it to a tree."
         // API Configuration - Supports both local API key and Netlify serverless function
         const AI_CONFIG = {
             provider: 'anthropic',
-            model: 'claude-3-haiku-20240307', // Haiku: 10x faster, 20x cheaper, perfect for JSON tasks
+            get model() {
+                // Dynamic model selection - user can choose Haiku (fast) or Sonnet (best)
+                return getClaudeModelId();
+            },
             // Netlify function endpoint (fallback)
             apiEndpoint: 'https://treelisty.netlify.app/.netlify/functions/claude-proxy',
             // Direct Anthropic API endpoint (when using local API key)
@@ -1860,6 +1873,31 @@ The AI will analyze the structure and convert it to a tree."
             const select = document.getElementById('ai-mode-select');
             if (select) {
                 select.value = mode;
+            }
+        }
+
+        // Claude Model selection (Haiku vs Sonnet)
+        function getClaudeModel() {
+            return localStorage.getItem('claude_model') || 'sonnet'; // Default to Sonnet 4.5
+        }
+
+        function setClaudeModel(model) {
+            localStorage.setItem('claude_model', model);
+            console.log(`✅ Claude model set to: ${model}`);
+
+            // Update the dropdown
+            const select = document.getElementById('claude-model-select');
+            if (select) {
+                select.value = model;
+            }
+        }
+
+        function getClaudeModelId() {
+            const model = getClaudeModel();
+            if (model === 'haiku') {
+                return 'claude-3-haiku-20240307'; // Haiku: 10x faster, 20x cheaper
+            } else {
+                return 'claude-sonnet-4-20250514'; // Sonnet 4.5: Best reasoning, extended thinking
             }
         }
 
@@ -9921,12 +9959,31 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             }
         });
 
-        // Initialize AI mode selector on page load
+        // Claude Model selector (Haiku vs Sonnet)
+        document.getElementById('claude-model-select').addEventListener('change', (e) => {
+            const model = e.target.value;
+            setClaudeModel(model);
+
+            // Show informational message
+            if (model === 'haiku') {
+                console.log('⚡ Haiku: Fast and cost-effective (~$0.25/1M input, $1.25/1M output)');
+            } else if (model === 'sonnet') {
+                console.log('🧠 Sonnet 4.5: Best reasoning and extended thinking (~$3/1M input, $15/1M output)');
+            }
+        });
+
+        // Initialize AI mode selector and model selector on page load
         window.addEventListener('DOMContentLoaded', () => {
             const savedMode = getGlobalAIMode();
-            const select = document.getElementById('ai-mode-select');
-            if (select) {
-                select.value = savedMode;
+            const modeSelect = document.getElementById('ai-mode-select');
+            if (modeSelect) {
+                modeSelect.value = savedMode;
+            }
+
+            const savedModel = getClaudeModel();
+            const modelSelect = document.getElementById('claude-model-select');
+            if (modelSelect) {
+                modelSelect.value = savedModel;
             }
         });
 
