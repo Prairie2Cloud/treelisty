@@ -1218,6 +1218,17 @@
             </div>
 
             <div class="control-section">
+                <label for="ai-mode-select" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);">
+                    <span>🤖 AI Mode:</span>
+                    <select id="ai-mode-select" class="btn" style="padding: 6px 10px; cursor: pointer; font-weight: 600;" title="Choose AI processing level">
+                        <option value="off">Off</option>
+                        <option value="quick" selected>⚡ Quick</option>
+                        <option value="deep">🔬 Deep</option>
+                    </select>
+                </label>
+            </div>
+
+            <div class="control-section">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy">📖 Help</button>
             </div>
         </div>
@@ -1295,31 +1306,21 @@
 
                 <!-- Analysis Mode Selection (moved to top) -->
                 <div style="margin-bottom: 24px; padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
-                    <label style="display: block; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">
-                        ⚡ Analysis Depth
-                    </label>
-                    <div style="display: flex; gap: 12px;">
-                        <label style="flex: 1; display: flex; align-items: flex-start; cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 6px; background: var(--card-bg); transition: all 0.2s;">
-                            <input type="radio" name="analysis-mode" value="quick" checked style="margin-top: 3px; margin-right: 10px;" />
-                            <div>
-                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">⚡ Quick Mode</div>
-                                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
-                                    Fast pattern detection + basic structure. Recommended for most uses. (~2 API calls, ~$0.01)
-                                </div>
+                    <div id="current-ai-mode-display" style="padding: 16px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08)); border: 2px solid rgba(99, 102, 241, 0.3); border-radius: 8px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <div style="font-weight: 600; color: var(--text-primary);">
+                                AI Mode: <span id="analyze-mode-label">⚡ Quick</span>
                             </div>
-                        </label>
-                        <label style="flex: 1; display: flex; align-items: flex-start; cursor: pointer; padding: 12px; border: 2px solid var(--border); border-radius: 6px; background: var(--card-bg); transition: all 0.2s;">
-                            <input type="radio" name="analysis-mode" value="deep" style="margin-top: 3px; margin-right: 10px;" />
-                            <div>
-                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">🔬 Deep Mode <span style="font-size: 11px; background: var(--treeplex-primary); color: white; padding: 2px 6px; border-radius: 3px; font-weight: 500;">Your API Key Required</span></div>
-                                <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
-                                    Comprehensive parsing with extended thinking (8192 tokens, 5000 thinking tokens). Handles 3x more text. No timeouts. (~4-6 API calls, ~$0.05-0.08)
-                                </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Change mode in header
                             </div>
-                        </label>
-                    </div>
-                    <div style="margin-top: 12px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-left: 3px solid var(--treeplex-primary); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
-                        <strong style="color: var(--text-primary);">💡 Hybrid System:</strong> Quick Mode uses our server AI (free, rate limited). Deep Mode requires your API key (unlimited, more detailed analysis, no timeouts).
+                        </div>
+                        <div id="analyze-mode-description" style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                            Fast pattern detection + basic structure. Recommended for most uses.
+                        </div>
+                        <div style="margin-top: 12px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                            <strong style="color: var(--text-primary);">💡 Tip:</strong> Change AI mode in the header (🤖 AI Mode dropdown) to switch between Quick, Deep, or Off.
+                        </div>
                     </div>
                 </div>
 
@@ -1822,6 +1823,22 @@ The AI will analyze the structure and convert it to a tree."
 
         function setRedundancyMode(enabled) {
             localStorage.setItem('ai_redundancy_mode', enabled.toString());
+        }
+
+        // Global AI Mode management (applies to ALL AI features)
+        function getGlobalAIMode() {
+            return localStorage.getItem('global_ai_mode') || 'quick';
+        }
+
+        function setGlobalAIMode(mode) {
+            localStorage.setItem('global_ai_mode', mode);
+            console.log(`✅ Global AI mode set to: ${mode}`);
+
+            // Update the dropdown
+            const select = document.getElementById('ai-mode-select');
+            if (select) {
+                select.value = mode;
+            }
         }
 
         function canUseServerlessAI() {
@@ -5709,14 +5726,27 @@ function hidePatternDescription() {
         async function generateAISuggestion(fieldType, itemContext) {
             console.log('🤖 generateAISuggestion called:', fieldType);
 
-            // Check if API key is available
-            const apiKey = getLocalAPIKey();
+            // Check global AI mode
+            const aiMode = getGlobalAIMode();
+            console.log('🤖 Global AI Mode:', aiMode);
+
+            if (aiMode === 'off') {
+                console.log('❌ AI features disabled, using static fallback');
+                return generateStaticSuggestion(fieldType, itemContext);
+            }
+
+            // Check if API key is available (needed for all modes)
+            const apiKey = getLocalAPIKey(getAIProvider());
             console.log('🔑 API Key present:', !!apiKey);
 
-            if (!apiKey) {
-                console.log('⚠️ No API key, using static fallback');
-                // Fallback to static suggestions
+            if (!apiKey && aiMode === 'deep') {
+                console.log('⚠️ Deep Mode requires API key, falling back to static');
+                alert('🔬 Deep Mode requires your own API key.\n\nPlease configure your API key (🔑 button) or switch to Quick Mode in the header.');
                 return generateStaticSuggestion(fieldType, itemContext);
+            }
+
+            if (!apiKey && aiMode === 'quick') {
+                console.log('⚡ Quick Mode: Will use server API key');
             }
 
             try {
@@ -7022,6 +7052,13 @@ function hidePatternDescription() {
 
         // Start wizard
         document.getElementById('wizard-btn').addEventListener('click', () => {
+            // Check global AI mode
+            const aiMode = getGlobalAIMode();
+            if (aiMode === 'off') {
+                alert('❌ AI features are currently disabled.\n\nPlease enable AI mode in the header (🤖 AI Mode dropdown) to use the AI Wizard.');
+                return;
+            }
+
             // Check if API key is configured
             if (!checkAPIKeyConfigured()) {
                 return;
@@ -8809,6 +8846,37 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             showApiKeyModal(true);
         });
 
+        // Global AI Mode selector
+        document.getElementById('ai-mode-select').addEventListener('change', (e) => {
+            const mode = e.target.value;
+            setGlobalAIMode(mode);
+
+            // Show informational message
+            if (mode === 'off') {
+                console.log('ℹ️ AI features disabled');
+            } else if (mode === 'quick') {
+                console.log('⚡ Quick Mode: Using server API key (rate limited, faster)');
+            } else if (mode === 'deep') {
+                const hasKey = getLocalAPIKey(getAIProvider());
+                if (!hasKey) {
+                    alert('🔬 Deep Mode requires your own API key.\n\nPlease click the 🔑 API Key button to configure your key.');
+                    // Reset to quick mode
+                    setGlobalAIMode('quick');
+                } else {
+                    console.log('🔬 Deep Mode: Using your API key (unlimited, extended thinking)');
+                }
+            }
+        });
+
+        // Initialize AI mode selector on page load
+        window.addEventListener('DOMContentLoaded', () => {
+            const savedMode = getGlobalAIMode();
+            const select = document.getElementById('ai-mode-select');
+            if (select) {
+                select.value = savedMode;
+            }
+        });
+
         // Save API key(s)
         document.getElementById('api-key-save').addEventListener('click', () => {
             const claudeKey = document.getElementById('claude-api-key-input').value.trim();
@@ -8981,9 +9049,32 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             document.getElementById('file-name-display').style.display = 'none';
             document.getElementById('char-count').textContent = '0 characters';
             document.getElementById('analysis-warning').style.display = 'none';
-            document.querySelector('input[name="analysis-mode"][value="quick"]').checked = true;
             analysisText = '';
             analysisFileName = '';
+
+            // Update the AI mode display to show current global mode
+            updateAnalysisModeDisplay();
+        }
+
+        // Update the AI mode display in Analyze Text modal
+        function updateAnalysisModeDisplay() {
+            const mode = getGlobalAIMode();
+            const label = document.getElementById('analyze-mode-label');
+            const description = document.getElementById('analyze-mode-description');
+
+            if (mode === 'off') {
+                label.textContent = '❌ Off';
+                description.textContent = 'AI features are disabled. Enable AI mode in the header to use this feature.';
+                description.style.color = '#EF4444';
+            } else if (mode === 'quick') {
+                label.textContent = '⚡ Quick';
+                description.textContent = 'Fast pattern detection + basic structure. Recommended for most uses. Uses server API key (rate limited).';
+                description.style.color = 'var(--text-secondary)';
+            } else if (mode === 'deep') {
+                label.textContent = '🔬 Deep';
+                description.textContent = 'Comprehensive parsing with extended thinking (8192 tokens). Handles 3x more text. Requires your API key. No timeouts.';
+                description.style.color = 'var(--text-secondary)';
+            }
         }
 
         // Close Analysis Modal
@@ -10020,8 +10111,14 @@ ${jsonText}`;
                 return;
             }
 
-            // Get selected mode first (needed for limits)
-            const mode = document.querySelector('input[name="analysis-mode"]:checked').value;
+            // Get global AI mode
+            const mode = getGlobalAIMode();
+
+            // Check if AI is disabled
+            if (mode === 'off') {
+                alert('❌ AI features are currently disabled.\n\nPlease enable AI mode in the header (🤖 AI Mode dropdown) to use text analysis.');
+                return;
+            }
 
             // Auto-truncate very long texts to prevent timeouts
             // Different limits for Quick vs Deep Mode
