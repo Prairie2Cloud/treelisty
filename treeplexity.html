@@ -8416,6 +8416,375 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             return output;
         }
 
+        // Generate Book/Novel prompt (manuscript-ready, narrative-focused)
+        function generateBookPrompt(tree, pattern) {
+            let output = `# ${tree.icon || '📚'} ${tree.name || 'Book Manuscript'}\n\n`;
+
+            if (tree.description) {
+                output += `> ${tree.description}\n\n`;
+            }
+
+            // Calculate manuscript metrics
+            let totalWordCount = 0;
+            let targetWordCount = 0;
+            let totalChapters = 0;
+            const chapterMetrics = [];
+
+            if (tree.children) {
+                tree.children.forEach(chapter => {
+                    if (chapter.type === 'phase' && chapter.items) {
+                        let chapterWords = 0;
+                        let chapterTarget = 0;
+                        let sceneCount = chapter.items.length;
+
+                        chapter.items.forEach(scene => {
+                            chapterWords += scene.wordCount || 0;
+                            chapterTarget += scene.targetWordCount || 0;
+                        });
+
+                        chapterMetrics.push({
+                            name: chapter.name || `Chapter ${chapter.phase + 1}`,
+                            subtitle: chapter.subtitle,
+                            current: chapterWords,
+                            target: chapterTarget,
+                            scenes: sceneCount,
+                            progress: chapterTarget > 0 ? Math.round((chapterWords / chapterTarget) * 100) : 0
+                        });
+
+                        totalWordCount += chapterWords;
+                        targetWordCount += chapterTarget;
+                        totalChapters++;
+                    }
+                });
+            }
+
+            const overallProgress = targetWordCount > 0 ? Math.round((totalWordCount / targetWordCount) * 100) : 0;
+
+            // Manuscript Overview
+            output += `## 📖 Manuscript Overview\n\n`;
+            output += `**Writing Progress:**\n`;
+            output += `- Current Length: ${totalWordCount.toLocaleString()} words\n`;
+            output += `- Target Length: ${targetWordCount.toLocaleString()} words\n`;
+            output += `- Completion: ${overallProgress}% ${overallProgress < 50 ? '(First Draft)' : overallProgress < 80 ? '(Revision Stage)' : '(Near Final)'}\n`;
+            output += `- Structure: ${totalChapters} chapters\n`;
+            output += `- Average Chapter: ${Math.round(totalWordCount / totalChapters).toLocaleString()} words\n\n`;
+
+            // Story Arc Analysis
+            output += `## 🎭 Story Arc Structure\n\n`;
+            chapterMetrics.forEach((ch, idx) => {
+                const position = idx / (totalChapters - 1);
+                let arcStage = '';
+                if (position < 0.25) arcStage = '📍 Setup/Exposition';
+                else if (position < 0.5) arcStage = '⬆️ Rising Action';
+                else if (position < 0.75) arcStage = '🔥 Climax/Conflict';
+                else arcStage = '⬇️ Falling Action/Resolution';
+
+                const progressBar = '█'.repeat(Math.floor(ch.progress / 10)) + '░'.repeat(10 - Math.floor(ch.progress / 10));
+                output += `### ${ch.name} ${arcStage}\n`;
+                output += `- Progress: [${progressBar}] ${ch.progress}%\n`;
+                output += `- Word Count: ${ch.current.toLocaleString()} / ${ch.target.toLocaleString()} words\n`;
+                output += `- Scenes: ${ch.scenes}\n\n`;
+            });
+
+            // Scene Breakdown
+            output += `---\n\n## 📝 Scene-by-Scene Breakdown\n\n`;
+
+            if (tree.children) {
+                tree.children.forEach((chapter, chIdx) => {
+                    if (chapter.type === 'phase' && chapter.items && chapter.items.length > 0) {
+                        output += `### ${chapter.name || `Chapter ${chIdx + 1}`}${chapter.subtitle ? ` — ${chapter.subtitle}` : ''}\n\n`;
+
+                        chapter.items.forEach((scene, sIdx) => {
+                            output += `#### Scene ${sIdx + 1}: ${scene.name}\n\n`;
+
+                            // Scene metadata
+                            const sceneMetadata = [];
+                            if (scene.povCharacter) sceneMetadata.push(`**POV:** ${scene.povCharacter}`);
+                            if (scene.sceneSetting) sceneMetadata.push(`**Setting:** ${scene.sceneSetting}`);
+                            if (scene.plotFunction) sceneMetadata.push(`**Plot Function:** ${scene.plotFunction}`);
+
+                            if (sceneMetadata.length > 0) {
+                                output += sceneMetadata.join(' • ') + '\n\n';
+                            }
+
+                            // Scene description
+                            if (scene.description) {
+                                output += `**What Happens:**\n${scene.description}\n\n`;
+                            }
+
+                            // Writing progress
+                            if (scene.wordCount !== undefined || scene.targetWordCount) {
+                                const sceneProgress = scene.targetWordCount > 0 ? Math.round((scene.wordCount || 0) / scene.targetWordCount * 100) : 0;
+                                output += `**Writing Status:** ${scene.wordCount || 0} words (${sceneProgress}% of ${scene.targetWordCount || '?'} target)`;
+                                if (scene.draftStatus) {
+                                    output += ` — ${scene.draftStatus}`;
+                                }
+                                output += `\n\n`;
+                            }
+
+                            // Beats/moments within scene
+                            if (scene.children && scene.children.length > 0) {
+                                output += `**Story Beats:**\n`;
+                                scene.children.forEach((beat, bIdx) => {
+                                    output += `${bIdx + 1}. ${beat.name}`;
+                                    if (beat.description) {
+                                        output += ` — ${beat.description}`;
+                                    }
+                                    output += `\n`;
+                                });
+                                output += `\n`;
+                            }
+
+                            output += `---\n\n`;
+                        });
+                    }
+                });
+            }
+
+            // Writing Recommendations
+            output += `## ✍️ Writing Strategy & Next Steps\n\n`;
+            output += `**Manuscript Status:**\n`;
+            if (overallProgress < 50) {
+                output += `- Stage: First Draft — focus on completing story structure\n`;
+                output += `- Priority: Write forward, don't revise yet\n`;
+                output += `- Goal: Reach "The End" before editing\n\n`;
+            } else if (overallProgress < 80) {
+                output += `- Stage: Revision — deepen character arcs and pacing\n`;
+                output += `- Priority: Address plot holes and character motivation\n`;
+                output += `- Goal: Complete second draft with all scenes polished\n\n`;
+            } else {
+                output += `- Stage: Final Polish — line edits and beta feedback\n`;
+                output += `- Priority: Professional editing and proofreading\n`;
+                output += `- Goal: Query-ready or publish-ready manuscript\n\n`;
+            }
+
+            output += `**Story Development Checklist:**\n`;
+            output += `1. Character Arcs: Do all major characters change/grow?\n`;
+            output += `2. Plot Coherence: Are there any unresolved threads?\n`;
+            output += `3. Pacing: Does each scene advance plot or deepen character?\n`;
+            output += `4. Setting: Is the world vivid and consistent?\n`;
+            output += `5. Theme: Are thematic elements woven throughout?\n\n`;
+
+            output += `**Scene-Level Quality:**\n`;
+            output += `- Each scene should have: Goal, Conflict, Disaster (or Resolution)\n`;
+            output += `- POV consistency within chapters\n`;
+            output += `- Vary scene length for pacing (long for tension, short for action)\n`;
+            output += `- End chapters with hooks to keep readers engaged\n\n`;
+
+            output += `---\n\n`;
+            output += `**💡 AI Prompt Usage - Manuscript Deliverables:**\n`;
+            output += `\n`;
+            output += `**For Drafting:**\n`;
+            output += `- "Write a 1000-word opening scene for [chapter] from [POV character]'s perspective"\n`;
+            output += `- "Expand [scene name] with more sensory details and emotional depth"\n`;
+            output += `- "Draft dialogue between [character A] and [character B] about [conflict]"\n`;
+            output += `- "Write the climax scene where [key plot event] happens"\n\n`;
+            output += `**For Revision:**\n`;
+            output += `- "Analyze character arc for [protagonist] - identify weak character development"\n`;
+            output += `- "Find pacing issues in Act 2 - which scenes drag or feel rushed?"\n`;
+            output += `- "Suggest ways to increase tension in [chapter name]"\n`;
+            output += `- "Identify plot holes or inconsistencies in the manuscript"\n\n`;
+            output += `**For Publishing:**\n`;
+            output += `- "Write a compelling 300-word book blurb for marketing"\n`;
+            output += `- "Generate 20 comp titles (comparable books) with explanation"\n`;
+            output += `- "Draft query letter to literary agents highlighting unique elements"\n`;
+            output += `- "Create chapter summaries for submission synopsis (1-2 sentences each)"\n\n`;
+
+            return output;
+        }
+
+        // Generate Course/Training prompt (curriculum-ready, learning-focused)
+        function generateCoursePrompt(tree, pattern) {
+            let output = `# ${tree.icon || '📖'} ${tree.name || 'Course Curriculum'}\n\n`;
+
+            if (tree.description) {
+                output += `${tree.description}\n\n`;
+            }
+
+            // Calculate course metrics
+            let totalDuration = 0;
+            let totalLessons = 0;
+            let assessmentCount = 0;
+            const moduleMetrics = [];
+
+            if (tree.children) {
+                tree.children.forEach(module => {
+                    if (module.type === 'phase' && module.items) {
+                        let moduleDuration = 0;
+                        let lessonCount = module.items.length;
+
+                        module.items.forEach(lesson => {
+                            // Parse duration (e.g., "2 hours", "45 minutes")
+                            if (lesson.duration) {
+                                const match = lesson.duration.match(/(\d+)\s*(hour|minute|min)/i);
+                                if (match) {
+                                    const value = parseInt(match[1]);
+                                    const unit = match[2].toLowerCase();
+                                    moduleDuration += unit.startsWith('hour') ? value * 60 : value;
+                                }
+                            }
+                            if (lesson.assessmentType && lesson.assessmentType !== 'None') {
+                                assessmentCount++;
+                            }
+                        });
+
+                        moduleMetrics.push({
+                            name: module.name || `Module ${module.phase + 1}`,
+                            subtitle: module.subtitle,
+                            duration: moduleDuration,
+                            lessons: lessonCount
+                        });
+
+                        totalDuration += moduleDuration;
+                        totalLessons += lessonCount;
+                    }
+                });
+            }
+
+            const totalHours = Math.floor(totalDuration / 60);
+            const totalMinutes = totalDuration % 60;
+
+            // Course Overview
+            output += `## 🎓 Course Overview\n\n`;
+            output += `**Course Specifications:**\n`;
+            output += `- Total Duration: ${totalHours}h ${totalMinutes}m\n`;
+            output += `- Total Modules: ${moduleMetrics.length}\n`;
+            output += `- Total Lessons: ${totalLessons}\n`;
+            output += `- Assessments: ${assessmentCount}\n`;
+            output += `- Average Lesson: ${Math.round(totalDuration / totalLessons)} minutes\n\n`;
+
+            // Learning Path
+            output += `## 🛤️ Learning Path Structure\n\n`;
+            moduleMetrics.forEach((mod, idx) => {
+                const modHours = Math.floor(mod.duration / 60);
+                const modMinutes = mod.duration % 60;
+                output += `### Module ${idx + 1}: ${mod.name}${mod.subtitle ? ` — ${mod.subtitle}` : ''}\n`;
+                output += `- Duration: ${modHours}h ${modMinutes}m\n`;
+                output += `- Lessons: ${mod.lessons}\n`;
+                output += `- Average Lesson: ${Math.round(mod.duration / mod.lessons)} minutes\n\n`;
+            });
+
+            // Detailed Curriculum
+            output += `---\n\n## 📚 Detailed Curriculum\n\n`;
+
+            if (tree.children) {
+                tree.children.forEach((module, modIdx) => {
+                    if (module.type === 'phase' && module.items && module.items.length > 0) {
+                        output += `### Module ${modIdx + 1}: ${module.name || `Module ${modIdx + 1}`}\n\n`;
+                        if (module.subtitle) {
+                            output += `*${module.subtitle}*\n\n`;
+                        }
+
+                        module.items.forEach((lesson, lesIdx) => {
+                            output += `#### Lesson ${modIdx + 1}.${lesIdx + 1}: ${lesson.name}\n\n`;
+
+                            // Lesson metadata
+                            const metadata = [];
+                            if (lesson.duration) metadata.push(`⏱️ ${lesson.duration}`);
+                            if (lesson.difficultyLevel) metadata.push(`📊 ${lesson.difficultyLevel}`);
+                            if (lesson.assessmentType && lesson.assessmentType !== 'None') metadata.push(`✅ ${lesson.assessmentType}`);
+
+                            if (metadata.length > 0) {
+                                output += metadata.join(' • ') + '\n\n';
+                            }
+
+                            // Learning objectives
+                            if (lesson.learningObjectives) {
+                                output += `**Learning Objectives:**\n${lesson.learningObjectives}\n\n`;
+                            }
+
+                            // Lesson description
+                            if (lesson.description) {
+                                output += `**Lesson Content:**\n${lesson.description}\n\n`;
+                            }
+
+                            // Prerequisites
+                            if (lesson.prerequisites) {
+                                output += `**Prerequisites:** ${lesson.prerequisites}\n\n`;
+                            }
+
+                            // Resources
+                            if (lesson.resourcesNeeded) {
+                                output += `**Resources Needed:** ${lesson.resourcesNeeded}\n\n`;
+                            }
+
+                            // Activities/exercises
+                            if (lesson.children && lesson.children.length > 0) {
+                                output += `**Activities & Exercises:**\n`;
+                                lesson.children.forEach((activity, aIdx) => {
+                                    output += `${aIdx + 1}. ${activity.name}`;
+                                    if (activity.duration) {
+                                        output += ` (${activity.duration})`;
+                                    }
+                                    if (activity.description) {
+                                        output += `\n   ${activity.description}`;
+                                    }
+                                    output += `\n`;
+                                });
+                                output += `\n`;
+                            }
+
+                            // Dependencies
+                            if (lesson.dependencies && lesson.dependencies.length > 0) {
+                                output += `**⚠️ Requires Completion Of:** ${lesson.dependencies.join(', ')}\n\n`;
+                            }
+
+                            output += `---\n\n`;
+                        });
+                    }
+                });
+            }
+
+            // Course Development Recommendations
+            output += `## 🎯 Course Development Strategy\n\n`;
+            output += `**Instructional Design Checklist:**\n`;
+            output += `1. Learning Objectives: Each lesson has clear, measurable outcomes\n`;
+            output += `2. Scaffolding: Concepts build progressively from simple to complex\n`;
+            output += `3. Active Learning: Mix of theory, practice, and assessment\n`;
+            output += `4. Engagement: Vary content types (video, text, interactive, projects)\n`;
+            output += `5. Assessment: Regular checkpoints to verify understanding\n\n`;
+
+            output += `**Course Quality Standards:**\n`;
+            output += `- Lesson Length: Keep videos 10-20 minutes for optimal retention\n`;
+            output += `- Practice Ratio: 70% practice, 30% theory for skill-based courses\n`;
+            output += `- Assessment Frequency: Quiz or exercise every 3-4 lessons\n`;
+            output += `- Resource Quality: Provide downloadable templates, cheat sheets, references\n`;
+            output += `- Community: Discussion forums or peer review for social learning\n\n`;
+
+            output += `**Production Planning:**\n`;
+            const avgLessonTime = Math.round(totalDuration / totalLessons);
+            const videoHours = Math.ceil(totalHours * 2); // 2:1 production ratio
+            output += `- Video Production Time: ~${videoHours} hours (2:1 ratio for recording/editing)\n`;
+            output += `- Script Writing: ~2 hours per lesson (${totalLessons * 2} hours total)\n`;
+            output += `- Assessment Creation: ~1 hour per quiz/exercise\n`;
+            output += `- Platform Setup: LMS configuration, student enrollment, progress tracking\n\n`;
+
+            output += `---\n\n`;
+            output += `**💡 AI Prompt Usage - Course Deliverables:**\n`;
+            output += `\n`;
+            output += `**For Content Creation:**\n`;
+            output += `- "Write a detailed lesson script for [lesson name] covering [learning objectives]"\n`;
+            output += `- "Create 10 multiple-choice quiz questions for [module] with explanations"\n`;
+            output += `- "Design a hands-on project assignment for [topic] with rubric"\n`;
+            output += `- "Generate practice exercises with solutions for [concept]"\n\n`;
+            output += `**For Course Materials:**\n`;
+            output += `- "Create a 1-page cheat sheet summarizing [module] key concepts"\n`;
+            output += `- "Write downloadable PDF guide for [technical skill] with examples"\n`;
+            output += `- "Design flashcards for memorizing [terminology/concepts]"\n`;
+            output += `- "Generate code templates/starter files for [programming lesson]"\n\n`;
+            output += `**For Marketing & Launch:**\n`;
+            output += `- "Write compelling course description highlighting unique value (300 words)"\n`;
+            output += `- "Create course landing page copy with benefits, outcomes, testimonials"\n`;
+            output += `- "Generate lesson previews and free samples to attract students"\n`;
+            output += `- "Draft email sequence for course launch (5 emails over 2 weeks)"\n\n`;
+            output += `**For Student Support:**\n`;
+            output += `- "Create FAQ document answering common student questions"\n`;
+            output += `- "Write discussion prompts for community engagement in forums"\n`;
+            output += `- "Generate personalized feedback templates for assignment reviews"\n\n`;
+
+            return output;
+        }
+
         // Generate Academic Thesis prompt (manuscript-ready, scholarly)
         function generateThesisPrompt(tree, pattern) {
             let output = `# ${tree.icon || '🎓'} ${tree.name || 'Thesis'}\n\n`;
@@ -9055,6 +9424,16 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             // SPECIAL CASE: Product Roadmap uses different format
             if (currentPattern === 'roadmap') {
                 return generateRoadmapPrompt(tree, pattern);
+            }
+
+            // SPECIAL CASE: Book/Novel uses different format
+            if (currentPattern === 'book') {
+                return generateBookPrompt(tree, pattern);
+            }
+
+            // SPECIAL CASE: Course/Training uses different format
+            if (currentPattern === 'course') {
+                return generateCoursePrompt(tree, pattern);
             }
 
             let prompt = `# ${tree.icon || '📋'} ${tree.name || 'Project'}\n\n`;
