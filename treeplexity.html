@@ -7945,37 +7945,159 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 `}`;
         }
 
-        // Merge tree update into working tree
+        // Merge tree update into working tree (SMART MERGE - preserves existing data)
         function mergeTreeUpdate(update) {
             if (update.name) wizardState.workingTree.name = update.name;
             if (update.description) wizardState.workingTree.description = update.description;
+
             if (update.children) {
-                // For simplicity, replace children (in production, would do smart merge)
-                wizardState.workingTree.children = update.children.map((phase, idx) => ({
-                    id: `phase-${idx}`,
-                    type: 'phase',
-                    phase: idx,
-                    name: phase.name || `Phase ${idx}`,
-                    subtitle: phase.subtitle || '',
-                    icon: '📋',
-                    expanded: true,
-                    items: (phase.items || []).map((item, itemIdx) => ({
-                        id: `item-${idx}-${itemIdx}`,
-                        type: 'item',
-                        name: item.name,
-                        description: item.description || '',
-                        itemType: item.itemType || 'default',
-                        icon: '📄',
-                        expanded: false,
-                        ...item, // Include all other fields from AI
-                        subtasks: (item.subtasks || []).map((subtask, subIdx) => ({
-                            id: `subtask-${idx}-${itemIdx}-${subIdx}`,
-                            name: subtask.name,
-                            description: subtask.description || '',
-                            ...subtask
-                        }))
-                    }))
-                }));
+                // Initialize existing children if none
+                if (!wizardState.workingTree.children) {
+                    wizardState.workingTree.children = [];
+                }
+
+                // Helper: Find matching phase by name (case-insensitive, fuzzy)
+                function findMatchingPhase(phaseName, existingPhases) {
+                    const normalizedName = phaseName.toLowerCase().trim();
+                    return existingPhases.find(p =>
+                        p.name.toLowerCase().trim() === normalizedName ||
+                        p.name.toLowerCase().includes(normalizedName) ||
+                        normalizedName.includes(p.name.toLowerCase())
+                    );
+                }
+
+                // Helper: Find matching item by name (case-insensitive, fuzzy)
+                function findMatchingItem(itemName, existingItems) {
+                    const normalizedName = itemName.toLowerCase().trim();
+                    return existingItems.find(i =>
+                        i.name.toLowerCase().trim() === normalizedName ||
+                        i.name.toLowerCase().includes(normalizedName) ||
+                        normalizedName.includes(i.name.toLowerCase())
+                    );
+                }
+
+                // Track which existing phases were matched
+                const matchedPhaseIds = new Set();
+
+                // Process each phase from update
+                update.children.forEach((updatedPhase, phaseIdx) => {
+                    const existingPhase = findMatchingPhase(updatedPhase.name, wizardState.workingTree.children);
+
+                    if (existingPhase) {
+                        // MERGE with existing phase
+                        console.log(`🔄 Merging phase: ${updatedPhase.name}`);
+                        matchedPhaseIds.add(existingPhase.id);
+
+                        // Update phase-level fields (preserve existing if not in update)
+                        existingPhase.name = updatedPhase.name || existingPhase.name;
+                        existingPhase.subtitle = updatedPhase.subtitle || existingPhase.subtitle;
+                        if (updatedPhase.description) existingPhase.description = updatedPhase.description;
+
+                        // Merge items
+                        if (updatedPhase.items) {
+                            if (!existingPhase.items) existingPhase.items = [];
+
+                            const matchedItemIds = new Set();
+
+                            updatedPhase.items.forEach((updatedItem, itemIdx) => {
+                                const existingItem = findMatchingItem(updatedItem.name, existingPhase.items);
+
+                                if (existingItem) {
+                                    // MERGE with existing item - preserve ALL existing fields
+                                    console.log(`  🔄 Merging item: ${updatedItem.name}`);
+                                    matchedItemIds.add(existingItem.id);
+
+                                    // Merge all fields (keep existing if not in update)
+                                    Object.keys(updatedItem).forEach(key => {
+                                        if (key !== 'subtasks' && updatedItem[key] !== undefined && updatedItem[key] !== '') {
+                                            existingItem[key] = updatedItem[key];
+                                        }
+                                    });
+
+                                    // Merge subtasks
+                                    if (updatedItem.subtasks) {
+                                        if (!existingItem.subtasks) existingItem.subtasks = [];
+
+                                        // For subtasks, append new ones (simpler merge)
+                                        updatedItem.subtasks.forEach(newSubtask => {
+                                            const existingSubtask = existingItem.subtasks.find(s =>
+                                                s.name.toLowerCase().trim() === newSubtask.name.toLowerCase().trim()
+                                            );
+
+                                            if (existingSubtask) {
+                                                // Update existing subtask
+                                                Object.keys(newSubtask).forEach(key => {
+                                                    if (newSubtask[key] !== undefined && newSubtask[key] !== '') {
+                                                        existingSubtask[key] = newSubtask[key];
+                                                    }
+                                                });
+                                            } else {
+                                                // Add new subtask
+                                                const subIdx = existingItem.subtasks.length;
+                                                existingItem.subtasks.push({
+                                                    id: `subtask-${existingPhase.phase}-${existingPhase.items.indexOf(existingItem)}-${subIdx}`,
+                                                    ...newSubtask
+                                                });
+                                            }
+                                        });
+                                    }
+                                } else {
+                                    // ADD new item to existing phase
+                                    console.log(`  ✅ Adding new item: ${updatedItem.name}`);
+                                    const newItemIdx = existingPhase.items.length;
+                                    existingPhase.items.push({
+                                        id: `item-${existingPhase.phase}-${newItemIdx}`,
+                                        type: 'item',
+                                        icon: '📄',
+                                        expanded: false,
+                                        ...updatedItem,
+                                        subtasks: (updatedItem.subtasks || []).map((subtask, subIdx) => ({
+                                            id: `subtask-${existingPhase.phase}-${newItemIdx}-${subIdx}`,
+                                            ...subtask
+                                        }))
+                                    });
+                                }
+                            });
+
+                            // PRESERVE existing items that weren't in the update
+                            console.log(`  ℹ️ Preserved ${existingPhase.items.filter(i => !matchedItemIds.has(i.id)).length} existing items not in update`);
+                        }
+                    } else {
+                        // ADD new phase
+                        console.log(`✅ Adding new phase: ${updatedPhase.name}`);
+                        const newPhaseIdx = wizardState.workingTree.children.length;
+                        wizardState.workingTree.children.push({
+                            id: `phase-${newPhaseIdx}`,
+                            type: 'phase',
+                            phase: newPhaseIdx,
+                            icon: '📋',
+                            expanded: true,
+                            ...updatedPhase,
+                            items: (updatedPhase.items || []).map((item, itemIdx) => ({
+                                id: `item-${newPhaseIdx}-${itemIdx}`,
+                                type: 'item',
+                                icon: '📄',
+                                expanded: false,
+                                ...item,
+                                subtasks: (item.subtasks || []).map((subtask, subIdx) => ({
+                                    id: `subtask-${newPhaseIdx}-${itemIdx}-${subIdx}`,
+                                    ...subtask
+                                }))
+                            }))
+                        });
+                    }
+                });
+
+                // PRESERVE existing phases that weren't in the update
+                const preservedPhases = wizardState.workingTree.children.filter(p => !matchedPhaseIds.has(p.id));
+                console.log(`ℹ️ Preserved ${preservedPhases.length} existing phases not in update`);
+
+                // Re-index phase numbers
+                wizardState.workingTree.children.forEach((phase, idx) => {
+                    phase.phase = idx;
+                });
+
+                console.log(`✅ Smart merge complete: ${wizardState.workingTree.children.length} phases, ${wizardState.workingTree.children.reduce((sum, p) => sum + (p.items?.length || 0), 0)} items`);
             }
         }
 
@@ -8077,8 +8199,8 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             // Save state for undo
             saveState('AI Wizard: Apply changes');
 
-            // Apply working tree to main tree
-            capexTree = wizardState.workingTree;
+            // Apply working tree to main tree (deep copy to prevent reference issues)
+            capexTree = JSON.parse(JSON.stringify(wizardState.workingTree));
             currentPattern = wizardState.patternKey;
 
             // Close modal
