@@ -8278,15 +8278,6 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
         // Generate EXECUTABLE AI Prompt (not meta-description)
         // Synthesizes tree into ONE complete, copy-paste ready prompt
         function generateAIPromptDesignPrompt(tree, pattern) {
-            let output = `# ${tree.icon || '🧠'} ${tree.name || 'AI Prompt'}\n\n`;
-
-            if (tree.description) {
-                output += `${tree.description}\n\n`;
-            }
-
-            output += `**Copy-paste ready prompt for Claude/GPT-4/o1**\n\n`;
-            output += `---\n\n`;
-
             // Collect all items to synthesize into one unified prompt
             const allItems = [];
             if (tree.children && tree.children.length > 0) {
@@ -8300,153 +8291,150 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             }
 
             if (allItems.length === 0) {
-                output += `*No prompts defined yet. Add items to your tree.*\n`;
-                return output;
+                return `*No prompts defined yet. Add items to your tree.*\n`;
             }
 
-            // SYNTHESIZE: Build complete executable prompt from all items
-
-            // 1. SYSTEM PROMPT (aggregate from all items)
-            output += `## 📋 System Prompt\n\n`;
-            output += `\`\`\`\n`;
+            // Extract components from first item (primary prompt)
+            const firstItem = allItems[0];
             const systemPrompts = allItems.map(item => item.systemPrompt).filter(sp => sp && sp.length > 0);
-            if (systemPrompts.length > 0) {
-                output += systemPrompts[0]; // Use first defined system prompt
-            } else {
-                output += `You are an expert AI assistant specialized in ${tree.name || 'this domain'}. Provide detailed, accurate, and helpful responses.`;
-            }
-            output += `\n\`\`\`\n\n`;
-
-            // 2. USER PROMPT TEMPLATE (synthesize from items and tree structure)
-            output += `## 💬 User Prompt\n\n`;
-            output += `\`\`\`\n`;
             const userTemplates = allItems.map(item => item.userPromptTemplate).filter(ut => ut && ut.length > 0);
+            const exampleItems = allItems.filter(item => item.fewShotExamples && item.fewShotExamples.length > 0);
+            const formatItems = allItems.filter(item => item.outputFormat && item.outputFormat.length > 0);
+            const cotItems = allItems.filter(item => item.chainOfThought && item.chainOfThought.length > 0);
+            const structuralItems = allItems.filter(item => item.structuralTags && item.structuralTags.length > 0);
+
+            // OPTION 1: Generate EXECUTABLE prompt (paste and use directly)
+            let executableOutput = `# ${tree.name || 'AI Prompt'}\n\n`;
+            executableOutput += `**EXECUTABLE PROMPT** - Paste this directly into Claude/GPT to get results\n\n`;
+            executableOutput += `---\n\n`;
+
+            // Build the actual executable prompt
+            let actualPrompt = '';
+
+            // Add system context at the top (like a system message)
+            if (systemPrompts.length > 0) {
+                actualPrompt += `${systemPrompts[0]}\n\n---\n\n`;
+            }
+
+            // Add the main user instruction
             if (userTemplates.length > 0) {
-                output += userTemplates[0];
+                actualPrompt += userTemplates[0];
             } else {
-                // IMPROVED FALLBACK: Create a basic but useful prompt instead of meta-instructions
-                // Use first item's name or tree description to infer the task
-                const firstItem = allItems[0];
+                actualPrompt += `${tree.description || tree.name}`;
+            }
+
+            // Add few-shot examples inline if present
+            if (exampleItems.length > 0) {
+                actualPrompt += `\n\nHere are examples of the expected behavior:\n\n`;
+                actualPrompt += exampleItems[0].fewShotExamples;
+            }
+
+            // Add output format specification
+            if (formatItems.length > 0) {
+                actualPrompt += `\n\n${formatItems[0].outputFormat}`;
+            }
+
+            // Add chain-of-thought instructions
+            if (cotItems.length > 0) {
+                actualPrompt += `\n\n${cotItems[0].chainOfThought}`;
+            }
+
+            executableOutput += `\`\`\`\n${actualPrompt}\n\`\`\`\n\n`;
+            executableOutput += `☝️ **Copy the text above (inside code block) and paste into your AI assistant**\n\n`;
+            executableOutput += `---\n\n`;
+
+            // OPTION 2: Generate COMPONENT VIEW (for reference/editing)
+            let componentOutput = `# ${tree.name || 'AI Prompt'} - Component Breakdown\n\n`;
+            componentOutput += `**COMPONENT VIEW** - Use this to understand and edit individual parts\n\n`;
+            componentOutput += `---\n\n`;
+
+            // 1. SYSTEM PROMPT
+            componentOutput += `## 📋 System Prompt\n\n`;
+            componentOutput += `\`\`\`\n`;
+            if (systemPrompts.length > 0) {
+                componentOutput += systemPrompts[0];
+            } else {
+                componentOutput += `You are an expert AI assistant specialized in ${tree.name || 'this domain'}. Provide detailed, accurate, and helpful responses.`;
+            }
+            componentOutput += `\n\`\`\`\n\n`;
+
+            // 2. USER PROMPT TEMPLATE
+            componentOutput += `## 💬 User Prompt Template\n\n`;
+            componentOutput += `\`\`\`\n`;
+            if (userTemplates.length > 0) {
+                componentOutput += userTemplates[0];
+            } else {
+                // Fallback
                 const taskName = firstItem?.name || tree.description || tree.name;
-
-                // Create a simple, generic user prompt
-                output += `${tree.description || taskName}\n\n`;
-
-                // If there are items, create a simple task list
+                componentOutput += `${tree.description || taskName}\n\n`;
                 if (allItems.length > 0 && allItems.length <= 5) {
-                    output += `Please address the following:\n`;
+                    componentOutput += `Please address the following:\n`;
                     allItems.forEach((item, idx) => {
-                        output += `${idx + 1}. ${item.name}\n`;
+                        componentOutput += `${idx + 1}. ${item.name}\n`;
                     });
                 } else if (tree.children && tree.children.length > 0) {
-                    // If many items, use phases as high-level structure
-                    output += `Consider these aspects:\n`;
+                    componentOutput += `Consider these aspects:\n`;
                     tree.children.forEach((phase, idx) => {
-                        output += `${idx + 1}. ${phase.name}\n`;
+                        componentOutput += `${idx + 1}. ${phase.name}\n`;
                     });
                 }
             }
-            output += `\n\`\`\`\n\n`;
+            componentOutput += `\n\`\`\`\n\n`;
 
-            // 3. FEW-SHOT EXAMPLES (if any)
-            const exampleItems = allItems.filter(item => item.fewShotExamples && item.fewShotExamples.length > 0);
+            // 3. FEW-SHOT EXAMPLES
             if (exampleItems.length > 0) {
-                output += `## 📚 Few-Shot Examples\n\n`;
-                output += `\`\`\`\n`;
+                componentOutput += `## 📚 Few-Shot Examples\n\n`;
+                componentOutput += `\`\`\`\n`;
                 exampleItems.forEach((item, idx) => {
-                    if (idx > 0) output += `\n`;
-                    output += item.fewShotExamples;
+                    if (idx > 0) componentOutput += `\n`;
+                    componentOutput += item.fewShotExamples;
                 });
-                output += `\n\`\`\`\n\n`;
+                componentOutput += `\n\`\`\`\n\n`;
             }
 
-            // 4. STRUCTURAL TAGS (Anthropic XML style)
-            const structuralItems = allItems.filter(item => item.structuralTags && item.structuralTags.length > 0);
-            if (structuralItems.length > 0) {
-                output += `## 🏗️ Structural Tags (Anthropic)\n\n`;
-                output += `\`\`\`xml\n`;
-                output += structuralItems[0].structuralTags;
-                output += `\n\`\`\`\n\n`;
+            // 4. OUTPUT FORMAT
+            if (formatItems.length > 0) {
+                componentOutput += `## 📐 Output Format\n\n`;
+                componentOutput += `\`\`\`\n`;
+                componentOutput += formatItems[0].outputFormat;
+                componentOutput += `\n\`\`\`\n\n`;
             }
 
             // 5. CHAIN-OF-THOUGHT
-            const cotItems = allItems.filter(item => item.chainOfThought && item.chainOfThought.length > 0);
             if (cotItems.length > 0) {
-                output += `## 🧠 Chain-of-Thought Instruction\n\n`;
-                output += `\`\`\`\n`;
-                output += cotItems[0].chainOfThought;
-                output += `\n\`\`\`\n\n`;
+                componentOutput += `## 🧠 Chain-of-Thought Instruction\n\n`;
+                componentOutput += `\`\`\`\n`;
+                componentOutput += cotItems[0].chainOfThought;
+                componentOutput += `\n\`\`\`\n\n`;
             }
 
-            // 6. OUTPUT FORMAT
-            const formatItems = allItems.filter(item => item.outputFormat && item.outputFormat.length > 0);
-            if (formatItems.length > 0) {
-                output += `## 📐 Output Format\n\n`;
-                output += `\`\`\`\n`;
-                output += formatItems[0].outputFormat;
-                output += `\n\`\`\`\n\n`;
+            // 6. STRUCTURAL TAGS (Anthropic XML style)
+            if (structuralItems.length > 0) {
+                componentOutput += `## 🏗️ Structural Tags (Anthropic)\n\n`;
+                componentOutput += `\`\`\`xml\n`;
+                componentOutput += structuralItems[0].structuralTags;
+                componentOutput += `\n\`\`\`\n\n`;
             }
 
             // 7. ASSISTANT PREFILL (Claude-specific)
             const prefillItems = allItems.filter(item => item.assistantPrefill && item.assistantPrefill.length > 0);
             if (prefillItems.length > 0) {
-                output += `## 🎯 Assistant Prefill (Claude)\n\n`;
-                output += `Start Claude's response with:\n`;
-                output += `\`\`\`\n${prefillItems[0].assistantPrefill}\n\`\`\`\n\n`;
+                componentOutput += `## 🎯 Assistant Prefill (Claude)\n\n`;
+                componentOutput += `\`\`\`\n${prefillItems[0].assistantPrefill}\n\`\`\`\n\n`;
             }
 
-            // 8. TOOL DEFINITIONS (Function calling)
-            const toolItems = allItems.filter(item => item.toolDefinitions && item.toolDefinitions.length > 0);
-            if (toolItems.length > 0) {
-                output += `## 🔧 Tool / Function Definitions\n\n`;
-                output += `\`\`\`json\n`;
-                output += toolItems[0].toolDefinitions;
-                output += `\n\`\`\`\n\n`;
-            }
-
-            // 9. AGENT WORKFLOW
-            const agentItems = allItems.filter(item => item.agentWorkflow && item.agentWorkflow.length > 0);
-            if (agentItems.length > 0) {
-                output += `## 🤖 Agent Workflow\n\n`;
-                output += `\`\`\`\n`;
-                output += agentItems[0].agentWorkflow;
-                output += `\n\`\`\`\n\n`;
-            }
-
-            // 10. CONFIGURATION
-            output += `## ⚙️ Configuration\n\n`;
+            // 8. CONFIGURATION
             const configItems = allItems.filter(item => item.modelTarget || item.temperature !== undefined || item.maxTokens !== undefined);
             if (configItems.length > 0) {
+                componentOutput += `## ⚙️ Configuration\n\n`;
                 const firstConfig = configItems[0];
-                if (firstConfig.modelTarget) output += `- **Model**: ${firstConfig.modelTarget}\n`;
-                if (firstConfig.temperature !== undefined) output += `- **Temperature**: ${firstConfig.temperature}\n`;
-                if (firstConfig.maxTokens !== undefined) output += `- **Max Tokens**: ${firstConfig.maxTokens}\n`;
-                output += `\n`;
+                if (firstConfig.modelTarget) componentOutput += `- **Model**: ${firstConfig.modelTarget}\n`;
+                if (firstConfig.temperature !== undefined) componentOutput += `- **Temperature**: ${firstConfig.temperature}\n`;
+                if (firstConfig.maxTokens !== undefined) componentOutput += `- **Max Tokens**: ${firstConfig.maxTokens}\n`;
+                componentOutput += `\n`;
             }
 
-            // 11. USAGE INSTRUCTIONS
-            output += `---\n\n`;
-            output += `## 📋 How to Use This Prompt\n\n`;
-            output += `1. **Copy** the System Prompt above\n`;
-            output += `2. **Paste** into your AI platform's system message field\n`;
-            output += `3. **Copy** the User Prompt\n`;
-            output += `4. **Customize** variables (replace {{placeholders}})\n`;
-            output += `5. **Send** to your AI model\n`;
-            output += `6. If using Claude with prefill, paste the Assistant Prefill text\n\n`;
-
-            // 12. ITERATION NOTES (if any)
-            const noteItems = allItems.filter(item => item.iterationNotes && item.iterationNotes.length > 0);
-            if (noteItems.length > 0) {
-                output += `## 📝 Iteration Notes\n\n`;
-                noteItems.forEach(item => {
-                    output += `**${item.name}**:\n${item.iterationNotes}\n\n`;
-                });
-            }
-
-            // 13. BEST PRACTICES CHECKLIST
-            output += `---\n\n`;
-            output += `## ✅ Best Practices Checklist\n\n`;
-
+            // BEST PRACTICES CHECKLIST (for component view)
             const hasSystemPrompt = systemPrompts.length > 0;
             const hasUserPrompt = userTemplates.length > 0;
             const hasFewShot = exampleItems.length > 0;
@@ -8456,27 +8444,30 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             const hasPrefill = prefillItems.length > 0;
             const hasConfig = configItems.length > 0;
 
-            output += `- ${hasSystemPrompt ? '✅' : '⚠️'} **System Prompt**: ${hasSystemPrompt ? 'Defined' : 'Using generic fallback - consider adding role-specific context'}\n`;
-            output += `- ${hasUserPrompt ? '✅' : '⚠️'} **User Prompt Template**: ${hasUserPrompt ? 'Defined' : 'Using basic fallback - consider adding structured template with {{variables}}'}\n`;
-            output += `- ${hasFewShot ? '✅' : '💡'} **Few-Shot Examples**: ${hasFewShot ? 'Included' : 'Not included - add 2-3 examples to improve consistency'}\n`;
-            output += `- ${hasOutputFormat ? '✅' : '💡'} **Output Format**: ${hasOutputFormat ? 'Specified' : 'Not specified - consider adding JSON schema or format template'}\n`;
-            output += `- ${hasCoT ? '✅' : '💡'} **Chain-of-Thought**: ${hasCoT ? 'Included' : 'Not included - add if task requires reasoning'}\n`;
-            output += `- ${hasStructural ? '✅' : '💡'} **Structural Tags** (Anthropic): ${hasStructural ? 'Defined' : 'Not included - optional for Claude'}\n`;
-            output += `- ${hasPrefill ? '✅' : '💡'} **Assistant Prefill** (Claude): ${hasPrefill ? 'Defined' : 'Not included - optional for tone control'}\n`;
-            output += `- ${hasConfig ? '✅' : '⚠️'} **Model Config**: ${hasConfig ? 'Configured' : 'Using defaults - consider specifying temperature and max tokens'}\n\n`;
+            componentOutput += `---\n\n`;
+            componentOutput += `## ✅ Best Practices Checklist\n\n`;
+            componentOutput += `- ${hasSystemPrompt ? '✅' : '⚠️'} **System Prompt**: ${hasSystemPrompt ? 'Defined' : 'Using generic fallback'}\n`;
+            componentOutput += `- ${hasUserPrompt ? '✅' : '⚠️'} **User Prompt Template**: ${hasUserPrompt ? 'Defined' : 'Using basic fallback'}\n`;
+            componentOutput += `- ${hasFewShot ? '✅' : '💡'} **Few-Shot Examples**: ${hasFewShot ? 'Included' : 'Recommended'}\n`;
+            componentOutput += `- ${hasOutputFormat ? '✅' : '💡'} **Output Format**: ${hasOutputFormat ? 'Specified' : 'Recommended'}\n`;
+            componentOutput += `- ${hasCoT ? '✅' : '💡'} **Chain-of-Thought**: ${hasCoT ? 'Included' : 'Optional'}\n`;
+            componentOutput += `- ${hasStructural ? '✅' : '💡'} **Structural Tags**: ${hasStructural ? 'Defined' : 'Optional'}\n`;
+            componentOutput += `- ${hasPrefill ? '✅' : '💡'} **Assistant Prefill**: ${hasPrefill ? 'Defined' : 'Optional'}\n`;
+            componentOutput += `- ${hasConfig ? '✅' : '⚠️'} **Model Config**: ${hasConfig ? 'Configured' : 'Using defaults'}\n\n`;
 
             const criticalMissing = !hasSystemPrompt || !hasUserPrompt;
             const recommendedMissing = !hasFewShot || !hasOutputFormat;
 
             if (criticalMissing) {
-                output += `⚠️ **Critical**: Add system and user prompts for best results.\n\n`;
+                componentOutput += `⚠️ **Critical**: Add system and user prompts for best results.\n\n`;
             } else if (recommendedMissing) {
-                output += `💡 **Recommendation**: Add few-shot examples and output format for more consistent results.\n\n`;
+                componentOutput += `💡 **Recommendation**: Add few-shot examples and output format for consistency.\n\n`;
             } else {
-                output += `🎉 **Excellent!** All critical best practice components are present.\n\n`;
+                componentOutput += `🎉 **Excellent!** All critical best practice components present.\n\n`;
             }
 
-            return output;
+            // Combine both outputs
+            return executableOutput + componentOutput;
         }
 
         // Generate AI Video Production prompts (Sora/Veo3 format)
