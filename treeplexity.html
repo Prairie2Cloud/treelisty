@@ -10410,10 +10410,14 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 const aiMode = getGlobalAIMode();
                 const useExtendedThinking = aiMode === 'deep';
 
+                // Extended thinking has budget_tokens = 5000, so maxTokens must be > 5000
+                // Using 8000 to give 3000 tokens for actual response content
+                const maxTokensForReview = useExtendedThinking ? 8000 : 4096;
+
                 const response = await callClaudeAPI(
                     reviewPrompt,
                     `You are an expert ${pattern.name} analyst. Review the provided tree structure for completeness, redundancies, logical flow, and alignment with ${pattern.name} best practices. Provide specific, actionable suggestions.`,
-                    4096,
+                    maxTokensForReview,
                     useExtendedThinking
                 );
 
@@ -11071,7 +11075,9 @@ RULES:
 - NO trailing commas in JSON
 - Escape quotes inside strings with backslash`;
 
-            const maxTokens = mode === 'deep' ? 4096 : 2048;
+            // Deep mode uses extended thinking (budget_tokens = 5000)
+            // So maxTokens must be > 5000. Using 8000 to give 3000 tokens for actual response.
+            const maxTokens = mode === 'deep' ? 8000 : 2048;
             const useThinking = mode === 'deep';
 
             const response = await callClaudeAPI(userPrompt, systemPrompt, maxTokens, useThinking);
