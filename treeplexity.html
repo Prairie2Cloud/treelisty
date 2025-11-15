@@ -2479,34 +2479,183 @@ Help me with:
 Focus on practical, executable guidance. Be specific and actionable.`;
 
             } else if (analysisType === 'item') {
-                // PROJECT ITEM AI: Provide detail, context, and accuracy
-                systemPrompt = `You are a senior project analyst specializing in project decomposition and planning.
-Your expertise includes:
-- Capital expenditure planning and budgeting
-- Procurement strategy and vendor evaluation
-- Project timeline and dependency analysis
-- Risk assessment for major infrastructure investments
-- Cost optimization and value engineering
+                // PROJECT ITEM AI: Pattern-aware analysis
+                const pattern = PATTERNS[currentPattern];
+                const levels = pattern.levels;
 
-Provide concise, accurate insights with detailed context formatted with clear sections and bullet points.`;
+                // Pattern-specific system prompts and analysis
+                if (pattern.id === 'philosophy') {
+                    systemPrompt = `You are a philosophy professor specializing in classical and contemporary philosophical arguments, dialectical reasoning, and philosophical methodology.`;
 
-                userPrompt = `Analyze this project line item:
+                    userPrompt = `Analyze this philosophical ${levels.item.toLowerCase()}:
 
-**Item:** ${item.name}
+**${levels.item}:** ${item.name}
 **Type:** ${item.itemType || 'N/A'}
-${PATTERNS[currentPattern].fields?.cost ? `**Cost:** $${(item.cost || 0).toLocaleString()}\n` : ''}**Description:** ${item.description || 'N/A'}
-${PATTERNS[currentPattern].fields?.leadTime ? `**Lead Time:** ${item.leadTime || 'Not specified'}\n` : ''}${PATTERNS[currentPattern].fields?.alternateSource ? `**Alternate Source:** ${item.alternateSource || 'Not specified'}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
-**Context Notes:** ${item.notes || 'None provided'}
+**Description:** ${item.description || 'N/A'}
+${item.speaker ? `**Speaker/Philosopher:** ${item.speaker}\n` : ''}${item.argumentType ? `**Argument Type:** ${item.argumentType}\n` : ''}${item.premise1 ? `**Premise 1:** ${item.premise1}\n` : ''}${item.premise2 ? `**Premise 2:** ${item.premise2}\n` : ''}${item.conclusion ? `**Conclusion:** ${item.conclusion}\n` : ''}${item.keyTerms ? `**Key Terms:** ${item.keyTerms}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a philosophical analysis covering:
+1. **Logical Validity** - Is the argument structure sound? Are the premises valid?
+2. **Dialectical Strength** - How does this argument engage with opposing views?
+3. **Conceptual Clarity** - Are key terms well-defined? Any ambiguities?
+4. **Objections to Consider** - What counter-arguments should be addressed?
+5. **Historical/Textual Context** - Relevant philosophical traditions or sources
+6. **Recommendations** - How to strengthen this argument or explore it further`;
+
+                } else if (pattern.id === 'sales') {
+                    systemPrompt = `You are a sales strategist with 20 years of enterprise B2B experience, specializing in deal progression, competitive positioning, and revenue forecasting.`;
+
+                    userPrompt = `Analyze this sales ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.dealValue ? `**Deal Value:** $${(item.dealValue || 0).toLocaleString()}\n` : ''}${item.expectedCloseDate ? `**Expected Close:** ${new Date(item.expectedCloseDate).toLocaleDateString()}\n` : ''}${item.leadSource ? `**Lead Source:** ${item.leadSource}\n` : ''}${item.contactPerson ? `**Contact:** ${item.contactPerson}\n` : ''}${item.stageProbability ? `**Close Probability:** ${item.stageProbability}%\n` : ''}${item.competitorInfo ? `**Competitive Intel:** ${item.competitorInfo}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a sales analysis covering:
+1. **Deal Health** - Is this deal progressing appropriately for its stage?
+2. **Competitive Positioning** - How to differentiate from competitors?
+3. **Next Steps** - Specific actions to advance this deal (meetings, demos, proposals)
+4. **Risk Factors** - What could derail this opportunity?
+5. **Close Strategy** - Recommended approach to accelerate close
+6. **Upsell/Cross-sell** - Opportunities to expand deal value`;
+
+                } else if (pattern.id === 'thesis') {
+                    systemPrompt = `You are an academic advisor helping graduate students structure rigorous research, with expertise in thesis development, argumentation, and scholarly writing.`;
+
+                    userPrompt = `Analyze this academic ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.wordCount ? `**Current Words:** ${item.wordCount}\n` : ''}${item.targetWordCount ? `**Target Words:** ${item.targetWordCount}\n` : ''}${item.keyCitations ? `**Key Citations:** ${item.keyCitations}\n` : ''}${item.keyArgument ? `**Main Argument:** ${item.keyArgument}\n` : ''}${item.evidenceType ? `**Evidence Type:** ${item.evidenceType}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide an academic analysis covering:
+1. **Argument Strength** - Is the thesis argument clear and defensible?
+2. **Evidence Quality** - Is the evidence sufficient and appropriate?
+3. **Citation Coverage** - Are key sources adequately referenced?
+4. **Structural Coherence** - Does this fit logically within the overall thesis?
+5. **Scholarly Rigor** - Areas to strengthen academic quality
+6. **Recommendations** - Specific next steps for development`;
+
+                } else if (pattern.id === 'roadmap') {
+                    systemPrompt = `You are a product manager experienced in agile development, feature prioritization, and engineering execution strategy.`;
+
+                    userPrompt = `Analyze this product ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.storyPoints ? `**Story Points:** ${item.storyPoints}\n` : ''}${item.userImpact ? `**User Impact:** ${item.userImpact}\n` : ''}${item.technicalRisk ? `**Technical Risk:** ${item.technicalRisk}\n` : ''}${item.engineeringEstimate ? `**Engineering Estimate:** ${item.engineeringEstimate}\n` : ''}${item.featureFlag ? `**Feature Flag:** ${item.featureFlag}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a product analysis covering:
+1. **User Value** - Does this feature deliver clear user benefit?
+2. **Technical Feasibility** - Are the story points and risk assessment realistic?
+3. **Prioritization** - Where should this rank given impact vs effort?
+4. **Dependencies** - Are upstream features properly identified?
+5. **Implementation Strategy** - Recommended approach (MVP, feature flag, phased rollout)
+6. **Success Metrics** - How to measure if this feature succeeds`;
+
+                } else if (pattern.id === 'prompting') {
+                    systemPrompt = `You are an AI/ML engineer expert in prompt engineering for Claude and GPT-4, specializing in system design, agent workflows, and prompt optimization.`;
+
+                    userPrompt = `Analyze this prompt ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.systemPrompt ? `**System Prompt:** ${item.systemPrompt.substring(0, 200)}${item.systemPrompt.length > 200 ? '...' : ''}\n` : ''}${item.userPromptTemplate ? `**User Template:** ${item.userPromptTemplate.substring(0, 200)}${item.userPromptTemplate.length > 200 ? '...' : ''}\n` : ''}${item.modelTarget ? `**Model:** ${item.modelTarget}\n` : ''}${item.temperature ? `**Temperature:** ${item.temperature}\n` : ''}${item.maxTokens ? `**Max Tokens:** ${item.maxTokens}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a prompt engineering analysis covering:
+1. **Prompt Quality** - Is the system/user prompt clear and well-structured?
+2. **Best Practices** - OpenAI/Anthropic recommendations being followed?
+3. **Few-Shot Examples** - Are examples sufficient and high-quality?
+4. **Chain-of-Thought** - Should CoT be added for better reasoning?
+5. **Edge Cases** - What failure modes should be addressed?
+6. **Optimization** - How to improve accuracy, cost, or latency`;
+
+                } else if (pattern.id === 'book') {
+                    systemPrompt = `You are a professional fiction editor and writing coach, specializing in narrative structure, character development, and storytelling craft.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.wordCount ? `**Current Words:** ${item.wordCount}\n` : ''}${item.targetWordCount ? `**Target Words:** ${item.targetWordCount}\n` : ''}${item.plotPoints ? `**Plot Points:** ${item.plotPoints}\n` : ''}${item.characterArcs ? `**Character Arcs:** ${item.characterArcs}\n` : ''}${item.pacing ? `**Pacing:** ${item.pacing}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a narrative analysis covering:
+1. **Story Structure** - Does this chapter serve the overall narrative arc?
+2. **Character Development** - Are character arcs progressing appropriately?
+3. **Pacing** - Is the rhythm and tension appropriate for this section?
+4. **Plot Points** - Are key story beats landing effectively?
+5. **Scene Craft** - Suggestions for strengthening individual scenes
+6. **Recommendations** - Specific revisions to improve this chapter`;
+
+                } else if (pattern.id === 'film') {
+                    systemPrompt = `You are a cinematographer and film director specializing in AI video production (Sora, Veo, Runway Gen-3), with expertise in visual storytelling, camera work, and production planning.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.aiPlatform ? `**AI Platform:** ${item.aiPlatform}\n` : ''}${item.videoPrompt ? `**Video Prompt:** ${item.videoPrompt.substring(0, 200)}${item.videoPrompt.length > 200 ? '...' : ''}\n` : ''}${item.visualStyle ? `**Visual Style:** ${item.visualStyle}\n` : ''}${item.duration ? `**Duration:** ${item.duration}\n` : ''}${item.cameraMovement ? `**Camera Movement:** ${item.cameraMovement}\n` : ''}${item.lightingMood ? `**Lighting:** ${item.lightingMood}\n` : ''}${item.motionIntensity ? `**Motion Intensity:** ${item.motionIntensity}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a production analysis covering:
+1. **Prompt Quality** - Is the video prompt detailed enough for Sora/Veo?
+2. **Visual Cohesion** - Does this scene match the project's visual style?
+3. **Camera & Lighting** - Are technical specs appropriate for the mood?
+4. **Production Feasibility** - Can current AI platforms deliver this vision?
+5. **Sequence Flow** - How does this scene connect to dependencies?
+6. **Optimization** - How to improve prompt for better AI generation`;
+
+                } else if (pattern.id === 'course') {
+                    systemPrompt = `You are an instructional designer specializing in curriculum development, learning objectives, and educational best practices.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.learningObjectives ? `**Learning Objectives:** ${item.learningObjectives}\n` : ''}${item.duration ? `**Duration:** ${item.duration}\n` : ''}${item.difficultyLevel ? `**Difficulty:** ${item.difficultyLevel}\n` : ''}${item.prerequisites ? `**Prerequisites:** ${item.prerequisites}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a pedagogical analysis covering:
+1. **Learning Objectives** - Are objectives clear, measurable, and achievable?
+2. **Content Structure** - Is the lesson logically organized for learning?
+3. **Difficulty Progression** - Is this appropriately paced within the course?
+4. **Engagement** - Are activities and assessments well-designed?
+5. **Prerequisites** - Are dependencies and prior knowledge appropriate?
+6. **Recommendations** - How to improve learning outcomes`;
+
+                } else {
+                    // Generic/default pattern
+                    systemPrompt = `You are a senior project analyst specializing in project decomposition and planning. Provide insights on project structure, execution strategy, and best practices.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${pattern.fields?.cost ? `**Cost:** $${(item.cost || 0).toLocaleString()}\n` : ''}${pattern.fields?.leadTime ? `**Lead Time:** ${item.leadTime || 'Not specified'}\n` : ''}${pattern.fields?.alternateSource ? `**Alternate Source:** ${item.alternateSource || 'Not specified'}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None provided'}
 
 Provide a focused analysis covering:
-1. **Risk Assessment** - Key procurement and timeline risks with specific examples
-2. **Cost Optimization** - Detailed cost-saving strategies and alternative approaches
-3. **Procurement Strategy** - Vendor evaluation criteria and negotiation leverage points
-4. **Timeline Considerations** - Critical path impacts, lead time concerns, and scheduling
-5. **Industry Context** - Benchmarks, standards, or typical ranges for this expense category
-6. **Recommendations** - 2-3 actionable next steps with clear rationale
-
-Prioritize accuracy, detail, and contextual information. Use specific numbers and examples where possible.`;
+1. **Risk Assessment** - Key risks and mitigation strategies
+2. **Optimization Opportunities** - Ways to improve efficiency or reduce cost
+3. **Execution Strategy** - Recommended approach for successful completion
+4. **Timeline Considerations** - Critical path impacts and scheduling concerns
+5. **Context & Benchmarks** - Industry standards or typical approaches
+6. **Recommendations** - 2-3 actionable next steps with clear rationale`;
+                }
 
             } else if (analysisType === 'project') {
                 // Project-level analysis (PATTERN-AWARE)
