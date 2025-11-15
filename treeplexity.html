@@ -8324,20 +8324,27 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             if (userTemplates.length > 0) {
                 output += userTemplates[0];
             } else {
-                // Generate from tree structure
-                output += `<instructions>\n`;
-                output += `${tree.description || `Provide comprehensive guidance on ${tree.name}`}\n\n`;
-                output += `Structure your response following these sections:\n\n`;
+                // IMPROVED FALLBACK: Create a basic but useful prompt instead of meta-instructions
+                // Use first item's name or tree description to infer the task
+                const firstItem = allItems[0];
+                const taskName = firstItem?.name || tree.description || tree.name;
 
-                tree.children.forEach((phase, idx) => {
-                    output += `${idx + 1}. ${phase.name}\n`;
-                    if (phase.items && phase.items.length > 0) {
-                        phase.items.forEach(item => {
-                            output += `   - ${item.name}\n`;
-                        });
-                    }
-                });
-                output += `</instructions>\n`;
+                // Create a simple, generic user prompt
+                output += `${tree.description || taskName}\n\n`;
+
+                // If there are items, create a simple task list
+                if (allItems.length > 0 && allItems.length <= 5) {
+                    output += `Please address the following:\n`;
+                    allItems.forEach((item, idx) => {
+                        output += `${idx + 1}. ${item.name}\n`;
+                    });
+                } else if (tree.children && tree.children.length > 0) {
+                    // If many items, use phases as high-level structure
+                    output += `Consider these aspects:\n`;
+                    tree.children.forEach((phase, idx) => {
+                        output += `${idx + 1}. ${phase.name}\n`;
+                    });
+                }
             }
             output += `\n\`\`\`\n\n`;
 
@@ -8434,6 +8441,39 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 noteItems.forEach(item => {
                     output += `**${item.name}**:\n${item.iterationNotes}\n\n`;
                 });
+            }
+
+            // 13. BEST PRACTICES CHECKLIST
+            output += `---\n\n`;
+            output += `## ✅ Best Practices Checklist\n\n`;
+
+            const hasSystemPrompt = systemPrompts.length > 0;
+            const hasUserPrompt = userTemplates.length > 0;
+            const hasFewShot = exampleItems.length > 0;
+            const hasCoT = cotItems.length > 0;
+            const hasOutputFormat = formatItems.length > 0;
+            const hasStructural = structuralItems.length > 0;
+            const hasPrefill = prefillItems.length > 0;
+            const hasConfig = configItems.length > 0;
+
+            output += `- ${hasSystemPrompt ? '✅' : '⚠️'} **System Prompt**: ${hasSystemPrompt ? 'Defined' : 'Using generic fallback - consider adding role-specific context'}\n`;
+            output += `- ${hasUserPrompt ? '✅' : '⚠️'} **User Prompt Template**: ${hasUserPrompt ? 'Defined' : 'Using basic fallback - consider adding structured template with {{variables}}'}\n`;
+            output += `- ${hasFewShot ? '✅' : '💡'} **Few-Shot Examples**: ${hasFewShot ? 'Included' : 'Not included - add 2-3 examples to improve consistency'}\n`;
+            output += `- ${hasOutputFormat ? '✅' : '💡'} **Output Format**: ${hasOutputFormat ? 'Specified' : 'Not specified - consider adding JSON schema or format template'}\n`;
+            output += `- ${hasCoT ? '✅' : '💡'} **Chain-of-Thought**: ${hasCoT ? 'Included' : 'Not included - add if task requires reasoning'}\n`;
+            output += `- ${hasStructural ? '✅' : '💡'} **Structural Tags** (Anthropic): ${hasStructural ? 'Defined' : 'Not included - optional for Claude'}\n`;
+            output += `- ${hasPrefill ? '✅' : '💡'} **Assistant Prefill** (Claude): ${hasPrefill ? 'Defined' : 'Not included - optional for tone control'}\n`;
+            output += `- ${hasConfig ? '✅' : '⚠️'} **Model Config**: ${hasConfig ? 'Configured' : 'Using defaults - consider specifying temperature and max tokens'}\n\n`;
+
+            const criticalMissing = !hasSystemPrompt || !hasUserPrompt;
+            const recommendedMissing = !hasFewShot || !hasOutputFormat;
+
+            if (criticalMissing) {
+                output += `⚠️ **Critical**: Add system and user prompts for best results.\n\n`;
+            } else if (recommendedMissing) {
+                output += `💡 **Recommendation**: Add few-shot examples and output format for more consistent results.\n\n`;
+            } else {
+                output += `🎉 **Excellent!** All critical best practice components are present.\n\n`;
             }
 
             return output;
@@ -10956,11 +10996,162 @@ Provide exactly 3 recommendations, ranked by confidence (1-10). Use these patter
             return jsonText;
         }
 
+        // PROMPT IMPROVEMENT: Special handler for Prompt Engineering pattern
+        // Takes a basic prompt and generates comprehensive improved version with best practices
+        async function improvePromptWithAI(basicPrompt, mode = 'quick') {
+            console.log(`🧠 Improving prompt using ${mode} mode...`);
+
+            const systemPrompt = `You are an expert prompt engineer who specializes in improving prompts using OpenAI and Anthropic best practices.
+
+Your task: Take a basic, vague prompt and transform it into a comprehensive, production-ready prompt with all necessary components.
+
+BEST PRACTICES TO APPLY:
+1. **System Prompt**: Clear role definition, context, constraints, tone
+2. **User Prompt Template**: Structured with {{variables}}, clear instructions, step-by-step guidance
+3. **Few-Shot Examples**: 2-3 high-quality input→output examples showing desired behavior
+4. **Chain-of-Thought**: Instructions for showing reasoning process (if applicable)
+5. **Output Format**: Exact structure specification (JSON schema, markdown template, etc.)
+6. **Edge Cases**: Handle ambiguity, missing data, errors
+7. **Variables**: Identify dynamic parts as {{variable_name}}
+8. **Prefill** (Claude): Suggested response starter for tone/format control
+
+CRITICAL: Return ONLY valid JSON. No explanations, no markdown, no text before or after.`;
+
+            const userPrompt = `Improve this basic prompt into a production-ready, comprehensive prompt:
+
+"${basicPrompt}"
+
+Analyze the intent and create:
+1. A clear system prompt defining the AI's role and expertise
+2. An improved user prompt template with {{variables}} for dynamic content
+3. 2-3 few-shot examples demonstrating expected behavior
+4. Chain-of-thought instructions (if reasoning is needed)
+5. Output format specification (JSON, markdown, or structured text)
+6. Handle edge cases and ambiguous inputs
+7. Optional: Assistant prefill for Claude
+
+Return ONLY this JSON structure:
+{
+  "projectName": "Descriptive name for this prompt (e.g., 'Restaurant Recommendation System')",
+  "description": "Brief 1-sentence description of what this prompt does",
+  "phases": [
+    {
+      "name": "Production Prompt",
+      "subtitle": "Ready to use with Claude/GPT-4",
+      "items": [
+        {
+          "name": "Improved: [Brief name based on use case]",
+          "description": "Production-ready prompt with all best practice components",
+          "itemType": "task-instruction",
+          "systemPrompt": "You are an expert [domain]. [Context]. [Constraints]. [Tone].",
+          "userPromptTemplate": "Detailed task instruction with {{variable1}} and {{variable2}}. Include step-by-step guidance.",
+          "fewShotExamples": "<example>\\nUser: [example input 1]\\nAssistant: [example output 1]\\n</example>\\n\\n<example>\\nUser: [example input 2]\\nAssistant: [example output 2]\\n</example>",
+          "chainOfThought": "Think step by step: 1) [step], 2) [step], 3) [step]. Show your reasoning.",
+          "outputFormat": "Return JSON: {\\"field1\\": \\"description\\", \\"field2\\": \\"description\\"}",
+          "structuralTags": "<thinking>\\nReasoning process\\n</thinking>\\n<answer>\\nFinal response\\n</answer>",
+          "assistantPrefill": "Here is my analysis:",
+          "modelTarget": "Claude 3.5 Sonnet",
+          "temperature": 0.7,
+          "maxTokens": 2000
+        }
+      ]
+    }
+  ]
+}
+
+RULES:
+- Infer use case from basic prompt (chatbot? search? analysis? recommendation?)
+- Create realistic, helpful few-shot examples
+- Make user prompt template generic with {{variables}}
+- Chain-of-thought only if task requires reasoning
+- Output format should match the use case (JSON for APIs, markdown for reports, etc.)
+- System prompt should be professional and comprehensive
+- NO trailing commas in JSON
+- Escape quotes inside strings with backslash`;
+
+            const maxTokens = mode === 'deep' ? 4096 : 2048;
+            const useThinking = mode === 'deep';
+
+            const response = await callClaudeAPI(userPrompt, systemPrompt, maxTokens, useThinking);
+
+            try {
+                // Extract JSON from response
+                let jsonText = response.trim();
+                jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                const firstBrace = jsonText.indexOf('{');
+                if (firstBrace === -1) {
+                    throw new Error('No JSON object found in AI response.');
+                }
+
+                if (firstBrace > 0) {
+                    console.log('🧠 Skipping text before JSON:', jsonText.substring(0, firstBrace));
+                    jsonText = jsonText.substring(firstBrace);
+                }
+
+                // Find matching closing brace
+                let depth = 0;
+                let endPos = -1;
+                let inString = false;
+                let escapeNext = false;
+
+                for (let i = 0; i < jsonText.length; i++) {
+                    const char = jsonText[i];
+
+                    if (escapeNext) {
+                        escapeNext = false;
+                        continue;
+                    }
+
+                    if (char === '\\') {
+                        escapeNext = true;
+                        continue;
+                    }
+
+                    if (char === '"') {
+                        inString = !inString;
+                        continue;
+                    }
+
+                    if (!inString) {
+                        if (char === '{') depth++;
+                        else if (char === '}') {
+                            depth--;
+                            if (depth === 0) {
+                                endPos = i;
+                                break;
+                            }
+                        }
+                    }
+                }
+
+                if (endPos === -1) {
+                    throw new Error('Could not find matching closing brace in JSON');
+                }
+
+                jsonText = jsonText.substring(0, endPos + 1);
+
+                const parsed = JSON.parse(jsonText);
+                console.log('✅ Prompt improved successfully:', parsed.projectName);
+                return parsed;
+
+            } catch (e) {
+                console.error('❌ JSON parsing error:', e);
+                console.error('Response:', response);
+                throw new Error(`Failed to improve prompt. AI response was not valid JSON: ${e.message}`);
+            }
+        }
+
         // Quick Mode: Basic structure conversion
         async function convertTextToTreeQuick(text, pattern) {
             const patternConfig = PATTERNS[pattern];
             const levels = patternConfig.levels;
             const fields = patternConfig.fields || {};
+
+            // SPECIAL CASE: Prompt Engineering pattern - improve the prompt instead of extracting
+            if (pattern === 'prompting') {
+                return await improvePromptWithAI(text, 'quick');
+            }
 
             // Generate quick field hints (top 5 most important fields)
             let quickFieldHints = '';
@@ -11230,6 +11421,11 @@ ${jsonText}`;
             const patternConfig = PATTERNS[pattern];
             const levels = patternConfig.levels;
             const fields = patternConfig.fields || {};
+
+            // SPECIAL CASE: Prompt Engineering pattern - improve the prompt instead of extracting
+            if (pattern === 'prompting') {
+                return await improvePromptWithAI(text, 'deep');
+            }
 
             // Generate dynamic field extraction guide from pattern.fields
             function generateFieldExtractionGuide(pattern) {
