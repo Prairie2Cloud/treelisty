@@ -1255,7 +1255,8 @@ You are now ready to work with TreeListy trees using both AI-powered features an
 - User has **existing document** → Recommend Analyze Text (Quick or Deep)
 - User wants **quality check** → Recommend AI Review
 - User needs **field suggestions** → Recommend Smart Suggest (AI mode)
-- User wants **to share tree** → Generate Prompt or Export Excel
+- User wants **to share tree** → Share URL or Export Excel
+- User wants **to export as AI prompt** → Generate Prompt
 - User wants **basic → comprehensive prompt** → AI Prompt pattern + Analyze Text
 - User needs **programmatic manipulation** → Use JSON/JavaScript workflows
 
