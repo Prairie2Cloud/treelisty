@@ -7870,7 +7870,18 @@ Final validation:
 ALWAYS include in treeUpdate:
 - Phases (3-6 typical)
 - Items per phase (2-5 typical)
-- Subtasks for complex items (2-5 steps)
+- ⚠️ SUBTASKS: Add 2-4 ${levels.subtask}s to items that need decomposition
+  → ${levels.subtask}s are PATTERN-SPECIFIC breakdowns:
+    • ${pattern.name === 'Philosophy' ? 'Philosophy: premises, objections, evidence, citations' : ''}
+    • ${pattern.name === 'Sales Pipeline' ? 'Sales: follow-up actions, next steps, deliverables' : ''}
+    • ${pattern.name === 'Thesis' ? 'Thesis: arguments, evidence, citations, counter-arguments' : ''}
+    • ${pattern.name === 'Product Roadmap' ? 'Roadmap: tasks, specs, acceptance criteria, tests' : ''}
+    • ${pattern.name === 'Book' ? 'Book: scenes, character moments, plot points' : ''}
+    • ${pattern.name === 'Course' ? 'Course: lessons, activities, assessments, exercises' : ''}
+    • ${pattern.name === 'Film Production' ? 'Film: shots, camera movements, lighting, blocking' : ''}
+    • ${pattern.name === 'Prompt Engineering' ? 'Prompting: test cases, variations, edge cases' : ''}
+    • Generic: steps, components, or sub-elements
+  → Focus on ${pattern.name} deliverables, not generic task lists
 - Dependency info in descriptions (e.g., "After Phase 1 completes...")
 - Pattern-specific fields (infer from conversation)
 
@@ -11178,6 +11189,22 @@ RULES:
                 itemTypeHints = `\n\nITEM TYPES: Use these specific types: ${typesList}\n`;
             }
 
+            // Pattern-specific subtask guidance
+            function getPatternSubtaskGuidance(pattern) {
+                const guidance = {
+                    philosophy: `For ${levels.item}s, add ${levels.subtask}s like: premises, objections, supporting evidence, textual references`,
+                    sales: `For ${levels.item}s (deals), add ${levels.subtask}s like: follow-up actions, next steps, activities to close`,
+                    thesis: `For ${levels.item}s (arguments), add ${levels.subtask}s like: supporting evidence, citations, counter-arguments`,
+                    roadmap: `For ${levels.item}s (features), add ${levels.subtask}s like: implementation steps, technical tasks, acceptance criteria`,
+                    book: `For ${levels.item}s (chapters), add ${levels.subtask}s like: scenes, key moments, character developments`,
+                    course: `For ${levels.item}s (modules), add ${levels.subtask}s like: lessons, activities, assessments, practice exercises`,
+                    film: `For ${levels.item}s (scenes), add ${levels.subtask}s like: specific shots, camera movements, lighting changes`,
+                    prompting: `For ${levels.item}s (prompts), add ${levels.subtask}s like: test cases, variations, edge cases to handle`,
+                    generic: `For ${levels.item}s, add ${levels.subtask}s like: steps, components, or sub-elements needed`
+                };
+                return guidance[pattern] || guidance.generic;
+            }
+
             // Pattern-specific instructions for Quick Mode
             let patternSpecialInstructions = '';
             if (pattern === 'film') {
@@ -11200,10 +11227,12 @@ INSTRUCTIONS (BE CONCISE TO AVOID TIMEOUT):
 1. Identify natural hierarchical structure in the text
 2. Create 2-4 phases (${levels.phase}s) - MAXIMUM 4
 3. For each phase, create 2-5 items (${levels.item}s) - MAXIMUM 5 per phase
-4. For complex items, add 1-3 subtasks (${levels.subtask}s) - MAXIMUM 3 per item
+4. ⚠️ IMPORTANT: Add 2-3 ${levels.subtask}s to items that need them
+   → ${levels.subtask}s break down each ${levels.item} into its constituent parts
+   → ${getPatternSubtaskGuidance(pattern)}
 5. Keep descriptions SHORT (under 100 characters)
 6. Extract the key fields listed above if values are mentioned in the text
-7. PRIORITIZE SPEED - extract only the most important elements
+7. Focus on capturing the hierarchical structure in the text
 
 JSON FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
 - NO trailing commas after the last element in arrays or objects
@@ -11233,7 +11262,8 @@ Respond with ONLY valid, parseable JSON:
           "itemType": "type-from-list-above",
           "... include any key fields from list above if mentioned ...": "value",
           "subtasks": [
-            { "name": "Subtask name (optional)" }
+            { "name": "${levels.subtask} 1", "description": "Pattern-specific detail" },
+            { "name": "${levels.subtask} 2", "description": "Pattern-specific detail" }
           ]
         }
       ]
@@ -11496,6 +11526,22 @@ ${jsonText}`;
 
             const patternFieldGuide = generateFieldExtractionGuide(pattern);
 
+            // Pattern-specific subtask guidance for Deep Mode
+            function getDeepModeSubtaskGuidance(pattern) {
+                const guidance = {
+                    philosophy: `Philosophy: ${levels.subtask}s = premises, objections, supporting evidence, citations from source texts`,
+                    sales: `Sales: ${levels.subtask}s = follow-up actions, meeting notes, deliverables, next steps to advance the deal`,
+                    thesis: `Academic: ${levels.subtask}s = supporting arguments, citations, evidence, counter-arguments to address`,
+                    roadmap: `Engineering: ${levels.subtask}s = implementation tasks, technical specs, acceptance criteria, testing steps`,
+                    book: `Narrative: ${levels.subtask}s = individual scenes, character moments, plot developments, transitions`,
+                    course: `Education: ${levels.subtask}s = lessons, activities, assessments, practice exercises, readings`,
+                    film: `Film: ${levels.subtask}s = specific shots, camera angles, lighting changes, actor blocking, technical details`,
+                    prompting: `Prompting: ${levels.subtask}s = test cases, edge cases, variations to handle, example inputs/outputs`,
+                    generic: `${levels.subtask}s = steps, components, or sub-elements needed to complete the ${levels.item}`
+                };
+                return guidance[pattern] || guidance.generic;
+            }
+
             // Pattern-specific extraction instructions
             function getPatternSpecificInstructions(pattern) {
                 const instructions = {
@@ -11617,9 +11663,10 @@ DEEP MODE INSTRUCTIONS - COMPREHENSIVE EXTRACTION
    → Extract ALL significant claims/arguments/features/sections
    → Each distinct idea/component/argument = separate item
 
-3. SUBTASKS: For complex items, add 1-5 subtasks (${levels.subtask}s)
-   → Supporting evidence, premises, sub-components
-   → NOT every item needs subtasks, but complex ones MUST have them
+3. SUBTASKS: Add 2-5 ${levels.subtask}s to items that need decomposition
+   → ${levels.subtask}s are pattern-specific breakdowns of each ${levels.item}
+   → ${getDeepModeSubtaskGuidance(pattern)}
+   → Only skip ${levels.subtask}s for truly atomic items that cannot be decomposed
 
 4. DEPTH: Go 3-4 levels deep in the hierarchy
    → Phase → Item → Subtask → (nested subtask if needed)
