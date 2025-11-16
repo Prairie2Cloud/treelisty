@@ -1384,6 +1384,7 @@
                     <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>
                     <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>
                     <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
+                    <option value="dialogue" data-desc="Rhetoric: Conversation → Speaker → Statement → Point">💬 Dialogue & Rhetoric</option>
                     <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
                 </select>
             </div>
@@ -1545,6 +1546,7 @@
                         <option value="philosophy" style="background: #1a1a2e; color: #ffffff;">🤔 Philosophy - Arguments & treatises</option>
                         <option value="prompting" style="background: #1a1a2e; color: #ffffff;">🧠 Prompt Engineering - AI prompts</option>
                         <option value="familytree" style="background: #1a1a2e; color: #ffffff;">👨‍👩‍👧‍👦 Family Tree - Genealogy</option>
+                        <option value="dialogue" style="background: #1a1a2e; color: #ffffff;">💬 Dialogue & Rhetoric - Debate analysis</option>
                     </select>
                     <div style="margin-top: 8px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
                         <strong style="color: var(--text-primary);">💡 Tip:</strong> Auto-detect lets AI analyze your text and recommend the best pattern. Or choose a specific pattern if you know what structure you want.
@@ -3148,6 +3150,27 @@ Provide a genealogical analysis covering:
 4. **Research Gaps** - What additional records or information should be sought?
 5. **Conflicting Data** - Are there any inconsistencies to resolve?
 6. **Recommendations** - Next steps for strengthening this family branch documentation`;
+
+                } else if (pattern.id === 'dialogue') {
+                    systemPrompt = `You are a rhetoric and argumentation expert specializing in debate analysis, logical fallacies, persuasive communication, and interpersonal psychology. Your expertise includes classical rhetoric (Aristotle, Cicero), modern argumentation theory, and political theater analysis.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Speaker:** ${item.speaker || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.verbatimQuote ? `**Verbatim Quote:** "${item.verbatimQuote}"\n` : ''}${item.rhetoricalDevice ? `**Rhetorical Device:** ${item.rhetoricalDevice}\n` : ''}${item.logicalStructure ? `**Logical Structure:** ${item.logicalStructure}\n` : ''}${item.fallaciesPresent ? `**Fallacies Identified:** ${item.fallaciesPresent}\n` : ''}${item.hiddenMotivation ? `**Hidden Motivation:** ${item.hiddenMotivation}\n` : ''}${item.emotionalTone ? `**Emotional Tone:** ${item.emotionalTone}\n` : ''}${item.evidenceQuality ? `**Evidence Quality:** ${item.evidenceQuality}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a rhetorical analysis covering:
+1. **Argument Strength** - Evaluate the logical validity and persuasive power of this statement
+2. **Rhetorical Techniques** - What persuasive devices are employed? How effective are they?
+3. **Logical Fallacies** - Identify any fallacies (ad hominem, straw man, false dichotomy, etc.) and their impact
+4. **Hidden Motivations** - What unstated goals or biases might be driving this argument?
+5. **Counterargument Strategy** - What would be the most effective rebuttal or opposing position?
+6. **Evidence Assessment** - How strong is the supporting evidence? What's missing?
+7. **Recommendations** - How could this argument be strengthened or how should an opponent respond?`;
 
                 } else {
                     // Generic/default pattern - PM and CFO perspective
@@ -5430,6 +5453,96 @@ const PATTERNS = {
             dnaInfo: { label: 'DNA/Genetic Info', type: 'textarea', placeholder: 'Haplogroup, DNA matches, test results...', helpText: '🧬 DNA test results, haplogroups, genetic markers' },
             sources: { label: 'Sources/Citations', type: 'textarea', placeholder: 'Documents, certificates, records...', helpText: '📄 Birth certificates, census records, documents' },
             relationshipType: { label: 'Relationship Type', type: 'select', options: ['Biological', 'Adopted', 'Step', 'Foster', 'Half-Sibling', 'Unknown'], helpText: '🔗 Type of family relationship' },
+            includeDependencies: true,
+            includeTracking: false
+        }
+    },
+    dialogue: {
+        name: 'Dialogue & Rhetoric',
+        icon: '💬',
+        levels: {
+            root: 'Conversation',
+            phase: 'Speaker',
+            item: 'Statement',
+            subtask: 'Point'
+        },
+        phaseSubtitles: ['Speaker A', 'Speaker B', 'Speaker C', 'Moderator'],
+        types: [
+            { value: 'logical', label: '🧠 Logical Argument' },
+            { value: 'emotional', label: '❤️ Emotional Appeal (Pathos)' },
+            { value: 'ethical', label: '⚖️ Ethical Appeal (Ethos)' },
+            { value: 'statistical', label: '📊 Statistical Evidence' },
+            { value: 'anecdotal', label: '📖 Anecdotal Evidence' },
+            { value: 'rhetorical-question', label: '❓ Rhetorical Question' },
+            { value: 'counterargument', label: '🔄 Counterargument' },
+            { value: 'deflection', label: '↩️ Deflection/Dodge' },
+            { value: 'concession', label: '🤝 Concession/Agreement' }
+        ],
+        description: 'Analyze conversations, debates, and rhetoric to uncover hidden logic, fallacies, and motivations',
+        fields: {
+            speaker: {
+                label: 'Speaker/Character',
+                type: 'text',
+                placeholder: 'e.g., Senator Jane Smith, John (protagonist), Anonymous commenter...',
+                helpText: '👤 Who is making this statement? Include role, title, or context if known'
+            },
+            verbatimQuote: {
+                label: 'Verbatim Quote',
+                type: 'textarea',
+                placeholder: 'Copy/paste the exact words spoken or written...',
+                helpText: '💬 The actual statement, word-for-word. Essential for accurate analysis of rhetoric and tone'
+            },
+            rhetoricalDevice: {
+                label: 'Rhetorical Device Used',
+                type: 'select',
+                options: ['Logos (Logic)', 'Pathos (Emotion)', 'Ethos (Credibility)', 'Kairos (Timing)', 'Metaphor', 'Analogy', 'Repetition', 'Hyperbole', 'Irony', 'Appeal to Authority', 'None'],
+                helpText: '🎭 Primary rhetorical technique used to persuade or communicate. Identify the dominant device'
+            },
+            logicalStructure: {
+                label: 'Logical Structure',
+                type: 'textarea',
+                placeholder: 'Premise 1: All experts agree...\nPremise 2: Dr. Chen is an expert...\nConclusion: Therefore, Dr. Chen\'s view is valid',
+                helpText: '🧩 Break down the argument into premises and conclusion. How does the speaker construct their logic?'
+            },
+            fallaciesPresent: {
+                label: 'Fallacies Present',
+                type: 'textarea',
+                placeholder: 'Ad hominem: Attacks opponent\'s character instead of argument\nStraw man: Misrepresents opponent\'s position...',
+                helpText: '⚠️ Identify any logical fallacies (ad hominem, straw man, slippery slope, false dichotomy, etc.) and explain how they appear'
+            },
+            hiddenMotivation: {
+                label: 'Hidden Motivation/Subtext',
+                type: 'textarea',
+                placeholder: 'Surface: Arguing for policy change\nHidden: Positioning for re-election, deflecting from scandal, protecting financial interests...',
+                helpText: '🔍 What unstated goals or motivations might underlie this statement? Consider political, financial, or personal incentives'
+            },
+            emotionalTone: {
+                label: 'Emotional Tone',
+                type: 'select',
+                options: ['Calm/Neutral', 'Passionate', 'Angry', 'Defensive', 'Condescending', 'Empathetic', 'Dismissive', 'Fearful', 'Confident', 'Sarcastic'],
+                helpText: '🎭 The emotional delivery and affect. How does tone enhance or undermine the message?'
+            },
+            counterargument: {
+                label: 'Strongest Counterargument',
+                type: 'textarea',
+                placeholder: 'The strongest rebuttal would be: "While the speaker claims X, evidence shows Y because..."',
+                helpText: '🔄 What is the most effective counter to this statement? Build the opposing case using logic and evidence'
+            },
+            evidenceQuality: {
+                label: 'Evidence Quality',
+                type: 'select',
+                options: ['Strong (Peer-reviewed, verified)', 'Moderate (Credible sources)', 'Weak (Anecdotal, unverified)', 'None (Opinion only)', 'Misleading (Cherry-picked data)'],
+                helpText: '📊 Assess the strength and credibility of any evidence or data cited. Is it rigorous or rhetorical?'
+            },
+            effectivenessRating: {
+                label: 'Persuasiveness Rating',
+                type: 'number',
+                min: 1,
+                max: 10,
+                step: 1,
+                placeholder: '7',
+                helpText: '🎯 Rate 1-10: How persuasive is this statement to the target audience? (1=unconvincing, 10=highly compelling)'
+            },
             includeDependencies: true,
             includeTracking: false
         }
@@ -7723,6 +7836,7 @@ function hidePatternDescription() {
                 event: 'You are a professional event planner with experience in corporate events, weddings, and large-scale conferences.',
                 strategy: 'You are a business strategy consultant specializing in strategic planning, KPI development, and organizational transformation.',
                 familytree: 'You are a professional genealogist and family historian specializing in genealogical research and family tree documentation.',
+                dialogue: 'You are a rhetoric and argumentation expert specializing in debate analysis, persuasive communication, and identifying logical fallacies.',
                 generic: 'You are an experienced Project Manager and CFO with deep expertise in budget management, resource allocation, risk mitigation, and financial planning for complex projects.'
             };
 
@@ -12491,6 +12605,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                     book: 'You are a professional fiction editor and writing coach. Review for narrative flow, character development, and pacing.',
                     film: 'You are a cinematographer and AI video generation expert (Sora, Veo, Runway). Review for visual storytelling, shot composition, and production feasibility.',
                     course: 'You are an instructional designer with expertise in curriculum development. Review for learning progression, assessment alignment, and instructional scaffolding.',
+                    dialogue: 'You are a debate coach and rhetoric expert specializing in argumentation theory, logical fallacies, and persuasive communication. Review for argument strength, rhetorical effectiveness, fallacy identification, and evidence quality.',
                     generic: `You are an expert ${pattern.name} analyst. Review the provided tree structure for completeness, redundancies, logical flow, and alignment with ${pattern.name} best practices.`
                 };
 
@@ -13023,6 +13138,7 @@ AVAILABLE PATTERNS:
 11. Philosophy - Philosophical arguments and treatises (Treatise → Book → Argument → Premise)
 12. Prompt Engineering - AI prompts and testing (Library → Category → Prompt → Test Case)
 13. Family Tree - Genealogical documentation (Family → Generation → Person → Event)
+14. Dialogue & Rhetoric - Analyze debates, conversations, and arguments (Conversation → Speaker → Statement → Point)
 
 TEXT TO ANALYZE:
 ${text.substring(0, 5000)}${text.length > 5000 ? '\n\n[... truncated for analysis ...]' : ''}
@@ -13031,6 +13147,9 @@ DETECTION HINTS:
 - If text contains prompt-related terms like "system prompt", "user prompt", "few-shot examples", "chain-of-thought", "temperature", "max tokens" → Prompt Engineering
 - If text looks like AI instructions or discusses prompt design → Prompt Engineering
 - If text mentions AI models (Claude, GPT, Anthropic, OpenAI) in context of prompting → Prompt Engineering
+- If text contains debate/dialogue terms like "speaker", "argument", "rhetoric", "fallacy", "premise", "counterargument", "rebuttal", "debate", "conversation" → Dialogue & Rhetoric
+- If text is a transcript of a conversation, political debate, or online discussion → Dialogue & Rhetoric
+- If text analyzes persuasion, argumentation, or rhetorical techniques → Dialogue & Rhetoric
 
 Respond with ONLY a valid JSON object in this exact format:
 {
@@ -13044,7 +13163,7 @@ Respond with ONLY a valid JSON object in this exact format:
   ]
 }
 
-Provide exactly 3 recommendations, ranked by confidence (1-10). Use these pattern keys: generic, sales, thesis, roadmap, book, event, fitness, strategy, course, film, philosophy, prompting, familytree`;
+Provide exactly 3 recommendations, ranked by confidence (1-10). Use these pattern keys: generic, sales, thesis, roadmap, book, event, fitness, strategy, course, film, philosophy, prompting, familytree, dialogue`;
 
             const response = await callClaudeAPI(prompt);
 

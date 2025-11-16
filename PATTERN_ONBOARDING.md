@@ -24,13 +24,14 @@
 
 TreeListy supports 13+ specialized patterns (Philosophy, Sales, Fitness, etc.) that customize the UI, terminology, fields, and AI behavior for different use cases.
 
-**Adding a new pattern requires 5 key integrations:**
+**Adding a new pattern requires 6 key integrations:**
 
-1. ✅ Pattern definition in `patterns` object
-2. ✅ AI Review expert persona
-3. ✅ AI Suggest expert persona
-4. ✅ AI Analysis pattern-specific prompt
-5. ✅ Pattern detection keywords (optional but recommended)
+1. ✅ Pattern definition in `PATTERNS` object
+2. ✅ Add to hardcoded UI dropdowns (2 locations)
+3. ✅ AI Review expert persona
+4. ✅ AI Suggest expert persona
+5. ✅ AI Analysis pattern-specific prompt
+6. ✅ Pattern detection keywords (optional but recommended)
 
 **Critical:** All 4 AI features MUST be pattern-aware or users will get generic CFO/PM advice regardless of pattern context.
 
@@ -94,7 +95,7 @@ patternKey: {
 
 ### Step 1: Define Pattern Object
 
-**Location:** `treeplexity.html` around line 5000-6000 (inside `const patterns = { ... }`)
+**Location:** `treeplexity.html` around line 5000-6000 (inside `const PATTERNS = { ... }`)
 
 **Template:**
 ```javascript
@@ -191,7 +192,65 @@ yourpattern: {
 
 ---
 
-### Step 2: Add AI Review Expert Persona
+### Step 2: Add Pattern to Hardcoded Dropdowns (CRITICAL!)
+
+**⚠️ IMPORTANT:** Pattern dropdowns are hardcoded in 2 locations. If you skip this step, your pattern won't appear in the UI!
+
+**Location 1: Main Pattern Selector** (around line 1373)
+
+Find this dropdown:
+```html
+<select class="pattern-select" id="pattern-select" title="Choose naming pattern">
+    <option value="generic" data-desc="Universal: Project → Phase → Item → Task">📋 Generic Project</option>
+    <option value="sales" data-desc="Sales: Pipeline → Quarter → Deal → Action">💼 Sales Pipeline</option>
+    <!-- ... more patterns ... -->
+    <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
+    <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
+</select>
+```
+
+Add your pattern **before** the `custom` option:
+```html
+<option value="yourpattern" data-desc="YourPattern: Root → Phase → Item → Subtask">🎯 Your Pattern Name</option>
+<option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
+```
+
+**Location 2: Analyze Text Pattern Selector** (around line 1534)
+
+Find this dropdown:
+```html
+<select id="analysis-pattern-select" style="...">
+    <option value="auto" style="...">🤖 Auto-detect (AI chooses best pattern)</option>
+    <option value="generic" style="...">📦 Generic Project - Universal structure</option>
+    <!-- ... more patterns ... -->
+    <option value="familytree" style="...">👨‍👩‍👧‍👦 Family Tree - Genealogy</option>
+</select>
+```
+
+Add your pattern at the end **before** the closing `</select>`:
+```html
+<option value="yourpattern" style="background: #1a1a2e; color: #ffffff;">🎯 Your Pattern Name - Brief description</option>
+</select>
+```
+
+**Example (Dialogue pattern):**
+```html
+<!-- Location 1 -->
+<option value="dialogue" data-desc="Rhetoric: Conversation → Speaker → Statement → Point">💬 Dialogue & Rhetoric</option>
+
+<!-- Location 2 -->
+<option value="dialogue" style="background: #1a1a2e; color: #ffffff;">💬 Dialogue & Rhetoric - Debate analysis</option>
+```
+
+**Tips:**
+- Use the same icon emoji in both dropdowns
+- Keep descriptions concise (under 40 characters)
+- Pattern `value` must match your pattern key exactly
+- Add your pattern alphabetically for organization (optional but recommended)
+
+---
+
+### Step 3: Add AI Review Expert Persona
 
 **Location:** `treeplexity.html` around line 12578 (inside `aiReview` function)
 
@@ -227,7 +286,7 @@ research: 'You are a research scientist with expertise in academic methodology a
 
 ---
 
-### Step 3: Add AI Suggest Expert Persona
+### Step 4: Add AI Suggest Expert Persona
 
 **Location:** `treeplexity.html` around line 7685 (inside `buildPatternExpertPrompt` function)
 
@@ -263,7 +322,7 @@ research: 'You are a research scientist specializing in experimental design and 
 
 ---
 
-### Step 4: Add AI Analysis Pattern-Specific Prompt
+### Step 5: Add AI Analysis Pattern-Specific Prompt
 
 **Location:** `treeplexity.html` around line 3076 (inside `generateAIAnalysis` function)
 
@@ -340,7 +399,7 @@ Provide a research analysis covering:
 
 ---
 
-### Step 5: Add Pattern Detection Keywords (Optional)
+### Step 6: Add Pattern Detection Keywords (Optional)
 
 **Location:** `treeplexity.html` around line 13070 (inside `detectPattern` function)
 
@@ -611,7 +670,9 @@ Quick reference for where to make changes:
 
 | Feature | File | Line Range | Object/Function |
 |---------|------|------------|-----------------|
-| Pattern Definition | `treeplexity.html` | ~5000-6000 | `const patterns = { ... }` |
+| Pattern Definition | `treeplexity.html` | ~5000-6000 | `const PATTERNS = { ... }` |
+| **Main Dropdown** | `treeplexity.html` | **~1373-1388** | **`<select id="pattern-select">`** |
+| **Analyze Dropdown** | `treeplexity.html` | **~1534-1549** | **`<select id="analysis-pattern-select">`** |
 | AI Review Persona | `treeplexity.html` | ~12578-12591 | `reviewExperts` object in `aiReview` |
 | AI Suggest Persona | `treeplexity.html` | ~7685-7698 | `expertPersonas` in `buildPatternExpertPrompt` |
 | AI Analysis Prompt | `treeplexity.html` | ~3076-3150 | if/else blocks in `generateAIAnalysis` |
@@ -619,7 +680,9 @@ Quick reference for where to make changes:
 | Pattern Icons | `treeplexity.html` | ~5000 | `icon` field in pattern definition |
 
 **Search Strings:**
-- Pattern definition: `const patterns = {`
+- Pattern definition: `const PATTERNS = {`
+- **Main dropdown: `<select class="pattern-select" id="pattern-select"`**
+- **Analyze dropdown: `<select id="analysis-pattern-select"`**
 - AI Review: `const reviewExperts = {`
 - AI Suggest: `const expertPersonas = {`
 - AI Analysis: `function generateAIAnalysis`
