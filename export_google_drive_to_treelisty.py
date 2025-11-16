@@ -15,6 +15,7 @@ The first time you run it, you'll be asked to authorize the app in your browser.
 """
 
 import os
+import sys
 import json
 from datetime import datetime
 from google.auth.transport.requests import Request
@@ -22,6 +23,10 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 from googleapiclient.errors import HttpError
+
+# Fix Windows console encoding for emoji support
+if sys.platform == 'win32':
+    sys.stdout.reconfigure(encoding='utf-8')
 
 # If modifying these scopes, delete the file token.json.
 SCOPES = ['https://www.googleapis.com/auth/drive.metadata.readonly']
