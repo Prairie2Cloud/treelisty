@@ -9,6 +9,7 @@
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
         :root {
+            /* Default Theme */
             --treeplex-primary: #6366f1;
             --treeplex-primary-dark: #4f46e5;
             --phase-0: #5FA463;
@@ -30,6 +31,69 @@
             --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
             --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
             --shadow-xl: 0 12px 40px rgba(0,0,0,0.6);
+        }
+
+        /* THEME: STEAMPUNK */
+        [data-theme="steampunk"] {
+            --treeplex-primary: #b8860b;
+            --treeplex-primary-dark: #8b6914;
+            --phase-0: #cd7f32;
+            --phase-0-light: #d4924e;
+            --phase-0-dark: #8b5a2b;
+            --phase-1: #b87333;
+            --phase-1-light: #d4924e;
+            --phase-1-dark: #8b4513;
+            --phase-2: #daa520;
+            --phase-2-light: #ffd700;
+            --phase-2-dark: #b8860b;
+            --text-primary: #f5deb3;
+            --text-secondary: #d2b48c;
+            --border: #8b4513;
+            --bg: #2b1810;
+            --card-bg: #3e2315;
+            --card-bg-light: #4a2817;
+        }
+
+        /* THEME: POWERPUFF GIRLS */
+        [data-theme="powerpuff"] {
+            --treeplex-primary: #ff6eb4;
+            --treeplex-primary-dark: #ff1493;
+            --phase-0: #ff69b4;
+            --phase-0-light: #ffb6d9;
+            --phase-0-dark: #c71585;
+            --phase-1: #87ceeb;
+            --phase-1-light: #b0e0e6;
+            --phase-1-dark: #4682b4;
+            --phase-2: #9acd32;
+            --phase-2-light: #c7ea46;
+            --phase-2-dark: #6b8e23;
+            --text-primary: #2d2d2d;
+            --text-secondary: #666666;
+            --border: #ffb6d9;
+            --bg: #fff0f5;
+            --card-bg: #ffffff;
+            --card-bg-light: #fffafd;
+        }
+
+        /* THEME: TRON */
+        [data-theme="tron"] {
+            --treeplex-primary: #00ffff;
+            --treeplex-primary-dark: #00d4d4;
+            --phase-0: #00ffff;
+            --phase-0-light: #66ffff;
+            --phase-0-dark: #00cccc;
+            --phase-1: #00d4ff;
+            --phase-1-light: #66e0ff;
+            --phase-1-dark: #0099cc;
+            --phase-2: #ff6600;
+            --phase-2-light: #ff9944;
+            --phase-2-dark: #cc5200;
+            --text-primary: #e0ffff;
+            --text-secondary: #7dd3ff;
+            --border: #00ffff;
+            --bg: #000000;
+            --card-bg: #0a0a0a;
+            --card-bg-light: #141414;
         }
 
         * {
@@ -1422,6 +1486,18 @@
                         <optgroup label="Disable AI Features">
                             <option value="off" title="Turn off all AI features">❌ Off</option>
                         </optgroup>
+                    </select>
+                </label>
+            </div>
+
+            <div class="control-section">
+                <label for="theme-select" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);">
+                    <span>🎨 Theme:</span>
+                    <select id="theme-select" class="btn" style="padding: 6px 10px; cursor: pointer; font-weight: 600; min-width: 160px;" title="Choose visual theme">
+                        <option value="default">🌙 Default</option>
+                        <option value="steampunk">⚙️ Steampunk</option>
+                        <option value="powerpuff">💗 Powerpuff</option>
+                        <option value="tron">💠 Tron</option>
                     </select>
                 </label>
             </div>
@@ -16763,6 +16839,57 @@ ${jsonText}`;
             console.log('Pattern selector event listener attached');
         } else {
             console.error('Pattern selector NOT found!');
+        }
+
+        // Initialize Theme Switcher
+        const themeSelect = document.getElementById('theme-select');
+        if (themeSelect) {
+            // Load saved theme from localStorage
+            const savedTheme = localStorage.getItem('treelisty-theme') || 'default';
+            document.documentElement.setAttribute('data-theme', savedTheme);
+            themeSelect.value = savedTheme;
+            console.log('Theme loaded:', savedTheme);
+
+            // Handle theme selection
+            themeSelect.addEventListener('change', function() {
+                const selectedTheme = this.value;
+                console.log('Theme changed to:', selectedTheme);
+
+                // Apply theme
+                document.documentElement.setAttribute('data-theme', selectedTheme);
+
+                // Save to localStorage
+                localStorage.setItem('treelisty-theme', selectedTheme);
+
+                // Show toast notification
+                const themeNames = {
+                    'default': '🌙 Default',
+                    'steampunk': '⚙️ Steampunk',
+                    'powerpuff': '💗 Powerpuff',
+                    'tron': '💠 Tron'
+                };
+                const toast = document.createElement('div');
+                toast.textContent = `Theme: ${themeNames[selectedTheme]}`;
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 80px;
+                    right: 20px;
+                    padding: 12px 24px;
+                    background: var(--card-bg);
+                    border: 2px solid var(--border);
+                    border-radius: 12px;
+                    color: var(--text-primary);
+                    font-weight: 600;
+                    font-size: 14px;
+                    z-index: 10000;
+                    box-shadow: var(--shadow-lg);
+                `;
+                document.body.appendChild(toast);
+
+                setTimeout(() => toast.remove(), 2000);
+            });
+
+            console.log('Theme switcher initialized');
         }
 
         // Initialize pan/zoom controls
