@@ -1393,6 +1393,7 @@
                 <button class="btn" id="analyze-text-btn" title="Analyze text to detect pattern and create tree structure" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔍 Analyze Text</button>
                 <button class="btn" id="wizard-btn" title="AI Wizard will guide you through building your tree" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600;">🪄 AI Wizard</button>
                 <button class="btn" id="ai-review-btn" title="AI reviews your tree for completeness, logic, and pattern alignment" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 600;">🔬 AI Review</button>
+                <button class="btn" id="auto-enhance-btn" title="Automatically run AI Review then enhance your tree (uses your selected AI for review, Sonnet for enhancement)" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔄 Auto-Enhance</button>
                 <button class="btn" id="generate-prompt-btn" title="Generate a complete prompt from your tree structure" style="background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 600;">📝 Generate Prompt</button>
             </div>
 
@@ -2005,6 +2006,9 @@ The AI will analyze the structure and convert it to a tree."
 
             <div class="modal-footer">
                 <button class="btn" id="wizard-cancel">Cancel</button>
+                <button class="btn" id="wizard-auto-enhance" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;" title="Automatically run AI Review then enhance your tree">
+                    🔄 Auto-Enhance
+                </button>
                 <button class="btn btn-primary" id="wizard-done" style="background: linear-gradient(135deg, #10b981, #059669);">
                     ✅ Finish & Apply
                 </button>
@@ -10449,6 +10453,123 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 document.getElementById('wizard-modal').style.display = 'none';
             }
         });
+
+        // Auto-Enhance: Run AI Review then enhance tree automatically
+        async function runAutoEnhance() {
+            // Check if tree has content
+            if (!hasExistingContent()) {
+                alert('⚠️ Your tree is empty.\n\nPlease add some content first, then use Auto-Enhance.');
+                return;
+            }
+
+            // Check if API key is configured
+            if (!checkAPIKeyConfigured()) {
+                return;
+            }
+
+            try {
+                // Open wizard modal first
+                document.getElementById('wizard-modal').style.display = 'flex';
+
+                // Show loading state in wizard
+                const chatHistory = document.getElementById('wizard-chat-history');
+                chatHistory.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div class="spinner" style="margin: 0 auto 20px;"></div>
+                        <p style="color: var(--text-secondary);">🔍 Step 1/2: Analyzing your tree for improvements...</p>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">Using your preferred AI model for review</p>
+                    </div>
+                `;
+
+                // Step 1: Run AI Review to get suggestions
+                const pattern = PATTERNS[currentPattern];
+                const tree = capexTree;
+                const reviewPrompt = buildReviewPrompt(tree, pattern);
+
+                // Get current AI mode (respect user's choice of Gemini or ChatGPT)
+                const currentAIMode = document.getElementById('unified-ai-mode-select').value;
+
+                // Use user's selected model for review
+                const reviewExperts = {
+                    philosophy: 'You are a philosophy professor specializing in classical and contemporary philosophical arguments. Review for logical validity, premise strength, and dialectical completeness.',
+                    sales: 'You are a sales strategist with 20 years of enterprise B2B experience. Review for pipeline health, deal qualification, and revenue optimization.',
+                    thesis: 'You are an academic advisor helping graduate students structure rigorous research. Review for argument progression, citation quality, and scholarly standards.',
+                    roadmap: 'You are a product manager experienced in agile development and feature prioritization. Review for execution readiness, story completeness, and technical feasibility.',
+                    prompting: 'You are an AI/ML engineer expert in prompt engineering for Claude, GPT-4, and other LLMs. Review for prompt clarity, few-shot example quality, output format specification, and edge case handling.',
+                    book: 'You are a professional fiction editor and writing coach. Review for narrative flow, character development, and pacing.',
+                    film: 'You are a cinematographer and AI video generation expert (Sora, Veo, Runway). Review for visual storytelling, shot composition, and production feasibility.',
+                    course: 'You are an instructional designer with expertise in curriculum development. Review for learning progression, assessment alignment, and instructional scaffolding.',
+                    dialogue: 'You are a debate coach and rhetoric expert specializing in argumentation theory, logical fallacies, and persuasive communication. Review for argument strength, rhetorical effectiveness, fallacy identification, and evidence quality.',
+                    generic: `You are an expert ${pattern.name} analyst. Review the provided tree structure for completeness, redundancies, logical flow, and alignment with ${pattern.name} best practices.`
+                };
+
+                const expertPersona = reviewExperts[currentPattern] || reviewExperts.generic;
+
+                console.log(`🔄 Auto-Enhance: Running AI Review with ${currentAIMode}...`);
+
+                const reviewResponse = await callClaudeAPI(
+                    reviewPrompt,
+                    expertPersona + ' Provide specific, actionable suggestions.',
+                    4096,
+                    false // No extended thinking for faster review
+                );
+
+                // Extract improvements section
+                const improvements = extractSection(reviewResponse, 'IMPROVEMENTS');
+
+                if (!improvements) {
+                    alert('❌ No improvements were suggested.\n\nYour tree appears complete!');
+                    document.getElementById('wizard-modal').style.display = 'none';
+                    return;
+                }
+
+                console.log('✅ Got improvements:', improvements.substring(0, 200) + '...');
+
+                // Step 2: Start wizard in enhance mode with improvements
+                chatHistory.innerHTML = `
+                    <div style="text-align: center; padding: 40px;">
+                        <div class="spinner" style="margin: 0 auto 20px;"></div>
+                        <p style="color: var(--text-secondary);">✨ Step 2/2: Starting enhancement wizard...</p>
+                        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">Using Sonnet for high-quality enhancements</p>
+                    </div>
+                `;
+
+                // Force Sonnet for wizard enhancements (better quality)
+                const originalAIMode = currentAIMode;
+                document.getElementById('unified-ai-mode-select').value = 'server-sonnet';
+
+                // Start wizard in enhance mode
+                await startWizard(true); // true = enhance mode
+
+                // Restore original AI mode selection
+                document.getElementById('unified-ai-mode-select').value = originalAIMode;
+
+                // Automatically send improvements as first message
+                setTimeout(() => {
+                    const userInput = document.getElementById('wizard-user-input');
+                    const sendBtn = document.getElementById('wizard-send');
+
+                    userInput.value = improvements;
+                    sendBtn.click();
+                }, 500);
+
+                console.log('🔄 Auto-Enhance workflow started successfully!');
+
+            } catch (error) {
+                console.error('❌ Auto-Enhance error:', error);
+                alert(`❌ Auto-Enhance failed:\n\n${error.message}`);
+
+                // Clear loading state and close modal
+                document.getElementById('wizard-chat-history').innerHTML = '';
+                document.getElementById('wizard-modal').style.display = 'none';
+            }
+        }
+
+        // Toolbar button handler
+        document.getElementById('auto-enhance-btn').addEventListener('click', runAutoEnhance);
+
+        // Wizard footer button handler
+        document.getElementById('wizard-auto-enhance').addEventListener('click', runAutoEnhance);
 
         // =============================================================================
         // GENERATE PROMPT SYSTEM
