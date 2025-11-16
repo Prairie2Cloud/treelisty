@@ -1134,6 +1134,185 @@
                 width: 100%;
             }
         }
+
+    /* ===================================================== */
+    /* CANVAS VIEW STYLES */
+    /* ===================================================== */
+
+    .tree-view-container {
+        display: block;
+    }
+
+    .tree-view-container.hidden {
+        display: none !important;
+    }
+
+    .canvas-container {
+        display: none;
+        position: fixed;
+        top: 140px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg);
+        overflow: hidden;
+        cursor: grab;
+    }
+
+    .canvas-container.active {
+        display: block;
+    }
+
+    .canvas-container.grabbing {
+        cursor: grabbing;
+    }
+
+    #canvas {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        transform-origin: 0 0;
+    }
+
+    .canvas-connections {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .canvas-nodes-layer {
+        position: relative;
+        z-index: 2;
+    }
+
+    .canvas-node {
+        position: absolute;
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 16px;
+        min-width: 280px;
+        max-width: 320px;
+        cursor: grab;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+        z-index: 10;
+    }
+
+    .canvas-node:hover {
+        transform: translateY(-3px) scale(1.02);
+        filter: brightness(1.1);
+    }
+
+    .canvas-node.dragging {
+        cursor: grabbing;
+        opacity: 0.9;
+        z-index: 1000;
+        transform: scale(1.05);
+    }
+
+    .canvas-node.selected {
+        border-color: var(--treeplex-primary) !important;
+        box-shadow:
+            0 8px 32px rgba(99, 102, 241, 0.4),
+            0 4px 16px rgba(99, 102, 241, 0.3),
+            0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+        transform: translateY(-2px);
+    }
+
+    .phase-zone {
+        position: absolute;
+        border: 3px dashed;
+        border-radius: 20px;
+        padding: 20px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .phase-zone-header {
+        font-weight: 700;
+        font-size: 18px;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    /* Colored phase zones - vibrant colors */
+    .phase-0 {
+        border-color: #3B82F6;
+        background: rgba(59, 130, 246, 0.08);
+    }
+    .phase-1 {
+        border-color: #F59E0B;
+        background: rgba(245, 158, 11, 0.08);
+    }
+    .phase-2 {
+        border-color: #10B981;
+        background: rgba(16, 185, 129, 0.08);
+    }
+    .phase-3 {
+        border-color: #8B5CF6;
+        background: rgba(139, 92, 246, 0.08);
+    }
+    .phase-4 {
+        border-color: #EC4899;
+        background: rgba(236, 72, 153, 0.08);
+    }
+    .phase-5 {
+        border-color: #06B6D4;
+        background: rgba(6, 182, 212, 0.08);
+    }
+
+    /* Grid overlay */
+    .canvas-grid {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .canvas-grid.active {
+        opacity: 1;
+    }
+
+    .canvas-toolbar.active {
+        display: flex !important;
+    }
+
+    .canvas-toolbar button:hover {
+        background: rgba(99, 102, 241, 0.3) !important;
+        border-color: rgba(99, 102, 241, 0.6) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .canvas-toolbar button:active {
+        transform: translateY(0);
+    }
+
+    .canvas-toolbar select:hover {
+        background: rgba(99, 102, 241, 0.25) !important;
+        border-color: rgba(99, 102, 241, 0.6) !important;
+    }
+
+    .canvas-toolbar select option {
+        background: #1a1a2e;
+        color: #ffffff;
+        padding: 10px;
+        font-weight: 600;
+    }
+
+    .canvas-toolbar select option:hover {
+        background: rgba(99, 102, 241, 0.4);
+    }
+
     </style>
     <!-- SheetJS library for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -1166,6 +1345,12 @@
         </div>
         <div class="controls">
             <div class="control-section">
+                <!-- View Mode Toggle -->
+                <button class="btn" id="toggle-view-mode" title="Switch between Tree and Canvas views" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                    <span id="view-mode-icon">🎨</span>
+                    <span id="view-mode-text">Canvas View</span>
+                </button>
+
                 <button class="btn" id="new-project-btn" style="background: linear-gradient(135deg, #059669, #10b981);" title="Start a new project">🆕 New</button>
                 <button class="btn" id="save-json-btn" title="Save project as JSON">💾 Save</button>
                 <button class="btn" id="load-json-btn" title="Load project from JSON">📂 Load</button>
@@ -1259,6 +1444,9 @@
         <div class="zoom-level" id="zoom-level">100%</div>
     </div>
 
+    <!-- Tree View Container -->
+    <div class="tree-view-container">
+
     <!-- Tree -->
     <div class="tree-container" id="tree-container">
         <div class="tree-transform-wrapper" id="tree-transform-wrapper">
@@ -1266,6 +1454,8 @@
             <div class="tree" id="tree-root"></div>
         </div>
     </div>
+
+    </div><!-- /tree-view-container -->
 
     <!-- Info Panel -->
     <div class="info-panel" id="info-panel">
@@ -1332,6 +1522,32 @@
                         <div style="margin-top: 12px; padding: 10px; background: rgba(0, 0, 0, 0.2); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
                             <strong style="color: var(--text-primary);">💡 Tip:</strong> Change AI mode in the header (🤖 AI Mode dropdown) to switch between Quick, Deep, or Off.
                         </div>
+                    </div>
+                </div>
+
+                <!-- Pattern Selection -->
+                <div style="margin-bottom: 24px; padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
+                        📐 Pattern Selection
+                    </label>
+                    <select id="analysis-pattern-select" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: #1a1a2e; color: #ffffff; font-size: 14px; cursor: pointer;">
+                        <option value="auto" style="background: #1a1a2e; color: #ffffff;">🤖 Auto-detect (AI chooses best pattern)</option>
+                        <option value="generic" style="background: #1a1a2e; color: #ffffff;">📦 Generic Project - Universal structure</option>
+                        <option value="sales" style="background: #1a1a2e; color: #ffffff;">💼 Sales Pipeline - Deal tracking</option>
+                        <option value="thesis" style="background: #1a1a2e; color: #ffffff;">📚 Academic Writing - Research papers</option>
+                        <option value="roadmap" style="background: #1a1a2e; color: #ffffff;">🗺️ Product Roadmap - Feature timeline</option>
+                        <option value="book" style="background: #1a1a2e; color: #ffffff;">📖 Book Writing - Narrative structure</option>
+                        <option value="event" style="background: #1a1a2e; color: #ffffff;">🎉 Event Planning - Event logistics</option>
+                        <option value="fitness" style="background: #1a1a2e; color: #ffffff;">💪 Fitness Program - Workout plans</option>
+                        <option value="strategy" style="background: #1a1a2e; color: #ffffff;">🎯 Strategic Plan - Business initiatives</option>
+                        <option value="course" style="background: #1a1a2e; color: #ffffff;">🎓 Course Design - Curriculum structure</option>
+                        <option value="film" style="background: #1a1a2e; color: #ffffff;">🎬 Film Production - Video workflow</option>
+                        <option value="philosophy" style="background: #1a1a2e; color: #ffffff;">🤔 Philosophy - Arguments & treatises</option>
+                        <option value="prompting" style="background: #1a1a2e; color: #ffffff;">🧠 Prompt Engineering - AI prompts</option>
+                        <option value="familytree" style="background: #1a1a2e; color: #ffffff;">👨‍👩‍👧‍👦 Family Tree - Genealogy</option>
+                    </select>
+                    <div style="margin-top: 8px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                        <strong style="color: var(--text-primary);">💡 Tip:</strong> Auto-detect lets AI analyze your text and recommend the best pattern. Or choose a specific pattern if you know what structure you want.
                     </div>
                 </div>
 
@@ -1563,7 +1779,186 @@ The AI will analyze the structure and convert it to a tree."
                         transform: translateX(0);
                     }
                 }
-            </style>
+        
+    /* ===================================================== */
+    /* CANVAS VIEW STYLES */
+    /* ===================================================== */
+
+    .tree-view-container {
+        display: block;
+    }
+
+    .tree-view-container.hidden {
+        display: none !important;
+    }
+
+    .canvas-container {
+        display: none;
+        position: fixed;
+        top: 140px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg);
+        overflow: hidden;
+        cursor: grab;
+    }
+
+    .canvas-container.active {
+        display: block;
+    }
+
+    .canvas-container.grabbing {
+        cursor: grabbing;
+    }
+
+    #canvas {
+        width: 100%;
+        height: 100%;
+        position: relative;
+        transform-origin: 0 0;
+    }
+
+    .canvas-connections {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 1;
+    }
+
+    .canvas-nodes-layer {
+        position: relative;
+        z-index: 2;
+    }
+
+    .canvas-node {
+        position: absolute;
+        background: var(--card-bg);
+        border-radius: 12px;
+        padding: 16px;
+        min-width: 280px;
+        max-width: 320px;
+        cursor: grab;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+        z-index: 10;
+    }
+
+    .canvas-node:hover {
+        transform: translateY(-3px) scale(1.02);
+        filter: brightness(1.1);
+    }
+
+    .canvas-node.dragging {
+        cursor: grabbing;
+        opacity: 0.9;
+        z-index: 1000;
+        transform: scale(1.05);
+    }
+
+    .canvas-node.selected {
+        border-color: var(--treeplex-primary) !important;
+        box-shadow:
+            0 8px 32px rgba(99, 102, 241, 0.4),
+            0 4px 16px rgba(99, 102, 241, 0.3),
+            0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+        transform: translateY(-2px);
+    }
+
+    .phase-zone {
+        position: absolute;
+        border: 3px dashed;
+        border-radius: 20px;
+        padding: 20px;
+        pointer-events: none;
+        z-index: 0;
+    }
+
+    .phase-zone-header {
+        font-weight: 700;
+        font-size: 18px;
+        margin-bottom: 12px;
+        color: var(--text-primary);
+        text-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    }
+
+    /* Colored phase zones - vibrant colors */
+    .phase-0 {
+        border-color: #3B82F6;
+        background: rgba(59, 130, 246, 0.08);
+    }
+    .phase-1 {
+        border-color: #F59E0B;
+        background: rgba(245, 158, 11, 0.08);
+    }
+    .phase-2 {
+        border-color: #10B981;
+        background: rgba(16, 185, 129, 0.08);
+    }
+    .phase-3 {
+        border-color: #8B5CF6;
+        background: rgba(139, 92, 246, 0.08);
+    }
+    .phase-4 {
+        border-color: #EC4899;
+        background: rgba(236, 72, 153, 0.08);
+    }
+    .phase-5 {
+        border-color: #06B6D4;
+        background: rgba(6, 182, 212, 0.08);
+    }
+
+    /* Grid overlay */
+    .canvas-grid {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 0;
+        opacity: 0;
+        transition: opacity 0.3s;
+    }
+
+    .canvas-grid.active {
+        opacity: 1;
+    }
+
+    .canvas-toolbar.active {
+        display: flex !important;
+    }
+
+    .canvas-toolbar button:hover {
+        background: rgba(99, 102, 241, 0.3) !important;
+        border-color: rgba(99, 102, 241, 0.6) !important;
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+    }
+
+    .canvas-toolbar button:active {
+        transform: translateY(0);
+    }
+
+    .canvas-toolbar select:hover {
+        background: rgba(99, 102, 241, 0.25) !important;
+        border-color: rgba(99, 102, 241, 0.6) !important;
+    }
+
+    .canvas-toolbar select option {
+        background: #1a1a2e;
+        color: #ffffff;
+        padding: 10px;
+        font-weight: 600;
+    }
+
+    .canvas-toolbar select option:hover {
+        background: rgba(99, 102, 241, 0.4);
+    }
+
+    </style>
             <div class="modal-header">
                 <span id="wizard-title">🪄 AI Wizard - Building Your Project</span>
             </div>
@@ -2082,22 +2477,31 @@ The AI will analyze the structure and convert it to a tree."
         async function callClaudeDirectAPI(requestData, apiKey) {
             console.log('🚀 Direct API: Calling Anthropic Claude directly (no Netlify timeout)');
 
-            const response = await fetch(AI_CONFIG.directEndpoint, {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'x-api-key': apiKey,
-                    'anthropic-version': '2023-06-01'
-                },
-                body: JSON.stringify(requestData)
-            });
+            try {
+                const response = await fetch(AI_CONFIG.directEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': apiKey,
+                        'anthropic-version': '2023-06-01'
+                    },
+                    body: JSON.stringify(requestData)
+                });
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
-                throw new Error(error.error?.message || `Claude API error: ${response.status}`);
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error?.message || `Claude API error: ${response.status}`);
+                }
+
+                return response;
+            } catch (error) {
+                // CORS errors show as "Failed to fetch" or TypeError
+                if (error.message === 'Failed to fetch' || error.name === 'TypeError') {
+                    console.error('❌ CORS Error: Browser blocked direct API call to api.anthropic.com');
+                    throw new Error('Failed to fetch'); // Re-throw for upstream handling
+                }
+                throw error;
             }
-
-            return response;
         }
 
         // Helper: Direct API call to Google Gemini
@@ -2271,122 +2675,155 @@ The AI will analyze the structure and convert it to a tree."
 
             let response;
 
-            // Try Netlify function first (has CORS support, works everywhere)
-            console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
+            // DEEP MODE OPTIMIZATION: Skip Netlify and use direct API to avoid 10s timeout
+            if (useExtendedThinking && localApiKey) {
+                console.log('🧠 Deep Mode: Using direct API (no timeout limit)');
+                try {
+                    response = await callClaudeDirectAPI(requestData, localApiKey);
+                    console.log('✅ Direct API successful (Deep Mode)');
+                } catch (directError) {
+                    console.error('❌ Direct API failed:', directError);
 
-            const netlifyRequestBody = {
-                ...requestData,
-                // Include local API key if available (Netlify function will use it)
-                userApiKey: localApiKey || undefined
-            };
-
-            // Add timeout to prevent hanging on Netlify's 10s function limit
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 9000); // 9s timeout (before Netlify's 10s)
-
-            try {
-                response = await fetch(AI_CONFIG.apiEndpoint, {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify(netlifyRequestBody),
-                    signal: controller.signal
-                });
-                clearTimeout(timeoutId);
-            } catch (fetchError) {
-                clearTimeout(timeoutId);
-
-                // AUTOMATIC FALLBACK: If timeout AND user has API key, try direct API
-                if (fetchError.name === 'AbortError' && localApiKey) {
-                    console.warn('⚠️ Netlify timeout detected. Falling back to direct API (no timeout limit)...');
-                    try {
-                        response = await callClaudeDirectAPI(requestData, localApiKey);
-                        console.log('✅ Direct API fallback successful!');
-                    } catch (directError) {
-                        console.error('❌ Direct API fallback failed:', directError);
-                        throw new Error(`Netlify timeout AND direct API failed. Error: ${directError.message}`);
+                    // Check if this is a CORS error (running from file://)
+                    if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
+                        throw new Error(`Deep Mode requires direct API access, but browser blocked the request (CORS policy).\n\n💡 Solutions:\n1. Deploy to a web server (Netlify/Vercel) for full Deep Mode support\n2. Use Fast Mode (⚡) which works from local files via Netlify proxy\n3. For now: Export tree to JSON and use Claude.ai directly`);
                     }
-                } else if (fetchError.name === 'AbortError') {
-                    // Timeout but no user API key - can't fallback
-                    throw new Error('Request timeout - Netlify function took too long (>9s). Add your API key (🔑 button) to enable automatic fallback to direct API with no timeout limit.');
-                } else {
-                    throw fetchError;
+                    throw directError;
                 }
-            }
+            } else if (useExtendedThinking && !localApiKey) {
+                // Deep mode but no API key
+                throw new Error('Deep Mode requires your API key to avoid Netlify timeout limits.\n\nPlease add your Anthropic API key (🔑 button) or switch to Fast Mode (⚡).');
+            } else {
+                // FAST MODE or no extended thinking: Use Netlify function (has 10s limit but works everywhere)
+                console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
 
-            if (!response.ok) {
-                const error = await response.json().catch(() => ({}));
+                const netlifyRequestBody = {
+                    ...requestData,
+                    // Include local API key if available (Netlify function will use it)
+                    userApiKey: localApiKey || undefined
+                };
 
-                // Log detailed error info for debugging
-                console.error('❌ AI API Error Details:', {
-                    status: response.status,
-                    statusText: response.statusText,
-                    usingLocalKey: !!localApiKey,
-                    error: error
-                });
+                // Add timeout to prevent hanging on Netlify's 10s function limit
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 9000); // 9s timeout (before Netlify's 10s)
 
-                // Check for common errors
-                if (response.status === 0 || !response.status) {
-                    throw new Error('Cannot connect to AI service. Please check your internet connection.');
-                }
-                if (response.status === 401) {
-                    if (localApiKey) {
-                        clearLocalAPIKey();
-                        throw new Error('Invalid API key. Please check your Anthropic API key and try again.');
-                    }
-                    throw new Error('Authentication failed. Please configure your API key.');
-                }
-                if (response.status === 404) {
-                    throw new Error('Netlify function not found (404). The serverless function may not be deployed.');
-                }
-                if (response.status === 504) {
-                    // Gateway timeout from Netlify
-                    if (localApiKey) {
-                        // Fallback to direct API if user has key
-                        console.warn('⚠️ Netlify 504 timeout. Falling back to direct API...');
+                try {
+                    response = await fetch(AI_CONFIG.apiEndpoint, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify(netlifyRequestBody),
+                        signal: controller.signal
+                    });
+                    clearTimeout(timeoutId);
+                } catch (fetchError) {
+                    clearTimeout(timeoutId);
+
+                    // AUTOMATIC FALLBACK: If timeout AND user has API key, try direct API
+                    if (fetchError.name === 'AbortError' && localApiKey) {
+                        console.warn('⚠️ Netlify timeout detected. Falling back to direct API (no timeout limit)...');
                         try {
                             response = await callClaudeDirectAPI(requestData, localApiKey);
-                            console.log('✅ Direct API fallback successful after 504!');
-                            // Exit error handling - response is now successful
+                            console.log('✅ Direct API fallback successful!');
                         } catch (directError) {
                             console.error('❌ Direct API fallback failed:', directError);
-                            throw new Error(`Netlify 504 timeout AND direct API failed. Error: ${directError.message}`);
+
+                            // Check if this is a CORS error (common when running from file:// or localhost)
+                            if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
+                                throw new Error(`Netlify timeout AND direct API failed. Error: Failed to fetch (CORS)`);
+                            }
+
+                            throw new Error(`Netlify timeout AND direct API failed. Error: ${directError.message}`);
                         }
+                    } else if (fetchError.name === 'AbortError') {
+                        // Timeout but no user API key - can't fallback
+                        throw new Error('Request timeout - Netlify function took too long (>9s). Add your API key (🔑 button) to enable automatic fallback to direct API with no timeout limit.');
                     } else {
-                        throw new Error('Netlify function timeout (504). Add your API key (🔑 button) to enable automatic fallback to direct API.');
+                        throw fetchError;
                     }
                 }
 
-                // If response is now ok (after fallback), skip remaining error checks
-                if (response.ok) {
-                    // Continue to response parsing below
-                } else if (response.status === 429) {
-                    // Rate limit - retry with exponential backoff
-                    if (retryCount < MAX_RETRIES) {
-                        const delay = Math.pow(2, retryCount) * 3000; // 3s, 6s
-                        console.log(`🔄 Rate limit hit. Retrying in ${delay/1000} seconds... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
-                    }
-                    throw new Error('Rate limit exceeded. Please wait a moment and try again.');
-                } else if (response.status === 529) {
-                    // API overloaded - retry with exponential backoff
-                    if (retryCount < MAX_RETRIES) {
-                        const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s
-                        console.log(`🔄 API overloaded. Retrying in ${delay/1000} seconds... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
-                        await new Promise(resolve => setTimeout(resolve, delay));
-                        return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
-                    }
-                    throw new Error('Anthropic API is temporarily overloaded. Please wait 10-30 seconds and try again.');
-                } else if (response.status === 500 && error.error?.message?.includes('configuration')) {
-                    throw new Error('AI service is not configured. Please set up your API key.');
-                } else {
-                    // Generic error
-                    throw new Error(error.error?.message || `AI Service Error: ${response.status}`);
-                }
-            }
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
 
+                    // Log detailed error info for debugging
+                    console.error('❌ AI API Error Details:', {
+                        status: response.status,
+                        statusText: response.statusText,
+                        usingLocalKey: !!localApiKey,
+                        error: error
+                    });
+
+                    // Check for common errors
+                    if (response.status === 0 || !response.status) {
+                        throw new Error('Cannot connect to AI service. Please check your internet connection.');
+                    }
+                    if (response.status === 401) {
+                        if (localApiKey) {
+                            clearLocalAPIKey();
+                            throw new Error('Invalid API key. Please check your Anthropic API key and try again.');
+                        }
+                        throw new Error('Authentication failed. Please configure your API key.');
+                    }
+                    if (response.status === 404) {
+                        throw new Error('Netlify function not found (404). The serverless function may not be deployed.');
+                    }
+                    if (response.status === 504) {
+                        // Gateway timeout from Netlify
+                        if (localApiKey) {
+                            // Fallback to direct API if user has key
+                            console.warn('⚠️ Netlify 504 timeout. Falling back to direct API...');
+                            try {
+                                response = await callClaudeDirectAPI(requestData, localApiKey);
+                                console.log('✅ Direct API fallback successful after 504!');
+                                // Exit error handling - response is now successful
+                            } catch (directError) {
+                                console.error('❌ Direct API fallback failed:', directError);
+
+                                // Check if this is a CORS error
+                                if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
+                                    throw new Error(`Netlify 504 timeout AND direct API failed. Error: Failed to fetch (CORS)`);
+                                }
+
+                                throw new Error(`Netlify 504 timeout AND direct API failed. Error: ${directError.message}`);
+                            }
+                        } else {
+                            throw new Error('Netlify function timeout (504). Add your API key (🔑 button) to enable automatic fallback to direct API.');
+                        }
+                    }
+
+                    // If response is now ok (after fallback), skip remaining error checks
+                    if (response.ok) {
+                        // Continue to response parsing below
+                    } else if (response.status === 429) {
+                        // Rate limit - retry with exponential backoff
+                        if (retryCount < MAX_RETRIES) {
+                            const delay = Math.pow(2, retryCount) * 3000; // 3s, 6s
+                            console.log(`🔄 Rate limit hit. Retrying in ${delay/1000} seconds... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
+                        }
+                        throw new Error('Rate limit exceeded. Please wait a moment and try again.');
+                    } else if (response.status === 529) {
+                        // API overloaded - retry with exponential backoff
+                        if (retryCount < MAX_RETRIES) {
+                            const delay = Math.pow(2, retryCount) * 2000; // 2s, 4s
+                            console.log(`🔄 API overloaded. Retrying in ${delay/1000} seconds... (attempt ${retryCount + 1}/${MAX_RETRIES})`);
+                            await new Promise(resolve => setTimeout(resolve, delay));
+                            return callClaudeAPI(prompt, systemPrompt, maxTokens, useExtendedThinking, retryCount + 1);
+                        }
+                        throw new Error('Anthropic API is temporarily overloaded. Please wait 10-30 seconds and try again.');
+                    } else if (response.status === 500 && error.error?.message?.includes('configuration')) {
+                        throw new Error('AI service is not configured. Please set up your API key.');
+                    } else {
+                        // Generic error
+                        throw new Error(error.error?.message || `AI Service Error: ${response.status}`);
+                    }
+                }
+            } // End of Fast Mode (Netlify) path
+
+            // Common response handling (works for both Deep Mode direct API and Fast Mode Netlify)
             const data = await response.json();
             console.log('✅ AI analysis successful');
             console.log('API Response data:', data);
@@ -2636,25 +3073,101 @@ Provide a pedagogical analysis covering:
 5. **Prerequisites** - Are dependencies and prior knowledge appropriate?
 6. **Recommendations** - How to improve learning outcomes`;
 
-                } else {
-                    // Generic/default pattern
-                    systemPrompt = `You are a senior project analyst specializing in project decomposition and planning. Provide insights on project structure, execution strategy, and best practices.`;
+                } else if (pattern.id === 'fitness') {
+                    systemPrompt = `You are a certified personal trainer and exercise physiologist with expertise in program design, exercise science, progressive overload, and injury prevention.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
 
 **${levels.item}:** ${item.name}
 **Type:** ${item.itemType || 'N/A'}
 **Description:** ${item.description || 'N/A'}
-${pattern.fields?.cost ? `**Cost:** $${(item.cost || 0).toLocaleString()}\n` : ''}${pattern.fields?.leadTime ? `**Lead Time:** ${item.leadTime || 'Not specified'}\n` : ''}${pattern.fields?.alternateSource ? `**Alternate Source:** ${item.alternateSource || 'Not specified'}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+${item.targetMuscleGroups ? `**Target Muscles:** ${item.targetMuscleGroups}\n` : ''}${item.sets ? `**Sets:** ${item.sets}\n` : ''}${item.reps ? `**Reps:** ${item.reps}\n` : ''}${item.restTime ? `**Rest:** ${item.restTime}\n` : ''}${item.intensity ? `**Intensity:** ${item.intensity}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a fitness analysis covering:
+1. **Exercise Selection** - Are exercises appropriate for the training goal?
+2. **Volume & Intensity** - Are sets, reps, and intensity optimized for progression?
+3. **Progressive Overload** - Is the program structured for strength/endurance gains?
+4. **Injury Prevention** - Are there any form cues or mobility prerequisites needed?
+5. **Recovery** - Is rest time and workout spacing appropriate?
+6. **Recommendations** - How to optimize this workout for better results`;
+
+                } else if (pattern.id === 'event') {
+                    systemPrompt = `You are a professional event planner with experience in corporate events, weddings, and large-scale conferences, specializing in logistics, vendor coordination, and timeline management.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.venue ? `**Venue:** ${item.venue}\n` : ''}${item.attendeeCount ? `**Attendees:** ${item.attendeeCount}\n` : ''}${item.startTime ? `**Start Time:** ${item.startTime}\n` : ''}${item.duration ? `**Duration:** ${item.duration}\n` : ''}${item.vendor ? `**Vendor:** ${item.vendor}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide an event planning analysis covering:
+1. **Timeline Feasibility** - Is the activity appropriately scheduled and paced?
+2. **Logistics** - Are venue, equipment, and vendor requirements clear?
+3. **Guest Experience** - How does this contribute to attendee satisfaction?
+4. **Dependencies** - Are setup/breakdown and sequential activities properly coordinated?
+5. **Contingency Planning** - What backup plans are needed for this activity?
+6. **Recommendations** - How to improve execution and guest experience`;
+
+                } else if (pattern.id === 'strategy') {
+                    systemPrompt = `You are a business strategy consultant specializing in strategic planning, KPI development, organizational transformation, and competitive positioning.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.kpi ? `**KPI:** ${item.kpi}\n` : ''}${item.targetValue ? `**Target:** ${item.targetValue}\n` : ''}${item.currentValue ? `**Current:** ${item.currentValue}\n` : ''}${item.owner ? `**Owner:** ${item.owner}\n` : ''}${item.timeframe ? `**Timeframe:** ${item.timeframe}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a strategic analysis covering:
+1. **Strategic Alignment** - Does this initiative support the overall strategic pillar?
+2. **KPI Quality** - Are metrics measurable, achievable, and meaningful?
+3. **Resource Requirements** - What capabilities or investments are needed?
+4. **Dependencies** - Are prerequisite initiatives or decisions identified?
+5. **Risk Assessment** - What could prevent success and how to mitigate?
+6. **Recommendations** - How to maximize strategic impact`;
+
+                } else if (pattern.id === 'familytree') {
+                    systemPrompt = `You are a professional genealogist and family historian specializing in genealogical research, family tree documentation, and historical record analysis.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${item.birthDate ? `**Birth:** ${item.birthDate}\n` : ''}${item.deathDate ? `**Death:** ${item.deathDate}\n` : ''}${item.birthPlace ? `**Birth Place:** ${item.birthPlace}\n` : ''}${item.occupation ? `**Occupation:** ${item.occupation}\n` : ''}${item.spouse ? `**Spouse:** ${item.spouse}\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
+**Notes:** ${item.notes || 'None'}
+
+Provide a genealogical analysis covering:
+1. **Record Completeness** - Are key vital records (birth, death, marriage) documented?
+2. **Source Quality** - Are sources reliable and properly cited?
+3. **Relationship Verification** - Are family connections well-supported by evidence?
+4. **Research Gaps** - What additional records or information should be sought?
+5. **Conflicting Data** - Are there any inconsistencies to resolve?
+6. **Recommendations** - Next steps for strengthening this family branch documentation`;
+
+                } else {
+                    // Generic/default pattern - PM and CFO perspective
+                    systemPrompt = `You are an experienced Project Manager and CFO with deep expertise in budget management, resource allocation, risk mitigation, and financial planning for complex projects. Provide strategic insights on cost optimization, timeline management, and delivery excellence.`;
+
+                    userPrompt = `Analyze this ${levels.item.toLowerCase()}:
+
+**${levels.item}:** ${item.name}
+**Type:** ${item.itemType || 'N/A'}
+**Description:** ${item.description || 'N/A'}
+${pattern.fields?.cost ? `**Cost:** $${(item.cost || 0).toLocaleString()}\n` : ''}${pattern.fields?.leadTime ? `**Lead Time:** ${item.leadTime || 'Not specified'}\n` : ''}${pattern.fields?.alternateSource ? `**Alternate Source:** ${item.alternateSource || 'Not specified'}\n` : ''}${item.pmRAGStatus ? `**RAG Status:** ${item.pmRAGStatus}\n` : ''}${item.pmOwnerEmail ? `**Owner:** ${item.pmOwnerEmail}\n` : ''}${item.pmEstimatedHours ? `**Estimated Hours:** ${item.pmEstimatedHours}h\n` : ''}${item.pmActualHours ? `**Actual Hours:** ${item.pmActualHours}h\n` : ''}**Dependencies:** ${item.dependencies?.length > 0 ? item.dependencies.join(', ') : 'None'}
 **Notes:** ${item.notes || 'None provided'}
 
-Provide a focused analysis covering:
-1. **Risk Assessment** - Key risks and mitigation strategies
-2. **Optimization Opportunities** - Ways to improve efficiency or reduce cost
-3. **Execution Strategy** - Recommended approach for successful completion
-4. **Timeline Considerations** - Critical path impacts and scheduling concerns
-5. **Context & Benchmarks** - Industry standards or typical approaches
-6. **Recommendations** - 2-3 actionable next steps with clear rationale`;
+From a PM and CFO perspective, provide analysis covering:
+1. **Financial Health** - Budget status, cost drivers, burn rate concerns, ROI considerations
+2. **Risk Assessment** - Financial risks, schedule risks, resource constraints, mitigation strategies
+3. **Time & Resource Management** - Timeline realism, resource allocation efficiency, critical path impacts
+4. **Vendor & Procurement** - Supplier reliability, alternate source evaluation, contract considerations
+5. **Stakeholder & Governance** - Approval gates, change management, reporting requirements
+6. **Strategic Recommendations** - 2-3 actionable steps to improve delivery, reduce cost, or mitigate risk`;
                 }
 
             } else if (analysisType === 'project') {
@@ -2989,6 +3502,1277 @@ Focus on logical structure and content organization best practices.`;
                 }
             ]
         };
+
+        // =====================================================================
+        // CANVAS VIEW INTEGRATION
+        // =====================================================================
+
+        let viewMode = 'tree';
+        let canvasNodes = [];
+        let canvasPan = { x: 0, y: 0 };
+        let canvasZoom = 1;
+        let isPanningCanvas = false;
+        let isDraggingCanvasNode = false;
+        let draggedCanvasNode = null;
+        let dragStartX = 0;
+        let dragStartY = 0;
+        let panStartX = 0;
+        let panStartY = 0;
+        let maxExpandedDepth = Infinity;  // Track how deep we're currently showing
+        let gridEnabled = false;
+        const gridSize = 40;  // Grid snap size
+
+        function toggleViewMode() {
+            viewMode = viewMode === 'tree' ? 'canvas' : 'tree';
+
+            if (viewMode === 'canvas') {
+                console.log('🎨 Switching to Canvas View');
+                document.getElementById('view-mode-icon').textContent = '📊';
+                document.getElementById('view-mode-text').textContent = 'Tree View';
+                document.querySelector('.tree-view-container').classList.add('hidden');
+                document.getElementById('canvas-container').classList.add('active');
+
+                const toolbar = document.getElementById('canvas-toolbar');
+                if (toolbar) {
+                    toolbar.classList.add('active');
+                    console.log('✅ Canvas toolbar activated');
+                } else {
+                    console.error('❌ Canvas toolbar not found!');
+                }
+
+                // Migrate coordinates if needed
+                if (!capexTree.children[0]?.items[0]?.canvasX) {
+                    migrateToCanvasCoordinates();
+                } else {
+                    // Even if coordinates exist, ensure expanded state is initialized
+                    capexTree.children.forEach(phase => {
+                        phase.items?.forEach(item => {
+                            initializeExpandedState(item);
+                        });
+                    });
+                }
+
+                // Initialize arrow markers first time
+                initializeArrowMarkers();
+
+                renderCanvas();
+                updateZoomDisplay();
+                console.log('✅ Canvas View ready');
+            } else {
+                console.log('📊 Switching to Tree View');
+                document.getElementById('view-mode-icon').textContent = '🎨';
+                document.getElementById('view-mode-text').textContent = 'Canvas View';
+                document.querySelector('.tree-view-container').classList.remove('hidden');
+                document.getElementById('canvas-container').classList.remove('active');
+
+                const toolbar = document.getElementById('canvas-toolbar');
+                if (toolbar) {
+                    toolbar.classList.remove('active');
+                }
+
+                render();
+                console.log('✅ Tree View ready');
+            }
+        }
+
+        function migrateToCanvasCoordinates() {
+            let xOffset = 200;
+            const ySpacing = 180;
+
+            capexTree.children.forEach((phase, phaseIdx) => {
+                let yOffset = 100;
+                phase.items?.forEach((item) => {
+                    item.canvasX = xOffset + 50;
+                    item.canvasY = yOffset;
+                    yOffset += ySpacing;
+
+                    // Ensure all items with subItems have expanded state initialized
+                    initializeExpandedState(item);
+                });
+                xOffset += 400;
+            });
+        }
+
+        // Recursively initialize expanded state for all items with children
+        function initializeExpandedState(item) {
+            if (item.subItems && item.subItems.length > 0) {
+                // Default to expanded if not explicitly set
+                if (item.expanded === undefined) {
+                    item.expanded = true;
+                    console.log('Initializing expanded=true for:', item.name);
+                }
+
+                // Recursively initialize for all descendants
+                item.subItems.forEach(subItem => {
+                    initializeExpandedState(subItem);
+                });
+            }
+        }
+
+        function renderCanvas() {
+            const canvas = document.getElementById('canvas');
+            const svg = document.getElementById('canvas-connections');
+
+            // Clear existing content
+            canvas.querySelectorAll('.canvas-node').forEach(n => n.remove());
+            svg.innerHTML = '';
+            canvasNodes = [];
+
+            // Render all nodes recursively
+            capexTree.children.forEach((phase, phaseIdx) => {
+                phase.items?.forEach((item) => {
+                    renderNodeAndDescendants(item, phase, null, 0);
+                });
+            });
+
+            // Draw connection lines after all nodes are positioned
+            drawConnections();
+            updateCanvasTransform();
+        }
+
+        // Recursive function to render a node and all its descendants
+        function renderNodeAndDescendants(node, phase, parentNode, nestingLevel) {
+            // Check if parent is collapsed - if so, don't render this node
+            if (parentNode && parentNode.expanded === false) {
+                return;  // Parent is collapsed, skip this node
+            }
+
+            // Render this node with hierarchical depth
+            renderCanvasNode(node, phase, parentNode, nestingLevel);
+
+            // Recursively render all subtasks only if this node is expanded (or has no explicit state)
+            if (node.subItems && node.subItems.length > 0) {
+                // Default to expanded if not set
+                if (node.expanded === undefined) {
+                    node.expanded = true;
+                }
+
+                node.subItems.forEach((subtask, subIdx) => {
+                    // Auto-position subtasks based on nesting level
+                    if (!subtask.canvasX) {
+                        // Each nesting level moves further right
+                        subtask.canvasX = (node.canvasX || 0) + 350;
+                        subtask.canvasY = (node.canvasY || 0) + (subIdx * 120);
+                    }
+
+                    // Recursively render this subtask and its descendants
+                    renderNodeAndDescendants(subtask, phase, node, nestingLevel + 1);
+                });
+            }
+        }
+
+        function drawConnections() {
+            const svg = document.getElementById('canvas-connections');
+            svg.innerHTML = '';
+
+            // Recursively draw connections for all nodes
+            capexTree.children.forEach(phase => {
+                phase.items?.forEach(item => {
+                    drawNodeConnections(item);
+                });
+            });
+        }
+
+        // Recursive function to draw connections for a node and its descendants
+        function drawNodeConnections(node) {
+            // Only draw connections if this node is expanded (showing children)
+            if (node.expanded !== false && node.subItems && node.subItems.length > 0) {
+                node.subItems.forEach(subtask => {
+                    // Only draw line if subtask is actually visible
+                    if (isNodeVisible(subtask.id)) {
+                        drawConnection(
+                            node.canvasX + 160, node.canvasY + 60,      // From parent center-right
+                            subtask.canvasX, subtask.canvasY + 60,      // To subtask center-left
+                            'rgba(99, 102, 241, 0.5)',                  // Purple for parent-child
+                            'solid'
+                        );
+                    }
+
+                    // Recursively draw connections for this subtask's descendants
+                    drawNodeConnections(subtask);
+                });
+            }
+
+            // Draw lines for dependencies only if both nodes are visible
+            if (node.dependencies && node.dependencies.length > 0) {
+                node.dependencies.forEach(depId => {
+                    const depNode = canvasNodes.find(n => n.data.id === depId);
+                    if (depNode && depNode.data) {
+                        // Only draw if both the dependency and this node are visible
+                        if (isNodeVisible(depId) && isNodeVisible(node.id)) {
+                            drawConnection(
+                                depNode.data.canvasX + 160, depNode.data.canvasY + 60,  // From dependency
+                                node.canvasX, node.canvasY + 60,                        // To dependent item
+                                'rgba(239, 68, 68, 0.4)',                               // Red for dependencies
+                                'dashed'
+                            );
+                        }
+                    }
+                });
+            }
+        }
+
+        function drawConnection(x1, y1, x2, y2, color, style = 'solid') {
+            const svg = document.getElementById('canvas-connections');
+
+            // Create curved path (Bezier curve)
+            const midX = (x1 + x2) / 2;
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+
+            // Curved line from x1,y1 to x2,y2
+            const d = `M ${x1} ${y1} Q ${midX} ${y1}, ${midX} ${(y1 + y2) / 2} T ${x2} ${y2}`;
+
+            path.setAttribute('d', d);
+            path.setAttribute('stroke', color);
+            path.setAttribute('stroke-width', '2');
+            path.setAttribute('fill', 'none');
+            if (style === 'dashed') {
+                path.setAttribute('stroke-dasharray', '5,5');
+            }
+
+            // Add arrow marker
+            path.setAttribute('marker-end', 'url(#arrowhead-' + style + ')');
+
+            svg.appendChild(path);
+        }
+
+        // Initialize arrow markers for SVG
+        function initializeArrowMarkers() {
+            const svg = document.getElementById('canvas-connections');
+
+            // Define arrow markers
+            const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+
+            // Solid arrow (for parent-child)
+            const solidMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            solidMarker.setAttribute('id', 'arrowhead-solid');
+            solidMarker.setAttribute('markerWidth', '10');
+            solidMarker.setAttribute('markerHeight', '10');
+            solidMarker.setAttribute('refX', '9');
+            solidMarker.setAttribute('refY', '3');
+            solidMarker.setAttribute('orient', 'auto');
+            const solidPath = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            solidPath.setAttribute('points', '0 0, 10 3, 0 6');
+            solidPath.setAttribute('fill', 'rgba(99, 102, 241, 0.5)');
+            solidMarker.appendChild(solidPath);
+
+            // Dashed arrow (for dependencies)
+            const dashedMarker = document.createElementNS('http://www.w3.org/2000/svg', 'marker');
+            dashedMarker.setAttribute('id', 'arrowhead-dashed');
+            dashedMarker.setAttribute('markerWidth', '10');
+            dashedMarker.setAttribute('markerHeight', '10');
+            dashedMarker.setAttribute('refX', '9');
+            dashedMarker.setAttribute('refY', '3');
+            dashedMarker.setAttribute('orient', 'auto');
+            const dashedPath = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+            dashedPath.setAttribute('points', '0 0, 10 3, 0 6');
+            dashedPath.setAttribute('fill', 'rgba(239, 68, 68, 0.4)');
+            dashedMarker.appendChild(dashedPath);
+
+            defs.appendChild(solidMarker);
+            defs.appendChild(dashedMarker);
+            svg.appendChild(defs);
+        }
+
+        function showCanvasContextMenu(x, y, item) {
+            console.log('Showing canvas context menu for:', item.name);
+
+            // Remove any existing context menu
+            const existing = document.getElementById('canvas-context-menu');
+            if (existing) existing.remove();
+
+            // Create context menu
+            const menu = document.createElement('div');
+            menu.id = 'canvas-context-menu';
+            menu.style.cssText = `
+                position: fixed;
+                left: ${x}px;
+                top: ${y}px;
+                background: var(--card-bg);
+                border: 2px solid var(--border);
+                border-radius: 8px;
+                padding: 8px;
+                z-index: 10000;
+                box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+                min-width: 200px;
+            `;
+
+            const menuItems = [
+                { label: '✏️ Edit Details', action: () => {
+                    console.log('Edit Details clicked for:', item.name);
+                    activeNode = item;
+
+                    // Call TreeListy's native handleEdit function
+                    if (typeof handleEdit === 'function') {
+                        console.log('Calling TreeListy handleEdit function');
+                        handleEdit();
+                    } else {
+                        console.error('handleEdit function not found!');
+                    }
+                }},
+                { label: '➕ Add Subtask', action: () => {
+                    console.log('Add Subtask clicked for:', item.name);
+                    activeNode = item;
+
+                    if (!item.subItems) item.subItems = [];
+                    const newSubtask = {
+                        id: 'subtask-' + Date.now(),
+                        name: 'New Subtask',
+                        type: 'subtask',
+                        description: '',
+                        pmStatus: 'To Do',
+                        pmProgress: 0,
+                        pmRAGStatus: 'Amber',
+                        pmPriority: 'Medium',
+                        icon: '📋',
+                        itemType: 'Feature'  // Add itemType to match pattern
+                    };
+                    item.subItems.push(newSubtask);
+
+                    // Set the new subtask as active and open edit
+                    activeNode = newSubtask;
+
+                    // Save state for undo before opening edit
+                    if (typeof saveState === 'function') {
+                        saveState('Add subtask');
+                    }
+
+                    if (typeof handleEdit === 'function') {
+                        console.log('Opening edit for new subtask');
+                        handleEdit();
+
+                        // Re-render canvas AFTER modal closes (when user saves)
+                        // Listen for modal close event
+                        const modal = document.getElementById('edit-modal');
+                        const renderOnClose = () => {
+                            if (modal.style.display === 'none') {
+                                console.log('Edit modal closed, re-rendering canvas');
+                                renderCanvas();
+                                modal.removeEventListener('DOMSubtreeModified', renderOnClose);
+                            }
+                        };
+
+                        // Watch for modal close
+                        setTimeout(() => {
+                            const observer = new MutationObserver((mutations) => {
+                                mutations.forEach((mutation) => {
+                                    if (mutation.attributeName === 'style') {
+                                        if (modal.style.display === 'none') {
+                                            console.log('Edit modal closed, re-rendering canvas');
+                                            renderCanvas();
+                                            observer.disconnect();
+                                        }
+                                    }
+                                });
+                            });
+                            observer.observe(modal, { attributes: true });
+                        }, 100);
+                    }
+                }},
+                { label: '💡 Smart Suggest', action: () => {
+                    activeNode = item;
+                    alert('Smart Suggest: Use the Edit dialog to access AI-powered field suggestions');
+                }},
+                { label: '🤖 AI Analysis', action: () => {
+                    activeNode = item;
+                    alert('AI Analysis: This feature analyzes the item with AI. Access via Edit dialog AI buttons.');
+                }},
+                { label: '📊 Show Info Panel', action: () => {
+                    console.log('Show Info Panel clicked for:', item.name);
+                    activeNode = item;
+
+                    // Call TreeListy's showInfo function
+                    if (typeof showInfo === 'function') {
+                        console.log('Calling TreeListy showInfo function');
+                        showInfo(item);
+                    } else {
+                        console.error('showInfo function not found!');
+                    }
+                }},
+                { label: '🗑️ Delete Item', action: () => {
+                    console.log('Delete clicked for:', item.name);
+                    activeNode = item;
+
+                    // Call TreeListy's native handleDelete function
+                    if (typeof handleDelete === 'function') {
+                        console.log('Calling TreeListy handleDelete function');
+                        handleDelete();
+                        // Re-render canvas after deletion
+                        renderCanvas();
+                    } else {
+                        console.error('handleDelete function not found!');
+                    }
+                }}
+            ];
+
+            menuItems.forEach(menuItem => {
+                const btn = document.createElement('button');
+                btn.textContent = menuItem.label;
+                btn.style.cssText = `
+                    display: block;
+                    width: 100%;
+                    padding: 10px 12px;
+                    background: transparent;
+                    border: none;
+                    color: var(--text-primary);
+                    text-align: left;
+                    cursor: pointer;
+                    border-radius: 4px;
+                    font-size: 14px;
+                    margin-bottom: 4px;
+                `;
+                btn.onmouseover = () => btn.style.background = 'var(--treeplex-primary)';
+                btn.onmouseout = () => btn.style.background = 'transparent';
+                btn.onclick = (e) => {
+                    console.log('Context menu button clicked:', menuItem.label);
+                    e.preventDefault();
+                    e.stopPropagation();
+
+                    // Execute action first
+                    try {
+                        menuItem.action();
+                    } catch (error) {
+                        console.error('Error executing menu action:', error);
+                    }
+
+                    // Remove menu after a tiny delay to ensure action completes
+                    setTimeout(() => menu.remove(), 10);
+                };
+                menu.appendChild(btn);
+            });
+
+            document.body.appendChild(menu);
+
+            // Close menu on click outside
+            setTimeout(() => {
+                const closeMenu = (e) => {
+                    // Don't close if clicking inside the menu
+                    if (menu.contains(e.target)) {
+                        console.log('Click inside menu, not closing');
+                        return;
+                    }
+                    console.log('Click outside menu, closing');
+                    menu.remove();
+                    document.removeEventListener('click', closeMenu);
+                };
+                document.addEventListener('click', closeMenu);
+            }, 100);
+
+            // Also close on Escape key
+            const handleEscape = (e) => {
+                if (e.key === 'Escape') {
+                    menu.remove();
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
+        }
+
+        function renderCanvasNode(item, phase, parentItem = null, nestingLevel = 0) {
+            const canvas = document.getElementById('canvas');
+            const node = document.createElement('div');
+            node.className = 'canvas-node';
+
+            // Calculate hierarchical shadow based on nesting level
+            // Level 0 (root items): High elevation (big shadow)
+            // Level 1+ (subtasks): Lower elevation (smaller shadow)
+            const shadowIntensity = Math.max(0, 5 - nestingLevel);  // 5, 4, 3, 2, 1, 0
+            const shadowBlur = 8 + (shadowIntensity * 4);  // 8-28px blur
+            const shadowSpread = shadowIntensity * 2;  // 0-10px spread
+            const shadowOffset = 2 + (shadowIntensity * 2);  // 2-12px offset
+
+            node.style.boxShadow = `
+                0 ${shadowOffset}px ${shadowBlur}px rgba(0, 0, 0, 0.3),
+                0 ${shadowOffset / 2}px ${shadowBlur / 2}px rgba(99, 102, 241, ${0.1 + shadowIntensity * 0.05})
+            `;
+
+            // Add visual distinction for subtasks
+            if (parentItem || item.type === 'subtask') {
+                node.style.border = '2px dashed rgba(99, 102, 241, 0.4)';
+                node.style.opacity = '0.95';
+            } else {
+                // Root items get solid border with glow
+                node.style.border = '2px solid rgba(99, 102, 241, 0.3)';
+            }
+
+            node.style.left = `${item.canvasX}px`;
+            node.style.top = `${item.canvasY}px`;
+            node.dataset.itemId = item.id;
+            node.dataset.nestingLevel = nestingLevel;
+            node.title = 'Left-click: Info | Double-click: Edit | Right-click: Menu | Middle-click: Drag';
+
+            // Add collapse/expand indicator if node has children
+            let expandIndicator = '';
+            if (item.subItems && item.subItems.length > 0) {
+                const isExpanded = item.expanded !== false;
+                const indicatorIcon = isExpanded ? '▼' : '▶';
+                expandIndicator = `<div style="position: absolute; top: 8px; right: 8px; font-size: 12px; cursor: pointer; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 4px; user-select: none;" class="expand-indicator" data-item-id="${item.id}">${indicatorIcon} ${item.subItems.length}</div>`;
+            }
+
+            // RAG status indicator
+            let ragHtml = '';
+            if (item.pmRAGStatus) {
+                const ragColors = { Green: '#22C55E', Amber: '#F59E0B', Red: '#EF4444' };
+                const ragColor = ragColors[item.pmRAGStatus];
+                ragHtml = `<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${ragColor}; margin-left: 8px; box-shadow: 0 0 6px ${ragColor}80;"></span>`;
+            }
+
+            // Cost badge
+            let costHtml = '';
+            if (item.cost) {
+                const costStr = item.cost >= 1000000 ? `$${(item.cost/1000000).toFixed(1)}M` :
+                               item.cost >= 1000 ? `$${(item.cost/1000).toFixed(0)}K` :
+                               `$${item.cost}`;
+                costHtml = `<span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(34, 197, 94, 0.2); color: #22C55E;">${costStr}</span>`;
+            }
+
+            // Type badge
+            let typeHtml = '';
+            if (item.itemType) {
+                typeHtml = `<span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; background: rgba(99, 102, 241, 0.2); color: var(--treeplex-primary);">${item.itemType}</span>`;
+            }
+
+            // Progress indicator
+            let progressHtml = '';
+            if (item.pmProgress) {
+                progressHtml = `<div style="margin-top: 8px; background: rgba(255,255,255,0.1); height: 4px; border-radius: 2px; overflow: hidden;">
+                    <div style="background: var(--treeplex-primary); height: 100%; width: ${item.pmProgress}%;"></div>
+                </div>`;
+            }
+
+            node.innerHTML = `
+                ${expandIndicator}
+                <div style="display: flex; gap: 12px; margin-bottom: 12px;">
+                    <div style="font-size: 24px;">${item.icon || '📦'}</div>
+                    <div style="flex: 1;">
+                        <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">
+                            ${item.name}${ragHtml}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
+                            ${(item.description || 'No description').substring(0, 100)}${item.description?.length > 100 ? '...' : ''}
+                        </div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                    ${typeHtml}
+                    ${costHtml}
+                    ${item.pmOwnerEmail ? `<span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; background: rgba(255,255,255,0.1);">👤 ${item.pmOwnerEmail.split('@')[0]}</span>` : ''}
+                </div>
+                ${progressHtml}
+            `;
+
+            // Add expand/collapse handler
+            const expandBtn = node.querySelector('.expand-indicator');
+            if (expandBtn) {
+                expandBtn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    item.expanded = !item.expanded;
+                    console.log('Toggling expand for:', item.name, 'expanded:', item.expanded);
+                    renderCanvas();
+                });
+            }
+
+            // Left-click to show info panel (same as Tree View)
+            node.addEventListener('click', (e) => {
+                console.log('Left-click detected on:', item.name);
+                e.stopPropagation();
+
+                // Set as active node
+                activeNode = item;
+
+                // Highlight selected node
+                document.querySelectorAll('.canvas-node').forEach(n => n.classList.remove('selected'));
+                node.classList.add('selected');
+
+                // Call TreeListy's showInfo function to populate the panel
+                if (typeof showInfo === 'function') {
+                    console.log('Calling TreeListy showInfo function');
+                    showInfo(item);
+                } else {
+                    console.error('showInfo function not found!');
+                }
+            });
+
+            // Double-click to edit (HIGHEST PRIORITY)
+            node.addEventListener('dblclick', (e) => {
+                console.log('Double-click detected on:', item.name);
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Cancel any drag that might have started
+                isDraggingCanvasNode = false;
+                draggedCanvasNode = null;
+                node.classList.remove('dragging');
+
+                // Set active node and call TreeListy's edit function
+                activeNode = item;
+                console.log('Opening edit dialog for:', item.name);
+
+                if (typeof handleEdit === 'function') {
+                    console.log('Calling TreeListy handleEdit function');
+                    handleEdit();
+                } else {
+                    console.error('handleEdit function not found!');
+                }
+            });
+
+            // Right-click context menu
+            node.addEventListener('contextmenu', (e) => {
+                console.log('Right-click detected on:', item.name);
+                e.preventDefault();
+                e.stopPropagation();
+
+                // Cancel any drag
+                isDraggingCanvasNode = false;
+                draggedCanvasNode = null;
+                node.classList.remove('dragging');
+
+                activeNode = item;
+
+                // Show simple inline context menu
+                showCanvasContextMenu(e.pageX, e.pageY, item);
+            });
+
+            // Drag with MIDDLE MOUSE BUTTON (button 1)
+            node.addEventListener('mousedown', (e) => {
+                // Only handle middle-click (button 1) for dragging
+                if (e.button === 1) {
+                    console.log('Middle-click drag activated for:', item.name);
+                    e.preventDefault(); // Prevent browser's middle-click scroll
+                    e.stopPropagation();
+
+                    isDraggingCanvasNode = true;
+                    draggedCanvasNode = item;
+                    const containerRect = document.getElementById('canvas-container').getBoundingClientRect();
+                    dragStartX = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x - item.canvasX;
+                    dragStartY = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y - item.canvasY;
+                    node.classList.add('dragging');
+                }
+                // Left-click (button 0) and right-click (button 2) are free for other uses
+            });
+
+            canvas.appendChild(node);
+            canvasNodes.push({ element: node, data: item, phase: phase });
+        }
+
+        function updateCanvasTransform() {
+            const canvas = document.getElementById('canvas');
+            if (canvas) {
+                canvas.style.transform = `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasZoom})`;
+            }
+            updateZoomDisplay();
+        }
+
+        function updateZoomDisplay() {
+            const zoomLevel = document.getElementById('zoom-level');
+            if (zoomLevel) {
+                zoomLevel.textContent = Math.round(canvasZoom * 100) + '%';
+            }
+        }
+
+        function resetView() {
+            canvasPan = { x: 0, y: 0 };
+            canvasZoom = 1;
+            updateCanvasTransform();
+        }
+
+        function fitToView() {
+            if (canvasNodes.length === 0) return;
+
+            // Find bounding box of all nodes
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+
+            canvasNodes.forEach(({ data }) => {
+                minX = Math.min(minX, data.canvasX);
+                minY = Math.min(minY, data.canvasY);
+                maxX = Math.max(maxX, data.canvasX + 320);  // node width
+                maxY = Math.max(maxY, data.canvasY + 120);  // node height
+            });
+
+            const container = document.getElementById('canvas-container');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            const contentWidth = maxX - minX + 200;  // padding
+            const contentHeight = maxY - minY + 200;
+
+            const scaleX = containerWidth / contentWidth;
+            const scaleY = containerHeight / contentHeight;
+            canvasZoom = Math.min(scaleX, scaleY, 1);  // Don't zoom in beyond 100%
+
+            // Center the content
+            const centerX = (minX + maxX) / 2;
+            const centerY = (minY + maxY) / 2;
+            canvasPan.x = containerWidth / 2 - centerX * canvasZoom;
+            canvasPan.y = containerHeight / 2 - centerY * canvasZoom;
+
+            updateCanvasTransform();
+        }
+
+        function snapToGrid(value) {
+            if (!gridEnabled) return value;
+            return Math.round(value / gridSize) * gridSize;
+        }
+
+        function toggleGrid() {
+            gridEnabled = !gridEnabled;
+            const gridBtn = document.getElementById('grid-toggle');
+            const gridSvg = document.getElementById('canvas-grid');
+
+            if (gridBtn) {
+                if (gridEnabled) {
+                    gridBtn.style.background = 'rgba(99, 102, 241, 0.6)';
+                    gridBtn.style.borderColor = 'rgba(99, 102, 241, 0.8)';
+                    gridBtn.style.color = 'white';
+                } else {
+                    gridBtn.style.background = 'rgba(99, 102, 241, 0.1)';
+                    gridBtn.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                    gridBtn.style.color = 'var(--text-primary)';
+                }
+            }
+
+            if (gridSvg) {
+                gridSvg.style.opacity = gridEnabled ? '1' : '0';
+            }
+
+            console.log('Grid:', gridEnabled ? 'ON (visible + snapping)' : 'OFF');
+        }
+
+        // Auto-layout algorithms
+        function applyAutoLayout(layoutType) {
+            console.log('Applying layout:', layoutType);
+
+            if (layoutType === 'hierarchical') {
+                applyHierarchicalLayout();
+            } else if (layoutType === 'timeline') {
+                applyTimelineLayout();
+            } else if (layoutType === 'force') {
+                applyForceDirectedLayout();
+            } else if (layoutType === 'radial') {
+                applyRadialLayout();
+            } else if (layoutType === 'grid') {
+                applyGridLayout();
+            }
+
+            renderCanvas();
+            fitToView();
+        }
+
+        function applyHierarchicalLayout() {
+            let currentY = 100;
+            const levelGap = 250;
+            const nodeGap = 350;
+
+            capexTree.children.forEach((phase, phaseIdx) => {
+                let currentX = 200;
+
+                phase.items?.forEach((item) => {
+                    item.canvasX = currentX;
+                    item.canvasY = currentY;
+
+                    // Layout subtasks to the right and down
+                    layoutSubtasksHierarchical(item, currentX + nodeGap, currentY, 1);
+
+                    currentX += nodeGap;
+                });
+
+                currentY += levelGap;
+            });
+        }
+
+        function layoutSubtasksHierarchical(item, startX, startY, level) {
+            if (!item.subItems || item.subItems.length === 0) return;
+
+            let currentY = startY;
+            const verticalGap = 140;
+
+            item.subItems.forEach((subtask, idx) => {
+                subtask.canvasX = startX;
+                subtask.canvasY = currentY;
+
+                layoutSubtasksHierarchical(subtask, startX + 350, currentY, level + 1);
+
+                currentY += verticalGap;
+            });
+        }
+
+        function applyTimelineLayout() {
+            let currentX = 200;
+            const xGap = 400;
+            let currentY = 100;
+
+            capexTree.children.forEach((phase) => {
+                phase.items?.forEach((item) => {
+                    item.canvasX = currentX;
+                    item.canvasY = currentY;
+
+                    // Layout subtasks vertically below
+                    if (item.subItems) {
+                        let subY = currentY + 150;
+                        item.subItems.forEach(subtask => {
+                            subtask.canvasX = currentX;
+                            subtask.canvasY = subY;
+                            subY += 140;
+                        });
+                    }
+
+                    currentX += xGap;
+                });
+            });
+        }
+
+        function applyGridLayout() {
+            const cols = 4;
+            const nodeWidth = 350;
+            const nodeHeight = 180;
+            let index = 0;
+
+            capexTree.children.forEach((phase) => {
+                phase.items?.forEach((item) => {
+                    const col = index % cols;
+                    const row = Math.floor(index / cols);
+
+                    item.canvasX = 100 + col * nodeWidth;
+                    item.canvasY = 100 + row * nodeHeight;
+
+                    index++;
+
+                    // Layout subtasks in continuation of grid
+                    if (item.subItems) {
+                        item.subItems.forEach(subtask => {
+                            index++;
+                            const col = index % cols;
+                            const row = Math.floor(index / cols);
+                            subtask.canvasX = 100 + col * nodeWidth;
+                            subtask.canvasY = 100 + row * nodeHeight;
+                        });
+                    }
+                });
+            });
+        }
+
+        function applyRadialLayout() {
+            const centerX = 600;
+            const centerY = 400;
+            const radius = 300;
+            let totalItems = 0;
+
+            // Count items
+            capexTree.children.forEach(phase => {
+                totalItems += phase.items?.length || 0;
+            });
+
+            let index = 0;
+
+            capexTree.children.forEach((phase) => {
+                phase.items?.forEach((item) => {
+                    const angle = (index / totalItems) * Math.PI * 2;
+                    item.canvasX = centerX + Math.cos(angle) * radius;
+                    item.canvasY = centerY + Math.sin(angle) * radius;
+
+                    // Place subtasks further out
+                    if (item.subItems) {
+                        item.subItems.forEach((subtask, subIdx) => {
+                            const subAngle = angle + (subIdx * 0.2);
+                            subtask.canvasX = centerX + Math.cos(subAngle) * (radius + 200);
+                            subtask.canvasY = centerY + Math.sin(subAngle) * (radius + 200);
+                        });
+                    }
+
+                    index++;
+                });
+            });
+        }
+
+        function applyForceDirectedLayout() {
+            // Simple force-directed layout simulation
+            const iterations = 100;
+            const repulsion = 5000;
+            const attraction = 0.01;
+            const centerPull = 0.001;
+
+            // Initialize random positions if not set
+            let allNodes = [];
+            capexTree.children.forEach(phase => {
+                phase.items?.forEach(item => {
+                    allNodes.push(item);
+                    if (item.subItems) {
+                        allNodes = allNodes.concat(item.subItems);
+                    }
+                });
+            });
+
+            // Run simulation
+            for (let iter = 0; iter < iterations; iter++) {
+                // Apply repulsion between all nodes
+                for (let i = 0; i < allNodes.length; i++) {
+                    for (let j = i + 1; j < allNodes.length; j++) {
+                        const dx = allNodes[j].canvasX - allNodes[i].canvasX;
+                        const dy = allNodes[j].canvasY - allNodes[i].canvasY;
+                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+                        const force = repulsion / (dist * dist);
+                        const fx = (dx / dist) * force;
+                        const fy = (dy / dist) * force;
+
+                        allNodes[i].canvasX -= fx;
+                        allNodes[i].canvasY -= fy;
+                        allNodes[j].canvasX += fx;
+                        allNodes[j].canvasY += fy;
+                    }
+                }
+
+                // Apply attraction for parent-child relationships
+                capexTree.children.forEach(phase => {
+                    phase.items?.forEach(item => {
+                        if (item.subItems) {
+                            item.subItems.forEach(subtask => {
+                                const dx = subtask.canvasX - item.canvasX;
+                                const dy = subtask.canvasY - item.canvasY;
+
+                                item.canvasX += dx * attraction;
+                                item.canvasY += dy * attraction;
+                                subtask.canvasX -= dx * attraction;
+                                subtask.canvasY -= dy * attraction;
+                            });
+                        }
+                    });
+                });
+
+                // Pull towards center
+                allNodes.forEach(node => {
+                    node.canvasX -= (node.canvasX - 600) * centerPull;
+                    node.canvasY -= (node.canvasY - 400) * centerPull;
+                });
+            }
+        }
+
+        // Canvas container event listeners
+        function initializeCanvasEvents() {
+            const container = document.getElementById('canvas-container');
+
+            container.addEventListener('mousedown', (e) => {
+                if (e.target === container || e.target.id === 'canvas') {
+                    isPanningCanvas = true;
+                    panStartX = e.clientX;
+                    panStartY = e.clientY;
+                    container.classList.add('grabbing');
+                }
+            });
+
+            container.addEventListener('mousemove', (e) => {
+                if (isPanningCanvas) {
+                    const dx = (e.clientX - panStartX) / canvasZoom;
+                    const dy = (e.clientY - panStartY) / canvasZoom;
+                    canvasPan.x += dx;
+                    canvasPan.y += dy;
+                    panStartX = e.clientX;
+                    panStartY = e.clientY;
+                    updateCanvasTransform();
+                } else if (isDraggingCanvasNode && draggedCanvasNode) {
+                    const containerRect = container.getBoundingClientRect();
+                    let x = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x - dragStartX;
+                    let y = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y - dragStartY;
+
+                    // Apply grid snapping if enabled
+                    x = snapToGrid(x);
+                    y = snapToGrid(y);
+
+                    draggedCanvasNode.canvasX = x;
+                    draggedCanvasNode.canvasY = y;
+
+                    const nodeEl = canvasNodes.find(n => n.data.id === draggedCanvasNode.id)?.element;
+                    if (nodeEl) {
+                        nodeEl.style.left = `${x}px`;
+                        nodeEl.style.top = `${y}px`;
+                    }
+
+                    // Redraw connections while dragging
+                    drawConnections();
+                }
+            });
+
+            container.addEventListener('mouseup', () => {
+                isPanningCanvas = false;
+                container.classList.remove('grabbing');
+
+                // Clean up dragging state
+                if (isDraggingCanvasNode || draggedCanvasNode) {
+                    if (draggedCanvasNode) {
+                        const nodeEl = canvasNodes.find(n => n.data.id === draggedCanvasNode.id)?.element;
+                        if (nodeEl) {
+                            nodeEl.classList.remove('dragging');
+                        }
+                    }
+                    isDraggingCanvasNode = false;
+                    draggedCanvasNode = null;
+                }
+            });
+
+            // Also handle mouseleave to stop dragging when mouse leaves container
+            container.addEventListener('mouseleave', () => {
+                isPanningCanvas = false;
+                container.classList.remove('grabbing');
+
+                if (isDraggingCanvasNode || draggedCanvasNode) {
+                    if (draggedCanvasNode) {
+                        const nodeEl = canvasNodes.find(n => n.data.id === draggedCanvasNode.id)?.element;
+                        if (nodeEl) {
+                            nodeEl.classList.remove('dragging');
+                        }
+                    }
+                    isDraggingCanvasNode = false;
+                    draggedCanvasNode = null;
+                }
+            });
+
+            container.addEventListener('wheel', (e) => {
+                e.preventDefault();
+                const delta = e.deltaY > 0 ? 0.9 : 1.1;
+                canvasZoom = Math.max(0.1, Math.min(5, canvasZoom * delta));
+                updateCanvasTransform();
+            }, { passive: false });
+        }
+
+        // =====================================================================
+        // PROGRESSIVE EXPAND/COLLAPSE - Works in both Tree and Canvas Views
+        // =====================================================================
+
+        // Calculate the maximum depth of the tree
+        function getMaxDepth(node = capexTree, depth = 0) {
+            let maxDepth = depth;
+            if (node.children) {
+                node.children.forEach(child => {
+                    maxDepth = Math.max(maxDepth, getMaxDepth(child, depth + 1));
+                });
+            }
+            if (node.items) {
+                node.items.forEach(item => {
+                    maxDepth = Math.max(maxDepth, getItemMaxDepth(item, depth + 1));
+                });
+            }
+            return maxDepth;
+        }
+
+        function getItemMaxDepth(item, depth = 0) {
+            let maxDepth = depth;
+            if (item.subItems && item.subItems.length > 0) {
+                item.subItems.forEach(subItem => {
+                    maxDepth = Math.max(maxDepth, getItemMaxDepth(subItem, depth + 1));
+                });
+            }
+            return maxDepth;
+        }
+
+        // Collapse one level at a time (deepest first)
+        function collapseOneLevel() {
+            console.log('🔍 collapseOneLevel called');
+
+            // Find all items with subItems that are currently expanded
+            let deepestExpandedWithChildren = [];
+            let maxDepthFound = 0;
+
+            function findExpandedWithChildren(node, depth = 0, path = []) {
+                // For phases (node.children)
+                if (node.children) {
+                    node.children.forEach(child => {
+                        findExpandedWithChildren(child, depth + 1, [...path, node]);
+                    });
+                }
+
+                // For items
+                if (node.items) {
+                    node.items.forEach(item => {
+                        findExpandedItems(item, depth + 1, [...path, node]);
+                    });
+                }
+            }
+
+            function findExpandedItems(item, depth, path) {
+                // If this item has subItems and is expanded, record it
+                if (item.subItems && item.subItems.length > 0 && item.expanded !== false) {
+                    deepestExpandedWithChildren.push({ item, depth, path });
+                    maxDepthFound = Math.max(maxDepthFound, depth);
+
+                    // Recurse into subItems
+                    item.subItems.forEach(subItem => {
+                        findExpandedItems(subItem, depth + 1, [...path, item]);
+                    });
+                } else if (item.subItems) {
+                    // Has children but collapsed - still check children in case some are expanded
+                    item.subItems.forEach(subItem => {
+                        findExpandedItems(subItem, depth + 1, [...path, item]);
+                    });
+                }
+            }
+
+            findExpandedWithChildren(capexTree);
+
+            console.log('Found', deepestExpandedWithChildren.length, 'expanded items with children');
+            console.log('Max depth:', maxDepthFound);
+
+            if (deepestExpandedWithChildren.length === 0) {
+                console.log('✅ Already fully collapsed - no items with children are expanded');
+                return;
+            }
+
+            // Collapse only the items at the deepest level
+            const toCollapse = deepestExpandedWithChildren.filter(x => x.depth === maxDepthFound);
+            console.log('Collapsing', toCollapse.length, 'items at depth', maxDepthFound);
+
+            toCollapse.forEach(({ item }) => {
+                console.log('  - Collapsing:', item.name);
+                item.expanded = false;
+            });
+        }
+
+        // Expand one level at a time (shallowest first)
+        function expandOneLevel() {
+            console.log('🔍 expandOneLevel called');
+
+            // Find all items with subItems that are currently collapsed
+            let collapsedWithChildren = [];
+            let minDepthFound = Infinity;
+
+            function findCollapsedWithChildren(node, depth = 0, path = []) {
+                // For phases (node.children)
+                if (node.children) {
+                    node.children.forEach(child => {
+                        findCollapsedWithChildren(child, depth + 1, [...path, node]);
+                    });
+                }
+
+                // For items
+                if (node.items) {
+                    node.items.forEach(item => {
+                        findCollapsedItems(item, depth + 1, [...path, node]);
+                    });
+                }
+            }
+
+            function findCollapsedItems(item, depth, path) {
+                // If this item has subItems and is collapsed, record it
+                if (item.subItems && item.subItems.length > 0 && item.expanded === false) {
+                    collapsedWithChildren.push({ item, depth, path });
+                    minDepthFound = Math.min(minDepthFound, depth);
+                }
+
+                // Still recurse into subItems even if collapsed (to find deeper collapsed items)
+                if (item.subItems) {
+                    item.subItems.forEach(subItem => {
+                        findCollapsedItems(subItem, depth + 1, [...path, item]);
+                    });
+                }
+            }
+
+            findCollapsedWithChildren(capexTree);
+
+            console.log('Found', collapsedWithChildren.length, 'collapsed items with children');
+            console.log('Min depth:', minDepthFound);
+
+            if (collapsedWithChildren.length === 0) {
+                console.log('✅ Already fully expanded - no collapsed items with children');
+                return;
+            }
+
+            // Expand only the items at the shallowest level
+            const toExpand = collapsedWithChildren.filter(x => x.depth === minDepthFound);
+            console.log('Expanding', toExpand.length, 'items at depth', minDepthFound);
+
+            toExpand.forEach(({ item }) => {
+                console.log('  - Expanding:', item.name);
+                item.expanded = true;
+            });
+        }
+
+        // Canvas-aware expand/collapse handlers
+        window.canvasExpandOneLevel = function() {
+            console.log('🎯 canvasExpandOneLevel called, viewMode:', viewMode);
+            expandOneLevel();
+
+            // Always update tree view
+            if (typeof render === 'function') {
+                console.log('Calling render() for tree view');
+                render();
+            }
+
+            // Update canvas view if we're in canvas mode
+            if (viewMode === 'canvas') {
+                console.log('Calling renderCanvas() for canvas view');
+                renderCanvas();
+            }
+
+            console.log('✅ Expand complete');
+        };
+
+        window.canvasCollapseOneLevel = function() {
+            console.log('🎯 canvasCollapseOneLevel called, viewMode:', viewMode);
+            collapseOneLevel();
+
+            // Always update tree view
+            if (typeof render === 'function') {
+                console.log('Calling render() for tree view');
+                render();
+            }
+
+            // Update canvas view if we're in canvas mode
+            if (viewMode === 'canvas') {
+                console.log('Calling renderCanvas() for canvas view');
+                renderCanvas();
+            }
+
+            console.log('✅ Collapse complete');
+        };
+
+        // Helper to check if a node is visible (not hidden by collapsed parent)
+        function isNodeVisible(nodeId) {
+            // Find the node and check all its ancestors
+            function findAndCheckNode(searchId, node = capexTree, ancestors = []) {
+                if (node.id === searchId) {
+                    // Check if any ancestor is collapsed
+                    return ancestors.every(ancestor => ancestor.expanded !== false);
+                }
+
+                if (node.items) {
+                    for (const item of node.items) {
+                        if (checkItemVisibility(searchId, item, ancestors)) {
+                            return true;
+                        }
+                    }
+                }
+
+                if (node.children) {
+                    for (const child of node.children) {
+                        const result = findAndCheckNode(searchId, child, [...ancestors, node]);
+                        if (result !== undefined) return result;
+                    }
+                }
+
+                return undefined;
+            }
+
+            function checkItemVisibility(searchId, item, ancestors = []) {
+                if (item.id === searchId) {
+                    return ancestors.every(ancestor => ancestor.expanded !== false);
+                }
+
+                if (item.subItems) {
+                    for (const subItem of item.subItems) {
+                        const result = checkItemVisibility(searchId, subItem, [...ancestors, item]);
+                        if (result !== undefined) return result;
+                    }
+                }
+
+                return undefined;
+            }
+
+            const result = findAndCheckNode(nodeId);
+            return result === undefined ? true : result;  // Default to visible if not found
+        }
+
+        window.isNodeVisible = isNodeVisible;
+
 
         // =============================================================================
         // UNDO/REDO SYSTEM
@@ -3529,58 +5313,70 @@ const PATTERNS = {
         icon: '🧠',
         levels: {
             root: 'Prompt Library',
-            phase: 'Category',
+            phase: 'Use Case',
             item: 'Prompt',
             subtask: 'Test Case'
         },
-        phaseSubtitles: ['Customer Support', 'Content Generation', 'Data Analysis', 'Code Assistance', 'Research', 'Creative Writing'],
+        phaseSubtitles: ['System Prompts', 'Task Prompts', 'Evaluation', 'Production'],
         types: [
-            { value: 'task-instruction', label: '💬 Task Instruction' },
-            { value: 'few-shot', label: '📚 Few-Shot Examples' },
-            { value: 'chain-of-thought', label: '🧠 Chain-of-Thought' },
-            { value: 'structured-output', label: '📐 Structured Output' },
-            { value: 'xml-guided', label: '🏗️ XML-Guided (Anthropic)' },
-            { value: 'prefill-guided', label: '🎯 Prefill-Guided (Claude)' },
-            { value: 'production', label: '✅ Production-Ready' },
-            { value: 'experimental', label: '🧪 Experimental' }
+            { value: 'system-role', label: 'System Role Definition' },
+            { value: 'task-instruction', label: 'Task Instruction' },
+            { value: 'few-shot', label: 'Few-Shot Examples' },
+            { value: 'chain-of-thought', label: 'Chain-of-Thought' },
+            { value: 'xml-structured', label: 'XML Structured (Anthropic)' },
+            { value: 'prefill', label: 'Assistant Prefill (Claude)' },
+            { value: 'tool-use', label: 'Tool Use / Function Calling' },
+            { value: 'golden-set', label: 'Golden Test Set' }
         ],
-        description: 'Design and test AI prompts with best practices from OpenAI and Anthropic',
+        description: 'Engineer prompts using OpenAI and Anthropic best practices',
         fields: {
             systemPrompt: {
-                label: 'System Prompt (Required)',
+                label: 'System Prompt',
                 type: 'textarea',
-                placeholder: 'You are an expert customer support agent with 10 years of experience. You are helpful, empathetic, and solution-focused. Always maintain a professional yet friendly tone.',
-                helpText: '👤 Define the AI\'s role, expertise, and behavior. This sets the foundation for all responses.'
+                placeholder: 'You are an expert customer support agent...',
+                helpText: '👤 Role definition, context, and behavioral guidelines (OpenAI system message / Anthropic system parameter)'
             },
             userPromptTemplate: {
-                label: 'User Prompt (Required)',
+                label: 'User Prompt Template',
                 type: 'textarea',
-                placeholder: 'Analyze the following customer support ticket and provide a recommended response:\n\nTicket: {{ticket_text}}\nPriority: {{priority}}\nCustomer Tier: {{tier}}\n\nProvide:\n1. Issue summary\n2. Recommended resolution\n3. Escalation needed (yes/no)',
-                helpText: '💬 The main instruction telling the AI what to do. Use {{variables}} for dynamic content.'
+                placeholder: 'Analyze this customer issue:\n\n{{issue}}\n\nProvide...',
+                helpText: '💬 The actual task instruction with {{variables}} for dynamic content'
             },
             fewShotExamples: {
-                label: 'Examples (Recommended)',
+                label: 'Few-Shot Examples',
                 type: 'textarea',
-                placeholder: '<example>\nInput: Customer reports login issue on mobile app\nOutput: {\n  "summary": "Authentication failure on iOS app",\n  "resolution": "Clear app cache and reinstall",\n  "escalate": "no"\n}\n</example>\n\n<example>\nInput: Customer requests refund for annual subscription\nOutput: {\n  "summary": "Refund request - annual plan",\n  "resolution": "Process pro-rated refund per policy",\n  "escalate": "yes"\n}\n</example>',
-                helpText: '📚 Show 2-3 examples of input → output. This dramatically improves accuracy and consistency.'
+                placeholder: '<example>\nUser: ...\nAssistant: ...\n</example>',
+                helpText: '📚 Input-output examples to guide model behavior (Anthropic: use <example> tags)'
             },
-            outputFormat: {
-                label: 'Output Format (Recommended)',
+            structuralTags: {
+                label: 'Structural Tags (Anthropic)',
                 type: 'textarea',
-                placeholder: 'Return your response as JSON with this exact structure:\n{\n  "summary": "brief issue description",\n  "resolution": "recommended action",\n  "escalate": "yes or no"\n}',
-                helpText: '📐 Specify exactly how you want the output structured (JSON, markdown, bullet points, etc.)'
+                placeholder: '<thinking>...</thinking>\n<answer>...</answer>',
+                helpText: '🏗️ XML tags to structure reasoning and output (e.g., <thinking>, <context>, <output>)'
+            },
+            assistantPrefill: {
+                label: 'Assistant Prefill (Claude)',
+                type: 'text',
+                placeholder: 'Here is my analysis:',
+                helpText: '🎯 Start Claude\'s response with specific text to guide tone/format (Anthropic-specific technique)'
             },
             chainOfThought: {
-                label: 'Chain-of-Thought (Optional)',
+                label: 'Chain-of-Thought Instruction',
                 type: 'textarea',
-                placeholder: 'Before providing your answer, think through this step-by-step:\n1. What is the core issue?\n2. What are possible solutions?\n3. Which solution is best and why?',
-                helpText: '🧠 Ask the AI to "think out loud" before answering. Improves reasoning quality.'
+                placeholder: 'Think step by step. Show your reasoning...',
+                helpText: '🧠 Prompt model to show reasoning process (OpenAI/Anthropic CoT best practice)'
+            },
+            outputFormat: {
+                label: 'Output Format Specification',
+                type: 'textarea',
+                placeholder: 'Return JSON: {"analysis": "...", "confidence": 0-1}',
+                helpText: '📐 Exact structure expected (JSON schema, markdown, structured text)'
             },
             modelTarget: {
                 label: 'Target Model',
                 type: 'select',
-                options: ['Claude 3.5 Sonnet', 'Claude 3 Opus', 'GPT-4o', 'GPT-4 Turbo', 'o1-preview'],
-                helpText: '🤖 Which AI model this prompt is optimized for'
+                options: ['Claude 3.5 Sonnet', 'Claude 3 Opus', 'GPT-4o', 'GPT-4 Turbo', 'GPT-3.5 Turbo', 'o1-preview', 'o1-mini'],
+                helpText: '🤖 Which model this prompt is optimized for'
             },
             temperature: {
                 label: 'Temperature',
@@ -3588,14 +5384,50 @@ const PATTERNS = {
                 min: 0,
                 max: 1,
                 step: 0.1,
-                placeholder: '0.7',
-                helpText: '🌡️ 0 = consistent/factual, 1 = creative/varied. Use 0-0.3 for analysis, 0.7-1.0 for creative writing.'
+                helpText: '🔥 0 = deterministic, 1 = creative (OpenAI/Anthropic standard parameter)'
+            },
+            maxTokens: {
+                label: 'Max Tokens',
+                type: 'number',
+                min: 0,
+                step: 100,
+                helpText: '📏 Response length limit (affects cost and completeness)'
             },
             testResults: {
                 label: 'Test Results',
                 type: 'textarea',
-                placeholder: 'Tested on 50 examples:\n✅ 94% accuracy\n⚡ Avg response time: 1.3s\n💰 Cost per request: $0.015',
-                helpText: '✅ Track how well this prompt performs on real test cases'
+                placeholder: 'Golden set: 95% accuracy\nLatency: avg 1.2s\nCost: $0.03/call',
+                helpText: '✅ Evaluation metrics from testing (accuracy, latency, cost)'
+            },
+            toolDefinitions: {
+                label: 'Tool / Function Definitions',
+                type: 'textarea',
+                placeholder: '{"name": "search", "description": "Search docs", "parameters": {...}}',
+                helpText: '🔧 Function calling schema (OpenAI functions / Anthropic tools)'
+            },
+            agentWorkflow: {
+                label: 'Agent Workflow',
+                type: 'textarea',
+                placeholder: 'Agent 1 (Router) → Agent 2 (Executor) → Agent 3 (Validator)',
+                helpText: '🤖 Multi-agent orchestration pattern (sequential, parallel, or hierarchical)'
+            },
+            contextManagement: {
+                label: 'Context Management',
+                type: 'textarea',
+                placeholder: 'Sliding window: keep last 10 messages\nCompression: summarize after 4K tokens',
+                helpText: '💾 Strategy for managing conversation history and token limits'
+            },
+            promptInjectionDefense: {
+                label: 'Prompt Injection Defense',
+                type: 'textarea',
+                placeholder: 'Use delimiters: """user input"""\nValidate against known attacks',
+                helpText: '🛡️ Techniques to prevent prompt injection / jailbreaking (OpenAI/Anthropic security best practices)'
+            },
+            iterationNotes: {
+                label: 'Iteration Notes',
+                type: 'textarea',
+                placeholder: 'v1: Too verbose\nv2: Added examples, reduced temp to 0.3\nv3: Prefill improved formatting',
+                helpText: '📝 What changed between versions and why (prompt engineering log)'
             },
             testStatus: {
                 label: 'Status',
@@ -4135,12 +5967,28 @@ function hidePatternDescription() {
                                 ? `<span class="expand-toggle" onclick="event.stopPropagation(); window.toggleSubtasks('${item.id}');" style="margin-left: 8px; font-size: 12px; opacity: 0.7; cursor: pointer; user-select: none;">${item.expanded ? '▼' : '▶'}</span>`
                                 : '';
 
+                            // RAG Status indicator
+                            const ragStatusColors = {
+                                'Green': '#22C55E',
+                                'Amber': '#F59E0B',
+                                'Red': '#EF4444'
+                            };
+                            const itemRAGStatus = item.pmRAGStatus;
+                            const ragIndicator = itemRAGStatus ?
+                                `<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${ragStatusColors[itemRAGStatus]}; margin-left: 8px; box-shadow: 0 0 6px ${ragStatusColors[itemRAGStatus]}80; vertical-align: middle;" title="RAG Status: ${itemRAGStatus}"></span>` : '';
+
+                            // PM Status badge
+                            const pmStatusBadge = item.pmStatus && item.pmStatus !== 'To Do' ?
+                                `<span style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: ${item.pmStatus === 'Completed' ? '#22C55E' : item.pmStatus === 'Blocked' ? '#EF4444' : '#3B82F6'}; color: white; margin-left: 8px; font-weight: 600;">${item.pmStatus}</span>` : '';
+
                             itemDiv.innerHTML = `
                                 <div class="node-header">
                                     <span class="node-icon">${item.icon}</span>
                                     <div class="node-content">
                                         <div class="item-name">
                                             ${item.name}
+                                            ${ragIndicator}
+                                            ${pmStatusBadge}
                                             ${expandIndicator}
                                             ${hasSubtasks ? `<span style="font-size: 10px; color: var(--text-secondary); margin-left: 8px;">(${item.subItems.length} tasks)</span>` : ''}
                                         </div>
@@ -4148,6 +5996,8 @@ function hidePatternDescription() {
                                         <div class="item-meta">
                                             ${item.itemType ? `<span class="badge badge-${item.itemType}">${item.itemType}</span>` : ''}
                                             ${PATTERNS[currentPattern].fields && PATTERNS[currentPattern].fields.cost ? `<span class="item-cost">${formatCost(item.cost)}</span>` : ''}
+                                            ${item.pmOwnerEmail ? `<span style="font-size: 10px; color: var(--text-secondary); margin-left: 12px;">👤 ${item.pmOwnerEmail.split('@')[0]}</span>` : ''}
+                                            ${item.pmProgress > 0 ? `<span style="font-size: 10px; color: var(--treeplex-primary); margin-left: 12px; font-weight: 600;">${item.pmProgress}%</span>` : ''}
                                         </div>
                                         ${depInfo}
                                     </div>
@@ -4238,6 +6088,16 @@ function hidePatternDescription() {
                                     const hasChildren = subItem.subItems && subItem.subItems.length > 0;
                                     const chevronIcon = hasChildren ? (subItem.expanded ? '▼' : '▶') : '';
 
+                                    // RAG Status for subtasks
+                                    const subRAGColors = {
+                                        'Green': '#22C55E',
+                                        'Amber': '#F59E0B',
+                                        'Red': '#EF4444'
+                                    };
+                                    const subRAGStatus = subItem.pmRAGStatus;
+                                    const ragDot = subRAGStatus ?
+                                        `<div style="width: 8px; height: 8px; border-radius: 50%; background: ${subRAGColors[subRAGStatus]}; box-shadow: 0 0 4px ${subRAGColors[subRAGStatus]}; flex-shrink: 0; position: absolute; top: -2px; right: -2px; border: 1.5px solid var(--card-bg-light);" title="RAG: ${subRAGStatus}"></div>` : '';
+
                                     subItemDiv.innerHTML = `
                                         <div style="display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%;">
                                             <!-- Task Title with optional chevron -->
@@ -4250,12 +6110,15 @@ function hidePatternDescription() {
 
                                             <!-- Visual Indicators Row -->
                                             <div style="display: flex; align-items: center; gap: 6px; margin-top: auto;">
-                                                <!-- Status Dot -->
-                                                <div style="width: 12px; height: 12px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 6px ${statusColor}; flex-shrink: 0;" title="${subItem.pmStatus || 'To Do'}"></div>
+                                                <!-- Status Dot with RAG overlay -->
+                                                <div style="position: relative; width: 12px; height: 12px; flex-shrink: 0;">
+                                                    <div style="width: 12px; height: 12px; border-radius: 50%; background: ${statusColor}; box-shadow: 0 0 6px ${statusColor}; flex-shrink: 0;" title="${subItem.pmStatus || 'To Do'}"></div>
+                                                    ${ragDot}
+                                                </div>
 
                                                 <!-- Owner Badge -->
-                                                <div style="width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: white; flex-shrink: 0;" title="${subItem.pmAssignee || 'Unassigned'}">
-                                                    ${getInitials(subItem.pmAssignee)}
+                                                <div style="width: 20px; height: 20px; border-radius: 50%; background: linear-gradient(135deg, #667eea, #764ba2); display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 700; color: white; flex-shrink: 0;" title="${subItem.pmOwnerEmail || subItem.pmAssignee || 'Unassigned'}">
+                                                    ${getInitials(subItem.pmOwnerEmail || subItem.pmAssignee)}
                                                 </div>
 
                                                 <!-- Progress % -->
@@ -5904,7 +7767,11 @@ function hidePatternDescription() {
                 book: 'You are a professional fiction editor and writing coach.',
                 film: 'You are a cinematographer and AI video generation expert (Sora, Veo, Runway).',
                 course: 'You are an instructional designer with expertise in curriculum development.',
-                generic: 'You are a project manager experienced in complex deliverables.'
+                fitness: 'You are a certified personal trainer and exercise physiologist with expertise in program design, exercise science, and progressive overload.',
+                event: 'You are a professional event planner with experience in corporate events, weddings, and large-scale conferences.',
+                strategy: 'You are a business strategy consultant specializing in strategic planning, KPI development, and organizational transformation.',
+                familytree: 'You are a professional genealogist and family historian specializing in genealogical research and family tree documentation.',
+                generic: 'You are an experienced Project Manager and CFO with deep expertise in budget management, resource allocation, risk mitigation, and financial planning for complex projects.'
             };
 
             prompt += expertPersonas[pattern] || expertPersonas.generic;
@@ -6067,7 +7934,22 @@ function hidePatternDescription() {
                 instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
             }
 
-            // Generic and other patterns
+            // Generic pattern - PM and CFO perspective
+            else if (pattern === 'generic') {
+                const fieldInstructions = {
+                    cost: 'Suggest a realistic cost estimate based on the item type, scope, and market rates. Consider labor, materials, overhead.',
+                    leadTime: 'Suggest a realistic timeline considering procurement cycles, dependencies, and resource availability.',
+                    alternateSource: 'Suggest a credible backup vendor or alternative approach to mitigate supply chain/delivery risks.',
+                    pmNextSteps: 'Suggest 2-3 specific, actionable next steps a PM would take to advance this task.',
+                    pmBlockingIssue: 'Identify likely blockers: budget constraints, resource conflicts, vendor delays, approvals needed.',
+                    description: 'Write 2-3 sentences describing this deliverable, its business value, and key execution considerations.',
+                    name: 'Suggest a clear deliverable name that communicates scope and business value.',
+                    notes: 'Suggest PM considerations: budget burn rate, stakeholder alignment, risk mitigation, change management.',
+                    pmOwnerEmail: 'Suggest the most appropriate role/person to own this (e.g., engineering-lead@, procurement@, finance@).'
+                };
+                instructions += fieldInstructions[fieldType] || `From a PM and CFO perspective, suggest a realistic ${fieldType} value considering budget, timeline, and risk factors.`;
+            }
+            // Other patterns
             else {
                 instructions += `Consider the project context, dependencies, and sibling items. Suggest a realistic, specific ${fieldType} value that fits the pattern.`;
             }
@@ -6572,20 +8454,110 @@ function hidePatternDescription() {
 
                 // 1. PM Tracking Section (conditional)
                 if (showTracking) {
+                    // Calculate RAG status color
+                    const ragStatus = activeNode.pmRAGStatus || 'Amber';
+                    const ragColors = {
+                        'Green': '#22C55E',
+                        'Amber': '#F59E0B',
+                        'Red': '#EF4444'
+                    };
+                    const ragColor = ragColors[ragStatus] || ragColors.Amber;
+
+                    // Calculate time tracking metrics
+                    const estHours = activeNode.pmEstimatedHours || 0;
+                    const actHours = activeNode.pmActualHours || 0;
+                    const remHours = activeNode.pmRemainingHours || estHours - actHours;
+                    const timeProgress = estHours > 0 ? Math.min(100, (actHours / estHours) * 100) : 0;
+                    const isOverBudget = actHours > estHours;
+
                     fieldsHTML += `
                         <h3 style="font-size: 16px; font-weight: 600; margin-bottom: 16px; color: var(--treeplex-primary);">🎯 Project Management</h3>
-                        <div class="form-group">
-                            <label>Status</label>
-                            <select id="edit-pm-status">
-                                <option value="To Do" ${activeNode.pmStatus === 'To Do' ? 'selected' : ''}>To Do</option>
-                                <option value="In Progress" ${activeNode.pmStatus === 'In Progress' ? 'selected' : ''}>In Progress</option>
-                                <option value="Completed" ${activeNode.pmStatus === 'Completed' ? 'selected' : ''}>Completed</option>
-                                <option value="Blocked" ${activeNode.pmStatus === 'Blocked' ? 'selected' : ''}>Blocked</option>
-                            </select>
+
+                        <!-- PM Infographic Dashboard -->
+                        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%); border: 1px solid var(--border); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                            <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 16px;">
+                                <!-- RAG Status Indicator -->
+                                <div style="text-align: center;">
+                                    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px;">RAG Status</div>
+                                    <div style="width: 48px; height: 48px; border-radius: 50%; background: ${ragColor}; margin: 0 auto; box-shadow: 0 4px 12px ${ragColor}40, inset 0 2px 4px rgba(255,255,255,0.3);"></div>
+                                    <div style="font-size: 13px; font-weight: 600; margin-top: 8px; color: ${ragColor};">${ragStatus}</div>
+                                </div>
+
+                                <!-- Progress Indicator -->
+                                <div style="text-align: center;">
+                                    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px;">Progress</div>
+                                    <div style="position: relative; width: 64px; height: 64px; margin: 0 auto;">
+                                        <svg width="64" height="64" style="transform: rotate(-90deg);">
+                                            <circle cx="32" cy="32" r="28" stroke="var(--border)" stroke-width="6" fill="none"></circle>
+                                            <circle cx="32" cy="32" r="28" stroke="var(--treeplex-primary)" stroke-width="6" fill="none"
+                                                stroke-dasharray="${(activeNode.pmProgress || 0) * 1.759} 175.9"
+                                                stroke-linecap="round"
+                                                style="transition: stroke-dasharray 0.3s ease;"></circle>
+                                        </svg>
+                                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 16px; font-weight: 700; color: var(--treeplex-primary);">${activeNode.pmProgress || 0}%</div>
+                                    </div>
+                                </div>
+
+                                <!-- Priority Indicator -->
+                                <div style="text-align: center;">
+                                    <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px;">Priority</div>
+                                    <div style="margin-top: 4px;">
+                                        ${(() => {
+                                            const priority = activeNode.pmPriority || 'Medium';
+                                            const priorityIcons = {
+                                                'Low': '🟢',
+                                                'Medium': '🟡',
+                                                'High': '🟠',
+                                                'Critical': '🔴'
+                                            };
+                                            return `<div style="font-size: 32px; margin: 4px 0;">${priorityIcons[priority] || priorityIcons.Medium}</div>
+                                                   <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${priority}</div>`;
+                                        })()}
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Time Tracking Visualization -->
+                            ${estHours > 0 ? `
+                            <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                                <div style="font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-secondary); margin-bottom: 8px;">Time Tracking</div>
+                                <div style="display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 12px;">
+                                    <span>⏱️ Estimated: <strong>${estHours}h</strong></span>
+                                    <span>✅ Actual: <strong style="color: ${isOverBudget ? '#EF4444' : '#22C55E'};">${actHours}h</strong></span>
+                                    <span>⏳ Remaining: <strong>${remHours}h</strong></span>
+                                </div>
+                                <div style="width: 100%; height: 8px; background: var(--border); border-radius: 4px; overflow: hidden;">
+                                    <div style="width: ${timeProgress}%; height: 100%; background: ${isOverBudget ? '#EF4444' : '#22C55E'}; transition: width 0.3s ease;"></div>
+                                </div>
+                                ${isOverBudget ? `<div style="font-size: 11px; color: #EF4444; margin-top: 4px; font-weight: 600;">⚠️ Over Budget by ${actHours - estHours}h</div>` : ''}
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- PM Form Fields -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px;">
+                            <div class="form-group">
+                                <label>Status</label>
+                                <select id="edit-pm-status">
+                                    <option value="To Do" ${activeNode.pmStatus === 'To Do' ? 'selected' : ''}>To Do</option>
+                                    <option value="In Progress" ${activeNode.pmStatus === 'In Progress' ? 'selected' : ''}>In Progress</option>
+                                    <option value="Completed" ${activeNode.pmStatus === 'Completed' ? 'selected' : ''}>Completed</option>
+                                    <option value="Blocked" ${activeNode.pmStatus === 'Blocked' ? 'selected' : ''}>Blocked</option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label>RAG Status 🚦</label>
+                                <select id="edit-pm-rag-status">
+                                    <option value="Green" ${ragStatus === 'Green' ? 'selected' : ''}>🟢 Green - On Track</option>
+                                    <option value="Amber" ${ragStatus === 'Amber' ? 'selected' : ''}>🟡 Amber - At Risk</option>
+                                    <option value="Red" ${ragStatus === 'Red' ? 'selected' : ''}>🔴 Red - Critical</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="form-group">
-                            <label>Assignee / Owner</label>
-                            <input type="text" id="edit-pm-assignee" value="${activeNode.pmAssignee || 'Unassigned'}" placeholder="Name or team..." />
+                            <label>Owner Email 👤</label>
+                            <input type="email" id="edit-pm-owner-email" value="${activeNode.pmOwnerEmail || activeNode.pmAssignee || ''}" placeholder="owner@company.com" />
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; font-style: italic;">📧 Email for collaborative pipeline reviews</p>
                         </div>
                         <div class="form-group">
                             <label>Progress (%)</label>
@@ -6599,6 +8571,26 @@ function hidePatternDescription() {
                                 <option value="High" ${activeNode.pmPriority === 'High' ? 'selected' : ''}>High</option>
                                 <option value="Critical" ${activeNode.pmPriority === 'Critical' ? 'selected' : ''}>Critical</option>
                             </select>
+                        </div>
+
+                        <!-- Time Management Fields -->
+                        <div style="margin-top: 16px; padding: 16px; background: rgba(99, 102, 241, 0.05); border: 1px dashed var(--border); border-radius: 8px;">
+                            <h4 style="font-size: 14px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">⏱️ Time Management</h4>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 12px;">Estimated (hours)</label>
+                                    <input type="number" id="edit-pm-estimated-hours" value="${estHours}" min="0" step="0.5" placeholder="0" />
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 12px;">Actual (hours)</label>
+                                    <input type="number" id="edit-pm-actual-hours" value="${actHours}" min="0" step="0.5" placeholder="0" />
+                                </div>
+                                <div class="form-group" style="margin: 0;">
+                                    <label style="font-size: 12px;">Remaining (hours)</label>
+                                    <input type="number" id="edit-pm-remaining-hours" value="${remHours}" min="0" step="0.5" placeholder="Auto" />
+                                </div>
+                            </div>
+                            <p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; font-style: italic;">💡 Remaining auto-calculates if left empty (Estimated - Actual)</p>
                         </div>
                         <div class="form-group">
                             <label>Start Date</label>
@@ -7075,21 +9067,44 @@ function hidePatternDescription() {
                 // Save PM fields for subtasks
                 if (activeNode.type === 'subtask') {
                     const pmStatus = document.getElementById('edit-pm-status');
-                    const pmAssignee = document.getElementById('edit-pm-assignee');
+                    const pmRAGStatus = document.getElementById('edit-pm-rag-status');
+                    const pmOwnerEmail = document.getElementById('edit-pm-owner-email');
                     const pmStartDate = document.getElementById('edit-pm-start-date');
                     const pmDueDate = document.getElementById('edit-pm-due-date');
                     const pmProgress = document.getElementById('edit-pm-progress');
                     const pmPriority = document.getElementById('edit-pm-priority');
+                    const pmEstimatedHours = document.getElementById('edit-pm-estimated-hours');
+                    const pmActualHours = document.getElementById('edit-pm-actual-hours');
+                    const pmRemainingHours = document.getElementById('edit-pm-remaining-hours');
                     const pmNotes = document.getElementById('edit-pm-notes');
                     const pmBlockingIssue = document.getElementById('edit-pm-blocking-issue');
                     const pmNextSteps = document.getElementById('edit-pm-next-steps');
 
                     if (pmStatus) activeNode.pmStatus = pmStatus.value;
-                    if (pmAssignee) activeNode.pmAssignee = pmAssignee.value;
+                    if (pmRAGStatus) activeNode.pmRAGStatus = pmRAGStatus.value;
+                    if (pmOwnerEmail) {
+                        activeNode.pmOwnerEmail = pmOwnerEmail.value;
+                        // Backward compatibility: also save as pmAssignee
+                        activeNode.pmAssignee = pmOwnerEmail.value;
+                    }
                     if (pmStartDate) activeNode.pmStartDate = pmStartDate.value;
                     if (pmDueDate) activeNode.pmDueDate = pmDueDate.value;
                     if (pmProgress) activeNode.pmProgress = parseInt(pmProgress.value) || 0;
                     if (pmPriority) activeNode.pmPriority = pmPriority.value;
+                    if (pmEstimatedHours) activeNode.pmEstimatedHours = parseFloat(pmEstimatedHours.value) || 0;
+                    if (pmActualHours) activeNode.pmActualHours = parseFloat(pmActualHours.value) || 0;
+                    if (pmRemainingHours) {
+                        // If remaining is explicitly set, use it; otherwise auto-calculate
+                        const remValue = parseFloat(pmRemainingHours.value);
+                        if (remValue > 0) {
+                            activeNode.pmRemainingHours = remValue;
+                        } else {
+                            // Auto-calculate: Estimated - Actual
+                            const est = parseFloat(pmEstimatedHours?.value) || 0;
+                            const act = parseFloat(pmActualHours?.value) || 0;
+                            activeNode.pmRemainingHours = Math.max(0, est - act);
+                        }
+                    }
                     if (pmNotes) activeNode.pmNotes = pmNotes.value;
                     if (pmBlockingIssue) activeNode.pmBlockingIssue = pmBlockingIssue.value;
                     if (pmNextSteps) activeNode.pmNextSteps = pmNextSteps.value;
@@ -7972,7 +9987,7 @@ Final validation:
 ALWAYS include in treeUpdate:
 - Phases (3-6 typical)
 - Items per phase (2-5 typical)
-- ⚠️ SUBTASKS: Add 2-4 ${levels.subtask}s to items that need decomposition
+- ⚠️ SUBITEMS (use "subItems" property, NOT "subtasks"): Add 2-4 ${levels.subtask}s to items that need decomposition
   → ${levels.subtask}s are PATTERN-SPECIFIC breakdowns:
     • ${pattern.name === 'Philosophy' ? 'Philosophy: premises, objections, evidence, citations' : ''}
     • ${pattern.name === 'Sales Pipeline' ? 'Sales: follow-up actions, next steps, deliverables' : ''}
@@ -7984,6 +9999,7 @@ ALWAYS include in treeUpdate:
     • ${pattern.name === 'Prompt Engineering' ? 'Prompting: test cases, variations, edge cases' : ''}
     • Generic: steps, components, or sub-elements
   → Focus on ${pattern.name} deliverables, not generic task lists
+  → ✨ NESTED SUBITEMS: subItems can have their own subItems for N-level depth (e.g., Step 1 → Step 1.1 → Step 1.1.1)
 - Dependency info in descriptions (e.g., "After Phase 1 completes...")
 - Pattern-specific fields (infer from conversation)
 
@@ -8014,8 +10030,14 @@ Your ENTIRE response must be ONLY this JSON object:
             "name": "Item name",
             "description": "Item description (include dependency notes like 'Requires X to complete first' if order matters)",
             "itemType": "type",
-            "subtasks": [
-              {"name": "Step 1", "description": "Detail"},
+            "subItems": [
+              {
+                "name": "Step 1",
+                "description": "Detail",
+                "subItems": [
+                  {"name": "Step 1.1", "description": "Nested detail (supports N-level depth)"}
+                ]
+              },
               {"name": "Step 2", "description": "Detail"}
             ]
           }
@@ -8127,52 +10149,68 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
                                     // Merge all fields (keep existing if not in update)
                                     Object.keys(updatedItem).forEach(key => {
-                                        if (key !== 'subtasks' && updatedItem[key] !== undefined && updatedItem[key] !== '') {
+                                        if (key !== 'subItems' && updatedItem[key] !== undefined && updatedItem[key] !== '') {
                                             existingItem[key] = updatedItem[key];
                                         }
                                     });
 
-                                    // Merge subtasks
-                                    if (updatedItem.subtasks) {
-                                        if (!existingItem.subtasks) existingItem.subtasks = [];
+                                    // Merge subItems (RECURSIVE for N-level depth support)
+                                    function mergeSubItems(existingParent, updatedParent, parentPhase, parentItemIdx) {
+                                        if (!updatedParent.subItems) return;
+                                        if (!existingParent.subItems) existingParent.subItems = [];
 
-                                        // For subtasks, append new ones (simpler merge)
-                                        updatedItem.subtasks.forEach(newSubtask => {
-                                            const existingSubtask = existingItem.subtasks.find(s =>
-                                                s.name.toLowerCase().trim() === newSubtask.name.toLowerCase().trim()
+                                        updatedParent.subItems.forEach(newSubItem => {
+                                            const existingSubItem = existingParent.subItems.find(s =>
+                                                s.name.toLowerCase().trim() === newSubItem.name.toLowerCase().trim()
                                             );
 
-                                            if (existingSubtask) {
-                                                // Update existing subtask
-                                                Object.keys(newSubtask).forEach(key => {
-                                                    if (newSubtask[key] !== undefined && newSubtask[key] !== '') {
-                                                        existingSubtask[key] = newSubtask[key];
+                                            if (existingSubItem) {
+                                                // Update existing subItem
+                                                Object.keys(newSubItem).forEach(key => {
+                                                    if (key !== 'subItems' && newSubItem[key] !== undefined && newSubItem[key] !== '') {
+                                                        existingSubItem[key] = newSubItem[key];
                                                     }
                                                 });
+
+                                                // RECURSIVE: Merge nested subItems
+                                                mergeSubItems(existingSubItem, newSubItem, parentPhase, parentItemIdx);
                                             } else {
-                                                // Add new subtask
-                                                const subIdx = existingItem.subtasks.length;
-                                                existingItem.subtasks.push({
-                                                    id: `subtask-${existingPhase.phase}-${existingPhase.items.indexOf(existingItem)}-${subIdx}`,
-                                                    ...newSubtask
-                                                });
+                                                // Add new subItem with auto-generated ID
+                                                const subIdx = existingParent.subItems.length;
+                                                const newSubItemWithId = {
+                                                    id: `subtask-${parentPhase}-${parentItemIdx}-${subIdx}`,
+                                                    type: 'subtask',
+                                                    ...newSubItem
+                                                };
+                                                existingParent.subItems.push(newSubItemWithId);
                                             }
                                         });
                                     }
+
+                                    mergeSubItems(existingItem, updatedItem, existingPhase.phase, existingPhase.items.indexOf(existingItem));
                                 } else {
                                     // ADD new item to existing phase
                                     console.log(`  ✅ Adding new item: ${updatedItem.name}`);
                                     const newItemIdx = existingPhase.items.length;
+
+                                    // RECURSIVE function to add IDs to nested subItems
+                                    function addSubItemIds(subItems, phaseIdx, itemIdx, parentPath = '') {
+                                        if (!subItems) return [];
+                                        return subItems.map((subItem, subIdx) => ({
+                                            id: `subtask-${phaseIdx}-${itemIdx}-${parentPath}${subIdx}`,
+                                            type: 'subtask',
+                                            ...subItem,
+                                            subItems: addSubItemIds(subItem.subItems, phaseIdx, itemIdx, `${parentPath}${subIdx}-`)
+                                        }));
+                                    }
+
                                     existingPhase.items.push({
                                         id: `item-${existingPhase.phase}-${newItemIdx}`,
                                         type: 'item',
                                         icon: '📄',
                                         expanded: false,
                                         ...updatedItem,
-                                        subtasks: (updatedItem.subtasks || []).map((subtask, subIdx) => ({
-                                            id: `subtask-${existingPhase.phase}-${newItemIdx}-${subIdx}`,
-                                            ...subtask
-                                        }))
+                                        subItems: addSubItemIds(updatedItem.subItems, existingPhase.phase, newItemIdx)
                                     });
                                 }
                             });
@@ -8184,6 +10222,18 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                         // ADD new phase
                         console.log(`✅ Adding new phase: ${updatedPhase.name}`);
                         const newPhaseIdx = wizardState.workingTree.children.length;
+
+                        // RECURSIVE function to add IDs to nested subItems (reuse from above)
+                        function addSubItemIds(subItems, phaseIdx, itemIdx, parentPath = '') {
+                            if (!subItems) return [];
+                            return subItems.map((subItem, subIdx) => ({
+                                id: `subtask-${phaseIdx}-${itemIdx}-${parentPath}${subIdx}`,
+                                type: 'subtask',
+                                ...subItem,
+                                subItems: addSubItemIds(subItem.subItems, phaseIdx, itemIdx, `${parentPath}${subIdx}-`)
+                            }));
+                        }
+
                         wizardState.workingTree.children.push({
                             id: `phase-${newPhaseIdx}`,
                             type: 'phase',
@@ -8197,10 +10247,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                 icon: '📄',
                                 expanded: false,
                                 ...item,
-                                subtasks: (item.subtasks || []).map((subtask, subIdx) => ({
-                                    id: `subtask-${newPhaseIdx}-${itemIdx}-${subIdx}`,
-                                    ...subtask
-                                }))
+                                subItems: addSubItemIds(item.subItems, newPhaseIdx, itemIdx)
                             }))
                         });
                     }
@@ -10236,6 +12283,93 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
         // Initialize unified AI mode selector on page load
         window.addEventListener('DOMContentLoaded', () => {
+            // Attach Canvas view toggle
+            const toggleBtn = document.getElementById('toggle-view-mode');
+            if (toggleBtn) {
+                toggleBtn.addEventListener('click', toggleViewMode);
+            }
+
+            // Initialize canvas event listeners
+            initializeCanvasEvents();
+
+            // Rebind expand/collapse buttons to use progressive collapse/expand
+            // Wait a bit for TreeListy to finish its initialization
+            setTimeout(() => {
+                const expandBtn = document.getElementById('expand-btn');
+                const collapseBtn = document.getElementById('collapse-btn');
+
+                if (expandBtn) {
+                    // Remove all existing listeners by cloning the button
+                    const newExpandBtn = expandBtn.cloneNode(true);
+                    expandBtn.parentNode.replaceChild(newExpandBtn, expandBtn);
+
+                    // Add new listener with progressive expand
+                    newExpandBtn.addEventListener('click', () => {
+                        console.log('⬇️ Progressive Expand clicked');
+                        if (typeof canvasExpandOneLevel === 'function') {
+                            canvasExpandOneLevel();
+                        }
+                    });
+                }
+
+                if (collapseBtn) {
+                    // Remove all existing listeners by cloning the button
+                    const newCollapseBtn = collapseBtn.cloneNode(true);
+                    collapseBtn.parentNode.replaceChild(newCollapseBtn, collapseBtn);
+
+                    // Add new listener with progressive collapse
+                    newCollapseBtn.addEventListener('click', () => {
+                        console.log('⬆️ Progressive Collapse clicked');
+                        if (typeof canvasCollapseOneLevel === 'function') {
+                            canvasCollapseOneLevel();
+                        }
+                    });
+                }
+            }, 500);
+
+            // Bind Canvas toolbar buttons
+            const autoLayoutSelect = document.getElementById('auto-layout-select');
+            const gridToggleBtn = document.getElementById('grid-toggle');
+            const resetViewBtn = document.getElementById('reset-view');
+            const fitViewBtn = document.getElementById('fit-view');
+            const zoomInBtn = document.getElementById('zoom-in');
+            const zoomOutBtn = document.getElementById('zoom-out');
+
+            if (autoLayoutSelect) {
+                autoLayoutSelect.addEventListener('change', (e) => {
+                    if (e.target.value) {
+                        applyAutoLayout(e.target.value);
+                        e.target.value = '';  // Reset to default
+                    }
+                });
+            }
+
+            if (gridToggleBtn) {
+                gridToggleBtn.addEventListener('click', toggleGrid);
+            }
+
+            if (resetViewBtn) {
+                resetViewBtn.addEventListener('click', resetView);
+            }
+
+            if (fitViewBtn) {
+                fitViewBtn.addEventListener('click', fitToView);
+            }
+
+            if (zoomInBtn) {
+                zoomInBtn.addEventListener('click', () => {
+                    canvasZoom = Math.min(5, canvasZoom * 1.2);
+                    updateCanvasTransform();
+                });
+            }
+
+            if (zoomOutBtn) {
+                zoomOutBtn.addEventListener('click', () => {
+                    canvasZoom = Math.max(0.1, canvasZoom / 1.2);
+                    updateCanvasTransform();
+                });
+            }
+
             const savedMode = getUnifiedAIMode();
             const select = document.getElementById('unified-ai-mode-select');
             if (select) {
@@ -10395,15 +12529,30 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 // Using 8000 to give 3000 tokens for actual response content
                 const maxTokensForReview = useExtendedThinking ? 8000 : 4096;
 
-                const response = await callClaudeAPI(
+                // Pattern-specific expert personas for AI Review
+                const reviewExperts = {
+                    philosophy: 'You are a philosophy professor specializing in classical and contemporary philosophical arguments. Review for logical validity, premise strength, and dialectical completeness.',
+                    sales: 'You are a sales strategist with 20 years of enterprise B2B experience. Review for pipeline health, deal qualification, and revenue optimization.',
+                    thesis: 'You are an academic advisor helping graduate students structure rigorous research. Review for argument progression, citation quality, and scholarly standards.',
+                    roadmap: 'You are a product manager experienced in agile development and feature prioritization. Review for execution readiness, story completeness, and technical feasibility.',
+                    prompting: 'You are an AI/ML engineer expert in prompt engineering for Claude, GPT-4, and other LLMs. Review for prompt clarity, few-shot example quality, output format specification, and edge case handling.',
+                    book: 'You are a professional fiction editor and writing coach. Review for narrative flow, character development, and pacing.',
+                    film: 'You are a cinematographer and AI video generation expert (Sora, Veo, Runway). Review for visual storytelling, shot composition, and production feasibility.',
+                    course: 'You are an instructional designer with expertise in curriculum development. Review for learning progression, assessment alignment, and instructional scaffolding.',
+                    generic: `You are an expert ${pattern.name} analyst. Review the provided tree structure for completeness, redundancies, logical flow, and alignment with ${pattern.name} best practices.`
+                };
+
+                const expertPersona = reviewExperts[currentPattern] || reviewExperts.generic;
+
+                const content = await callClaudeAPI(
                     reviewPrompt,
-                    `You are an expert ${pattern.name} analyst. Review the provided tree structure for completeness, redundancies, logical flow, and alignment with ${pattern.name} best practices. Provide specific, actionable suggestions.`,
+                    expertPersona + ' Provide specific, actionable suggestions.',
                     maxTokensForReview,
                     useExtendedThinking
                 );
 
                 // Parse the AI response and display results
-                displayReviewResults(response);
+                displayReviewResults(content);
 
             } catch (error) {
                 console.error('❌ AI Review error:', error);
@@ -10535,6 +12684,13 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 prompt += `   - Is learning progression scaffolded?\n`;
                 prompt += `   - Are assessments aligned with objectives?\n`;
                 prompt += `   - Is content appropriately chunked?\n\n`;
+            } else if (currentPattern === 'prompting') {
+                prompt += `5. **Prompt Engineering Quality:**\n`;
+                prompt += `   - Are system prompts clear and specific?\n`;
+                prompt += `   - Do few-shot examples cover edge cases?\n`;
+                prompt += `   - Are output formats well-defined?\n`;
+                prompt += `   - Are chain-of-thought instructions effective?\n`;
+                prompt += `   - Are test cases comprehensive?\n\n`;
             }
 
             prompt += `## Output Format\n\n`;
@@ -11254,8 +13410,14 @@ Respond with ONLY valid, parseable JSON:
           "description": "Brief description",
           "itemType": "type-from-list-above",
           "... include any key fields from list above if mentioned ...": "value",
-          "subtasks": [
-            { "name": "${levels.subtask} 1", "description": "Pattern-specific detail" },
+          "subItems": [
+            {
+              "name": "${levels.subtask} 1",
+              "description": "Pattern-specific detail",
+              "subItems": [
+                { "name": "${levels.subtask} 1.1", "description": "Supports N-level nesting" }
+              ]
+            },
             { "name": "${levels.subtask} 2", "description": "Pattern-specific detail" }
           ]
         }
@@ -11728,7 +13890,7 @@ CORRECT (proper depth):
         "argumentType": "Socratic Elenchus",
         "description": "Socrates refutes Callias's definition using case of returning sword to madman",
         "dependencies": ["item-0-1"],
-        "subtasks": [
+        "subItems": [
           {
             "name": "Premise: Returning sword to madman is dangerous",
             "itemType": "premise",
@@ -12031,9 +14193,36 @@ ${jsonText}`;
             const modalBody = document.getElementById('modal-body');
             document.getElementById('modal-title').textContent = '🔍 Analyzing Text...';
             modal.style.display = 'flex';
-            modalBody.innerHTML = '<div class="spinner"></div><p style="text-align: center; margin-top: 16px; color: var(--text-secondary);">Step 1/3: Detecting optimal pattern...</p>';
+
+            // Check if user pre-selected a specific pattern
+            const preSelectedPattern = document.getElementById('analysis-pattern-select').value;
 
             try {
+                let selectedPattern;
+
+                // If user chose a specific pattern, skip detection and use that pattern directly
+                if (preSelectedPattern && preSelectedPattern !== 'auto') {
+                    selectedPattern = preSelectedPattern;
+                    console.log(`✅ Using pre-selected pattern: ${selectedPattern}`);
+
+                    // Step 2: Convert text to tree (skip pattern detection)
+                    modalBody.innerHTML = '<div class="spinner"></div><p style="text-align: center; margin-top: 16px; color: var(--text-secondary);">Step 1/2: Converting text to tree structure...</p>';
+
+                    let treeData;
+                    if (mode === 'quick') {
+                        treeData = await convertTextToTreeQuick(finalText, selectedPattern);
+                    } else {
+                        treeData = await convertTextToTreeDeep(finalText, selectedPattern);
+                    }
+
+                    // Step 3: Preview and import
+                    showAnalysisPreview(treeData, selectedPattern, analysisAppendMode);
+                    return; // Exit early - we're done!
+                }
+
+                // Otherwise, proceed with auto-detection
+                modalBody.innerHTML = '<div class="spinner"></div><p style="text-align: center; margin-top: 16px; color: var(--text-secondary);">Step 1/3: Detecting optimal pattern...</p>';
+
                 // Step 1: Detect pattern
                 const recommendations = await detectPattern(finalText);
 
@@ -14399,6 +16588,51 @@ ${jsonText}`;
             }
         }, 2000); // Show splash for 2 seconds (matches loader animation)
     </script>
+
+    <!-- Canvas View Container -->
+    <div class="canvas-container" id="canvas-container">
+        <!-- Canvas Toolbar -->
+        <div class="canvas-toolbar" id="canvas-toolbar" style="position: fixed; top: 120px; left: 50%; transform: translateX(-50%); z-index: 200; display: none; align-items: center; gap: 8px; padding: 10px 16px; background: rgba(20, 20, 30, 0.98); backdrop-filter: blur(10px); border: 2px solid rgba(99, 102, 241, 0.3); border-radius: 16px; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
+            <select id="auto-layout-select" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                <option value="" style="background: #1a1a2e; color: #ffffff;">📐 Auto-Layout</option>
+                <option value="hierarchical" style="background: #1a1a2e; color: #ffffff;">🌳 Hierarchical</option>
+                <option value="timeline" style="background: #1a1a2e; color: #ffffff;">📅 Timeline</option>
+                <option value="force" style="background: #1a1a2e; color: #ffffff;">🌀 Force-Directed</option>
+                <option value="radial" style="background: #1a1a2e; color: #ffffff;">⭕ Radial</option>
+                <option value="grid" style="background: #1a1a2e; color: #ffffff;">⊞ Grid</option>
+            </select>
+            <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
+            <button id="grid-toggle" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;">
+                ◫ Grid
+            </button>
+            <button id="reset-view" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;">
+                🎯 Reset
+            </button>
+            <button id="fit-view" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;">
+                ⊡ Fit
+            </button>
+            <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <button id="zoom-out" class="btn" style="padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: var(--text-primary); font-weight: 600; transition: all 0.2s;">−</button>
+                <span id="zoom-level" style="font-size: 12px; font-weight: 600; color: var(--treeplex-primary); min-width: 50px; text-align: center;">100%</span>
+                <button id="zoom-in" class="btn" style="padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: var(--text-primary); font-weight: 600; transition: all 0.2s;">+</button>
+            </div>
+        </div>
+
+        <div id="canvas">
+            <!-- Grid Pattern -->
+            <svg class="canvas-grid" id="canvas-grid" style="position: absolute; top: 0; left: 0; width: 100%; height: 100%; pointer-events: none; z-index: 0; opacity: 0;">
+                <defs>
+                    <pattern id="grid-pattern" width="40" height="40" patternUnits="userSpaceOnUse">
+                        <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(99, 102, 241, 0.15)" stroke-width="1"/>
+                    </pattern>
+                </defs>
+                <rect width="100%" height="100%" fill="url(#grid-pattern)" />
+            </svg>
+            <svg class="canvas-connections" id="canvas-connections"></svg>
+        </div>
+    </div>
+
 </body>
 </html>
 <!-- Cache buster: 1762487974 -->
