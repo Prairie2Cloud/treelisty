@@ -5313,70 +5313,58 @@ const PATTERNS = {
         icon: '🧠',
         levels: {
             root: 'Prompt Library',
-            phase: 'Use Case',
+            phase: 'Category',
             item: 'Prompt',
             subtask: 'Test Case'
         },
-        phaseSubtitles: ['System Prompts', 'Task Prompts', 'Evaluation', 'Production'],
+        phaseSubtitles: ['Customer Support', 'Content Generation', 'Data Analysis', 'Code Assistance', 'Research', 'Creative Writing'],
         types: [
-            { value: 'system-role', label: 'System Role Definition' },
-            { value: 'task-instruction', label: 'Task Instruction' },
-            { value: 'few-shot', label: 'Few-Shot Examples' },
-            { value: 'chain-of-thought', label: 'Chain-of-Thought' },
-            { value: 'xml-structured', label: 'XML Structured (Anthropic)' },
-            { value: 'prefill', label: 'Assistant Prefill (Claude)' },
-            { value: 'tool-use', label: 'Tool Use / Function Calling' },
-            { value: 'golden-set', label: 'Golden Test Set' }
+            { value: 'task-instruction', label: '💬 Task Instruction' },
+            { value: 'few-shot', label: '📚 Few-Shot Examples' },
+            { value: 'chain-of-thought', label: '🧠 Chain-of-Thought' },
+            { value: 'structured-output', label: '📐 Structured Output' },
+            { value: 'xml-guided', label: '🏗️ XML-Guided (Anthropic)' },
+            { value: 'prefill-guided', label: '🎯 Prefill-Guided (Claude)' },
+            { value: 'production', label: '✅ Production-Ready' },
+            { value: 'experimental', label: '🧪 Experimental' }
         ],
-        description: 'Engineer prompts using OpenAI and Anthropic best practices',
+        description: 'Design and test AI prompts with best practices from OpenAI and Anthropic',
         fields: {
             systemPrompt: {
-                label: 'System Prompt',
+                label: 'System Prompt (Required)',
                 type: 'textarea',
-                placeholder: 'You are an expert customer support agent...',
-                helpText: '👤 Role definition, context, and behavioral guidelines (OpenAI system message / Anthropic system parameter)'
+                placeholder: 'You are an expert customer support agent with 10 years of experience. You are helpful, empathetic, and solution-focused. Always maintain a professional yet friendly tone.',
+                helpText: '👤 Define the AI\'s role, expertise, and behavior. This sets the foundation for all responses.'
             },
             userPromptTemplate: {
-                label: 'User Prompt Template',
+                label: 'User Prompt (Required)',
                 type: 'textarea',
-                placeholder: 'Analyze this customer issue:\n\n{{issue}}\n\nProvide...',
-                helpText: '💬 The actual task instruction with {{variables}} for dynamic content'
+                placeholder: 'Analyze the following customer support ticket and provide a recommended response:\n\nTicket: {{ticket_text}}\nPriority: {{priority}}\nCustomer Tier: {{tier}}\n\nProvide:\n1. Issue summary\n2. Recommended resolution\n3. Escalation needed (yes/no)',
+                helpText: '💬 The main instruction telling the AI what to do. Use {{variables}} for dynamic content.'
             },
             fewShotExamples: {
-                label: 'Few-Shot Examples',
+                label: 'Examples (Recommended)',
                 type: 'textarea',
-                placeholder: '<example>\nUser: ...\nAssistant: ...\n</example>',
-                helpText: '📚 Input-output examples to guide model behavior (Anthropic: use <example> tags)'
-            },
-            structuralTags: {
-                label: 'Structural Tags (Anthropic)',
-                type: 'textarea',
-                placeholder: '<thinking>...</thinking>\n<answer>...</answer>',
-                helpText: '🏗️ XML tags to structure reasoning and output (e.g., <thinking>, <context>, <output>)'
-            },
-            assistantPrefill: {
-                label: 'Assistant Prefill (Claude)',
-                type: 'text',
-                placeholder: 'Here is my analysis:',
-                helpText: '🎯 Start Claude\'s response with specific text to guide tone/format (Anthropic-specific technique)'
-            },
-            chainOfThought: {
-                label: 'Chain-of-Thought Instruction',
-                type: 'textarea',
-                placeholder: 'Think step by step. Show your reasoning...',
-                helpText: '🧠 Prompt model to show reasoning process (OpenAI/Anthropic CoT best practice)'
+                placeholder: '<example>\nInput: Customer reports login issue on mobile app\nOutput: {\n  "summary": "Authentication failure on iOS app",\n  "resolution": "Clear app cache and reinstall",\n  "escalate": "no"\n}\n</example>\n\n<example>\nInput: Customer requests refund for annual subscription\nOutput: {\n  "summary": "Refund request - annual plan",\n  "resolution": "Process pro-rated refund per policy",\n  "escalate": "yes"\n}\n</example>',
+                helpText: '📚 Show 2-3 examples of input → output. This dramatically improves accuracy and consistency.'
             },
             outputFormat: {
-                label: 'Output Format Specification',
+                label: 'Output Format (Recommended)',
                 type: 'textarea',
-                placeholder: 'Return JSON: {"analysis": "...", "confidence": 0-1}',
-                helpText: '📐 Exact structure expected (JSON schema, markdown, structured text)'
+                placeholder: 'Return your response as JSON with this exact structure:\n{\n  "summary": "brief issue description",\n  "resolution": "recommended action",\n  "escalate": "yes or no"\n}',
+                helpText: '📐 Specify exactly how you want the output structured (JSON, markdown, bullet points, etc.)'
+            },
+            chainOfThought: {
+                label: 'Chain-of-Thought (Optional)',
+                type: 'textarea',
+                placeholder: 'Before providing your answer, think through this step-by-step:\n1. What is the core issue?\n2. What are possible solutions?\n3. Which solution is best and why?',
+                helpText: '🧠 Ask the AI to "think out loud" before answering. Improves reasoning quality.'
             },
             modelTarget: {
                 label: 'Target Model',
                 type: 'select',
-                options: ['Claude 3.5 Sonnet', 'Claude 3 Opus', 'GPT-4o', 'GPT-4 Turbo', 'GPT-3.5 Turbo', 'o1-preview', 'o1-mini'],
-                helpText: '🤖 Which model this prompt is optimized for'
+                options: ['Claude 3.5 Sonnet', 'Claude 3 Opus', 'GPT-4o', 'GPT-4 Turbo', 'o1-preview'],
+                helpText: '🤖 Which AI model this prompt is optimized for'
             },
             temperature: {
                 label: 'Temperature',
@@ -5384,50 +5372,14 @@ const PATTERNS = {
                 min: 0,
                 max: 1,
                 step: 0.1,
-                helpText: '🔥 0 = deterministic, 1 = creative (OpenAI/Anthropic standard parameter)'
-            },
-            maxTokens: {
-                label: 'Max Tokens',
-                type: 'number',
-                min: 0,
-                step: 100,
-                helpText: '📏 Response length limit (affects cost and completeness)'
+                placeholder: '0.7',
+                helpText: '🌡️ 0 = consistent/factual, 1 = creative/varied. Use 0-0.3 for analysis, 0.7-1.0 for creative writing.'
             },
             testResults: {
                 label: 'Test Results',
                 type: 'textarea',
-                placeholder: 'Golden set: 95% accuracy\nLatency: avg 1.2s\nCost: $0.03/call',
-                helpText: '✅ Evaluation metrics from testing (accuracy, latency, cost)'
-            },
-            toolDefinitions: {
-                label: 'Tool / Function Definitions',
-                type: 'textarea',
-                placeholder: '{"name": "search", "description": "Search docs", "parameters": {...}}',
-                helpText: '🔧 Function calling schema (OpenAI functions / Anthropic tools)'
-            },
-            agentWorkflow: {
-                label: 'Agent Workflow',
-                type: 'textarea',
-                placeholder: 'Agent 1 (Router) → Agent 2 (Executor) → Agent 3 (Validator)',
-                helpText: '🤖 Multi-agent orchestration pattern (sequential, parallel, or hierarchical)'
-            },
-            contextManagement: {
-                label: 'Context Management',
-                type: 'textarea',
-                placeholder: 'Sliding window: keep last 10 messages\nCompression: summarize after 4K tokens',
-                helpText: '💾 Strategy for managing conversation history and token limits'
-            },
-            promptInjectionDefense: {
-                label: 'Prompt Injection Defense',
-                type: 'textarea',
-                placeholder: 'Use delimiters: """user input"""\nValidate against known attacks',
-                helpText: '🛡️ Techniques to prevent prompt injection / jailbreaking (OpenAI/Anthropic security best practices)'
-            },
-            iterationNotes: {
-                label: 'Iteration Notes',
-                type: 'textarea',
-                placeholder: 'v1: Too verbose\nv2: Added examples, reduced temp to 0.3\nv3: Prefill improved formatting',
-                helpText: '📝 What changed between versions and why (prompt engineering log)'
+                placeholder: 'Tested on 50 examples:\n✅ 94% accuracy\n⚡ Avg response time: 1.3s\n💰 Cost per request: $0.015',
+                helpText: '✅ Track how well this prompt performs on real test cases'
             },
             testStatus: {
                 label: 'Status',
