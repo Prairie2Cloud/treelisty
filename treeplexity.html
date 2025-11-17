@@ -456,6 +456,106 @@
             margin-top: 2px;
         }
 
+        /* FILESYSTEM PATTERN: Vertical Tree Layout */
+        .tree.filesystem-tree {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 20px;
+        }
+
+        .tree.filesystem-tree .tree-level {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
+            padding: 0;
+            background: none !important;
+        }
+
+        .tree.filesystem-tree .tree-node {
+            min-width: auto;
+            width: 100%;
+            max-width: 800px;
+            margin: 4px 0;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 14px;
+            transition: all 0.15s;
+            cursor: pointer;
+        }
+
+        .tree.filesystem-tree .tree-node:hover {
+            transform: none;
+            background: rgba(99, 102, 241, 0.15);
+        }
+
+        .tree.filesystem-tree .tree-node.item,
+        .tree.filesystem-tree .tree-node.subtask {
+            padding: 6px 10px;
+            background: transparent;
+            border: none;
+            box-shadow: none;
+        }
+
+        .tree.filesystem-tree .tree-node.item:hover,
+        .tree.filesystem-tree .tree-node.subtask:hover {
+            background: rgba(255, 255, 255, 0.05);
+            box-shadow: none;
+        }
+
+        .tree.filesystem-tree .filesystem-indent-0 { margin-left: 0px; }
+        .tree.filesystem-tree .filesystem-indent-1 { margin-left: 40px; }
+        .tree.filesystem-tree .filesystem-indent-2 { margin-left: 80px; }
+        .tree.filesystem-tree .filesystem-indent-3 { margin-left: 120px; }
+        .tree.filesystem-tree .filesystem-indent-4 { margin-left: 160px; }
+        .tree.filesystem-tree .filesystem-indent-5 { margin-left: 200px; }
+        .tree.filesystem-tree .filesystem-indent-6 { margin-left: 240px; }
+        .tree.filesystem-tree .filesystem-indent-7 { margin-left: 280px; }
+        .tree.filesystem-tree .filesystem-indent-8 { margin-left: 320px; }
+        .tree.filesystem-tree .filesystem-indent-9 { margin-left: 360px; }
+        .tree.filesystem-tree .filesystem-indent-10 { margin-left: 400px; }
+
+        .tree.filesystem-tree .node-header {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .tree.filesystem-tree .expand-toggle {
+            font-size: 14px;
+            margin-right: 6px;
+            cursor: pointer;
+            padding: 2px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-width: 16px;
+            user-select: none;
+            transition: all 0.2s;
+        }
+
+        .tree.filesystem-tree .expand-toggle:hover {
+            color: var(--accent-primary);
+            transform: scale(1.2);
+        }
+
+        .tree.filesystem-tree .node-icon {
+            font-size: 16px;
+            margin-right: 4px;
+        }
+
+        .tree.filesystem-tree .node-title,
+        .tree.filesystem-tree .item-name {
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .tree.filesystem-tree .node-subtitle,
+        .tree.filesystem-tree .item-description {
+            font-size: 11px;
+            color: var(--text-secondary);
+        }
+
         .tree-node.phase {
             border-left: 6px solid;
             min-width: 260px;
@@ -1383,6 +1483,9 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- LZ-String library for URL compression -->
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <!-- Google API Client Library for OAuth and Drive API -->
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="https://apis.google.com/js/api.js" async defer></script>
 </head>
 <body>
     <!-- TreeListy by geej Splash Screen -->
@@ -1429,6 +1532,10 @@
             </div>
 
             <div class="control-section">
+                <button class="btn" id="refresh-drive-btn" style="background: linear-gradient(135deg, #4285f4, #34a853);" title="Refresh from Google Drive (requires local server)">☁️ Refresh Google Drive</button>
+            </div>
+
+            <div class="control-section">
                 <button class="btn" id="undo-btn" title="Undo last action" disabled style="opacity: 0.5;">↩️ Undo</button>
                 <button class="btn" id="expand-btn" title="Expand all phases">⬇️ Expand</button>
                 <button class="btn" id="collapse-btn" title="Collapse all phases">⬆️ Collapse</button>
@@ -1450,6 +1557,7 @@
                     <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>
                     <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
                     <option value="dialogue" data-desc="Rhetoric: Conversation → Speaker → Statement → Point">💬 Dialogue & Rhetoric</option>
+                    <option value="filesystem" data-desc="File System: Drive → Folder → File/Folder (Unlimited Depth)">💾 File System</option>
                     <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
                 </select>
             </div>
@@ -3664,6 +3772,14 @@ Focus on logical structure and content organization best practices.`;
         let gridEnabled = false;
         const gridSize = 40;  // Grid snap size
 
+        // Multi-selection state
+        let isSelecting = false;
+        let selectionStart = { x: 0, y: 0 };
+        let selectionEnd = { x: 0, y: 0 };
+        let selectedNodes = [];
+        let isDraggingSelection = false;
+        let selectionDragStart = { x: 0, y: 0 };
+
         function toggleViewMode() {
             viewMode = viewMode === 'tree' ? 'canvas' : 'tree';
 
@@ -3683,12 +3799,15 @@ Focus on logical structure and content organization best practices.`;
                 }
 
                 // Migrate coordinates if needed
-                if (!capexTree.children[0]?.items[0]?.canvasX) {
+                const firstPhase = capexTree.children[0];
+                const firstItem = firstPhase?.items?.[0] || firstPhase?.children?.[0];
+                if (!firstItem?.canvasX) {
                     migrateToCanvasCoordinates();
                 } else {
                     // Even if coordinates exist, ensure expanded state is initialized
                     capexTree.children.forEach(phase => {
-                        phase.items?.forEach(item => {
+                        const nodeList = phase.items || phase.children || [];
+                        nodeList.forEach(item => {
                             initializeExpandedState(item);
                         });
                     });
@@ -3723,7 +3842,9 @@ Focus on logical structure and content organization best practices.`;
 
             capexTree.children.forEach((phase, phaseIdx) => {
                 let yOffset = 100;
-                phase.items?.forEach((item) => {
+                // Support both 'items' (standard) and 'children' (filesystem pattern)
+                const nodeList = phase.items || phase.children || [];
+                nodeList.forEach((item) => {
                     item.canvasX = xOffset + 50;
                     item.canvasY = yOffset;
                     yOffset += ySpacing;
@@ -3735,9 +3856,21 @@ Focus on logical structure and content organization best practices.`;
             });
         }
 
+        // Clear all canvas coordinates recursively to force re-positioning
+        function clearCanvasCoordinates(node) {
+            delete node.canvasX;
+            delete node.canvasY;
+
+            // Recursively clear for all child types
+            const childList = node.items || node.children || node.subItems || [];
+            childList.forEach(child => clearCanvasCoordinates(child));
+        }
+
         // Recursively initialize expanded state for all items with children
         function initializeExpandedState(item) {
-            if (item.subItems && item.subItems.length > 0) {
+            // Support both 'subItems' (standard) and 'children' (filesystem pattern)
+            const childList = item.subItems || item.children || [];
+            if (childList.length > 0) {
                 // Default to expanded if not explicitly set
                 if (item.expanded === undefined) {
                     item.expanded = true;
@@ -3745,8 +3878,8 @@ Focus on logical structure and content organization best practices.`;
                 }
 
                 // Recursively initialize for all descendants
-                item.subItems.forEach(subItem => {
-                    initializeExpandedState(subItem);
+                childList.forEach(child => {
+                    initializeExpandedState(child);
                 });
             }
         }
@@ -3762,7 +3895,15 @@ Focus on logical structure and content organization best practices.`;
 
             // Render all nodes recursively
             capexTree.children.forEach((phase, phaseIdx) => {
-                phase.items?.forEach((item) => {
+                // Support both 'items' (standard) and 'children' (filesystem pattern)
+                const nodeList = phase.items || phase.children || [];
+                nodeList.forEach((item, itemIdx) => {
+                    // Preserve existing positions for root items to prevent jumping
+                    // Only set initial position if not already set
+                    if (!item.canvasX || !item.canvasY) {
+                        item.canvasX = item.canvasX || 50;
+                        item.canvasY = item.canvasY || (50 + itemIdx * 180);
+                    }
                     renderNodeAndDescendants(item, phase, null, 0);
                 });
             });
@@ -3782,28 +3923,35 @@ Focus on logical structure and content organization best practices.`;
             // Render this node with hierarchical depth
             renderCanvasNode(node, phase, parentNode, nestingLevel);
 
-            // Recursively render all subtasks only if this node is expanded (or has no explicit state)
-            if (node.subItems && node.subItems.length > 0) {
+            // Recursively render all descendants only if this node is expanded (or has no explicit state)
+            // Support both 'subItems' (standard) and 'children' (filesystem pattern)
+            const childList = node.subItems || node.children || [];
+            if (childList.length > 0) {
                 // Default to expanded if not set
                 if (node.expanded === undefined) {
                     node.expanded = true;
                 }
 
-                node.subItems.forEach((subtask, subIdx) => {
-                    // Auto-position subtasks based on nesting level
-                    if (!subtask.canvasX) {
+                childList.forEach((child, childIdx) => {
+                    // Auto-position children based on nesting level
+                    if (!child.canvasX) {
                         // Each nesting level moves further right
-                        subtask.canvasX = (node.canvasX || 0) + 350;
-                        subtask.canvasY = (node.canvasY || 0) + (subIdx * 120);
+                        child.canvasX = (node.canvasX || 0) + 350;
+                        child.canvasY = (node.canvasY || 0) + (childIdx * 120);
                     }
 
-                    // Recursively render this subtask and its descendants
-                    renderNodeAndDescendants(subtask, phase, node, nestingLevel + 1);
+                    // Recursively render this child and its descendants
+                    renderNodeAndDescendants(child, phase, node, nestingLevel + 1);
                 });
             }
         }
 
         function drawConnections() {
+            // Skip drawing connections for filesystem pattern (uses indent-based hierarchy)
+            if (currentPattern === 'filesystem') {
+                return;
+            }
+
             const svg = document.getElementById('canvas-connections');
             svg.innerHTML = '';
 
@@ -4141,14 +4289,22 @@ Focus on logical structure and content organization best practices.`;
             node.style.top = `${item.canvasY}px`;
             node.dataset.itemId = item.id;
             node.dataset.nestingLevel = nestingLevel;
-            node.title = 'Left-click: Info | Double-click: Edit | Right-click: Menu | Middle-click: Drag';
+
+            // Check if node has children (support both subItems and children)
+            const childList = item.subItems || item.children || [];
+            const hasChildren = childList.length > 0;
+
+            // Dynamic tooltip based on whether node has children
+            node.title = hasChildren
+                ? 'Left-click: Expand/Collapse | Double-click: Edit | Right-click: Menu | Middle-click: Drag'
+                : 'Left-click: Info | Double-click: Edit | Right-click: Menu | Middle-click: Drag';
 
             // Add collapse/expand indicator if node has children
             let expandIndicator = '';
-            if (item.subItems && item.subItems.length > 0) {
+            if (hasChildren) {
                 const isExpanded = item.expanded !== false;
                 const indicatorIcon = isExpanded ? '▼' : '▶';
-                expandIndicator = `<div style="position: absolute; top: 8px; right: 8px; font-size: 12px; cursor: pointer; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 4px; user-select: none;" class="expand-indicator" data-item-id="${item.id}">${indicatorIcon} ${item.subItems.length}</div>`;
+                expandIndicator = `<div style="position: absolute; top: 8px; right: 8px; font-size: 12px; cursor: pointer; padding: 4px 8px; background: rgba(0,0,0,0.3); border-radius: 4px; user-select: none;" class="expand-indicator" data-item-id="${item.id}">${indicatorIcon} ${childList.length}</div>`;
             }
 
             // RAG status indicator
@@ -4214,7 +4370,7 @@ Focus on logical structure and content organization best practices.`;
                 });
             }
 
-            // Left-click to show info panel (same as Tree View)
+            // Left-click to expand/collapse if has children, otherwise show info panel
             node.addEventListener('click', (e) => {
                 console.log('Left-click detected on:', item.name);
                 e.stopPropagation();
@@ -4226,12 +4382,23 @@ Focus on logical structure and content organization best practices.`;
                 document.querySelectorAll('.canvas-node').forEach(n => n.classList.remove('selected'));
                 node.classList.add('selected');
 
-                // Call TreeListy's showInfo function to populate the panel
-                if (typeof showInfo === 'function') {
-                    console.log('Calling TreeListy showInfo function');
-                    showInfo(item);
+                // Check if node has children (support both subItems and children)
+                const hasChildren = (item.subItems && item.subItems.length > 0) ||
+                                  (item.children && item.children.length > 0);
+
+                if (hasChildren) {
+                    // Toggle expand/collapse
+                    item.expanded = !item.expanded;
+                    console.log('Toggling expand for:', item.name, 'expanded:', item.expanded);
+                    renderCanvas();
                 } else {
-                    console.error('showInfo function not found!');
+                    // Leaf node - show info panel
+                    if (typeof showInfo === 'function') {
+                        console.log('Calling TreeListy showInfo function');
+                        showInfo(item);
+                    } else {
+                        console.error('showInfo function not found!');
+                    }
                 }
             });
 
@@ -4275,22 +4442,34 @@ Focus on logical structure and content organization best practices.`;
                 showCanvasContextMenu(e.pageX, e.pageY, item);
             });
 
-            // Drag with MIDDLE MOUSE BUTTON (button 1)
+            // Drag with MIDDLE MOUSE BUTTON (button 1) only - left button reserved for panning
             node.addEventListener('mousedown', (e) => {
-                // Only handle middle-click (button 1) for dragging
+                const containerRect = document.getElementById('canvas-container').getBoundingClientRect();
+
+                // Middle-click - drag group if node is selected, otherwise drag individual
                 if (e.button === 1) {
-                    console.log('Middle-click drag activated for:', item.name);
                     e.preventDefault(); // Prevent browser's middle-click scroll
                     e.stopPropagation();
 
-                    isDraggingCanvasNode = true;
-                    draggedCanvasNode = item;
-                    const containerRect = document.getElementById('canvas-container').getBoundingClientRect();
-                    dragStartX = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x - item.canvasX;
-                    dragStartY = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y - item.canvasY;
-                    node.classList.add('dragging');
+                    // Check if this node is part of a selection
+                    if (selectedNodes.includes(item) && selectedNodes.length > 1) {
+                        console.log('Middle-click drag group activated (', selectedNodes.length, 'nodes )');
+                        isDraggingSelection = true;
+                        const clickX = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x;
+                        const clickY = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y;
+                        selectionDragStart = { x: clickX, y: clickY };
+                    } else {
+                        // Individual node drag
+                        console.log('Middle-click drag activated for:', item.name);
+                        isDraggingCanvasNode = true;
+                        draggedCanvasNode = item;
+                        dragStartX = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x - item.canvasX;
+                        dragStartY = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y - item.canvasY;
+                        node.classList.add('dragging');
+                    }
                 }
-                // Left-click (button 0) and right-click (button 2) are free for other uses
+                // Left-click (button 0) is reserved for panning
+                // Right-click (button 2) is free for context menu
             });
 
             canvas.appendChild(node);
@@ -4355,6 +4534,17 @@ Focus on logical structure and content organization best practices.`;
         function snapToGrid(value) {
             if (!gridEnabled) return value;
             return Math.round(value / gridSize) * gridSize;
+        }
+
+        function clearSelection() {
+            // Remove selected class from all nodes
+            selectedNodes.forEach(nodeData => {
+                const nodeEl = canvasNodes.find(n => n.data.id === nodeData.id)?.element;
+                if (nodeEl) {
+                    nodeEl.classList.remove('selected');
+                }
+            });
+            selectedNodes = [];
         }
 
         function toggleGrid() {
@@ -4595,7 +4785,44 @@ Focus on logical structure and content organization best practices.`;
             const container = document.getElementById('canvas-container');
 
             container.addEventListener('mousedown', (e) => {
-                if (e.target === container || e.target.id === 'canvas') {
+                const containerRect = container.getBoundingClientRect();
+
+                // Middle mouse button - start selection
+                if (e.button === 1 && (e.target === container || e.target.id === 'canvas')) {
+                    e.preventDefault();
+                    isSelecting = true;
+                    const x = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x;
+                    const y = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y;
+                    selectionStart = { x, y };
+                    selectionEnd = { x, y };
+
+                    // Clear previous selection
+                    clearSelection();
+
+                    // Create selection overlay
+                    let selectionBox = document.getElementById('selection-box');
+                    if (!selectionBox) {
+                        selectionBox = document.createElement('div');
+                        selectionBox.id = 'selection-box';
+                        selectionBox.style.position = 'absolute';
+                        selectionBox.style.border = '2px dashed var(--treeplex-primary)';
+                        selectionBox.style.background = 'rgba(0, 166, 125, 0.1)';
+                        selectionBox.style.pointerEvents = 'none';
+                        selectionBox.style.zIndex = '9999';
+                        document.getElementById('canvas').appendChild(selectionBox);
+                    }
+                    selectionBox.style.display = 'block';
+                    return;
+                }
+
+                // Left mouse button on canvas background - pan
+                if (e.button === 0 && (e.target === container || e.target.id === 'canvas')) {
+                    // Clear selection when clicking on empty space
+                    if (selectedNodes.length > 0 && !e.ctrlKey) {
+                        clearSelection();
+                    }
+
+                    // Start panning
                     isPanningCanvas = true;
                     panStartX = e.clientX;
                     panStartY = e.clientY;
@@ -4604,6 +4831,75 @@ Focus on logical structure and content organization best practices.`;
             });
 
             container.addEventListener('mousemove', (e) => {
+                const containerRect = container.getBoundingClientRect();
+
+                // Drawing selection box with middle mouse
+                if (isSelecting) {
+                    const x = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x;
+                    const y = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y;
+                    selectionEnd = { x, y };
+
+                    // Update selection box visual
+                    const selectionBox = document.getElementById('selection-box');
+                    if (selectionBox) {
+                        const minX = Math.min(selectionStart.x, selectionEnd.x);
+                        const minY = Math.min(selectionStart.y, selectionEnd.y);
+                        const maxX = Math.max(selectionStart.x, selectionEnd.x);
+                        const maxY = Math.max(selectionStart.y, selectionEnd.y);
+
+                        selectionBox.style.left = `${minX}px`;
+                        selectionBox.style.top = `${minY}px`;
+                        selectionBox.style.width = `${maxX - minX}px`;
+                        selectionBox.style.height = `${maxY - minY}px`;
+                    }
+                    return;
+                }
+
+                // Dragging multiple selected nodes
+                if (isDraggingSelection && selectedNodes.length > 0) {
+                    const currentX = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x;
+                    const currentY = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y;
+
+                    const deltaX = currentX - selectionDragStart.x;
+                    const deltaY = currentY - selectionDragStart.y;
+
+                    // Move all selected nodes
+                    selectedNodes.forEach(nodeData => {
+                        nodeData.canvasX += deltaX;
+                        nodeData.canvasY += deltaY;
+
+                        const nodeEl = canvasNodes.find(n => n.data.id === nodeData.id)?.element;
+                        if (nodeEl) {
+                            nodeEl.style.left = `${nodeData.canvasX}px`;
+                            nodeEl.style.top = `${nodeData.canvasY}px`;
+                        }
+
+                        // Move children of each selected node
+                        function moveChildren(node, dx, dy) {
+                            const childList = node.items || node.children || node.subItems || [];
+                            childList.forEach(child => {
+                                if (child.canvasX !== undefined && child.canvasY !== undefined) {
+                                    child.canvasX += dx;
+                                    child.canvasY += dy;
+
+                                    const childEl = canvasNodes.find(n => n.data.id === child.id)?.element;
+                                    if (childEl) {
+                                        childEl.style.left = `${child.canvasX}px`;
+                                        childEl.style.top = `${child.canvasY}px`;
+                                    }
+
+                                    moveChildren(child, dx, dy);
+                                }
+                            });
+                        }
+                        moveChildren(nodeData, deltaX, deltaY);
+                    });
+
+                    selectionDragStart = { x: currentX, y: currentY };
+                    drawConnections();
+                    return;
+                }
+
                 if (isPanningCanvas) {
                     const dx = (e.clientX - panStartX) / canvasZoom;
                     const dy = (e.clientY - panStartY) / canvasZoom;
@@ -4621,6 +4917,11 @@ Focus on logical structure and content organization best practices.`;
                     x = snapToGrid(x);
                     y = snapToGrid(y);
 
+                    // Calculate delta (how much the node moved)
+                    const deltaX = x - draggedCanvasNode.canvasX;
+                    const deltaY = y - draggedCanvasNode.canvasY;
+
+                    // Update parent position
                     draggedCanvasNode.canvasX = x;
                     draggedCanvasNode.canvasY = y;
 
@@ -4630,12 +4931,86 @@ Focus on logical structure and content organization best practices.`;
                         nodeEl.style.top = `${y}px`;
                     }
 
+                    // Recursively move all children by the same delta
+                    function moveChildren(node, dx, dy) {
+                        const childList = node.items || node.children || node.subItems || [];
+                        childList.forEach(child => {
+                            if (child.canvasX !== undefined && child.canvasY !== undefined) {
+                                child.canvasX += dx;
+                                child.canvasY += dy;
+
+                                // Update child DOM element
+                                const childEl = canvasNodes.find(n => n.data.id === child.id)?.element;
+                                if (childEl) {
+                                    childEl.style.left = `${child.canvasX}px`;
+                                    childEl.style.top = `${child.canvasY}px`;
+                                }
+
+                                // Recursively move grandchildren
+                                moveChildren(child, dx, dy);
+                            }
+                        });
+                    }
+
+                    // Move all descendants
+                    if (deltaX !== 0 || deltaY !== 0) {
+                        moveChildren(draggedCanvasNode, deltaX, deltaY);
+                    }
+
                     // Redraw connections while dragging
                     drawConnections();
                 }
             });
 
-            container.addEventListener('mouseup', () => {
+            container.addEventListener('mouseup', (e) => {
+                // Finalize selection
+                if (isSelecting) {
+                    isSelecting = false;
+
+                    // Hide selection box
+                    const selectionBox = document.getElementById('selection-box');
+                    if (selectionBox) {
+                        selectionBox.style.display = 'none';
+                    }
+
+                    // Calculate selection bounds
+                    const minX = Math.min(selectionStart.x, selectionEnd.x);
+                    const minY = Math.min(selectionStart.y, selectionEnd.y);
+                    const maxX = Math.max(selectionStart.x, selectionEnd.x);
+                    const maxY = Math.max(selectionStart.y, selectionEnd.y);
+
+                    // Find nodes within selection
+                    const containerRect = container.getBoundingClientRect();
+                    canvasNodes.forEach(nodeObj => {
+                        const node = nodeObj.data;
+                        const nodeEl = nodeObj.element;
+
+                        if (node.canvasX !== undefined && node.canvasY !== undefined) {
+                            const rect = nodeEl.getBoundingClientRect();
+                            const nodeX = (rect.left - containerRect.left) / canvasZoom - canvasPan.x;
+                            const nodeY = (rect.top - containerRect.top) / canvasZoom - canvasPan.y;
+                            const nodeW = rect.width / canvasZoom;
+                            const nodeH = rect.height / canvasZoom;
+
+                            // Check if node intersects with selection box
+                            if (nodeX < maxX && nodeX + nodeW > minX &&
+                                nodeY < maxY && nodeY + nodeH > minY) {
+                                selectedNodes.push(node);
+                                nodeEl.classList.add('selected');
+                            }
+                        }
+                    });
+
+                    console.log(`Selected ${selectedNodes.length} nodes`);
+                    return;
+                }
+
+                // End dragging selection
+                if (isDraggingSelection) {
+                    isDraggingSelection = false;
+                    return;
+                }
+
                 isPanningCanvas = false;
                 container.classList.remove('grabbing');
 
@@ -5683,6 +6058,147 @@ const PATTERNS = {
             includeTracking: false
         }
     },
+    filesystem: {
+        name: 'File System',
+        icon: '💾',
+        isFlexibleDepth: true,
+        levels: {
+            root: 'Drive',
+            phase: 'Folder',
+            item: 'File/Folder',
+            subtask: 'File'
+        },
+        phaseSubtitles: ['Documents', 'Downloads', 'Desktop', 'Pictures', 'Videos', 'Projects'],
+        types: [
+            // Folder types
+            { value: 'folder', label: '📁 Folder' },
+            { value: 'folder-shared', label: '📂 Shared Folder' },
+            { value: 'folder-cloud', label: '☁️ Cloud Folder' },
+
+            // Document types
+            { value: 'pdf', label: '📕 PDF' },
+            { value: 'word', label: '📘 Word Doc' },
+            { value: 'excel', label: '📗 Spreadsheet' },
+            { value: 'powerpoint', label: '📙 Presentation' },
+            { value: 'text', label: '📝 Text File' },
+            { value: 'document', label: '📄 Document' },
+
+            // Media types
+            { value: 'image', label: '🖼️ Image' },
+            { value: 'video', label: '🎬 Video' },
+            { value: 'audio', label: '🎵 Audio' },
+
+            // Code types
+            { value: 'code', label: '💻 Code' },
+            { value: 'html', label: '🌐 HTML' },
+            { value: 'css', label: '🎨 CSS' },
+            { value: 'javascript', label: '⚡ JavaScript' },
+            { value: 'python', label: '🐍 Python' },
+
+            // Archive types
+            { value: 'archive', label: '📦 Archive' },
+            { value: 'zip', label: '🗜️ ZIP' },
+
+            // Other
+            { value: 'executable', label: '⚙️ Executable' },
+            { value: 'database', label: '🗄️ Database' },
+            { value: 'unknown', label: '❓ Unknown' }
+        ],
+        description: 'Organize files and folders from local drives, Google Drive, and OneDrive',
+        sortOptions: [
+            { value: 'name-az', label: '🔤 Name (A-Z)', field: 'name', order: 'asc', type: 'text' },
+            { value: 'name-za', label: '🔤 Name (Z-A)', field: 'name', order: 'desc', type: 'text' },
+            { value: 'size-large', label: '📊 Size (Largest First)', field: 'fileSize', order: 'desc', type: 'number' },
+            { value: 'size-small', label: '📊 Size (Smallest First)', field: 'fileSize', order: 'asc', type: 'number' },
+            { value: 'modified-newest', label: '🕒 Modified (Newest First)', field: 'dateModified', order: 'desc', type: 'date' },
+            { value: 'modified-oldest', label: '🕒 Modified (Oldest First)', field: 'dateModified', order: 'asc', type: 'date' },
+            { value: 'created-newest', label: '📅 Created (Newest First)', field: 'dateCreated', order: 'desc', type: 'date' },
+            { value: 'created-oldest', label: '📅 Created (Oldest First)', field: 'dateCreated', order: 'asc', type: 'date' },
+            { value: 'type-folders-first', label: '📁 Type (Folders First)', field: 'isFolder', order: 'desc', type: 'boolean' },
+            { value: 'extension-az', label: '🏷️ Extension (A-Z)', field: 'fileExtension', order: 'asc', type: 'text' }
+        ],
+        fields: {
+            fileSize: {
+                label: 'File Size (bytes)',
+                type: 'number',
+                min: 0,
+                step: 1,
+                placeholder: '2500000',
+                helpText: '📊 Size in bytes (will be formatted as KB/MB/GB)'
+            },
+            fileExtension: {
+                label: 'File Extension',
+                type: 'text',
+                placeholder: '.pdf, .docx, .jpg...',
+                helpText: '🏷️ File type extension (e.g., .pdf, .docx, .mp4)'
+            },
+            filePath: {
+                label: 'Full Path',
+                type: 'text',
+                placeholder: 'C:\\Users\\Documents\\file.pdf',
+                helpText: '📂 Complete file path'
+            },
+            dateModified: {
+                label: 'Date Modified',
+                type: 'datetime-local',
+                helpText: '🕒 Last modification date and time'
+            },
+            dateCreated: {
+                label: 'Date Created',
+                type: 'datetime-local',
+                helpText: '📅 Creation date and time'
+            },
+            fileOwner: {
+                label: 'Owner',
+                type: 'text',
+                placeholder: 'john.doe@company.com',
+                helpText: '👤 File owner (for cloud files)'
+            },
+            sharedWith: {
+                label: 'Shared With',
+                type: 'textarea',
+                placeholder: 'user1@email.com, user2@email.com...',
+                helpText: '👥 Users with access (for cloud files)'
+            },
+            permissions: {
+                label: 'Permissions',
+                type: 'select',
+                options: ['Read Only', 'Read/Write', 'Owner', 'Viewer', 'Editor', 'Commenter'],
+                helpText: '🔒 Access permissions'
+            },
+            driveType: {
+                label: 'Drive Type',
+                type: 'select',
+                options: ['Local Drive', 'Google Drive', 'OneDrive', 'Dropbox', 'Network Drive', 'External Drive'],
+                helpText: '💾 Storage location type'
+            },
+            mimeType: {
+                label: 'MIME Type',
+                type: 'text',
+                placeholder: 'application/pdf, image/jpeg...',
+                helpText: '📋 File MIME type (for web/cloud files)'
+            },
+            tags: {
+                label: 'Tags',
+                type: 'text',
+                placeholder: 'work, important, archive...',
+                helpText: '🏷️ Custom tags for organization'
+            },
+            fileUrl: {
+                label: 'Cloud URL',
+                type: 'text',
+                placeholder: 'https://drive.google.com/...',
+                helpText: '🔗 Direct link to cloud file'
+            },
+            isFolder: {
+                label: 'Is Folder',
+                type: 'checkbox',
+                helpText: '📁 Check if this is a folder (not a file)'
+            },
+            includeDependencies: false,
+            includeTracking: false
+        }
+    },
     custom: {
         name: 'Custom Names',
         icon: '✏️',
@@ -5696,6 +6212,147 @@ const PATTERNS = {
         customizable: true
     }
 };
+
+// ============================================================================
+// FILE SYSTEM ICON MAPPING
+// ============================================================================
+
+const FILE_ICON_MAP = {
+    // Documents
+    '.pdf': { icon: '📕', type: 'pdf' },
+    '.doc': { icon: '📘', type: 'word' },
+    '.docx': { icon: '📘', type: 'word' },
+    '.odt': { icon: '📘', type: 'document' },
+
+    // Spreadsheets
+    '.xls': { icon: '📗', type: 'excel' },
+    '.xlsx': { icon: '📗', type: 'excel' },
+    '.csv': { icon: '📊', type: 'excel' },
+    '.ods': { icon: '📊', type: 'excel' },
+
+    // Presentations
+    '.ppt': { icon: '📙', type: 'powerpoint' },
+    '.pptx': { icon: '📙', type: 'powerpoint' },
+    '.key': { icon: '📙', type: 'powerpoint' },
+    '.odp': { icon: '📙', type: 'powerpoint' },
+
+    // Text
+    '.txt': { icon: '📝', type: 'text' },
+    '.md': { icon: '📝', type: 'text' },
+    '.rtf': { icon: '📝', type: 'text' },
+
+    // Images
+    '.jpg': { icon: '🖼️', type: 'image' },
+    '.jpeg': { icon: '🖼️', type: 'image' },
+    '.png': { icon: '🖼️', type: 'image' },
+    '.gif': { icon: '🎨', type: 'image' },
+    '.bmp': { icon: '🖼️', type: 'image' },
+    '.svg': { icon: '🎨', type: 'image' },
+    '.webp': { icon: '🖼️', type: 'image' },
+
+    // Videos
+    '.mp4': { icon: '🎬', type: 'video' },
+    '.avi': { icon: '🎬', type: 'video' },
+    '.mov': { icon: '🎬', type: 'video' },
+    '.mkv': { icon: '🎬', type: 'video' },
+    '.webm': { icon: '🎬', type: 'video' },
+    '.flv': { icon: '🎬', type: 'video' },
+
+    // Audio
+    '.mp3': { icon: '🎵', type: 'audio' },
+    '.wav': { icon: '🎵', type: 'audio' },
+    '.flac': { icon: '🎵', type: 'audio' },
+    '.aac': { icon: '🎵', type: 'audio' },
+    '.ogg': { icon: '🎵', type: 'audio' },
+    '.m4a': { icon: '🎵', type: 'audio' },
+
+    // Code
+    '.html': { icon: '🌐', type: 'html' },
+    '.htm': { icon: '🌐', type: 'html' },
+    '.css': { icon: '🎨', type: 'css' },
+    '.js': { icon: '⚡', type: 'javascript' },
+    '.jsx': { icon: '⚡', type: 'javascript' },
+    '.ts': { icon: '💙', type: 'javascript' },
+    '.tsx': { icon: '💙', type: 'javascript' },
+    '.py': { icon: '🐍', type: 'python' },
+    '.java': { icon: '☕', type: 'code' },
+    '.cpp': { icon: '⚙️', type: 'code' },
+    '.c': { icon: '⚙️', type: 'code' },
+    '.php': { icon: '🐘', type: 'code' },
+    '.rb': { icon: '💎', type: 'code' },
+    '.go': { icon: '🔵', type: 'code' },
+    '.rs': { icon: '🦀', type: 'code' },
+    '.json': { icon: '📋', type: 'code' },
+    '.xml': { icon: '📋', type: 'code' },
+    '.yaml': { icon: '📋', type: 'code' },
+    '.yml': { icon: '📋', type: 'code' },
+
+    // Archives
+    '.zip': { icon: '🗜️', type: 'zip' },
+    '.rar': { icon: '📦', type: 'archive' },
+    '.7z': { icon: '📦', type: 'archive' },
+    '.tar': { icon: '📦', type: 'archive' },
+    '.gz': { icon: '📦', type: 'archive' },
+
+    // Executables
+    '.exe': { icon: '⚙️', type: 'executable' },
+    '.msi': { icon: '⚙️', type: 'executable' },
+    '.app': { icon: '⚙️', type: 'executable' },
+    '.dmg': { icon: '💿', type: 'executable' },
+    '.deb': { icon: '📦', type: 'executable' },
+
+    // Database
+    '.db': { icon: '🗄️', type: 'database' },
+    '.sqlite': { icon: '🗄️', type: 'database' },
+    '.sql': { icon: '🗄️', type: 'database' },
+
+    // Default
+    'default': { icon: '❓', type: 'unknown' }
+};
+
+const FOLDER_ICON_MAP = {
+    'default': '📁',
+    'open': '📂',
+    'shared': '👥',
+    'cloud': '☁️',
+    'system': '⚙️',
+    'user': '👤',
+    'downloads': '📥',
+    'documents': '📄',
+    'pictures': '🖼️',
+    'videos': '🎬',
+    'music': '🎵',
+    'desktop': '🖥️',
+    'trash': '🗑️'
+};
+
+function getFileIcon(fileName, isFolder = false) {
+    if (isFolder) {
+        // Check for special folder names
+        const folderNameLower = fileName.toLowerCase();
+        if (folderNameLower.includes('download')) return FOLDER_ICON_MAP.downloads;
+        if (folderNameLower.includes('document')) return FOLDER_ICON_MAP.documents;
+        if (folderNameLower.includes('picture') || folderNameLower.includes('photo')) return FOLDER_ICON_MAP.pictures;
+        if (folderNameLower.includes('video') || folderNameLower.includes('movie')) return FOLDER_ICON_MAP.videos;
+        if (folderNameLower.includes('music') || folderNameLower.includes('audio')) return FOLDER_ICON_MAP.music;
+        if (folderNameLower.includes('desktop')) return FOLDER_ICON_MAP.desktop;
+        if (folderNameLower.includes('trash') || folderNameLower.includes('recycle')) return FOLDER_ICON_MAP.trash;
+        if (folderNameLower.includes('user')) return FOLDER_ICON_MAP.user;
+        return FOLDER_ICON_MAP.default;
+    }
+
+    // Extract extension
+    const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    const mapping = FILE_ICON_MAP[ext] || FILE_ICON_MAP.default;
+    return mapping.icon;
+}
+
+function getFileType(fileName, isFolder = false) {
+    if (isFolder) return 'folder';
+    const ext = fileName.substring(fileName.lastIndexOf('.')).toLowerCase();
+    const mapping = FILE_ICON_MAP[ext] || FILE_ICON_MAP.default;
+    return mapping.type;
+}
 
 // ============================================================================
 // PATTERN STATE
@@ -6018,6 +6675,117 @@ function hidePatternDescription() {
             const tableEl = document.createElement('div');
             tableEl.className = 'tree';
 
+            // FILESYSTEM PATTERN: Use vertical tree layout
+            if (currentPattern === 'filesystem') {
+                tableEl.classList.add('filesystem-tree');
+
+                function buildFilesystemNode(node, depth = 0) {
+                    // Initialize expanded property if not set
+                    if (node.expanded === undefined) {
+                        node.expanded = (depth === 0 || depth === 1); // Auto-expand root and drives
+                    }
+
+                    const nodeDiv = document.createElement('div');
+                    nodeDiv.className = `tree-node ${node.type} filesystem-indent-${depth}`;
+                    if (node.expanded) nodeDiv.classList.add('expanded');
+                    else nodeDiv.classList.add('collapsed');
+                    nodeDiv.dataset.nodeId = node.id;
+
+                    // Build node content
+                    if (node.type === 'root') {
+                        const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0) || (node.children && node.children.length > 0);
+                        nodeDiv.innerHTML = `
+                            <div class="node-header">
+                                ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
+                                <span class="node-icon">${node.icon}</span>
+                                <div class="node-content">
+                                    <div class="node-title">${node.name}</div>
+                                </div>
+                            </div>
+                        `;
+                    } else if (node.type === 'phase') {
+                        const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0) || (node.children && node.children.length > 0);
+                        nodeDiv.innerHTML = `
+                            <div class="node-header">
+                                ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
+                                <span class="node-icon">${node.icon}</span>
+                                <div class="node-content">
+                                    <div class="node-title">${node.name}</div>
+                                </div>
+                            </div>
+                        `;
+                    } else {
+                        // Item/Subtask - file or folder
+                        const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0);
+                        nodeDiv.innerHTML = `
+                            <div class="node-header">
+                                ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
+                                <span class="node-icon">${node.icon}</span>
+                                <div class="node-content">
+                                    <span class="item-name">${node.name}</span>
+                                </div>
+                            </div>
+                        `;
+                    }
+
+                    // Event listeners
+                    nodeDiv.addEventListener('click', (e) => {
+                        e.stopPropagation();
+
+                        const hasChildren = (node.items && node.items.length > 0) ||
+                                          (node.subItems && node.subItems.length > 0) ||
+                                          (node.children && node.children.length > 0);
+
+                        console.log('Clicked node:', node.name, {
+                            type: node.type,
+                            hasItems: node.items?.length || 0,
+                            hasSubItems: node.subItems?.length || 0,
+                            hasChildren: node.children?.length || 0,
+                            expanded: node.expanded,
+                            hasChildrenTotal: hasChildren
+                        });
+
+                        if (hasChildren) {
+                            node.expanded = !node.expanded;
+                            console.log('→ Toggled', node.name, 'to', node.expanded ? 'EXPANDED' : 'COLLAPSED');
+                            render();
+                        } else {
+                            console.log('→ No children, showing info panel');
+                            showInfo(node);
+                        }
+                    });
+
+                    nodeDiv.addEventListener('contextmenu', (e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        activeNode = node;
+                        showContextMenu(e.pageX, e.pageY);
+                    });
+
+                    tableEl.appendChild(nodeDiv);
+
+                    // Recursively render children if expanded
+                    if (node.expanded) {
+                        if (node.children && node.children.length > 0) {
+                            node.children.forEach(child => buildFilesystemNode(child, depth + 1));
+                        }
+                        if (node.items && node.items.length > 0) {
+                            node.items.forEach(item => buildFilesystemNode(item, depth + 1));
+                        }
+                        if (node.subItems && node.subItems.length > 0) {
+                            node.subItems.forEach(subItem => buildFilesystemNode(subItem, depth + 1));
+                        }
+                    }
+                }
+
+                // Start rendering from root
+                buildFilesystemNode(capexTree, 0);
+
+                container.appendChild(tableEl);
+                return;
+            }
+
+            // DEFAULT PATTERN: Use horizontal column layout
             // Traverse and build columns
             function buildColumn(node) {
                 const levelDiv = document.createElement('div');
@@ -7745,9 +8513,254 @@ function hidePatternDescription() {
                 `;
             }
 
+            // FILE SYSTEM - File preview/open button with thumbnail
+            else if (currentPattern === 'filesystem' && !node.isFolder && (node.fileUrl || node.filePath)) {
+                // Format file size
+                const formatFileSize = (bytes) => {
+                    if (!bytes) return 'Unknown size';
+                    if (bytes < 1024) return bytes + ' B';
+                    if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+                    if (bytes < 1024 * 1024 * 1024) return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+                    return (bytes / (1024 * 1024 * 1024)).toFixed(2) + ' GB';
+                };
+
+                // Get file icon based on extension
+                const fileIcon = node.icon || getFileIcon(node.name, false);
+                const fileSize = formatFileSize(node.fileSize);
+
+                patternInfoHtml = `
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08)); border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 2px solid rgba(99, 102, 241, 0.3);">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <div style="font-size: 18px; font-weight: 700; color: var(--treeplex-primary); margin-bottom: 8px;">💾 File Details</div>
+                        </div>
+
+                        <!-- File Thumbnail/Icon & Open Button -->
+                        <div style="display: flex; flex-direction: column; align-items: center; gap: 16px; margin-bottom: 20px;">
+                            <!-- Large Icon -->
+                            <div style="font-size: 80px; line-height: 1;">${fileIcon}</div>
+
+                            <!-- File Name -->
+                            <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); text-align: center; word-break: break-all;">
+                                ${node.name}
+                            </div>
+
+                            <!-- Open File Button -->
+                            ${node.fileUrl ? `
+                                <button onclick="window.open('${node.fileUrl}', '_blank')"
+                                        style="padding: 14px 32px;
+                                               background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                                               border: none;
+                                               border-radius: 12px;
+                                               color: white;
+                                               font-size: 16px;
+                                               font-weight: 700;
+                                               cursor: pointer;
+                                               transition: all 0.2s;
+                                               box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);"
+                                        onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(99, 102, 241, 0.4)'"
+                                        onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(99, 102, 241, 0.3)'">
+                                    🔗 Open File
+                                </button>
+                            ` : ''}
+                        </div>
+
+                        <!-- File Metadata Grid -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 10px; margin-bottom: 20px;">
+                            ${node.fileSize ? `
+                                <div style="padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">📊 Size</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${fileSize}</div>
+                                </div>
+                            ` : ''}
+                            ${node.fileExtension ? `
+                                <div style="padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">🏷️ Type</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${node.fileExtension}</div>
+                                </div>
+                            ` : ''}
+                            ${node.dateModified ? `
+                                <div style="padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">🕒 Modified</div>
+                                    <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);">${new Date(node.dateModified).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}</div>
+                                </div>
+                            ` : ''}
+                            ${node.dateCreated ? `
+                                <div style="padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">📅 Created</div>
+                                    <div style="font-size: 12px; font-weight: 600; color: var(--text-primary);">${new Date(node.dateCreated).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'})}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- File Path -->
+                        ${node.filePath ? `
+                            <div style="padding: 14px; background: rgba(0, 0, 0, 0.2); border-left: 4px solid var(--treeplex-primary); border-radius: 8px; margin-bottom: 12px;">
+                                <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">📂 Path</div>
+                                <div style="font-size: 12px; line-height: 1.5; color: var(--text-primary); font-family: monospace; word-break: break-all;">${node.filePath}</div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Permissions & Owner -->
+                        <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                            ${node.permissions ? `
+                                <div style="flex: 1; min-width: 150px; padding: 12px; background: rgba(16, 185, 129, 0.15); border-radius: 8px;">
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase;">🔒 Permissions</div>
+                                    <div style="font-size: 13px; font-weight: 600; color: #10B981;">${node.permissions}</div>
+                                </div>
+                            ` : ''}
+                            ${node.fileOwner ? `
+                                <div style="flex: 1; min-width: 150px; padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+                                    <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 4px; text-transform: uppercase;">👤 Owner</div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${node.fileOwner}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Shared With -->
+                        ${node.sharedWith ? `
+                            <div style="padding: 14px; background: rgba(168, 85, 247, 0.15); border-left: 4px solid #a855f7; border-radius: 8px; margin-top: 12px;">
+                                <div style="font-size: 11px; font-weight: 700; color: #a855f7; margin-bottom: 6px; text-transform: uppercase;">👥 Shared With</div>
+                                <div style="font-size: 13px; line-height: 1.6; color: var(--text-primary);">${node.sharedWith}</div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Tags -->
+                        ${node.tags ? `
+                            <div style="padding: 14px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; margin-top: 12px;">
+                                <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">🏷️ Tags</div>
+                                <div style="font-size: 13px; color: var(--text-primary);">${node.tags}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            // FILESYSTEM - File/Folder info card with Open button
+            let filesystemInfoHtml = '';
+            if (currentPattern === 'filesystem' && node.type === 'item') {
+                const formatFileSize = (bytes) => {
+                    if (!bytes || bytes === 0) return 'N/A';
+                    const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+                    let size = bytes;
+                    let unitIndex = 0;
+                    while (size >= 1024 && unitIndex < units.length - 1) {
+                        size /= 1024;
+                        unitIndex++;
+                    }
+                    return `${size.toFixed(2)} ${units[unitIndex]}`;
+                };
+
+                const formatDate = (dateStr) => {
+                    if (!dateStr) return 'N/A';
+                    try {
+                        return new Date(dateStr).toLocaleString('en-US', {
+                            year: 'numeric',
+                            month: 'short',
+                            day: 'numeric',
+                            hour: 'numeric',
+                            minute: '2-digit'
+                        });
+                    } catch (e) {
+                        return dateStr;
+                    }
+                };
+
+                // Determine if it's a folder or file
+                const isFolder = node.isFolder === true;
+                const entityType = isFolder ? 'Folder' : 'File';
+                const entityIcon = isFolder ? '📁' : node.icon || '📄';
+
+                filesystemInfoHtml = `
+                    <div style="background: linear-gradient(135deg, rgba(59, 130, 246, 0.08), rgba(99, 102, 241, 0.08)); border-radius: 12px; padding: 20px; margin-bottom: 24px; border: 2px solid rgba(59, 130, 246, 0.3);">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <div style="font-size: 18px; font-weight: 700; color: #3B82F6; margin-bottom: 8px;">${entityIcon} ${entityType} Details</div>
+                        </div>
+
+                        <!-- Open Button (Prominent) -->
+                        ${node.fileUrl || node.filePath ? `
+                            <div style="text-align: center; margin-bottom: 20px;">
+                                <button onclick="window.open('${node.fileUrl || node.filePath}', '_blank')" style="
+                                    padding: 16px 32px;
+                                    background: linear-gradient(135deg, var(--treeplex-primary), var(--treeplex-primary-dark));
+                                    color: white;
+                                    border: none;
+                                    border-radius: 12px;
+                                    font-size: 16px;
+                                    font-weight: 700;
+                                    cursor: pointer;
+                                    display: inline-flex;
+                                    align-items: center;
+                                    gap: 10px;
+                                    transition: all 0.3s;
+                                    box-shadow: 0 4px 12px rgba(0, 166, 125, 0.3);
+                                " onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(0, 166, 125, 0.4)';" onmouseout="this.style.transform=''; this.style.boxShadow='0 4px 12px rgba(0, 166, 125, 0.3)';">
+                                    <span style="font-size: 20px;">🔗</span>
+                                    <span>Open ${isFolder ? 'Folder' : 'File'}</span>
+                                </button>
+                            </div>
+                        ` : ''}
+
+                        <!-- File/Folder Metadata Grid -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 16px;">
+                            ${!isFolder && node.fileSize !== undefined ? `
+                                <div style="padding: 14px; background: rgba(16, 185, 129, 0.15); border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">💾 Size</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: #10B981;">${formatFileSize(node.fileSize)}</div>
+                                </div>
+                            ` : ''}
+                            ${node.fileExtension ? `
+                                <div style="padding: 14px; background: rgba(245, 158, 11, 0.15); border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">📋 Type</div>
+                                    <div style="font-size: 14px; font-weight: 600; color: #F59E0B; font-family: monospace;">${node.fileExtension}</div>
+                                </div>
+                            ` : ''}
+                            ${node.mimeType ? `
+                                <div style="padding: 14px; background: rgba(139, 92, 246, 0.15); border-radius: 8px; text-align: center;">
+                                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">🔖 MIME</div>
+                                    <div style="font-size: 11px; font-weight: 600; color: #A78BFA; font-family: monospace; word-break: break-all;">${node.mimeType}</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Dates -->
+                        ${node.dateModified || node.dateCreated ? `
+                            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                                ${node.dateModified ? `
+                                    <div style="flex: 1; padding: 14px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+                                        <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">📅 Modified</div>
+                                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${formatDate(node.dateModified)}</div>
+                                    </div>
+                                ` : ''}
+                                ${node.dateCreated ? `
+                                    <div style="flex: 1; padding: 14px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+                                        <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">🆕 Created</div>
+                                        <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${formatDate(node.dateCreated)}</div>
+                                    </div>
+                                ` : ''}
+                            </div>
+                        ` : ''}
+
+                        <!-- Owner & Path -->
+                        ${node.fileOwner ? `
+                            <div style="padding: 14px; background: rgba(0, 0, 0, 0.2); border-radius: 8px; margin-bottom: 12px;">
+                                <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">👤 Owner</div>
+                                <div style="font-size: 14px; font-weight: 600; color: var(--text-primary);">${node.fileOwner}</div>
+                            </div>
+                        ` : ''}
+                        ${node.filePath ? `
+                            <div style="padding: 14px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+                                <div style="font-size: 11px; font-weight: 700; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">📂 Path</div>
+                                <div style="font-size: 12px; color: var(--text-primary); font-family: monospace; word-break: break-all;">${node.filePath}</div>
+                            </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
             body.innerHTML = `
                 ${pmDashboardHtml}
                 ${patternInfoHtml}
+                ${filesystemInfoHtml}
                 <div class="info-section">
                     <h4>ID</h4>
                     <p><code style="background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">${node.id || 'N/A'}</code></p>
@@ -10235,7 +11248,7 @@ Final validation:
 ALWAYS include in treeUpdate:
 - Phases (3-6 typical)
 - Items per phase (2-5 typical)
-- ⚠️ SUBITEMS (use "subItems" property, NOT "subtasks"): Add 2-4 ${levels.subtask}s to items that need decomposition
+- ⚠️ NESTED ITEMS${wizardState.patternKey === 'filesystem' ? ' (use "children" property for File System pattern)' : ' (use "subItems" property, NOT "subtasks")'}: Add 2-4 ${levels.subtask}s to items that need decomposition
   → ${levels.subtask}s are PATTERN-SPECIFIC breakdowns:
     • ${pattern.name === 'Philosophy' ? 'Philosophy: premises, objections, evidence, citations' : ''}
     • ${pattern.name === 'Sales Pipeline' ? 'Sales: follow-up actions, next steps, deliverables' : ''}
@@ -10247,7 +11260,7 @@ ALWAYS include in treeUpdate:
     • ${pattern.name === 'Prompt Engineering' ? 'Prompting: test cases, variations, edge cases' : ''}
     • Generic: steps, components, or sub-elements
   → Focus on ${pattern.name} deliverables, not generic task lists
-  → ✨ NESTED SUBITEMS: subItems can have their own subItems for N-level depth (e.g., Step 1 → Step 1.1 → Step 1.1.1)
+  → ✨ UNLIMITED NESTING: ${wizardState.patternKey === 'filesystem' ? 'children can have their own children for N-level depth (e.g., Folder → Subfolder → File)' : 'subItems can have their own subItems for N-level depth (e.g., Step 1 → Step 1.1 → Step 1.1.1)'}
 - Dependency info in descriptions (e.g., "After Phase 1 completes...")
 - Pattern-specific fields (infer from conversation)
 
@@ -10262,6 +11275,56 @@ NEVER ask about:
 
 DO NOT write ANY text before or after the JSON.
 Your ENTIRE response must be ONLY this JSON object:
+
+${wizardState.patternKey === 'filesystem' ? `
+⚠️ FILESYSTEM PATTERN - SPECIAL STRUCTURE:
+For File System pattern, use "children" arrays at ALL levels (not "items" or "subItems"):
+
+{
+  "message": "I've built [X drives, Y folders]. [State what you added]. [Ask ONE follow-up question]",
+  "treeUpdate": {
+    "name": "My Computer",
+    "description": "File system structure",
+    "children": [
+      {
+        "name": "C:\\ Local Drive",
+        "type": "phase",
+        "icon": "💾",
+        "children": [
+          {
+            "name": "Projects",
+            "type": "item",
+            "icon": "📁",
+            "isFolder": true,
+            "dateModified": "2025-11-15T14:30:00",
+            "children": [
+              {
+                "name": "report.xlsx",
+                "type": "item",
+                "icon": "📗",
+                "isFolder": false,
+                "fileSize": 15728640,
+                "fileExtension": ".xlsx",
+                "dateModified": "2025-11-10T16:45:00"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "fieldsUpdated": ["fileSize", "isFolder"],
+  "progress": 0.7,
+  "done": false
+}
+
+⚠️ FILESYSTEM REQUIREMENTS:
+- Use "children" for folders AND files (NOT "items" or "subItems")
+- Set isFolder: true for folders, false for files
+- Include fileSize (bytes), fileExtension, dateModified for files
+- Auto-detect icons based on extension (.xlsx→📗, .pdf→📕, .jpg→🖼️, etc.)
+- Unlimited nesting depth supported via children arrays
+` : `
 {
   "message": "I've built [X phases, Y items]. [State what you added]. The only gap I see is [specific gap]. [Ask ONE strategic follow-up question that maximizes information gain]",
   "treeUpdate": {
@@ -10296,7 +11359,7 @@ Your ENTIRE response must be ONLY this JSON object:
   "fieldsUpdated": ["field1", "field2"],
   "progress": 0.7,
   "done": false
-}
+}`}
 
 🎯 CRITICAL RULES:
 - Return ONLY JSON, no text before/after
@@ -10381,14 +11444,15 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                         existingPhase.subtitle = updatedPhase.subtitle || existingPhase.subtitle;
                         if (updatedPhase.description) existingPhase.description = updatedPhase.description;
 
-                        // Merge items
-                        if (updatedPhase.items) {
-                            if (!existingPhase.items) existingPhase.items = [];
+                        // Merge items (standard patterns) OR children (filesystem pattern)
+                        const itemsArrayName = updatedPhase.items ? 'items' : (updatedPhase.children ? 'children' : null);
+                        if (itemsArrayName) {
+                            if (!existingPhase[itemsArrayName]) existingPhase[itemsArrayName] = [];
 
                             const matchedItemIds = new Set();
 
-                            updatedPhase.items.forEach((updatedItem, itemIdx) => {
-                                const existingItem = findMatchingItem(updatedItem.name, existingPhase.items);
+                            updatedPhase[itemsArrayName].forEach((updatedItem, itemIdx) => {
+                                const existingItem = findMatchingItem(updatedItem.name, existingPhase[itemsArrayName]);
 
                                 if (existingItem) {
                                     // MERGE with existing item - preserve ALL existing fields
@@ -10397,74 +11461,86 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
                                     // Merge all fields (keep existing if not in update)
                                     Object.keys(updatedItem).forEach(key => {
-                                        if (key !== 'subItems' && updatedItem[key] !== undefined && updatedItem[key] !== '') {
+                                        if (key !== 'subItems' && key !== 'children' && updatedItem[key] !== undefined && updatedItem[key] !== '') {
                                             existingItem[key] = updatedItem[key];
                                         }
                                     });
 
                                     // Merge subItems (RECURSIVE for N-level depth support)
+                                    // Supports both 'subItems' (standard) and 'children' (filesystem)
                                     function mergeSubItems(existingParent, updatedParent, parentPhase, parentItemIdx) {
-                                        if (!updatedParent.subItems) return;
-                                        if (!existingParent.subItems) existingParent.subItems = [];
+                                        const nestedArrayName = updatedParent.subItems ? 'subItems' : (updatedParent.children ? 'children' : null);
+                                        if (!nestedArrayName) return;
+                                        if (!existingParent[nestedArrayName]) existingParent[nestedArrayName] = [];
 
-                                        updatedParent.subItems.forEach(newSubItem => {
-                                            const existingSubItem = existingParent.subItems.find(s =>
+                                        updatedParent[nestedArrayName].forEach(newSubItem => {
+                                            const existingSubItem = existingParent[nestedArrayName].find(s =>
                                                 s.name.toLowerCase().trim() === newSubItem.name.toLowerCase().trim()
                                             );
 
                                             if (existingSubItem) {
                                                 // Update existing subItem
                                                 Object.keys(newSubItem).forEach(key => {
-                                                    if (key !== 'subItems' && newSubItem[key] !== undefined && newSubItem[key] !== '') {
+                                                    if (key !== 'subItems' && key !== 'children' && newSubItem[key] !== undefined && newSubItem[key] !== '') {
                                                         existingSubItem[key] = newSubItem[key];
                                                     }
                                                 });
 
-                                                // RECURSIVE: Merge nested subItems
+                                                // RECURSIVE: Merge nested items (supports N-level depth)
                                                 mergeSubItems(existingSubItem, newSubItem, parentPhase, parentItemIdx);
                                             } else {
-                                                // Add new subItem with auto-generated ID
-                                                const subIdx = existingParent.subItems.length;
+                                                // Add new item with auto-generated ID
+                                                const subIdx = existingParent[nestedArrayName].length;
                                                 const newSubItemWithId = {
-                                                    id: `subtask-${parentPhase}-${parentItemIdx}-${subIdx}`,
-                                                    type: 'subtask',
+                                                    id: `${nestedArrayName === 'children' ? 'child' : 'subtask'}-${parentPhase}-${parentItemIdx}-${subIdx}`,
+                                                    type: nestedArrayName === 'children' ? 'item' : 'subtask',
                                                     ...newSubItem
                                                 };
-                                                existingParent.subItems.push(newSubItemWithId);
+                                                existingParent[nestedArrayName].push(newSubItemWithId);
                                             }
                                         });
                                     }
 
-                                    mergeSubItems(existingItem, updatedItem, existingPhase.phase, existingPhase.items.indexOf(existingItem));
+                                    mergeSubItems(existingItem, updatedItem, existingPhase.phase, existingPhase[itemsArrayName].indexOf(existingItem));
                                 } else {
                                     // ADD new item to existing phase
                                     console.log(`  ✅ Adding new item: ${updatedItem.name}`);
-                                    const newItemIdx = existingPhase.items.length;
+                                    const newItemIdx = existingPhase[itemsArrayName].length;
 
-                                    // RECURSIVE function to add IDs to nested subItems
-                                    function addSubItemIds(subItems, phaseIdx, itemIdx, parentPath = '') {
-                                        if (!subItems) return [];
-                                        return subItems.map((subItem, subIdx) => ({
-                                            id: `subtask-${phaseIdx}-${itemIdx}-${parentPath}${subIdx}`,
-                                            type: 'subtask',
-                                            ...subItem,
-                                            subItems: addSubItemIds(subItem.subItems, phaseIdx, itemIdx, `${parentPath}${subIdx}-`)
-                                        }));
+                                    // RECURSIVE function to add IDs to nested items (supports both subItems and children)
+                                    function addNestedItemIds(nestedItems, nestedArrayName, phaseIdx, itemIdx, parentPath = '') {
+                                        if (!nestedItems) return [];
+                                        return nestedItems.map((nestedItem, nestedIdx) => {
+                                            const childArrayName = nestedItem.subItems ? 'subItems' : (nestedItem.children ? 'children' : null);
+                                            const result = {
+                                                id: `${nestedArrayName === 'children' ? 'child' : 'subtask'}-${phaseIdx}-${itemIdx}-${parentPath}${nestedIdx}`,
+                                                type: nestedArrayName === 'children' ? 'item' : 'subtask',
+                                                ...nestedItem
+                                            };
+                                            if (childArrayName) {
+                                                result[childArrayName] = addNestedItemIds(nestedItem[childArrayName], childArrayName, phaseIdx, itemIdx, `${parentPath}${nestedIdx}-`);
+                                            }
+                                            return result;
+                                        });
                                     }
 
-                                    existingPhase.items.push({
+                                    const nestedArrayName = updatedItem.subItems ? 'subItems' : (updatedItem.children ? 'children' : null);
+                                    const newItem = {
                                         id: `item-${existingPhase.phase}-${newItemIdx}`,
                                         type: 'item',
                                         icon: '📄',
                                         expanded: false,
-                                        ...updatedItem,
-                                        subItems: addSubItemIds(updatedItem.subItems, existingPhase.phase, newItemIdx)
-                                    });
+                                        ...updatedItem
+                                    };
+                                    if (nestedArrayName) {
+                                        newItem[nestedArrayName] = addNestedItemIds(updatedItem[nestedArrayName], nestedArrayName, existingPhase.phase, newItemIdx);
+                                    }
+                                    existingPhase[itemsArrayName].push(newItem);
                                 }
                             });
 
                             // PRESERVE existing items that weren't in the update
-                            console.log(`  ℹ️ Preserved ${existingPhase.items.filter(i => !matchedItemIds.has(i.id)).length} existing items not in update`);
+                            console.log(`  ℹ️ Preserved ${existingPhase[itemsArrayName].filter(i => !matchedItemIds.has(i.id)).length} existing items not in update`);
                         }
                     } else {
                         // ADD new phase
@@ -16832,6 +17908,126 @@ ${jsonText}`;
             document.getElementById('excel-upload-input').click();
         });
 
+        // Google Drive Refresh button handler
+        document.getElementById('refresh-drive-btn').addEventListener('click', async () => {
+            const btn = document.getElementById('refresh-drive-btn');
+            const originalText = btn.textContent;
+
+            try {
+                // Check if current tree has source metadata
+                const hasSourceMetadata = capexTree?.source?.type === 'google-drive';
+
+                if (!hasSourceMetadata) {
+                    // No source metadata - inform user
+                    const proceed = confirm(
+                        '⚠️ No Google Drive source detected!\n\n' +
+                        'This will scan your entire Google Drive.\n\n' +
+                        'Tip: Load a Google Drive JSON first, then click Refresh to update only that tree.\n\n' +
+                        'Continue with full scan?'
+                    );
+                    if (!proceed) return;
+                }
+
+                // Show loading state
+                btn.textContent = '⏳ Refreshing...';
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+
+                console.log('☁️ Refreshing from Google Drive...');
+                if (hasSourceMetadata) {
+                    console.log('📋 Using source metadata from loaded tree:', capexTree.source);
+                }
+
+                // Prepare request body with source metadata (if available)
+                const requestBody = hasSourceMetadata ? {
+                    source: capexTree.source
+                } : {};
+
+                // Call local server to trigger export and get data
+                const response = await fetch('http://localhost:5000/refresh-google-drive', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(requestBody)
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || 'Server request failed');
+                }
+
+                const result = await response.json();
+
+                if (!result.success) {
+                    throw new Error(result.error || 'Unknown error');
+                }
+
+                console.log('✅ Received data from server:', result.filename);
+
+                // Auto-import the data
+                const treeData = result.data;
+
+                // Detect pattern
+                const detectedPattern = treeData.pattern?.key || 'filesystem';
+                console.log(`📋 Pattern detected: ${detectedPattern}`);
+
+                // Load directly without preview modal
+                if (PATTERNS[detectedPattern]) {
+                    currentPattern = detectedPattern;
+                    capexTree = treeData;
+
+                    // Update pattern dropdown
+                    const patternSelect = document.getElementById('pattern-select');
+                    if (patternSelect) {
+                        patternSelect.value = detectedPattern;
+                    }
+
+                    // Re-render the tree
+                    render();
+
+                    // Build success message with source info
+                    let successMessage = `✅ Google Drive refreshed successfully!\n\n`;
+                    successMessage += `File: ${result.filename}\n`;
+                    successMessage += `Size: ${(result.fileSize / 1024).toFixed(1)} KB\n`;
+                    successMessage += `Pattern: ${PATTERNS[detectedPattern].name}\n`;
+
+                    if (treeData.source) {
+                        successMessage += `\n📋 Source Info:\n`;
+                        successMessage += `Type: ${treeData.source.type}\n`;
+                        successMessage += `Folder: ${treeData.source.folderName}\n`;
+                        successMessage += `Depth: ${treeData.source.syncDepth} levels\n`;
+
+                        if (treeData.source.lastSync) {
+                            const syncDate = new Date(treeData.source.lastSync);
+                            successMessage += `Last Synced: ${syncDate.toLocaleString()}`;
+                        }
+                    }
+
+                    alert(successMessage);
+
+                    console.log('✅ Google Drive data loaded successfully');
+                } else {
+                    throw new Error(`Unknown pattern: ${detectedPattern}`);
+                }
+
+            } catch (error) {
+                console.error('❌ Refresh failed:', error);
+
+                // Check if server is running
+                if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
+                    alert('❌ Cannot connect to local server!\n\nPlease start the server first:\n\n1. Open a terminal\n2. Run: python treelisty_server.py\n3. Keep it running\n4. Try again');
+                } else {
+                    alert(`❌ Refresh failed:\n\n${error.message}`);
+                }
+            } finally {
+                // Restore button state
+                btn.textContent = originalText;
+                btn.disabled = false;
+                btn.style.opacity = '1';
+            }
+        });
+
         // Excel file upload handler
         document.getElementById('excel-upload-input').addEventListener('change', (e) => {
             const file = e.target.files[0];
@@ -17057,29 +18253,55 @@ ${jsonText}`;
             return valB - valA;
         }
 
-        // Recursively sort items array and all subtasks
+        // Recursively sort items array and all nested levels
         function sortItemsArray(items, sortConfig) {
             if (!items || !Array.isArray(items) || items.length === 0) return items;
             if (!sortConfig) return items;
 
             const { field, order, type } = sortConfig;
 
-            // Sort this level
-            items.sort((a, b) => {
-                return compareValues(a[field], b[field], type, order);
-            });
+            // Special handling for "folders first" sorting in filesystem pattern
+            if (currentPattern === 'filesystem' && field === 'isFolder') {
+                items.sort((a, b) => {
+                    // Folders always come before files when sorting by type
+                    const aIsFolder = a.isFolder || false;
+                    const bIsFolder = b.isFolder || false;
 
-            // Recursively sort all subtask arrays
+                    if (aIsFolder && !bIsFolder) return order === 'desc' ? -1 : 1;
+                    if (!aIsFolder && bIsFolder) return order === 'desc' ? 1 : -1;
+
+                    // If both are folders or both are files, sort by name as secondary
+                    return (a.name || '').toLowerCase().localeCompare((b.name || '').toLowerCase());
+                });
+            } else {
+                // Standard sorting for all other fields
+                items.sort((a, b) => {
+                    return compareValues(a[field], b[field], type, order);
+                });
+            }
+
+            // Recursively sort nested arrays (items, subItems, and children for all patterns)
             items.forEach(item => {
+                // Sort standard items array (4-level patterns)
                 if (item.items && Array.isArray(item.items) && item.items.length > 0) {
                     sortItemsArray(item.items, sortConfig);
+                }
+
+                // Sort subItems array (flexible depth patterns like filesystem)
+                if (item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0) {
+                    sortItemsArray(item.subItems, sortConfig);
+                }
+
+                // Sort children array (filesystem pattern uses this for nested folders)
+                if (item.children && Array.isArray(item.children) && item.children.length > 0) {
+                    sortItemsArray(item.children, sortConfig);
                 }
             });
 
             return items;
         }
 
-        // Sort the entire tree while preserving phase hierarchy
+        // Sort the entire tree - applies to all nodes at all depths
         function sortTree(sortConfig) {
             if (!sortConfig) {
                 // Reset to original order - reload from saved state
@@ -17090,11 +18312,11 @@ ${jsonText}`;
 
             currentSortConfig = sortConfig;
 
-            // Sort phases
+            // Sort phases (drives for filesystem pattern)
             if (capexTree.phases && capexTree.phases.length > 0) {
                 sortItemsArray(capexTree.phases, sortConfig);
 
-                // Sort items within each phase
+                // Sort all items within each phase recursively
                 capexTree.phases.forEach(phase => {
                     if (phase.items && phase.items.length > 0) {
                         sortItemsArray(phase.items, sortConfig);
@@ -17102,10 +18324,28 @@ ${jsonText}`;
                 });
             }
 
-            // Re-render to show sorted tree
-            render();
+            // Sort children array (for root level if exists)
+            if (capexTree.children && capexTree.children.length > 0) {
+                sortItemsArray(capexTree.children, sortConfig);
+            }
 
-            console.log('Tree sorted by:', sortConfig);
+            // Re-render to show sorted tree with new visual order
+            if (viewMode === 'canvas') {
+                // Clear canvas coordinates to force re-positioning in new sorted order
+                capexTree.children.forEach(phase => {
+                    const nodeList = phase.items || phase.children || [];
+                    nodeList.forEach(node => clearCanvasCoordinates(node));
+                });
+
+                // Migrate coordinates based on new sorted order
+                migrateToCanvasCoordinates();
+
+                renderCanvas();
+                console.log('Canvas sorted by:', sortConfig, '- Canvas layout updated and repositioned');
+            } else {
+                render();
+                console.log('Tree sorted by:', sortConfig, '- Visual layout updated');
+            }
         }
 
         // Initialize Sort System
