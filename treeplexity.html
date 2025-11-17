@@ -132,6 +132,7 @@
             display: flex;
             flex-direction: column;
             gap: 2px;
+            margin-right: 40px;
         }
 
         .logo-title {
@@ -1453,16 +1454,18 @@
                 </select>
             </div>
 
-            <div class="control-section">
-                <button class="btn" id="analyze-text-btn" title="Analyze text to detect pattern and create tree structure" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔍 Analyze Text</button>
-                <button class="btn" id="wizard-btn" title="AI Wizard will guide you through building your tree" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600;">🪄 AI Wizard</button>
-                <button class="btn" id="ai-review-btn" title="AI reviews your tree for completeness, logic, and pattern alignment" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 600;">🔬 AI Review</button>
-                <button class="btn" id="auto-enhance-btn" title="Automatically run AI Review then enhance your tree (uses your selected AI for review, Sonnet for enhancement)" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600;">🔄 Auto-Enhance</button>
-                <button class="btn" id="generate-prompt-btn" title="Generate a complete prompt from your tree structure" style="background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 600;">📝 Generate Prompt</button>
+            <div class="control-section" id="sort-section" style="display: none;">
+                <label for="pattern-sort-select" style="display: flex; align-items: center; gap: 6px; font-size: 13px; color: var(--text-secondary);">
+                    <span>🔄 Sort:</span>
+                    <select id="pattern-sort-select" class="btn" style="padding: 6px 10px; cursor: pointer; font-weight: 600; min-width: 180px;" title="Sort tree items by specific metrics">
+                        <option value="">Default Order</option>
+                    </select>
+                </label>
+                <button class="btn" id="reset-sort-btn" style="display: none; padding: 6px 10px; font-size: 12px;" title="Reset to default order">↺</button>
             </div>
 
             <div class="control-section">
-                <button class="btn btn-primary" id="ai-btn" title="AI-powered analysis">🤖 AI</button>
+                <button class="btn" id="toggle-ai-tools" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600;" title="Toggle AI Tools Panel">🤖 AI Tools</button>
             </div>
 
             <div class="control-section">
@@ -1546,6 +1549,42 @@
 
     <!-- Context Menu (populated dynamically) -->
     <div class="context-menu" id="context-menu"></div>
+
+    <!-- Floating AI Tools Panel -->
+    <div id="ai-tools-panel" style="position: fixed; bottom: 20px; right: 20px; z-index: 500; display: none; flex-direction: column; gap: 10px; padding: 16px; background: rgba(20, 20, 30, 0.98); backdrop-filter: blur(10px); border: 2px solid rgba(168, 85, 247, 0.4); border-radius: 16px; box-shadow: 0 8px 32px rgba(168, 85, 247, 0.3); min-width: 240px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+            <div style="font-weight: 700; font-size: 15px; color: #e4e4e7; display: flex; align-items: center; gap: 8px;">
+                🤖 AI Tools
+            </div>
+            <button id="close-ai-tools" style="background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" title="Close AI Tools Panel">✕</button>
+        </div>
+
+        <button class="btn" id="analyze-text-btn" title="Input/paste/load txt to be analyzed" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600; justify-content: flex-start;">🔍 Analyze Text</button>
+        <button class="btn" id="wizard-btn" title="Grow your tree via chat" style="width: 100%; background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600; justify-content: flex-start;">🪄 AI Wizard</button>
+        <button class="btn" id="ai-review-btn" title="Get recommendations for improvement" style="width: 100%; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 600; justify-content: flex-start;">🔬 AI Review</button>
+        <button class="btn" id="auto-enhance-btn" title="Takes text from recommendations and prompts pattern ai to make improvements" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600; justify-content: flex-start;">🔄 Auto-Enhance</button>
+        <button class="btn" id="generate-prompt-btn" title="Generate a complete prompt from your tree structure" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 600; justify-content: flex-start;">📝 Generate Prompt</button>
+        <button class="btn btn-primary" id="ai-btn" title="Nothing useful yet" style="width: 100%; justify-content: flex-start;">🤖 AI Analysis</button>
+
+        <div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(99, 102, 241, 0.2);">
+            <label for="unified-ai-mode-select-panel" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">AI Model:</label>
+            <select id="unified-ai-mode-select-panel" class="btn" style="width: 100%; padding: 8px 10px; cursor: pointer; font-weight: 600; font-size: 13px;" title="Choose AI provider and model">
+                <optgroup label="🆓 Server (Free - Rate Limited: 200/hr)">
+                    <option value="server-haiku" title="Server Claude Haiku - Fast & cheap, 200 req/hr limit">⚡ Fast (Haiku)</option>
+                    <option value="server-sonnet" selected title="Server Claude Sonnet 4.5 - Best reasoning, 200 req/hr limit">🧠 Best (Sonnet 4.5)</option>
+                </optgroup>
+                <optgroup label="🔑 Your Key (Unlimited - Requires API Key)">
+                    <option value="user-haiku" title="Your Claude Haiku - Fast & cheap, unlimited with your key">⚡ Fast (Haiku)</option>
+                    <option value="user-sonnet" title="Your Claude Sonnet 4.5 - Best reasoning with extended thinking, unlimited">🧠 Best (Sonnet 4.5)</option>
+                    <option value="user-gemini" title="Your Gemini - Fast & cost-effective, requires Google API key">🔷 Gemini</option>
+                    <option value="user-chatgpt" title="Your ChatGPT - Versatile & popular, requires OpenAI API key">💬 ChatGPT</option>
+                </optgroup>
+                <optgroup label="Disable AI Features">
+                    <option value="off" title="Turn off all AI features">❌ Off</option>
+                </optgroup>
+            </select>
+        </div>
+    </div>
 
     <!-- Modal -->
     <div class="modal" id="modal">
@@ -5055,6 +5094,14 @@ const PATTERNS = {
             { value: 'contingency', label: 'Contingency' }
         ],
         description: 'Universal structure for any project',
+        sortOptions: [
+            { value: 'cost-high', label: '💰 Cost (Highest First)', field: 'cost', order: 'desc', type: 'number' },
+            { value: 'cost-low', label: '💰 Cost (Lowest First)', field: 'cost', order: 'asc', type: 'number' },
+            { value: 'leadtime-soonest', label: '⏱️ Lead Time (Soonest First)', field: 'leadTime', order: 'asc', type: 'leadtime' },
+            { value: 'leadtime-latest', label: '⏱️ Lead Time (Latest First)', field: 'leadTime', order: 'desc', type: 'leadtime' },
+            { value: 'name-az', label: '🔤 Name (A-Z)', field: 'name', order: 'asc', type: 'text' },
+            { value: 'name-za', label: '🔤 Name (Z-A)', field: 'name', order: 'desc', type: 'text' }
+        ],
         fields: {
             cost: { label: 'Cost ($)', type: 'number', step: 1000, helpText: '💰 Budget allocated for this item' },
             alternateSource: { label: 'Alternate Source', type: 'text', placeholder: 'Backup vendor, supplier, or alternative solution...', helpText: '📦 Alternative supplier or backup option for risk mitigation' },
@@ -5085,6 +5132,15 @@ const PATTERNS = {
             { value: 'enterprise', label: 'Enterprise Deal' }
         ],
         description: 'Track sales opportunities through quarters',
+        sortOptions: [
+            { value: 'dealvalue-high', label: '💰 Deal Value (Largest First)', field: 'dealValue', order: 'desc', type: 'number' },
+            { value: 'dealvalue-low', label: '💰 Deal Value (Smallest First)', field: 'dealValue', order: 'asc', type: 'number' },
+            { value: 'closedate-soonest', label: '📅 Close Date (Soonest First)', field: 'expectedCloseDate', order: 'asc', type: 'date' },
+            { value: 'closedate-latest', label: '📅 Close Date (Latest First)', field: 'expectedCloseDate', order: 'desc', type: 'date' },
+            { value: 'probability-high', label: '📊 Probability (Highest First)', field: 'stageProbability', order: 'desc', type: 'number' },
+            { value: 'probability-low', label: '📊 Probability (Lowest First)', field: 'stageProbability', order: 'asc', type: 'number' },
+            { value: 'name-az', label: '🔤 Deal Name (A-Z)', field: 'name', order: 'asc', type: 'text' }
+        ],
         fields: {
             dealValue: { label: 'Deal Value ($)', type: 'number', step: 1000, helpText: '💰 Potential revenue from this deal' },
             expectedCloseDate: { label: 'Expected Close Date', type: 'date', helpText: '📅 Target date to close this deal' },
@@ -5647,6 +5703,7 @@ const PATTERNS = {
 
 let currentPattern = 'generic';
 let customPatternNames = null;
+let currentSortConfig = null; // Stores current sort configuration
 
 // ============================================================================
 // PATTERN FUNCTIONS
@@ -5750,6 +5807,48 @@ function applyPattern(patternKey) {
 
         // Re-render to apply new labels
         render();
+
+        // Update sort dropdown for new pattern
+        updateSortDropdown();
+    }
+}
+
+// Populate sort dropdown based on current pattern
+function updateSortDropdown() {
+    const sortSection = document.getElementById('sort-section');
+    const sortSelect = document.getElementById('pattern-sort-select');
+
+    if (!sortSection || !sortSelect) {
+        console.log('Sort elements not found in DOM');
+        return;
+    }
+
+    const pattern = PATTERNS[currentPattern];
+
+    // Check if pattern has sortOptions
+    if (pattern && pattern.sortOptions && pattern.sortOptions.length > 0) {
+        // Show sort section
+        sortSection.style.display = 'flex';
+
+        // Clear existing options
+        sortSelect.innerHTML = '<option value="">Default Order</option>';
+
+        // Add pattern-specific sort options
+        pattern.sortOptions.forEach(option => {
+            const opt = document.createElement('option');
+            opt.value = option.value;
+            opt.textContent = option.label;
+            opt.dataset.field = option.field;
+            opt.dataset.order = option.order;
+            opt.dataset.type = option.type;
+            sortSelect.appendChild(opt);
+        });
+
+        console.log(`Sort dropdown populated with ${pattern.sortOptions.length} options for ${currentPattern} pattern`);
+    } else {
+        // Hide sort section if pattern has no sort options
+        sortSection.style.display = 'none';
+        console.log(`Pattern ${currentPattern} has no sort options`);
     }
 }
 
@@ -6077,7 +6176,10 @@ function hidePatternDescription() {
                             return maxLevel;
                         }
 
-                        const sortedItems = topologicalSort(node.items, phaseItemIds);
+                        // Use topological sort only when no custom sort is active
+                        const sortedItems = (typeof currentSortConfig !== 'undefined' && currentSortConfig !== null)
+                            ? node.items  // Use existing order when user has sorted
+                            : topologicalSort(node.items, phaseItemIds);  // Use dependency-based order otherwise
 
                         sortedItems.forEach(item => {
                             const itemDiv = document.createElement('div');
@@ -16891,6 +16993,261 @@ ${jsonText}`;
 
             console.log('Theme switcher initialized');
         }
+
+        // ============================================
+        // SORTING SYSTEM
+        // ============================================
+
+        // Parse lead time string to days for comparison
+        function parseLeadTimeToDays(leadTimeStr) {
+            if (!leadTimeStr || leadTimeStr === 'N/A' || leadTimeStr === '') return 999999;
+
+            const str = leadTimeStr.toLowerCase();
+            let days = 0;
+
+            // Match patterns like "12-18 months", "3-6 weeks", "2 days", etc.
+            const monthsMatch = str.match(/(\d+)(?:-(\d+))?\s*months?/);
+            const weeksMatch = str.match(/(\d+)(?:-(\d+))?\s*weeks?/);
+            const daysMatch = str.match(/(\d+)(?:-(\d+))?\s*days?/);
+
+            if (monthsMatch) {
+                // Take average if range, otherwise use single value
+                const avg = monthsMatch[2] ? (parseInt(monthsMatch[1]) + parseInt(monthsMatch[2])) / 2 : parseInt(monthsMatch[1]);
+                days = avg * 30; // Approximate months to days
+            } else if (weeksMatch) {
+                const avg = weeksMatch[2] ? (parseInt(weeksMatch[1]) + parseInt(weeksMatch[2])) / 2 : parseInt(weeksMatch[1]);
+                days = avg * 7;
+            } else if (daysMatch) {
+                const avg = daysMatch[2] ? (parseInt(daysMatch[1]) + parseInt(daysMatch[2])) / 2 : parseInt(daysMatch[1]);
+                days = avg;
+            }
+
+            return days || 999999; // Return large number if unparseable
+        }
+
+        // Compare two values based on type
+        function compareValues(a, b, type, order) {
+            let valA, valB;
+
+            switch(type) {
+                case 'number':
+                    valA = parseFloat(a) || 0;
+                    valB = parseFloat(b) || 0;
+                    break;
+
+                case 'leadtime':
+                    valA = parseLeadTimeToDays(a);
+                    valB = parseLeadTimeToDays(b);
+                    break;
+
+                case 'date':
+                    valA = a ? new Date(a).getTime() : 0;
+                    valB = b ? new Date(b).getTime() : 0;
+                    break;
+
+                case 'text':
+                default:
+                    valA = (a || '').toString().toLowerCase();
+                    valB = (b || '').toString().toLowerCase();
+                    if (order === 'asc') return valA.localeCompare(valB);
+                    return valB.localeCompare(valA);
+            }
+
+            if (order === 'asc') return valA - valB;
+            return valB - valA;
+        }
+
+        // Recursively sort items array and all subtasks
+        function sortItemsArray(items, sortConfig) {
+            if (!items || !Array.isArray(items) || items.length === 0) return items;
+            if (!sortConfig) return items;
+
+            const { field, order, type } = sortConfig;
+
+            // Sort this level
+            items.sort((a, b) => {
+                return compareValues(a[field], b[field], type, order);
+            });
+
+            // Recursively sort all subtask arrays
+            items.forEach(item => {
+                if (item.items && Array.isArray(item.items) && item.items.length > 0) {
+                    sortItemsArray(item.items, sortConfig);
+                }
+            });
+
+            return items;
+        }
+
+        // Sort the entire tree while preserving phase hierarchy
+        function sortTree(sortConfig) {
+            if (!sortConfig) {
+                // Reset to original order - reload from saved state
+                currentSortConfig = null;
+                render();
+                return;
+            }
+
+            currentSortConfig = sortConfig;
+
+            // Sort phases
+            if (capexTree.phases && capexTree.phases.length > 0) {
+                sortItemsArray(capexTree.phases, sortConfig);
+
+                // Sort items within each phase
+                capexTree.phases.forEach(phase => {
+                    if (phase.items && phase.items.length > 0) {
+                        sortItemsArray(phase.items, sortConfig);
+                    }
+                });
+            }
+
+            // Re-render to show sorted tree
+            render();
+
+            console.log('Tree sorted by:', sortConfig);
+        }
+
+        // Initialize Sort System
+        const sortSelect = document.getElementById('pattern-sort-select');
+        const resetSortBtn = document.getElementById('reset-sort-btn');
+
+        if (sortSelect) {
+            // Handle sort selection
+            sortSelect.addEventListener('change', function() {
+                const selectedOption = this.options[this.selectedIndex];
+
+                if (!this.value || this.value === '') {
+                    // Reset to default order
+                    currentSortConfig = null;
+                    sortTree(null);
+                    if (resetSortBtn) resetSortBtn.style.display = 'none';
+                    console.log('Sort reset to default order');
+                } else {
+                    // Apply sort
+                    const sortConfig = {
+                        value: this.value,
+                        field: selectedOption.dataset.field,
+                        order: selectedOption.dataset.order,
+                        type: selectedOption.dataset.type
+                    };
+
+                    sortTree(sortConfig);
+                    if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
+
+                    // Show toast notification
+                    const toast = document.createElement('div');
+                    toast.textContent = `Sorted: ${selectedOption.textContent}`;
+                    toast.style.cssText = `
+                        position: fixed;
+                        bottom: 80px;
+                        right: 20px;
+                        padding: 12px 24px;
+                        background: var(--card-bg);
+                        border: 2px solid var(--border);
+                        border-radius: 12px;
+                        color: var(--text-primary);
+                        font-weight: 600;
+                        font-size: 14px;
+                        z-index: 10000;
+                        box-shadow: var(--shadow-lg);
+                    `;
+                    document.body.appendChild(toast);
+                    setTimeout(() => toast.remove(), 2000);
+                }
+            });
+
+            console.log('Sort dropdown event listener attached');
+        }
+
+        if (resetSortBtn) {
+            resetSortBtn.addEventListener('click', function() {
+                currentSortConfig = null;
+                sortTree(null);
+                sortSelect.value = '';
+                this.style.display = 'none';
+
+                // Show toast notification
+                const toast = document.createElement('div');
+                toast.textContent = 'Sort Reset';
+                toast.style.cssText = `
+                    position: fixed;
+                    bottom: 80px;
+                    right: 20px;
+                    padding: 12px 24px;
+                    background: var(--card-bg);
+                    border: 2px solid var(--border);
+                    border-radius: 12px;
+                    color: var(--text-primary);
+                    font-weight: 600;
+                    font-size: 14px;
+                    z-index: 10000;
+                    box-shadow: var(--shadow-lg);
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 2000);
+            });
+        }
+
+        // Update sort dropdown on initial load
+        updateSortDropdown();
+
+        console.log('Sorting system initialized');
+
+        // ============================================
+        // AI TOOLS FLOATING PANEL
+        // ============================================
+
+        const aiToolsPanel = document.getElementById('ai-tools-panel');
+        const toggleAiToolsBtn = document.getElementById('toggle-ai-tools');
+        const closeAiToolsBtn = document.getElementById('close-ai-tools');
+        const aiModeSelectHeader = document.getElementById('unified-ai-mode-select');
+        const aiModeSelectPanel = document.getElementById('unified-ai-mode-select-panel');
+
+        // Toggle AI Tools Panel
+        if (toggleAiToolsBtn && aiToolsPanel) {
+            toggleAiToolsBtn.addEventListener('click', function() {
+                const isVisible = aiToolsPanel.style.display === 'flex';
+                aiToolsPanel.style.display = isVisible ? 'none' : 'flex';
+                console.log('AI Tools panel toggled:', !isVisible);
+            });
+        }
+
+        // Close AI Tools Panel
+        if (closeAiToolsBtn && aiToolsPanel) {
+            closeAiToolsBtn.addEventListener('click', function() {
+                aiToolsPanel.style.display = 'none';
+                console.log('AI Tools panel closed');
+            });
+
+            // Hover effect for close button
+            closeAiToolsBtn.addEventListener('mouseenter', function() {
+                this.style.background = 'rgba(255, 255, 255, 0.1)';
+            });
+            closeAiToolsBtn.addEventListener('mouseleave', function() {
+                this.style.background = 'transparent';
+            });
+        }
+
+        // Sync AI Model selectors (header <-> panel)
+        if (aiModeSelectHeader && aiModeSelectPanel) {
+            // Sync panel -> header
+            aiModeSelectPanel.addEventListener('change', function() {
+                aiModeSelectHeader.value = this.value;
+                console.log('AI mode synced from panel to header:', this.value);
+            });
+
+            // Sync header -> panel
+            aiModeSelectHeader.addEventListener('change', function() {
+                aiModeSelectPanel.value = this.value;
+                console.log('AI mode synced from header to panel:', this.value);
+            });
+
+            // Initial sync
+            aiModeSelectPanel.value = aiModeSelectHeader.value;
+        }
+
+        console.log('AI Tools panel initialized');
 
         // Initialize pan/zoom controls
         initPanZoom();
