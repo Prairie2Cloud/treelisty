@@ -7,7 +7,7 @@
     <!-- v1.2 - Switched to Claude Haiku for speed -->
 
     <!-- PWA Configuration -->
-    <link rel="manifest" href="manifest.json">
+    <link rel="manifest" href="./manifest.json">
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -2432,8 +2432,17 @@ The AI will analyze the structure and convert it to a tree."
                     </button>
 
                     <!-- Fallback message (shown if not supported) -->
-                    <div id="pwa-not-supported-msg" style="display: none; text-align: center; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; color: var(--text-secondary); font-size: 13px;">
-                        ⚠️ File handling is only supported in Chrome and Edge browsers. You can still use TreeListy, but file association won't be available.
+                    <div id="pwa-not-supported-msg" style="display: none; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; color: var(--text-secondary); font-size: 13px;">
+                        <div style="text-align: center; margin-bottom: 12px; font-weight: 600;">
+                            💡 Manual Installation Available
+                        </div>
+                        <div style="line-height: 1.6;">
+                            <strong>Chrome/Edge:</strong> Look for the install icon (📥 or ⊕) in the address bar and click it.
+                            <br><br>
+                            <strong>Other browsers:</strong> File handling is only supported in Chrome and Edge. You can still use TreeListy, but file association won't be available.
+                            <br><br>
+                            <em>Tip: Refresh the page if the install icon doesn't appear.</em>
+                        </div>
                     </div>
                 </div>
 
@@ -18516,12 +18525,13 @@ ${jsonText}`;
 
         // Register service worker
         if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.register('/service-worker.js')
+            navigator.serviceWorker.register('./service-worker.js')
                 .then(registration => {
                     console.log('✅ Service Worker registered:', registration.scope);
                 })
                 .catch(error => {
                     console.error('❌ Service Worker registration failed:', error);
+                    console.error('Error details:', error.message, error.stack);
                 });
 
             // Listen for file launches from service worker
@@ -18551,7 +18561,22 @@ ${jsonText}`;
             console.log('💾 PWA install prompt available');
             e.preventDefault();
             deferredInstallPrompt = e;
+
+            // If modal is already open, update it to show install button
+            const modal = document.getElementById('pwa-onboarding-modal');
+            if (modal && modal.style.display === 'flex') {
+                document.getElementById('pwa-install-btn').style.display = 'block';
+                document.getElementById('pwa-not-supported-msg').style.display = 'none';
+            }
         });
+
+        // Debug: Check PWA install readiness
+        console.log('🔍 PWA Debug Info:');
+        console.log('- Service Worker supported:', 'serviceWorker' in navigator);
+        console.log('- beforeinstallprompt listener added');
+        console.log('- Manifest URL:', document.querySelector('link[rel="manifest"]')?.href);
+        console.log('- Current URL:', window.location.href);
+        console.log('- HTTPS:', window.location.protocol === 'https:');
 
         // Show PWA onboarding modal
         function showPWAOnboardingModal() {
