@@ -5,6 +5,15 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!-- v1.2 - Switched to Claude Haiku for speed -->
+
+    <!-- PWA Configuration -->
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#6366f1">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta name="apple-mobile-web-app-title" content="TreeListy">
+    <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' fill='%236366f1'/><text x='50' y='70' font-size='70' text-anchor='middle' fill='white'>🌳</text></svg>">
+    <meta name="description" content="Visual project management and hierarchical data organization tool with AI-powered insights">
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
@@ -2379,8 +2388,70 @@ The AI will analyze the structure and convert it to a tree."
         </div>
     </div>
 
+    <!-- PWA Onboarding Modal -->
+    <div class="modal" id="pwa-onboarding-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">
+                <span>🌳 Welcome to TreeListy!</span>
+            </div>
+
+            <div class="modal-body" style="padding: 30px;">
+                <!-- Success checkmark -->
+                <div style="text-align: center; margin-bottom: 20px;">
+                    <div style="font-size: 64px;">✅</div>
+                    <h2 style="margin: 16px 0 8px; color: var(--text-primary); font-size: 22px;">Tree Loaded Successfully!</h2>
+                    <p style="color: var(--text-secondary); font-size: 14px; margin: 0;">You can now explore this project</p>
+                </div>
+
+                <!-- Divider -->
+                <div style="height: 1px; background: var(--border); margin: 24px 0;"></div>
+
+                <!-- Install prompt -->
+                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 2px solid var(--treeplex-primary); border-radius: 12px; padding: 24px; margin-bottom: 20px;">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 16px;">
+                        <div style="font-size: 40px;">💾</div>
+                        <div>
+                            <h3 style="margin: 0 0 4px; color: var(--text-primary); font-size: 18px;">Want to work with .treelisty files?</h3>
+                            <p style="margin: 0; color: var(--text-secondary); font-size: 13px;">Install TreeListy to open files with a double-click!</p>
+                        </div>
+                    </div>
+
+                    <div style="background: var(--card-bg); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                        <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">✨ Benefits:</div>
+                        <ul style="margin: 0; padding-left: 20px; color: var(--text-primary); font-size: 14px; line-height: 1.8;">
+                            <li>Open <code style="background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: monospace;">.treelisty</code> files with a double-click</li>
+                            <li>Works offline after installation</li>
+                            <li>Access from your app menu/desktop</li>
+                            <li>Faster loading and better performance</li>
+                        </ul>
+                    </div>
+
+                    <!-- Install button (shown if supported) -->
+                    <button class="btn" id="pwa-install-btn" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 12px; font-size: 15px; font-weight: 600; display: none;">
+                        📥 Install TreeListy Now
+                    </button>
+
+                    <!-- Fallback message (shown if not supported) -->
+                    <div id="pwa-not-supported-msg" style="display: none; text-align: center; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; color: var(--text-secondary); font-size: 13px;">
+                        ⚠️ File handling is only supported in Chrome and Edge browsers. You can still use TreeListy, but file association won't be available.
+                    </div>
+                </div>
+
+                <!-- Skip option -->
+                <div style="text-align: center;">
+                    <button class="btn" id="pwa-skip-btn" style="background: var(--card-bg); color: var(--text-secondary); padding: 10px 20px; font-size: 13px;">
+                        Maybe Later
+                    </button>
+                    <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
+                        You can always install later from the Help menu
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Hidden file input for JSON upload -->
-    <input type="file" id="json-upload-input" accept=".json" style="display: none;" />
+    <input type="file" id="json-upload-input" accept=".json,.treelisty" style="display: none;" />
 
     <script>
         console.log('TreeListy - Universal Project Decomposition - Horizontal Layout with Pan/Zoom');
@@ -10233,7 +10304,7 @@ function hidePatternDescription() {
             const seconds = String(now.getSeconds()).padStart(2, '0');
             const timestamp = `${year}-${month}-${day}_${hours}${minutes}${seconds}`;
 
-            a.download = `treelisty-project-${timestamp}.json`;
+            a.download = `treelisty-project-${timestamp}.treelisty`;
             document.body.appendChild(a);
             a.click();
             document.body.removeChild(a);
@@ -18421,30 +18492,13 @@ ${jsonText}`;
                     console.log('Project:', capexTree.name || capexTree.title);
                     console.log('Pattern:', currentPattern);
 
-                    // Show a brief success message
+                    // Show onboarding modal for first-time users (or skip if already seen)
                     setTimeout(() => {
-                        const toast = document.createElement('div');
-                        toast.textContent = '✅ Shared project loaded!';
-                        toast.style.cssText = `
-                            position: fixed;
-                            top: 80px;
-                            right: 20px;
-                            background: linear-gradient(135deg, #10b981, #059669);
-                            color: white;
-                            padding: 15px 25px;
-                            border-radius: 8px;
-                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                            z-index: 10000;
-                            font-weight: 600;
-                            animation: slideIn 0.3s ease-out;
-                        `;
-                        document.body.appendChild(toast);
-
-                        setTimeout(() => {
-                            toast.style.animation = 'slideOut 0.3s ease-in';
-                            setTimeout(() => toast.remove(), 300);
-                        }, 3000);
-                    }, 500);
+                        const hasSeenOnboarding = localStorage.getItem('treelisty-onboarding-seen');
+                        if (!hasSeenOnboarding) {
+                            showPWAOnboardingModal();
+                        }
+                    }, 1000);
 
                 } catch (error) {
                     console.error('❌ Failed to load shared project:', error);
@@ -18452,6 +18506,174 @@ ${jsonText}`;
                 }
             }
         })();
+
+        // =============================================================================
+        // PWA & FILE HANDLING SYSTEM
+        // =============================================================================
+
+        // PWA install prompt event
+        let deferredInstallPrompt = null;
+
+        // Register service worker
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('/service-worker.js')
+                .then(registration => {
+                    console.log('✅ Service Worker registered:', registration.scope);
+                })
+                .catch(error => {
+                    console.error('❌ Service Worker registration failed:', error);
+                });
+
+            // Listen for file launches from service worker
+            navigator.serviceWorker.addEventListener('message', event => {
+                if (event.data.type === 'FILE_OPENED' && event.data.files) {
+                    console.log('📂 File opened via file association:', event.data.files);
+                    event.data.files.forEach(file => {
+                        try {
+                            const treeData = JSON.parse(file.content);
+                            capexTree = treeData;
+                            if (treeData.pattern && treeData.pattern.key) {
+                                currentPattern = treeData.pattern.key;
+                            }
+                            render();
+                            console.log(`✅ Loaded ${file.name}`);
+                        } catch (error) {
+                            console.error(`❌ Failed to load ${file.name}:`, error);
+                            alert(`Failed to load ${file.name}: Invalid JSON format`);
+                        }
+                    });
+                }
+            });
+        }
+
+        // Capture PWA install prompt
+        window.addEventListener('beforeinstallprompt', (e) => {
+            console.log('💾 PWA install prompt available');
+            e.preventDefault();
+            deferredInstallPrompt = e;
+        });
+
+        // Show PWA onboarding modal
+        function showPWAOnboardingModal() {
+            const modal = document.getElementById('pwa-onboarding-modal');
+            const installBtn = document.getElementById('pwa-install-btn');
+            const notSupportedMsg = document.getElementById('pwa-not-supported-msg');
+
+            // Check if PWA install is available
+            if (deferredInstallPrompt) {
+                installBtn.style.display = 'block';
+                notSupportedMsg.style.display = 'none';
+            } else {
+                installBtn.style.display = 'none';
+                notSupportedMsg.style.display = 'block';
+            }
+
+            modal.style.display = 'flex';
+        }
+
+        // Install PWA button
+        document.getElementById('pwa-install-btn').addEventListener('click', async () => {
+            if (!deferredInstallPrompt) {
+                alert('Installation not available. Please try refreshing the page or using Chrome/Edge browser.');
+                return;
+            }
+
+            // Show install prompt
+            deferredInstallPrompt.prompt();
+
+            // Wait for user choice
+            const { outcome } = await deferredInstallPrompt.userChoice;
+            console.log(`PWA install outcome: ${outcome}`);
+
+            if (outcome === 'accepted') {
+                console.log('✅ User accepted PWA installation');
+
+                // Mark onboarding as completed
+                localStorage.setItem('treelisty-onboarding-seen', 'true');
+
+                // Close modal
+                document.getElementById('pwa-onboarding-modal').style.display = 'none';
+
+                // Show success message
+                const toast = document.createElement('div');
+                toast.textContent = '✅ TreeListy installed! You can now open .treelisty files by double-clicking them.';
+                toast.style.cssText = `
+                    position: fixed;
+                    top: 80px;
+                    right: 20px;
+                    background: linear-gradient(135deg, #10b981, #059669);
+                    color: white;
+                    padding: 15px 25px;
+                    border-radius: 8px;
+                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                    z-index: 10000;
+                    font-weight: 600;
+                    max-width: 400px;
+                `;
+                document.body.appendChild(toast);
+                setTimeout(() => toast.remove(), 5000);
+            } else {
+                console.log('❌ User declined PWA installation');
+            }
+
+            // Clear the prompt
+            deferredInstallPrompt = null;
+        });
+
+        // Skip onboarding button
+        document.getElementById('pwa-skip-btn').addEventListener('click', () => {
+            localStorage.setItem('treelisty-onboarding-seen', 'true');
+            document.getElementById('pwa-onboarding-modal').style.display = 'none';
+        });
+
+        // Handle launchQueue for file opens (File Handling API)
+        if ('launchQueue' in window) {
+            window.launchQueue.setConsumer(async (launchParams) => {
+                console.log('📂 File launch detected via File Handling API');
+
+                if (launchParams.files && launchParams.files.length > 0) {
+                    for (const fileHandle of launchParams.files) {
+                        try {
+                            const file = await fileHandle.getFile();
+                            const content = await file.text();
+                            const treeData = JSON.parse(content);
+
+                            // Load the tree
+                            capexTree = treeData;
+                            if (treeData.pattern && treeData.pattern.key) {
+                                currentPattern = treeData.pattern.key;
+                            }
+                            render();
+
+                            console.log(`✅ Loaded ${file.name} via file association`);
+
+                            // Show success toast
+                            const toast = document.createElement('div');
+                            toast.textContent = `✅ Opened ${file.name}`;
+                            toast.style.cssText = `
+                                position: fixed;
+                                top: 80px;
+                                right: 20px;
+                                background: linear-gradient(135deg, #10b981, #059669);
+                                color: white;
+                                padding: 15px 25px;
+                                border-radius: 8px;
+                                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                                z-index: 10000;
+                                font-weight: 600;
+                            `;
+                            document.body.appendChild(toast);
+                            setTimeout(() => toast.remove(), 3000);
+                        } catch (error) {
+                            console.error('❌ Failed to load file:', error);
+                            alert(`Failed to load file: ${error.message}`);
+                        }
+                    }
+                }
+            });
+        } else {
+            console.log('ℹ️ File Handling API not supported in this browser');
+        }
 
         // Initial render
         render();
