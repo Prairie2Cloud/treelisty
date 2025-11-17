@@ -2426,22 +2426,26 @@ The AI will analyze the structure and convert it to a tree."
                         </ul>
                     </div>
 
-                    <!-- Install button (shown if supported) -->
-                    <button class="btn" id="pwa-install-btn" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 12px; font-size: 15px; font-weight: 600; display: none;">
-                        📥 Install TreeListy Now
+                    <!-- Universal Install button - ALWAYS shown -->
+                    <button class="btn" id="pwa-install-btn" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 16px; font-size: 16px; font-weight: 600;">
+                        📥 Install TreeListy
                     </button>
 
-                    <!-- Fallback message (shown if not supported) -->
-                    <div id="pwa-not-supported-msg" style="display: none; padding: 12px; background: rgba(234, 179, 8, 0.1); border: 1px solid rgba(234, 179, 8, 0.3); border-radius: 8px; color: var(--text-secondary); font-size: 13px;">
-                        <div style="text-align: center; margin-bottom: 12px; font-weight: 600;">
-                            💡 Manual Installation Available
+                    <!-- Instructions (shown after clicking if manual install needed) -->
+                    <div id="pwa-manual-instructions" style="display: none; margin-top: 16px; padding: 16px; background: var(--card-bg-light); border-radius: 8px; border: 2px solid var(--treeplex-primary);">
+                        <div style="font-size: 15px; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">
+                            📍 Follow these steps:
                         </div>
-                        <div style="line-height: 1.6;">
-                            <strong>Chrome/Edge:</strong> Look for the install icon (📥 or ⊕) in the address bar and click it.
-                            <br><br>
-                            <strong>Other browsers:</strong> File handling is only supported in Chrome and Edge. You can still use TreeListy, but file association won't be available.
-                            <br><br>
-                            <em>Tip: Refresh the page if the install icon doesn't appear.</em>
+                        <ol style="margin: 0; padding-left: 24px; color: var(--text-primary); font-size: 14px; line-height: 2;">
+                            <li>Look at the <strong>address bar</strong> (top of browser)</li>
+                            <li>Find the <strong>install icon</strong> on the right side:
+                                <span style="background: var(--bg); padding: 4px 8px; border-radius: 4px; margin-left: 8px;">📥</span> or
+                                <span style="background: var(--bg); padding: 4px 8px; border-radius: 4px; margin-left: 4px;">⊕</span>
+                            </li>
+                            <li>Click the icon and select <strong>"Install"</strong></li>
+                        </ol>
+                        <div style="margin-top: 16px; padding: 12px; background: rgba(234, 179, 8, 0.1); border-radius: 6px; font-size: 12px; color: var(--text-secondary);">
+                            💡 Don't see the icon? Close this modal and look for it. Still missing? You might need to use Chrome or Edge browser.
                         </div>
                     </div>
                 </div>
@@ -18558,16 +18562,9 @@ ${jsonText}`;
 
         // Capture PWA install prompt
         window.addEventListener('beforeinstallprompt', (e) => {
-            console.log('💾 PWA install prompt available');
+            console.log('💾 PWA install prompt available - Button will trigger automatic install');
             e.preventDefault();
             deferredInstallPrompt = e;
-
-            // If modal is already open, update it to show install button
-            const modal = document.getElementById('pwa-onboarding-modal');
-            if (modal && modal.style.display === 'flex') {
-                document.getElementById('pwa-install-btn').style.display = 'block';
-                document.getElementById('pwa-not-supported-msg').style.display = 'none';
-            }
         });
 
         // Debug: Check PWA install readiness
@@ -18581,68 +18578,71 @@ ${jsonText}`;
         // Show PWA onboarding modal
         function showPWAOnboardingModal() {
             const modal = document.getElementById('pwa-onboarding-modal');
-            const installBtn = document.getElementById('pwa-install-btn');
-            const notSupportedMsg = document.getElementById('pwa-not-supported-msg');
-
-            // Check if PWA install is available
-            if (deferredInstallPrompt) {
-                installBtn.style.display = 'block';
-                notSupportedMsg.style.display = 'none';
-            } else {
-                installBtn.style.display = 'none';
-                notSupportedMsg.style.display = 'block';
-            }
-
             modal.style.display = 'flex';
+            // Button is always visible now - no need to check for prompt
         }
 
-        // Install PWA button
+        // Install PWA button - Universal handler
         document.getElementById('pwa-install-btn').addEventListener('click', async () => {
-            if (!deferredInstallPrompt) {
-                alert('Installation not available. Please try refreshing the page or using Chrome/Edge browser.');
-                return;
-            }
+            const instructionsDiv = document.getElementById('pwa-manual-instructions');
 
-            // Show install prompt
-            deferredInstallPrompt.prompt();
+            if (deferredInstallPrompt) {
+                // Automatic install available - trigger it
+                try {
+                    deferredInstallPrompt.prompt();
 
-            // Wait for user choice
-            const { outcome } = await deferredInstallPrompt.userChoice;
-            console.log(`PWA install outcome: ${outcome}`);
+                    const { outcome } = await deferredInstallPrompt.userChoice;
+                    console.log(`PWA install outcome: ${outcome}`);
 
-            if (outcome === 'accepted') {
-                console.log('✅ User accepted PWA installation');
+                    if (outcome === 'accepted') {
+                        console.log('✅ User accepted PWA installation');
 
-                // Mark onboarding as completed
-                localStorage.setItem('treelisty-onboarding-seen', 'true');
+                        // Mark onboarding as completed
+                        localStorage.setItem('treelisty-onboarding-seen', 'true');
 
-                // Close modal
-                document.getElementById('pwa-onboarding-modal').style.display = 'none';
+                        // Close modal
+                        document.getElementById('pwa-onboarding-modal').style.display = 'none';
 
-                // Show success message
-                const toast = document.createElement('div');
-                toast.textContent = '✅ TreeListy installed! You can now open .treelisty files by double-clicking them.';
-                toast.style.cssText = `
-                    position: fixed;
-                    top: 80px;
-                    right: 20px;
-                    background: linear-gradient(135deg, #10b981, #059669);
-                    color: white;
-                    padding: 15px 25px;
-                    border-radius: 8px;
-                    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-                    z-index: 10000;
-                    font-weight: 600;
-                    max-width: 400px;
-                `;
-                document.body.appendChild(toast);
-                setTimeout(() => toast.remove(), 5000);
+                        // Show success message
+                        const toast = document.createElement('div');
+                        toast.textContent = '✅ TreeListy installed! You can now open .treelisty files by double-clicking them.';
+                        toast.style.cssText = `
+                            position: fixed;
+                            top: 80px;
+                            right: 20px;
+                            background: linear-gradient(135deg, #10b981, #059669);
+                            color: white;
+                            padding: 15px 25px;
+                            border-radius: 8px;
+                            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                            z-index: 10000;
+                            font-weight: 600;
+                            max-width: 400px;
+                        `;
+                        document.body.appendChild(toast);
+                        setTimeout(() => toast.remove(), 5000);
+                    } else {
+                        console.log('❌ User declined PWA installation');
+                    }
+
+                    deferredInstallPrompt = null;
+                } catch (error) {
+                    console.error('Install prompt error:', error);
+                    // Fallback to manual instructions if prompt fails
+                    instructionsDiv.style.display = 'block';
+                }
             } else {
-                console.log('❌ User declined PWA installation');
-            }
+                // No automatic install - show manual instructions
+                console.log('📍 Showing manual install instructions');
+                instructionsDiv.style.display = 'block';
 
-            // Clear the prompt
-            deferredInstallPrompt = null;
+                // Change button text to indicate instructions are shown
+                const btn = document.getElementById('pwa-install-btn');
+                btn.textContent = '✅ See Instructions Below';
+                btn.style.background = 'var(--card-bg)';
+                btn.style.color = 'var(--text-secondary)';
+                btn.disabled = true;
+            }
         });
 
         // Skip onboarding button
