@@ -10585,6 +10585,12 @@ function hidePatternDescription() {
                             }
 
                             render();
+
+                            // Apply default sort for filesystem pattern (folders first + alphabetical)
+                            if (currentPattern === 'filesystem') {
+                                sortTree(null); // This will trigger the default filesystem sort
+                            }
+
                             alert('JSON loaded successfully!');
                         } else {
                             alert('Invalid JSON structure. Must have "id" and "children" properties.');
@@ -18415,6 +18421,11 @@ ${jsonText}`;
                     // Re-render the tree
                     render();
 
+                    // Apply default sort for filesystem pattern (folders first + alphabetical)
+                    if (detectedPattern === 'filesystem') {
+                        sortTree(null); // This will trigger the default filesystem sort
+                    }
+
                     // Build success message with source info
                     let successMessage = `✅ Google Drive refreshed successfully!\n\n`;
                     successMessage += `File: ${result.filename}\n`;
@@ -18908,13 +18919,24 @@ ${jsonText}`;
         // Sort the entire tree - applies to all nodes at all depths
         function sortTree(sortConfig) {
             if (!sortConfig) {
-                // Reset to original order - reload from saved state
-                currentSortConfig = null;
-                render();
-                return;
+                // For filesystem pattern, apply default "folders first + alphabetical" sort
+                if (currentPattern === 'filesystem') {
+                    sortConfig = {
+                        value: 'default-filesystem',
+                        field: 'isFolder',
+                        order: 'desc',
+                        type: 'boolean'
+                    };
+                    currentSortConfig = sortConfig;
+                } else {
+                    // Reset to original order for other patterns
+                    currentSortConfig = null;
+                    render();
+                    return;
+                }
+            } else {
+                currentSortConfig = sortConfig;
             }
-
-            currentSortConfig = sortConfig;
 
             // Sort phases (drives for filesystem pattern)
             if (capexTree.phases && capexTree.phases.length > 0) {
