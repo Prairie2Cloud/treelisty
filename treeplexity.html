@@ -6650,15 +6650,18 @@ function applyPattern(patternKey) {
 
 // Populate sort dropdown based on current pattern
 function updateSortDropdown() {
+    console.log('🔄 updateSortDropdown called, currentPattern:', currentPattern);
+
     const sortSection = document.getElementById('sort-section');
     const sortSelect = document.getElementById('pattern-sort-select');
 
     if (!sortSection || !sortSelect) {
-        console.log('Sort elements not found in DOM');
+        console.log('❌ Sort elements not found in DOM');
         return;
     }
 
     const pattern = PATTERNS[currentPattern];
+    console.log('Pattern object:', pattern ? pattern.name : 'undefined');
 
     // Check if pattern has sortOptions
     if (pattern && pattern.sortOptions && pattern.sortOptions.length > 0) {
@@ -6666,6 +6669,7 @@ function updateSortDropdown() {
         sortSection.style.display = 'flex';
 
         // Clear existing options
+        const previousCount = sortSelect.options.length;
         sortSelect.innerHTML = '<option value="">Default Order</option>';
 
         // Add pattern-specific sort options
@@ -6679,11 +6683,11 @@ function updateSortDropdown() {
             sortSelect.appendChild(opt);
         });
 
-        console.log(`Sort dropdown populated with ${pattern.sortOptions.length} options for ${currentPattern} pattern`);
+        console.log(`✅ Sort dropdown updated: ${previousCount} → ${sortSelect.options.length} options (${pattern.sortOptions.length} + Default) for "${currentPattern}" pattern`);
     } else {
         // Hide sort section if pattern has no sort options
         sortSection.style.display = 'none';
-        console.log(`Pattern ${currentPattern} has no sort options`);
+        console.log(`⚠️ Pattern "${currentPattern}" has no sort options`);
     }
 }
 
@@ -10582,12 +10586,18 @@ function hidePatternDescription() {
                                 if (currentPattern === 'custom' && capexTree.pattern.labels) {
                                     customPatternNames = capexTree.pattern.labels;
                                 }
+
+                                console.log('Pattern loaded from file:', currentPattern);
+
+                                // Update sort dropdown immediately after setting pattern
+                                updateSortDropdown();
+                            } else {
+                                // No pattern in file - use current pattern
+                                console.log('No pattern in file, using current:', currentPattern);
+                                updateSortDropdown();
                             }
 
                             render();
-
-                            // Update sort dropdown options for the loaded pattern
-                            updateSortDropdown();
 
                             // Apply default sort for filesystem pattern (folders first + alphabetical)
                             if (currentPattern === 'filesystem') {
@@ -18749,6 +18759,9 @@ ${jsonText}`;
                 renameNodesForPattern(capexTree, labels);
                 console.log('Initial nodes renamed to match saved pattern');
                 render(); // Re-render with renamed nodes
+
+                // Update sort dropdown for the loaded pattern
+                updateSortDropdown();
             }
             // Handle pattern selection
             patternSelect.addEventListener('change', function() {
