@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.2.0
-**Build:** 119
+**Build:** 120
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,14 @@
 ---
 
 ## Version History
+
+### v2.2.0 | Build 120 | 2025-11-19
+**Major Fix**
+- FIX: Generate comprehensive instruction-rich prompts that configure AI behavior
+- IMPROVE: Prompts now combine role + process + format + request in single block
+- UX: Prompts instruct the AI instead of asking simple questions that get answered immediately
+- CHANGE: Added explicit example of good vs bad prompt structure
+- TECHNICAL: userPromptTemplate now generates self-contained instruction blocks
 
 ### v2.2.0 | Build 119 | 2025-11-19
 **UX Improvement**

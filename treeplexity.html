@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.2.0 | Build 119 | 2025-11-19
+    TreeListy v2.2.0 | Build 120 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 14 specialized patterns (Generic, Philosophy, Sales, etc.)
@@ -16,13 +16,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 119):
-    - FIX: Prompts now generate ready-to-use (NO {{placeholders}})
-    - IMPROVE: Prompts work immediately when pasted into AI (no variable substitution needed)
-    - UX: Changed from template mode to instance mode for better user experience
+    Changelog (Build 120):
+    - FIX: Generate comprehensive instruction-rich prompts that configure AI behavior
+    - IMPROVE: Prompts now combine role + process + format + request in single block
+    - UX: Prompts instruct the AI instead of asking simple questions that get answered
 
-    Previous (Build 118):
-    - FIX: Stronger prompt engineering to prevent AI from answering vs. creating prompts
+    Previous (Build 119):
+    - FIX: Prompts now generate ready-to-use (NO {{placeholders}})
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1652,8 +1652,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 119 | 2025-11-19">
-                    v2.2.0 • Build 119
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 120 | 2025-11-19">
+                    v2.2.0 • Build 120
                 </div>
             </div>
         </div>
@@ -15433,20 +15433,24 @@ Your job is to DESIGN A PROMPT that another AI could use to help with this topic
 - DO NOT give medical advice, recommendations, or analysis
 - You are a PROMPT ARCHITECT building a tool, not a subject matter expert answering queries
 
-🎨 IMPORTANT: Create CONCRETE, READY-TO-USE prompts:
-- NO {{placeholders}} or {{variables}} in the user prompt
-- Make the prompt work immediately when pasted into an AI
-- Write prompts as direct instructions, not templates requiring variable substitution
-- Example: "Help me create a skin care routine" NOT "Help me create a skin care routine for {{skin_type}}"
+🎨 CRITICAL: Create COMPREHENSIVE, INSTRUCTION-RICH prompts that guide AI behavior:
+- Generate prompts that INSTRUCT and CONFIGURE the AI, not simple questions that get answered
+- Combine system prompt + user prompt into one comprehensive instruction block
+- Include: role definition, process steps, output format, examples, constraints
+- The user will paste this entire block into ChatGPT/Claude to configure it
 
-Now create:
-1. A clear system prompt defining the AI's role and expertise
-2. A concrete user prompt that works immediately (NO {{placeholders}})
-3. 2-3 few-shot examples demonstrating expected behavior
-4. Chain-of-thought instructions (if reasoning is needed)
-5. Output format specification (JSON, markdown, or structured text)
-6. Handle edge cases and ambiguous inputs
-7. Optional: Assistant prefill for Claude
+BAD (gets answered immediately): "Help me create a skin care routine"
+GOOD (instructs the AI): "You are an expert dermatologist. When helping with skin care: 1) Ask about skin type and concerns 2) Provide structured routine with product recommendations 3) Return as JSON with ingredients, frequency, and reasoning for each step. Now help me create a comprehensive skin care routine."
+
+Now create a SINGLE comprehensive prompt that combines:
+1. Role definition and expertise (system-level instructions)
+2. Process steps and methodology (how the AI should think)
+3. Output format specification (structured data format)
+4. Few-shot examples (if helpful)
+5. Constraints and edge cases (what to avoid)
+6. The actual user request (at the end)
+
+This single prompt will be in the userPromptTemplate field.
 
 Return ONLY this JSON structure:
 {
@@ -15462,7 +15466,7 @@ Return ONLY this JSON structure:
           "description": "Production-ready prompt that works immediately",
           "itemType": "task-instruction",
           "systemPrompt": "You are an expert [domain]. [Context]. [Constraints]. [Tone].",
-          "userPromptTemplate": "Concrete, ready-to-use prompt with direct instructions. NO placeholders. Works immediately when pasted.",
+          "userPromptTemplate": "Comprehensive instruction-rich prompt combining: role definition + process steps + output format + constraints + user request. This entire text is what the user pastes into the AI.",
           "fewShotExamples": "<example>\\nUser: [example input 1]\\nAssistant: [example output 1]\\n</example>\\n\\n<example>\\nUser: [example input 2]\\nAssistant: [example output 2]\\n</example>",
           "chainOfThought": "Think step by step: 1) [step], 2) [step], 3) [step]. Show your reasoning.",
           "outputFormat": "Return JSON: {\\"field1\\": \\"description\\", \\"field2\\": \\"description\\"}",
@@ -15480,11 +15484,16 @@ Return ONLY this JSON structure:
 RULES:
 - Infer use case from basic prompt (chatbot? search? analysis? recommendation?)
 - Create realistic, helpful few-shot examples
-- Make user prompt concrete and immediately usable (NO {{variables}} or placeholders)
+- userPromptTemplate must be COMPREHENSIVE and INSTRUCTION-RICH (not a simple question)
+- Combine role + process + format + request into single prompt that configures AI behavior
+- NO {{variables}} or placeholders - make it work immediately when pasted
 - Chain-of-thought only if task requires reasoning
 - Output format should match the use case (JSON for APIs, markdown for reports, etc.)
 - System prompt should be professional and comprehensive
 - NO trailing commas in JSON
+
+EXAMPLE of a GOOD userPromptTemplate:
+"You are an expert skin care advisor with dermatology knowledge. When providing skin care guidance: 1) First, ask clarifying questions about skin type, concerns, and sensitivities 2) Then provide a comprehensive routine with specific product recommendations 3) Include ingredients, application frequency, and scientific reasoning 4) Return your recommendation as JSON with 'routine' array and 'additional_tips' array. Now, help me create a personalized skin care routine."
 - Escape quotes inside strings with backslash`;
 
             // Deep mode uses extended thinking (budget_tokens = 5000)
