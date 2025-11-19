@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.2.0
-**Build:** 120
+**Build:** 121
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,14 @@
 ---
 
 ## Version History
+
+### v2.2.0 | Build 121 | 2025-11-19
+**Narrative Continuity Feature**
+- NEW: Narrative continuity for Film/Book/Roadmap patterns
+- IMPROVE: AI now maintains coherence between sequential scenes/chapters/features
+- FIX: Smart Suggest looks at previous item to avoid disjointed suggestions
+- TECHNICAL: Added continuity block in buildPatternExpertPrompt() for sequential patterns
+- CONTEXT: AI now sees previous item's description, lighting, and gets explicit continuity instructions
 
 ### v2.2.0 | Build 120 | 2025-11-19
 **Major Fix**

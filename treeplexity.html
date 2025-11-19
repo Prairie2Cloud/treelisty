@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.2.0 | Build 120 | 2025-11-19
+    TreeListy v2.2.0 | Build 121 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 14 specialized patterns (Generic, Philosophy, Sales, etc.)
@@ -16,13 +16,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 120):
-    - FIX: Generate comprehensive instruction-rich prompts that configure AI behavior
-    - IMPROVE: Prompts now combine role + process + format + request in single block
-    - UX: Prompts instruct the AI instead of asking simple questions that get answered
+    Changelog (Build 121):
+    - NEW: Narrative continuity for Film/Book/Roadmap patterns
+    - IMPROVE: AI now maintains coherence between sequential scenes/chapters/features
+    - FIX: Smart Suggest looks at previous item to avoid disjointed suggestions
 
-    Previous (Build 119):
-    - FIX: Prompts now generate ready-to-use (NO {{placeholders}})
+    Previous (Build 120):
+    - FIX: Generate comprehensive instruction-rich prompts that configure AI behavior
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1652,8 +1652,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 120 | 2025-11-19">
-                    v2.2.0 • Build 120
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 121 | 2025-11-19">
+                    v2.2.0 • Build 121
                 </div>
             </div>
         </div>
@@ -9393,6 +9393,33 @@ function hidePatternDescription() {
             }
 
             prompt += `\n`;
+
+            // CONTINUITY INSTRUCTIONS for sequential/narrative patterns
+            const sequentialPatterns = ['film', 'book', 'roadmap'];
+            if (sequentialPatterns.includes(pattern) && treeContext.siblingItems.length > 0) {
+                const lastSibling = treeContext.siblingItems[treeContext.siblingItems.length - 1];
+                prompt += `⚠️ CONTINUITY REQUIREMENT:\n`;
+                prompt += `This item follows: "${lastSibling.name}"\n`;
+
+                if (pattern === 'film') {
+                    prompt += `Ensure visual/narrative continuity from previous scene:\n`;
+                    if (lastSibling.description) prompt += `- Previous scene: ${lastSibling.description.substring(0, 100)}\n`;
+                    if (lastSibling.lightingMood) prompt += `- Previous lighting: ${lastSibling.lightingMood}\n`;
+                    prompt += `- If previous scene ended with location change/fade, this scene must establish new context\n`;
+                    prompt += `- Maintain consistent visual style and tone unless intentionally shifting\n`;
+                } else if (pattern === 'book') {
+                    prompt += `Ensure narrative continuity from previous chapter/section:\n`;
+                    if (lastSibling.description) prompt += `- Previous: ${lastSibling.description.substring(0, 100)}\n`;
+                    prompt += `- Maintain character consistency, plot coherence, and thematic threads\n`;
+                    prompt += `- If starting new section/arc, provide logical handover from previous\n`;
+                } else if (pattern === 'roadmap') {
+                    prompt += `Ensure feature sequencing makes sense:\n`;
+                    if (lastSibling.description) prompt += `- Previous feature: ${lastSibling.description.substring(0, 100)}\n`;
+                    prompt += `- Check dependencies: does this feature build on or require the previous one?\n`;
+                    prompt += `- If starting new phase, ensure logical progression from previous phase goals\n`;
+                }
+                prompt += `\n`;
+            }
 
             // Pattern-specific field instructions
             prompt += buildFieldInstructions(pattern, fieldType, itemContext);
