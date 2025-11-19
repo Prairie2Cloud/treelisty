@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.2.0
-**Build:** 121
+**Build:** 122
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,21 @@
 ---
 
 ## Version History
+
+### v2.2.0 | Build 122 | 2025-11-19
+**Two-Style Video Prompt Generator (POC)**
+- NEW: Generate AI video prompts in TWO styles: 📊 Explainer + 🎭 Narrative
+- NEW: Explainer style - Clean, logical, educational (investors, team, education)
+- NEW: Narrative style - Character-driven, emotional, hero's journey (marketing, storytelling)
+- NEW: Auto hero detection from assignees/descriptions ("Sarah Chen" becomes protagonist)
+- NEW: Smart mood detection based on cost/risk/status (high stakes = dramatic lighting)
+- NEW: Beautiful style selector modal UI with gradient cards
+- NEW: Scene continuity tracking (references previous scene for narrative flow)
+- NEW: Three-act structure for narrative mode (Challenge → Struggle → Triumph)
+- IMPROVE: Video prompts now 3x more detailed and cinematic-ready for Sora/Veo
+- TECHNICAL: Simulates "multi-lens" in prompt logic (no database changes = zero risk)
+- TECHNICAL: Hero detection scans all assignees + extracts names from descriptions
+- POC: Validates user interest before committing to full pattern-switching architecture
 
 ### v2.2.0 | Build 121 | 2025-11-19
 **Narrative Continuity Feature**
