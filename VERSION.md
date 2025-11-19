@@ -2,8 +2,8 @@
 
 ## Current Version
 **Version:** 2.2.0
-**Build:** 116
-**Date:** 2025-11-18
+**Build:** 117
+**Date:** 2025-11-19
 
 ---
 
@@ -26,6 +26,12 @@
 ---
 
 ## Version History
+
+### v2.2.0 | Build 117 | 2025-11-19
+**Bug Fix**
+- FIX: AI Prompt Design pattern - treat input as prompt topic not question
+- FIX: Analyze Text now creates prompts instead of answering questions
+- FIX: Updated improvePromptWithAI to distinguish between prompt topics and questions
 
 ### v2.2.0 | Build 116 | 2025-11-18
 **UI Improvement**
