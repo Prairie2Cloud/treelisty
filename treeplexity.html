@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.2.0 | Build 117 | 2025-11-19
+    TreeListy v2.2.0 | Build 118 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 14 specialized patterns (Generic, Philosophy, Sales, etc.)
@@ -16,13 +16,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 117):
-    - FIX: AI Prompt Design pattern - treat input as prompt topic not question
-    - FIX: Analyze Text now creates prompts instead of answering questions
+    Changelog (Build 118):
+    - FIX: Stronger prompt engineering to prevent AI from answering vs. creating prompts
+    - FIX: Explicit "DO NOT answer questions" directive in system and user prompts
+    - IMPROVE: User prompt now emphasizes PROMPT ARCHITECT role
 
-    Previous (Build 116):
-    - UX: Move version/build info from logo to right side below help button
-    - CLEAN: Logo subtitle back to simple "by geej"
+    Previous (Build 117):
+    - FIX: AI Prompt Design pattern - treat input as prompt topic not question
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1652,8 +1652,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 117 | 2025-11-19">
-                    v2.2.0 • Build 117
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 118 | 2025-11-19">
+                    v2.2.0 • Build 118
                 </div>
             </div>
         </div>
@@ -15392,7 +15392,16 @@ Provide exactly 3 recommendations, ranked by confidence (1-10). Use these patter
 
             const systemPrompt = `You are an expert prompt engineer who specializes in improving prompts using OpenAI and Anthropic best practices.
 
-Your task: Take a basic, vague prompt and transform it into a comprehensive, production-ready prompt with all necessary components.
+🚨 CRITICAL UNDERSTANDING: You are NOT answering questions. You are NOT providing information. You are CREATING PROMPTS.
+
+Your ONLY task: Take a basic topic/idea/draft and CREATE a comprehensive prompt that another AI would use to help with that topic.
+
+Example workflow:
+- Input: "early signs of parkinsons" → CREATE a prompt for an AI to help identify early Parkinson's signs
+- Input: "analyze sentiment" → CREATE a sentiment analysis prompt
+- Input: "plan a vacation" → CREATE a vacation planning prompt
+
+You are a PROMPT BUILDER, not a question answerer.
 
 BEST PRACTICES TO APPLY:
 1. **System Prompt**: Clear role definition, context, constraints, tone
@@ -15406,18 +15415,25 @@ BEST PRACTICES TO APPLY:
 
 CRITICAL: Return ONLY valid JSON. No explanations, no markdown, no text before or after.`;
 
-            const userPrompt = `You are a prompt engineer. The user provided this TEXT as a prompt topic, draft prompt, or basic prompt idea:
+            const userPrompt = `Your task: CREATE a production-ready prompt about the following topic/concept/use-case:
 
-"${basicPrompt}"
+TOPIC: "${basicPrompt}"
 
-⚠️ IMPORTANT: Treat the text above as a PROMPT TO IMPROVE, not as a question to answer. Even if it looks like a question, your job is to create a production-ready prompt ABOUT that topic.
+Your job is to DESIGN A PROMPT that another AI could use to help with this topic. You are NOT answering this as a question. You are CREATING a prompt template.
 
-Example:
-- If they wrote "early signs of parkinsons", CREATE a prompt for an AI to help identify early Parkinson's signs
-- If they wrote "analyze sentiment", CREATE a sentiment analysis prompt
-- If they wrote a draft prompt, IMPROVE it into a production-ready version
+🎯 What you MUST do:
+- Take the topic "${basicPrompt}" and design a comprehensive prompt FOR an AI to handle this topic
+- Example: If topic is "early signs of parkinsons" → CREATE a prompt FOR an AI to help identify/discuss Parkinson's signs
+- Example: If topic is "analyze sentiment" → CREATE a sentiment analysis prompt template
+- Example: If topic is a draft prompt → IMPROVE it into a production version
 
-Analyze the intent and create:
+🚫 What you must NOT do:
+- DO NOT answer "${basicPrompt}" as if it's a question posed to you
+- DO NOT try to provide information about the topic
+- DO NOT give medical advice, recommendations, or analysis
+- You are a PROMPT ARCHITECT building a tool, not a subject matter expert answering queries
+
+Now create:
 1. A clear system prompt defining the AI's role and expertise
 2. An improved user prompt template with {{variables}} for dynamic content
 3. 2-3 few-shot examples demonstrating expected behavior

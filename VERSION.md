@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.2.0
-**Build:** 117
+**Build:** 118
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,13 @@
 ---
 
 ## Version History
+
+### v2.2.0 | Build 118 | 2025-11-19
+**Bug Fix (Enhanced)**
+- FIX: Stronger prompt engineering to prevent AI from answering vs. creating prompts
+- FIX: Explicit "DO NOT answer questions" directive in both system and user prompts
+- IMPROVE: User prompt now emphasizes PROMPT ARCHITECT role, not question answerer
+- IMPROVE: Added specific examples showing correct vs. incorrect behavior
 
 ### v2.2.0 | Build 117 | 2025-11-19
 **Bug Fix**
