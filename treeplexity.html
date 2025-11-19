@@ -4,10 +4,35 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TreeListy - Universal Project Decomposition by geej</title>
-    <!-- v1.2 - Switched to Claude Haiku for speed -->
+    <!--
+    ═══════════════════════════════════════════════════════════════════════════
+    TreeListy v2.2.0 | Build 115 | 2025-11-18
+    ═══════════════════════════════════════════════════════════════════════════
+    Universal Project Decomposition Tool
+    - 14 specialized patterns (Generic, Philosophy, Sales, etc.)
+    - AI-powered (Claude, Gemini, ChatGPT)
+    - Smart JSON save with pattern-based filenames
+    - LocalStorage auto-save every 2 minutes
+    - 50-state undo system
+    - PWA-ready (installable on desktop & mobile)
+
+    Changelog (Build 115):
+    - NEW: Smart JSON filename generation (treelisty-<pattern>-<name>-<timestamp>.json)
+    - NEW: Simple download to Downloads folder (no folder picker required)
+    - FIX: file:// protocol compatibility (works by double-clicking HTML)
+    - FIX: Clean console (disabled PWA features on file://)
+    - REMOVE: File System Access API complexity
+    ═══════════════════════════════════════════════════════════════════════════
+    -->
 
     <!-- PWA Configuration -->
-    <link rel="manifest" href="./manifest.json">
+    <link rel="manifest" href="./manifest.json" id="pwa-manifest">
+    <script>
+        // Remove manifest link on file:// protocol to prevent CORS errors
+        if (window.location.protocol === 'file:') {
+            document.getElementById('pwa-manifest')?.remove();
+        }
+    </script>
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -1516,9 +1541,14 @@
                     <span>🌳</span>
                     <span>TreeListy</span>
                 </div>
-                <div class="logo-subtitle">by geej</div>
+                <div class="logo-subtitle" title="TreeListy v2.2.0 | Build 115 | 2025-11-18">by geej • v2.2.0 • Build 115</div>
             </div>
-            
+
+            <!-- Save Indicator -->
+            <div id="save-indicator" style="font-size: 12px; color: #9DA3B4; margin-left: 12px; white-space: nowrap;">
+                ● Unsaved changes
+            </div>
+
         </div>
         <div class="controls" style="flex-wrap: wrap; gap: 8px;">
             <!-- Row 1: Main controls -->
@@ -5490,6 +5520,11 @@ Focus on logical structure and content organization best practices.`;
             }
 
             updateUndoButton();
+
+            // Mark tree as changed (for auto-save)
+            if (typeof treeManager !== 'undefined') {
+                treeManager.markAsChanged();
+            }
             console.log(`💾 State saved: ${actionName} (${historyStack.length} states in history)`);
         }
 
@@ -5608,6 +5643,26 @@ Focus on logical structure and content organization best practices.`;
 
                 e.preventDefault();
                 undo();
+            }
+
+            // Check for Ctrl+S (Windows/Linux) or Cmd+S (Mac) - Save shortcut
+            if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+                // Don't trigger save if user is typing in an input/textarea
+                const activeElement = document.activeElement;
+                if (activeElement &&
+                    (activeElement.tagName === 'INPUT' ||
+                     activeElement.tagName === 'TEXTAREA' ||
+                     activeElement.isContentEditable)) {
+                    return; // Let the browser handle save in text fields if needed
+                }
+
+                e.preventDefault();
+                console.log('⌨️ Ctrl+S pressed - triggering manual save');
+                if (typeof treeManager !== 'undefined') {
+                    treeManager.save(capexTree, { forceSaveAs: false });
+                } else {
+                    console.warn('TreeManager not initialized yet');
+                }
             }
         });
 
@@ -10376,28 +10431,243 @@ function hidePatternDescription() {
             }
         }
 
+        // =============================================================================
+        // TREE MANAGER - Save/Load with Auto-Save & Organized Folders
+        // =============================================================================
+
+        class TreeManager {
+            constructor() {
+                this.currentTreeId = null;
+                this.lastSaveTimestamp = null;
+                this.hasUnsavedChanges = false;
+                this.autoSaveInterval = null;
+            }
+
+            initialize() {
+                console.log('🌳 TreeManager: Initializing...');
+                console.log('💾 Save mode: LocalStorage + Download to Downloads folder');
+                this.loadTreeFromURLOrStorage();
+                this.startAutoSave(120);
+                this.startIndicatorUpdates();
+                this.watchForChanges();
+            }
+
+            getTimestamp() {
+                const now = new Date();
+                const y = now.getFullYear();
+                const m = String(now.getMonth() + 1).padStart(2, '0');
+                const d = String(now.getDate()).padStart(2, '0');
+                const h = String(now.getHours()).padStart(2, '0');
+                const min = String(now.getMinutes()).padStart(2, '0');
+                const s = String(now.getSeconds()).padStart(2, '0');
+                return `${y}${m}${d}-${h}${min}${s}`;
+            }
+
+            slugify(text) {
+                return text.toString().toLowerCase().trim()
+                    .replace(/\s+/g, '-').replace(/[^\w\-]+/g, '')
+                    .replace(/\-\-+/g, '-').replace(/^-+/, '').replace(/-+$/, '');
+            }
+
+            generateFilename(tree) {
+                const pattern = tree.pattern?.key || 'generic';
+                const treeName = tree.name || 'project';
+                const slug = this.slugify(treeName);
+                const timestamp = this.getTimestamp();
+
+                // Format: treelisty-<pattern>-<name>-<timestamp>.json
+                // Example: treelisty-philosophy-plato-cave-20251118-153045.json
+                return `treelisty-${pattern}-${slug}-${timestamp}.json`;
+            }
+
+            saveToLocalStorage(tree) {
+                try {
+                    const treeId = tree.id || 'default';
+                    const jsonStr = JSON.stringify(tree, null, 2);
+                    localStorage.setItem(`treelisty:tree:${treeId}`, jsonStr);
+                    const metadata = this.extractMetadata(tree);
+                    localStorage.setItem(`treelisty:meta:${treeId}`, JSON.stringify(metadata));
+                    this.lastSaveTimestamp = Date.now();
+                    this.hasUnsavedChanges = false;
+                    console.log(`💾 Saved to LocalStorage: ${treeId}`);
+                    return true;
+                } catch (error) {
+                    console.error('❌ LocalStorage save failed:', error);
+                    return false;
+                }
+            }
+
+            extractMetadata(tree) {
+                return {
+                    id: tree.id || 'default',
+                    name: tree.name || 'Untitled',
+                    pattern: tree.pattern?.key || 'generic',
+                    itemCount: this.countItems(tree),
+                    lastModified: Date.now(),
+                    lastSaved: this.lastSaveTimestamp
+                };
+            }
+
+            countItems(tree) {
+                let count = 0;
+                if (tree.children) {
+                    tree.children.forEach(phase => {
+                        if (phase.items) {
+                            count += phase.items.length;
+                            phase.items.forEach(item => {
+                                if (item.subItems) count += item.subItems.length;
+                                if (item.subtasks) count += item.subtasks.length;
+                            });
+                        }
+                    });
+                }
+                return count;
+            }
+
+            downloadJSON(tree) {
+                try {
+                    const filename = this.generateFilename(tree);
+                    const jsonStr = JSON.stringify(tree, null, 2);
+                    const blob = new Blob([jsonStr], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+
+                    console.log(`💾 Downloaded: ${filename}`);
+                    if (typeof showToast === 'function') showToast(`✅ Saved: ${filename}`);
+                    return true;
+                } catch (error) {
+                    console.error('❌ Download failed:', error);
+                    return false;
+                }
+            }
+
+            save(tree, options = {}) {
+                const { silent = false, forceSaveAs = false } = options;
+
+                // Save to LocalStorage for auto-save tracking
+                this.saveToLocalStorage(tree);
+
+                // Download JSON file (only on manual save, not auto-save)
+                if (!silent) {
+                    this.downloadJSON(tree);
+                    this.updateSaveIndicator('saved');
+                }
+
+                this.addToRecentFiles(tree);
+            }
+
+            startAutoSave(intervalSeconds) {
+                console.log(`⏰ Auto-save enabled: every ${intervalSeconds} seconds`);
+                this.autoSaveInterval = setInterval(() => {
+                    if (this.hasUnsavedChanges) {
+                        console.log('💾 Auto-saving...');
+                        this.save(capexTree, { silent: true });
+                    }
+                }, intervalSeconds * 1000);
+            }
+
+            startIndicatorUpdates() {
+                // Update save indicator every 30 seconds to keep "Saved Xm ago" current
+                setInterval(() => {
+                    if (this.lastSaveTimestamp && !this.hasUnsavedChanges) {
+                        this.updateSaveIndicator('saved');
+                    }
+                }, 30000); // 30 seconds
+            }
+
+            watchForChanges() {
+                this.hasUnsavedChanges = true;
+            }
+
+            markAsChanged() {
+                this.hasUnsavedChanges = true;
+                this.updateSaveIndicator('unsaved');
+            }
+
+            updateSaveIndicator(status) {
+                const indicator = document.getElementById('save-indicator');
+                if (!indicator) return;
+                if (status === 'saving') {
+                    indicator.textContent = '💾 Saving...';
+                    indicator.style.color = '#9DA3B4';
+                } else if (status === 'saved') {
+                    const timeAgo = this.getTimeAgo(this.lastSaveTimestamp);
+                    indicator.textContent = `✓ Saved ${timeAgo}`;
+                    indicator.style.color = '#5FA463';
+                } else if (status === 'unsaved') {
+                    indicator.textContent = '● Unsaved changes';
+                    indicator.style.color = '#D68A2E';
+                }
+            }
+
+            getTimeAgo(timestamp) {
+                if (!timestamp) return 'just now';
+                const seconds = Math.floor((Date.now() - timestamp) / 1000);
+                if (seconds < 10) return 'just now';
+                if (seconds < 60) return `${seconds}s ago`;
+                if (seconds < 3600) return `${Math.floor(seconds / 60)}m ago`;
+                if (seconds < 86400) return `${Math.floor(seconds / 3600)}h ago`;
+                return `${Math.floor(seconds / 86400)}d ago`;
+            }
+
+            addToRecentFiles(tree) {
+                try {
+                    let recent = this.getRecentFiles();
+                    const metadata = this.extractMetadata(tree);
+                    recent = recent.filter(r => r.id !== metadata.id);
+                    recent.unshift(metadata);
+                    recent = recent.slice(0, 10);
+                    localStorage.setItem('treelisty:recent', JSON.stringify(recent));
+                } catch (error) {
+                    console.error('❌ Failed to update recent files:', error);
+                }
+            }
+
+            getRecentFiles() {
+                try {
+                    const data = localStorage.getItem('treelisty:recent');
+                    return data ? JSON.parse(data) : [];
+                } catch (error) {
+                    return [];
+                }
+            }
+
+            loadTreeFromURLOrStorage() {
+                const urlParams = new URLSearchParams(window.location.search);
+                if (urlParams.has('data')) {
+                    console.log('📥 Loading tree from shared URL...');
+                    return;
+                }
+                const treeId = 'default';
+                const treeData = localStorage.getItem(`treelisty:tree:${treeId}`);
+                if (treeData) {
+                    try {
+                        const tree = JSON.parse(treeData);
+                        console.log('📥 Loaded tree from LocalStorage:', treeId);
+                        Object.assign(capexTree, tree);
+                        this.currentTreeId = treeId;
+                    } catch (error) {
+                        console.error('❌ Failed to load tree from LocalStorage:', error);
+                    }
+                }
+            }
+        }
+
+        const treeManager = new TreeManager();
+        window.addEventListener('DOMContentLoaded', () => {
+            treeManager.initialize();
+        });
+
+        // Enhanced save function
         function handleDownload() {
-            const jsonStr = JSON.stringify(capexTree, null, 2);
-            const blob = new Blob([jsonStr], { type: 'application/json' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-
-            // Create unique timestamp: YYYY-MM-DD_HHMMSS
-            const now = new Date();
-            const year = now.getFullYear();
-            const month = String(now.getMonth() + 1).padStart(2, '0');
-            const day = String(now.getDate()).padStart(2, '0');
-            const hours = String(now.getHours()).padStart(2, '0');
-            const minutes = String(now.getMinutes()).padStart(2, '0');
-            const seconds = String(now.getSeconds()).padStart(2, '0');
-            const timestamp = `${year}-${month}-${day}_${hours}${minutes}${seconds}`;
-
-            a.download = `treelisty-project-${timestamp}.treelisty`;
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-            URL.revokeObjectURL(url);
+            treeManager.save(capexTree, { forceSaveAs: false });
         }
 
         function handleUpload() {
@@ -18638,8 +18908,8 @@ ${jsonText}`;
         // PWA install prompt event
         let deferredInstallPrompt = null;
 
-        // Register service worker
-        if ('serviceWorker' in navigator) {
+        // Register service worker (only on http:// or https://, not file://)
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
             navigator.serviceWorker.register('./service-worker.js')
                 .then(registration => {
                     console.log('✅ Service Worker registered:', registration.scope);
@@ -18648,6 +18918,11 @@ ${jsonText}`;
                     console.error('❌ Service Worker registration failed:', error);
                     console.error('Error details:', error.message, error.stack);
                 });
+        } else if (window.location.protocol === 'file:') {
+            console.log('ℹ️ Service Worker skipped (file:// protocol - not supported)');
+        }
+
+        if ('serviceWorker' in navigator && window.location.protocol !== 'file:') {
 
             // Listen for file launches from service worker
             navigator.serviceWorker.addEventListener('message', event => {
