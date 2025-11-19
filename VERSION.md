@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.2.0
-**Build:** 118
+**Build:** 119
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,13 @@
 ---
 
 ## Version History
+
+### v2.2.0 | Build 119 | 2025-11-19
+**UX Improvement**
+- FIX: Prompts now generate ready-to-use (NO {{placeholders}} or {{variables}})
+- IMPROVE: Prompts work immediately when pasted into AI (no variable substitution needed)
+- UX: Changed from template mode to instance mode for better user experience
+- CHANGE: User prompt instructions explicitly prohibit placeholders
 
 ### v2.2.0 | Build 118 | 2025-11-19
 **Bug Fix (Enhanced)**

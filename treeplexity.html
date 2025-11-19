@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.2.0 | Build 118 | 2025-11-19
+    TreeListy v2.2.0 | Build 119 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 14 specialized patterns (Generic, Philosophy, Sales, etc.)
@@ -16,13 +16,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 118):
-    - FIX: Stronger prompt engineering to prevent AI from answering vs. creating prompts
-    - FIX: Explicit "DO NOT answer questions" directive in system and user prompts
-    - IMPROVE: User prompt now emphasizes PROMPT ARCHITECT role
+    Changelog (Build 119):
+    - FIX: Prompts now generate ready-to-use (NO {{placeholders}})
+    - IMPROVE: Prompts work immediately when pasted into AI (no variable substitution needed)
+    - UX: Changed from template mode to instance mode for better user experience
 
-    Previous (Build 117):
-    - FIX: AI Prompt Design pattern - treat input as prompt topic not question
+    Previous (Build 118):
+    - FIX: Stronger prompt engineering to prevent AI from answering vs. creating prompts
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1652,8 +1652,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 118 | 2025-11-19">
-                    v2.2.0 • Build 118
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 119 | 2025-11-19">
+                    v2.2.0 • Build 119
                 </div>
             </div>
         </div>
@@ -15419,12 +15419,12 @@ CRITICAL: Return ONLY valid JSON. No explanations, no markdown, no text before o
 
 TOPIC: "${basicPrompt}"
 
-Your job is to DESIGN A PROMPT that another AI could use to help with this topic. You are NOT answering this as a question. You are CREATING a prompt template.
+Your job is to DESIGN A PROMPT that another AI could use to help with this topic. You are NOT answering this as a question. You are CREATING a ready-to-use prompt.
 
 🎯 What you MUST do:
 - Take the topic "${basicPrompt}" and design a comprehensive prompt FOR an AI to handle this topic
 - Example: If topic is "early signs of parkinsons" → CREATE a prompt FOR an AI to help identify/discuss Parkinson's signs
-- Example: If topic is "analyze sentiment" → CREATE a sentiment analysis prompt template
+- Example: If topic is "skin care" → CREATE a prompt FOR an AI to provide skin care guidance
 - Example: If topic is a draft prompt → IMPROVE it into a production version
 
 🚫 What you must NOT do:
@@ -15433,9 +15433,15 @@ Your job is to DESIGN A PROMPT that another AI could use to help with this topic
 - DO NOT give medical advice, recommendations, or analysis
 - You are a PROMPT ARCHITECT building a tool, not a subject matter expert answering queries
 
+🎨 IMPORTANT: Create CONCRETE, READY-TO-USE prompts:
+- NO {{placeholders}} or {{variables}} in the user prompt
+- Make the prompt work immediately when pasted into an AI
+- Write prompts as direct instructions, not templates requiring variable substitution
+- Example: "Help me create a skin care routine" NOT "Help me create a skin care routine for {{skin_type}}"
+
 Now create:
 1. A clear system prompt defining the AI's role and expertise
-2. An improved user prompt template with {{variables}} for dynamic content
+2. A concrete user prompt that works immediately (NO {{placeholders}})
 3. 2-3 few-shot examples demonstrating expected behavior
 4. Chain-of-thought instructions (if reasoning is needed)
 5. Output format specification (JSON, markdown, or structured text)
@@ -15444,7 +15450,7 @@ Now create:
 
 Return ONLY this JSON structure:
 {
-  "projectName": "Descriptive name for this prompt (e.g., 'Restaurant Recommendation System')",
+  "projectName": "Descriptive name for this prompt (e.g., 'Skin Care Routine Assistant')",
   "description": "Brief 1-sentence description of what this prompt does",
   "phases": [
     {
@@ -15453,10 +15459,10 @@ Return ONLY this JSON structure:
       "items": [
         {
           "name": "Improved: [Brief name based on use case]",
-          "description": "Production-ready prompt with all best practice components",
+          "description": "Production-ready prompt that works immediately",
           "itemType": "task-instruction",
           "systemPrompt": "You are an expert [domain]. [Context]. [Constraints]. [Tone].",
-          "userPromptTemplate": "Detailed task instruction with {{variable1}} and {{variable2}}. Include step-by-step guidance.",
+          "userPromptTemplate": "Concrete, ready-to-use prompt with direct instructions. NO placeholders. Works immediately when pasted.",
           "fewShotExamples": "<example>\\nUser: [example input 1]\\nAssistant: [example output 1]\\n</example>\\n\\n<example>\\nUser: [example input 2]\\nAssistant: [example output 2]\\n</example>",
           "chainOfThought": "Think step by step: 1) [step], 2) [step], 3) [step]. Show your reasoning.",
           "outputFormat": "Return JSON: {\\"field1\\": \\"description\\", \\"field2\\": \\"description\\"}",
@@ -15474,7 +15480,7 @@ Return ONLY this JSON structure:
 RULES:
 - Infer use case from basic prompt (chatbot? search? analysis? recommendation?)
 - Create realistic, helpful few-shot examples
-- Make user prompt template generic with {{variables}}
+- Make user prompt concrete and immediately usable (NO {{variables}} or placeholders)
 - Chain-of-thought only if task requires reasoning
 - Output format should match the use case (JSON for APIs, markdown for reports, etc.)
 - System prompt should be professional and comprehensive
