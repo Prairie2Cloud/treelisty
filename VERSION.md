@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.2.0
-**Build:** 115
+**Build:** 116
 **Date:** 2025-11-18
 
 ---
@@ -13,19 +13,24 @@
 1. Increment build number in 3 places:
    - Line 9 in `treeplexity.html` (header comment)
    - Line 19-24 in `treeplexity.html` (changelog)
-   - Line 1544 in `treeplexity.html` (UI display)
+   - Line 1658 in `treeplexity.html` (UI display - right side below help button)
    - This file (VERSION.md)
 
 2. Update changelog in header comment (lines 19-24)
 
 3. Update git commit message:
    ```bash
-   git commit -m "Build 116: <description of changes>"
+   git commit -m "Build 117: <description of changes>"
    ```
 
 ---
 
 ## Version History
+
+### v2.2.0 | Build 116 | 2025-11-18
+**UI Improvement**
+- UX: Move version/build info from logo to right side below help button
+- CLEAN: Logo subtitle back to simple "by geej"
 
 ### v2.2.0 | Build 115 | 2025-11-18
 **Smart JSON Save System**
