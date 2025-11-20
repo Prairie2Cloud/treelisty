@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 132 | 2025-11-20
+    TreeListy v2.3.0 | Build 133 | 2025-11-20
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -16,14 +16,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 132):
-    - FIX: Added debug logging for Deep Mode routing (helps diagnose Netlify bypass issues)
-    - CLARIFY: Enhanced comments - Deep Mode MUST bypass Netlify (like Gemini/ChatGPT)
-    - DEBUG: Log useExtendedThinking and hasLocalKey when Deep Mode requested
-    - CONSISTENCY: Sonnet Deep Mode now explicitly documented to match Gemini/ChatGPT behavior
+    Changelog (Build 133):
+    - FIX: Quadtree infinite recursion crash in Canvas View (maximum call stack exceeded)
+    - ADD: Max depth limit (15 levels) to prevent infinite subdivision
+    - ADD: Minimum size check (1px) - stops subdivision when quadrants too small
+    - SAFETY: Force return true if no child accepts node (handles floating point edge cases)
+    - TECHNICAL: Pass depth parameter through Quadtree constructor chain
 
-    Previous (Build 131):
-    - UPGRADE: Master Prompt Engineer meta-framework with 5-part framework
+    Previous (Build 132):
+    - FIX: Deep Mode routing clarification with debug logging
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1654,8 +1655,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 132 | 2025-11-20">
-                    v2.3.0 • Build 132
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 133 | 2025-11-20">
+                    v2.3.0 • Build 133
                 </div>
             </div>
         </div>
@@ -4940,11 +4941,12 @@ Focus on logical structure and content organization best practices.`;
 
         // Barnes-Hut Quadtree for O(n log n) force approximation
         class QuadtreeNode {
-            constructor(x, y, width, height) {
+            constructor(x, y, width, height, depth = 0) {
                 this.x = x;
                 this.y = y;
                 this.width = width;
                 this.height = height;
+                this.depth = depth;  // Track recursion depth
                 this.mass = 0;
                 this.centerX = 0;
                 this.centerY = 0;
@@ -4969,6 +4971,19 @@ Focus on logical structure and content organization best practices.`;
                     return true;
                 }
 
+                // PREVENT INFINITE RECURSION: Max depth or minimum size check
+                const MAX_DEPTH = 15;
+                const MIN_SIZE = 1;
+                if (this.depth >= MAX_DEPTH || this.width < MIN_SIZE || this.height < MIN_SIZE) {
+                    // Can't subdivide further - keep both nodes at this level
+                    // Update center of mass to include both
+                    const totalMass = this.mass + 1;
+                    this.centerX = (this.centerX * this.mass + node.canvasX) / totalMass;
+                    this.centerY = (this.centerY * this.mass + node.canvasY) / totalMass;
+                    this.mass = totalMass;
+                    return true;
+                }
+
                 // If this is a leaf, subdivide
                 if (!this.subdivided) {
                     this.subdivide();
@@ -4986,19 +5001,22 @@ Focus on logical structure and content organization best practices.`;
                         return true;
                     }
                 }
-                return false;
+
+                // SAFETY: If no child accepted it, keep it here (prevents infinite recursion)
+                // This can happen with floating point precision issues or nodes exactly on boundaries
+                return true;
             }
 
             subdivide() {
                 const halfWidth = this.width / 2;
                 const halfHeight = this.height / 2;
 
-                // Create 4 quadrants: NW, NE, SW, SE
+                // Create 4 quadrants: NW, NE, SW, SE (pass depth + 1)
                 this.children = [
-                    new QuadtreeNode(this.x, this.y, halfWidth, halfHeight),
-                    new QuadtreeNode(this.x + halfWidth, this.y, halfWidth, halfHeight),
-                    new QuadtreeNode(this.x, this.y + halfHeight, halfWidth, halfHeight),
-                    new QuadtreeNode(this.x + halfWidth, this.y + halfHeight, halfWidth, halfHeight)
+                    new QuadtreeNode(this.x, this.y, halfWidth, halfHeight, this.depth + 1),
+                    new QuadtreeNode(this.x + halfWidth, this.y, halfWidth, halfHeight, this.depth + 1),
+                    new QuadtreeNode(this.x, this.y + halfHeight, halfWidth, halfHeight, this.depth + 1),
+                    new QuadtreeNode(this.x + halfWidth, this.y + halfHeight, halfWidth, halfHeight, this.depth + 1)
                 ];
 
                 // Reinsert existing node

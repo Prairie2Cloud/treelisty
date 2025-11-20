@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 132
+**Build:** 133
 **Date:** 2025-11-20
 
 ---
@@ -26,6 +26,113 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 133 | 2025-11-20
+**Critical Bug Fix: Canvas View Quadtree Infinite Recursion**
+- FIX: Quadtree infinite recursion causing "Maximum call stack size exceeded"
+- ADD: Max depth limit (15 levels) prevents infinite subdivision
+- ADD: Minimum size check (1px) stops subdivision when quadrants too small
+- SAFETY: Return true if no child accepts node (handles floating point precision edge cases)
+- TECHNICAL: Pass depth parameter through constructor chain (line 4943, 5015-5018)
+
+**User Report:**
+```
+treeplexity.html:4998 Uncaught RangeError: Maximum call stack size exceeded
+at QuadtreeNode.subdivide (treeplexity.html:4998:21)
+at QuadtreeNode.insert (treeplexity.html:4974:26)
+```
+
+**Root Cause:**
+Infinite recursion in Canvas View spatial indexing (Barnes-Hut Quadtree). When a node couldn't fit in any of the 4 child quadrants (due to floating point precision or nodes on exact boundaries), it would:
+1. Subdivide (line 4974)
+2. Try to insert into children (line 4984-4988)
+3. All children reject it (boundary issues)
+4. Return false (line 4989)
+5. Parent tries again → infinite loop
+
+**The Problem:**
+```javascript
+// Before Build 133
+insert(node) {
+    // ...
+    if (!this.subdivided) {
+        this.subdivide();  // Creates 4 children
+    }
+
+    // Update mass
+    this.mass = totalMass;
+
+    // Try to insert into child
+    for (let child of this.children) {
+        if (child.insert(node)) {
+            return true;
+        }
+    }
+    return false;  // ❌ If no child accepts, returns false → parent tries again → INFINITE RECURSION
+}
+```
+
+**The Fix:**
+
+1. **Added depth tracking** (line 4943):
+   ```javascript
+   constructor(x, y, width, height, depth = 0) {
+       this.depth = depth;  // Track recursion level
+   ```
+
+2. **Max depth check** (line 4973-4984):
+   ```javascript
+   const MAX_DEPTH = 15;
+   const MIN_SIZE = 1;
+   if (this.depth >= MAX_DEPTH || this.width < MIN_SIZE || this.height < MIN_SIZE) {
+       // Can't subdivide further - keep both nodes at this level
+       // Update center of mass and return true
+       return true;
+   }
+   ```
+
+3. **Safety return** (line 5004-5006):
+   ```javascript
+   // If no child accepted it, keep it here (prevents infinite recursion)
+   // This can happen with floating point precision issues
+   return true;  // ✅ Always succeed, don't recurse infinitely
+   ```
+
+4. **Pass depth to children** (line 5015-5018):
+   ```javascript
+   this.children = [
+       new QuadtreeNode(this.x, this.y, halfWidth, halfHeight, this.depth + 1),
+       // ... other 3 quadrants with depth + 1
+   ];
+   ```
+
+**Before Build 133:**
+- No recursion depth tracking
+- Infinite loop if node doesn't fit in any child
+- Canvas View crashes with stack overflow
+- Floating point precision issues cause failures
+
+**After Build 133:**
+- Max depth 15 (prevents deep recursion)
+- Min size 1px (stops subdivision when too small)
+- Always returns true (no infinite loops)
+- Handles floating point edge cases gracefully
+
+**Why This Happened:**
+Barnes-Hut Quadtree is used for force-directed layout optimization (O(n log n) instead of O(n²)). When nodes have very similar coordinates or fall exactly on subdivision boundaries, floating point math can cause nodes to not fit in any of the 4 children, leading to infinite recursion.
+
+**Impact:**
+- Canvas View now stable with large trees
+- Force-directed layout works correctly
+- No more stack overflow errors
+- Handles edge cases (overlapping nodes, boundary nodes)
+
+**Implementation:**
+- Line 4943: Added depth parameter to constructor
+- Line 4948: Store depth as instance variable
+- Line 4973-4984: Check max depth and min size before subdividing
+- Line 5004-5006: Safety return to prevent infinite loops
+- Line 5015-5018: Pass depth + 1 to children
 
 ### v2.3.0 | Build 132 | 2025-11-20
 **Bug Fix: Deep Mode Routing Clarification & Debug Logging**
