@@ -6,26 +6,26 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.2.0 | Build 122 | 2025-11-19
+    TreeListy v2.3.0 | Build 123 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
-    - 14 specialized patterns (Generic, Philosophy, Sales, etc.)
+    - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
     - AI-powered (Claude, Gemini, ChatGPT)
     - Smart JSON save with pattern-based filenames
     - LocalStorage auto-save every 2 minutes
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 122):
-    - NEW: Two-Style Video Prompt Generator (📊 Explainer + 🎭 Narrative)
-    - NEW: Beautiful style selector modal for choosing video approach
-    - NEW: Auto hero detection from assignees/descriptions
-    - NEW: Smart mood detection based on cost/risk/status (high stakes = dramatic lighting)
-    - NEW: Three-act structure for narrative mode (Challenge → Struggle → Triumph)
-    - IMPROVE: Video prompts now 3x more detailed and cinematic-ready for Sora/Veo
+    Changelog (Build 123):
+    - NEW: 📧 Gmail pattern for importing and analyzing email threads
+    - NEW: AI-powered email analysis (rhetoric, tone, sentiment, relationship dynamics)
+    - NEW: Context-aware response generation (AI sees full thread history)
+    - NEW: Email thread organization by Inbox/Sent/Important labels
+    - NEW: Sort threads by date, subject, message count
+    - FEATURE: Right-click thread → AI Suggest = analyze communication patterns
 
-    Previous (Build 121):
-    - NEW: Narrative continuity for Film/Book/Roadmap patterns
+    Previous (Build 122):
+    - NEW: Two-Style Video Prompt Generator (Explainer + Narrative)
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1655,8 +1655,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.2.0 | Build 122 | 2025-11-19">
-                    v2.2.0 • Build 122
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 123 | 2025-11-19">
+                    v2.3.0 • Build 123
                 </div>
             </div>
         </div>
@@ -6439,6 +6439,97 @@ const PATTERNS = {
             includeTracking: false
         }
     },
+    gmail: {
+        name: 'Email Workflow',
+        icon: '📧',
+        levels: {
+            root: 'Inbox/Campaign',
+            phase: 'Label/Stage',
+            item: 'Thread',
+            subtask: 'Message'
+        },
+        phaseSubtitles: ['Inbox', 'Sent', 'Important', 'Archive'],
+        types: [
+            { value: 'cold-outreach', label: '❄️ Cold Outreach' },
+            { value: 'newsletter', label: '📰 Newsletter' },
+            { value: 'response', label: '↩️ Response' },
+            { value: 'follow-up', label: '➡️ Follow-up' },
+            { value: 'internal', label: '🏢 Internal Update' },
+            { value: 'transactional', label: '🧾 Transactional' }
+        },
+        description: 'Import and analyze Gmail threads with full conversation context',
+        sortOptions: [
+            { value: 'date-newest', label: '📅 Date (Newest First)', field: 'sendDate', order: 'desc', type: 'date' },
+            { value: 'date-oldest', label: '📅 Date (Oldest First)', field: 'sendDate', order: 'asc', type: 'date' },
+            { value: 'subject-az', label: '🔤 Subject (A-Z)', field: 'subjectLine', order: 'asc', type: 'text' },
+            { value: 'subject-za', label: '🔤 Subject (Z-A)', field: 'subjectLine', order: 'desc', type: 'text' },
+            { value: 'messages-most', label: '💬 Messages (Most First)', field: 'messageCount', order: 'desc', type: 'number' },
+            { value: 'messages-least', label: '💬 Messages (Least First)', field: 'messageCount', order: 'asc', type: 'number' }
+        ],
+        fields: {
+            recipientEmail: {
+                label: 'To (Email)',
+                type: 'text',
+                placeholder: 'client@company.com',
+                helpText: '👤 Primary recipient address'
+            },
+            ccEmail: {
+                label: 'CC',
+                type: 'text',
+                placeholder: 'manager@company.com',
+                helpText: '👥 Carbon copy recipients'
+            },
+            subjectLine: {
+                label: 'Subject Line',
+                type: 'text',
+                placeholder: 'Meeting Request: Q4 Planning',
+                helpText: '📝 The email subject line'
+            },
+            emailBody: {
+                label: 'Email Body',
+                type: 'textarea',
+                placeholder: 'Hi [Name],\n\nWriting to follow up on...',
+                helpText: '✍️ The main content of the email'
+            },
+            sendDate: {
+                label: 'Date Sent',
+                type: 'date',
+                helpText: '📅 When this email was sent/received'
+            },
+            status: {
+                label: 'Status',
+                type: 'select',
+                options: ['Draft', 'Ready', 'Sent', 'Replied', 'Archived'],
+                helpText: '📬 Email status'
+            },
+            threadId: {
+                label: 'Thread ID',
+                type: 'text',
+                placeholder: 'Gmail thread ID',
+                helpText: '🔗 Gmail thread identifier'
+            },
+            messageCount: {
+                label: 'Message Count',
+                type: 'number',
+                min: 1,
+                helpText: '💬 Number of messages in this thread'
+            },
+            sender: {
+                label: 'Sender',
+                type: 'text',
+                placeholder: 'john@company.com',
+                helpText: '👤 Email sender'
+            },
+            labels: {
+                label: 'Gmail Labels',
+                type: 'text',
+                placeholder: 'INBOX, IMPORTANT, SENT',
+                helpText: '🏷️ Gmail labels/categories'
+            },
+            includeDependencies: true,
+            includeTracking: true
+        }
+    },
     custom: {
         name: 'Custom Names',
         icon: '✏️',
@@ -9348,6 +9439,7 @@ function hidePatternDescription() {
                 strategy: 'You are a business strategy consultant specializing in strategic planning, KPI development, and organizational transformation.',
                 familytree: 'You are a professional genealogist and family historian specializing in genealogical research and family tree documentation.',
                 dialogue: 'You are a rhetoric and argumentation expert specializing in debate analysis, persuasive communication, and identifying logical fallacies.',
+                gmail: 'You are an expert email analyst and communication strategist. You analyze email threads for tone, intent, rhetoric, and relationship dynamics. You provide context-aware suggestions for responses based on the full conversation history.',
                 generic: 'You are an experienced Project Manager and CFO with deep expertise in budget management, resource allocation, risk mitigation, and financial planning for complex projects.'
             };
 
@@ -9553,6 +9645,21 @@ function hidePatternDescription() {
                 };
                 instructions += fieldInstructions[fieldType] || `From a PM and CFO perspective, suggest a realistic ${fieldType} value considering budget, timeline, and risk factors.`;
             }
+
+            // Gmail pattern - Email analysis and response generation
+            else if (pattern === 'gmail') {
+                const fieldInstructions = {
+                    subjectLine: 'Suggest 2-3 high-converting subject lines based on the email context. Keep under 50 characters. Avoid spammy words. Focus on value or curiosity.',
+                    emailBody: 'Analyze the full conversation thread and suggest a contextually-appropriate response. Reference previous messages. Match the tone and formality level. Include a clear call to action if appropriate.',
+                    recipientEmail: 'Suggest the likely recipient based on the conversation context and sender patterns.',
+                    status: 'Suggest the appropriate email status (Draft/Sent/Replied/Archived) based on the conversation state.',
+                    name: 'Suggest a short internal name for this email thread that captures the main topic or business context.',
+                    description: 'Analyze this email thread: summarize the key points, identify the tone/sentiment, note any action items, and assess relationship dynamics.',
+                    notes: 'Suggest key observations: communication style, negotiation position, objections raised, next steps needed, relationship temperature (warm/neutral/cold).'
+                };
+                instructions += fieldInstructions[fieldType] || `Analyze the email context and conversation history to suggest an appropriate ${fieldType} value.`;
+            }
+
             // Other patterns
             else {
                 instructions += `Consider the project context, dependencies, and sibling items. Suggest a realistic, specific ${fieldType} value that fits the pattern.`;
