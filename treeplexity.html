@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 131 | 2025-11-20
+    TreeListy v2.3.0 | Build 132 | 2025-11-20
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -16,16 +16,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 131):
-    - UPGRADE: Replaced domain example with Master Prompt Engineer meta-framework
-    - TEACH: Persona → Task → Context → Constraints → Output Format (5-part framework)
-    - TEACH: Process flow - Input Acquisition → Analysis (3C) → Improvement → Delivery
-    - EXAMPLES: Climate change article (weak → strong), Resume review (vague → structured)
-    - META-LEVEL: Now teaches HOW to engineer prompts (not just shows one domain)
-    - STRUCTURE: System Configuration, User Interaction, Examples & Training, Output Specification
+    Changelog (Build 132):
+    - FIX: Added debug logging for Deep Mode routing (helps diagnose Netlify bypass issues)
+    - CLARIFY: Enhanced comments - Deep Mode MUST bypass Netlify (like Gemini/ChatGPT)
+    - DEBUG: Log useExtendedThinking and hasLocalKey when Deep Mode requested
+    - CONSISTENCY: Sonnet Deep Mode now explicitly documented to match Gemini/ChatGPT behavior
 
-    Previous (Build 130):
-    - FIX: Removed placeholder variables from AI Prompt Design example
+    Previous (Build 131):
+    - UPGRADE: Master Prompt Engineer meta-framework with 5-part framework
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1656,8 +1654,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 131 | 2025-11-20">
-                    v2.3.0 • Build 131
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 132 | 2025-11-20">
+                    v2.3.0 • Build 132
                 </div>
             </div>
         </div>
@@ -2995,6 +2993,11 @@ The AI will analyze the structure and convert it to a tree."
             const MAX_RETRIES = 2;
             const provider = getAIProvider();
 
+            // Debug logging for Deep Mode routing
+            if (useExtendedThinking) {
+                console.log('🔍 Deep Mode requested:', { provider, useExtendedThinking, hasLocalKey: !!getLocalAPIKey('anthropic') });
+            }
+
             // If Gemini is selected and user has Gemini key, use Gemini directly
             if (provider === 'gemini') {
                 const geminiKey = getLocalAPIKey('gemini');
@@ -3061,9 +3064,11 @@ The AI will analyze the structure and convert it to a tree."
 
             let response;
 
-            // DEEP MODE: Use direct API (no timeout limit, requires user key - enforced above)
+            // CRITICAL: Deep Mode with user key MUST use direct API (never Netlify)
+            // Gemini and ChatGPT always use direct API, Sonnet must too
             if (useExtendedThinking && localApiKey) {
                 console.log('🧠 Deep Mode: Using direct API (no timeout limit)');
+                console.log('⚠️ Bypassing Netlify completely - extended thinking takes 15-30s');
                 try {
                     response = await callClaudeDirectAPI(requestData, localApiKey);
                     console.log('✅ Direct API successful (Deep Mode)');

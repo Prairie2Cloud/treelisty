@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 131
+**Build:** 132
 **Date:** 2025-11-20
 
 ---
@@ -26,6 +26,70 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 132 | 2025-11-20
+**Bug Fix: Deep Mode Routing Clarification & Debug Logging**
+- FIX: Added debug logging for Deep Mode routing diagnostics
+- CLARIFY: Enhanced comments - Deep Mode MUST bypass Netlify (consistent with Gemini/ChatGPT)
+- DEBUG: Log `useExtendedThinking` and `hasLocalKey` when Deep Mode requested
+- CONSISTENCY: Explicitly document that Sonnet Deep Mode matches Gemini/ChatGPT behavior
+
+**User Report:**
+- User: "Sonnet still times out in Deep Mode. There should be no deploy to netlify in Deep Mode by Sonnet. that should be a direct api call like the other Deep Mode AI api keys."
+- Screenshot shows Build 126 error (Netlify timeout → direct API fallback → CORS)
+- Expected: Deep Mode should NEVER touch Netlify (direct API only, like Gemini/ChatGPT)
+
+**Investigation:**
+- Code already correct since Build 127 (line 3066: `if (useExtendedThinking && localApiKey)` → direct API)
+- User's screenshot shows Build 126 error, suggesting browser cache issue
+- Build 127+ includes upfront check: Deep Mode requires user API key (consistent across all providers)
+
+**Root Cause:**
+- User likely running cached older build (Build 126 or earlier) in browser
+- Older builds lacked Build 127's architectural fix (Deep Mode consistency)
+- File on disk is Build 132, but browser hasn't hard-refreshed
+
+**Solution:**
+1. **Added Debug Logging** (line 2999-3001):   - Logs when Deep Mode requested: provider, useExtendedThinking, hasLocalKey
+   - Helps diagnose any future routing issues
+   - Clear console trail showing Deep Mode vs Fast Mode path
+2. **Enhanced Comments** (line 3064-3065):
+   - "CRITICAL: Deep Mode with user key MUST use direct API (never Netlify)"
+   - "Gemini and ChatGPT always use direct API, Sonnet must too"
+   - Line 3068: "Bypassing Netlify completely - extended thinking takes 15-30s"
+3. **User Action Required:**
+   - Hard refresh browser: Ctrl+F5 (Windows/Linux) or Cmd+Shift+R (Mac)
+   - Or clear browser cache and reload
+   - Ensures Build 132 is running (not cached Build 126)
+
+**How Deep Mode Works (Build 127+):**
+
+**All Providers (Claude, Gemini, ChatGPT):**
+1. **Require User API Key:** `if (useExtendedThinking && !localApiKey)` throws error (line 3044)
+2. **Direct API Only:** `if (useExtendedThinking && localApiKey)` → `callClaudeDirectAPI` (line 3066-3080)
+3. **Never Touch Netlify:** Bypasses Netlify completely (15-30s extended thinking exceeds 10s limit)
+4. **CORS Handling:** If running from `file://`, shows clear solutions (deploy/local server/Fast Mode)
+
+**Fast Mode (server-* options):**
+- Uses Netlify function (10s timeout)
+- Fallback to direct API if timeout + user key available (line 3112)
+- CORS error handled with helpful solutions (line 3121)
+
+**Before Build 127 (User's Cached Version):**
+- No upfront check for Deep Mode + no API key
+- Sonnet could attempt Netlify → timeout → fallback → CORS
+- Inconsistent with Gemini/ChatGPT (always required user keys)
+
+**After Build 127-132:**
+- Upfront check: Deep Mode requires user API key (all providers)
+- Direct API path enforced: Never touches Netlify in Deep Mode
+- Consistent behavior: Sonnet = Gemini = ChatGPT
+- Debug logging: Clear console trail for diagnostics
+
+**Implementation:**
+- Line 2999-3001: Debug logging for Deep Mode routing
+- Line 3064-3068: Enhanced comments clarifying Deep Mode path
+- No logic changes (Build 127 already correct, just adding clarity)
 
 ### v2.3.0 | Build 131 | 2025-11-20
 **Major Upgrade: Master Prompt Engineer Meta-Framework**
