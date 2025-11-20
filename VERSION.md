@@ -2,8 +2,8 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 128
-**Date:** 2025-11-19
+**Build:** 129
+**Date:** 2025-11-20
 
 ---
 
@@ -26,6 +26,79 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 129 | 2025-11-20
+**Bug Fix: AI Wizard → Generate Prompt Context Loss for AI Prompt Design**
+- FIX: AI Wizard now populates pattern-specific fields (systemPrompt, userPromptTemplate, etc.)
+- FIX: Generate Prompt produces comprehensive output instead of just description
+- NEW: Pattern-specific JSON example in wizard system prompt showing required structure
+- TECHNICAL: Added 4-phase structure example (System Configuration, User Interaction, Examples & Training, Output Specification)
+- EXAMPLE: Concrete gardening prompt example matching user workflow
+
+**User Issue:**
+- User reported: "After AI Wizard conversation (6 questions) about gardening prompt, Generate Prompt only outputs: 'A prompt to research and organize gardening duties during fall and winter in Victoria, BC, Canada.'"
+- Expected: Comprehensive prompt with all details from conversation
+
+**Root Cause:**
+- `generateAIPromptDesignPrompt()` extracts fields like `systemPrompt`, `userPromptTemplate`, `fewShotExamples` from items
+- AI Wizard created generic tree structure WITHOUT populating these pattern-specific fields
+- Falls back to `tree.description` when fields are empty (line 13128)
+- Wizard system prompt had no instructions for AI Prompt Design pattern's special fields
+
+**Solution:**
+- Added pattern-specific JSON example (lines 12524-12614) showing exact structure AI should create
+- Example includes all 5 required fields: systemPrompt, userPromptTemplate, fewShotExamples, outputFormat, chainOfThought
+- 4-phase structure: System Configuration → User Interaction → Examples & Training → Output Specification
+- Concrete gardening example: "You are an expert Pacific Northwest gardening consultant..."
+- Critical instructions: "ALWAYS populate systemPrompt, userPromptTemplate, fewShotExamples, outputFormat fields"
+
+**Data Flow Verified:**
+- Generate Prompt reads from `capexTree` (line 13165) ✅
+- AI Wizard updates `capexTree` in real-time (line 12891) ✅
+- No caching issues - data flow is correct ✅
+- Problem was purely missing field population in wizard logic
+
+**Before Build 129:**
+```
+AI Wizard creates tree:
+{
+  "name": "NW Fall Gardening Assistant",
+  "description": "A prompt to research gardening...",
+  "children": [...]  // Generic structure, NO pattern-specific fields
+}
+
+Generate Prompt sees empty fields → returns description only
+```
+
+**After Build 129:**
+```
+AI Wizard creates tree:
+{
+  "name": "NW Fall Gardening Assistant",
+  "children": [
+    {
+      "name": "System Configuration",
+      "items": [
+        {
+          "name": "Main System Prompt",
+          "systemPrompt": "You are an expert Pacific Northwest gardening consultant...",
+          "userPromptTemplate": "I want to grow {{plant_name}}...",
+          "fewShotExamples": "Example 1: Garlic in Victoria...",
+          "outputFormat": "1. Planting Timeline...",
+          "chainOfThought": "Consider: frost dates, season..."
+        }
+      ]
+    }
+  ]
+}
+
+Generate Prompt extracts all fields → returns comprehensive executable prompt
+```
+
+**Implementation:**
+- Line 12524-12614: Pattern-specific JSON example for AI Prompt Design
+- Line 12610-12614: Critical instructions about field population
+- No changes to Generate Prompt logic (working as designed)
 
 ### v2.3.0 | Build 128 | 2025-11-19
 **UX Improvement: AI Wizard Meta-Level Guidance for AI Prompt Design**

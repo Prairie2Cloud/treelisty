@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 128 | 2025-11-19
+    TreeListy v2.3.0 | Build 129 | 2025-11-20
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -16,15 +16,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 128):
-    - UX: AI Wizard for AI Prompt Design now attunes user to meta-level thinking
-    - NEW: First question includes concrete examples of good answers
-    - IMPROVE: "You're DESIGNING a prompt (meta-level), not using one"
-    - GUIDE: Clear differentiation between prompt design vs prompt usage
-    - EXAMPLES: "A prompt that takes X and returns Y" (not "I want to know about X")
+    Changelog (Build 129):
+    - FIX: AI Wizard now populates pattern-specific fields for AI Prompt Design
+    - FIX: Generate Prompt now produces comprehensive output (not just description)
+    - NEW: Pattern-specific JSON example in wizard showing required fields
+    - TECHNICAL: systemPrompt, userPromptTemplate, fewShotExamples, outputFormat
+    - EXAMPLE: 4-phase structure (System, User, Examples, Output) with gardening prompt
 
-    Previous (Build 127):
-    - ENFORCE: Deep Mode requires user API key for all providers
+    Previous (Build 128):
+    - UX: AI Wizard attunes user to meta-level thinking for AI Prompt Design
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1655,8 +1655,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 128 | 2025-11-19">
-                    v2.3.0 • Build 128
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 129 | 2025-11-20">
+                    v2.3.0 • Build 129
                 </div>
             </div>
         </div>
@@ -12521,6 +12521,97 @@ For File System pattern, use "children" arrays at ALL levels (not "items" or "su
 - Include fileSize (bytes), fileExtension, dateModified for files
 - Auto-detect icons based on extension (.xlsx→📗, .pdf→📕, .jpg→🖼️, etc.)
 - Unlimited nesting depth supported via children arrays
+` : wizardState.patternKey === 'prompting' ? `
+⚠️ AI PROMPT DESIGN PATTERN - SPECIAL FIELDS:
+For AI Prompt Design, items MUST include these pattern-specific fields:
+
+{
+  "message": "I've designed [X] prompt stages with system instructions, user templates, and examples. [Ask ONE follow-up question]",
+  "treeUpdate": {
+    "name": "Project Name (e.g., 'NW Fall Gardening Assistant')",
+    "description": "What this prompt does when someone uses it",
+    "children": [
+      {
+        "name": "System Configuration",
+        "subtitle": "Role, context, and constraints",
+        "type": "phase",
+        "phase": 0,
+        "items": [
+          {
+            "name": "Main System Prompt",
+            "description": "Core system-level instructions that define the AI's role and behavior",
+            "itemType": "system-prompt",
+            "systemPrompt": "You are an expert Pacific Northwest gardening consultant specializing in fall and winter cultivation in USDA zones 8-9. You provide specific, actionable advice based on local climate patterns, soil conditions, and seasonal timing for Victoria, BC and surrounding regions.",
+            "subItems": [
+              {
+                "name": "Constraints & Guardrails",
+                "description": "What the AI should NOT do or must avoid"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "User Interaction",
+        "subtitle": "How users will interact with this prompt",
+        "type": "phase",
+        "phase": 1,
+        "items": [
+          {
+            "name": "User Prompt Template",
+            "description": "The main prompt structure users will fill in",
+            "itemType": "user-template",
+            "userPromptTemplate": "I want to grow {{plant_name}} in {{location}}. What are the optimal planting times, soil preparation steps, and maintenance schedule for fall/winter cultivation?",
+            "subItems": [
+              {
+                "name": "Variables",
+                "description": "{{plant_name}}, {{location}}, {{experience_level}}"
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Examples & Training",
+        "subtitle": "Few-shot examples showing expected behavior",
+        "type": "phase",
+        "phase": 2,
+        "items": [
+          {
+            "name": "Example Set",
+            "description": "2-3 examples of input/output pairs",
+            "itemType": "examples",
+            "fewShotExamples": "Example 1:\nInput: Garlic in Victoria, BC\nOutput: Plant garlic cloves in October. Choose hardneck varieties like 'Music' or 'German White' for local climate...\n\nExample 2:\nInput: Kale in Zone 8b\nOutput: Kale thrives in fall. Plant seedlings in August-September for winter harvest..."
+          }
+        ]
+      },
+      {
+        "name": "Output Specification",
+        "subtitle": "Format and structure requirements",
+        "type": "phase",
+        "phase": 3,
+        "items": [
+          {
+            "name": "Output Format",
+            "description": "How the AI should structure its responses",
+            "itemType": "output-format",
+            "outputFormat": "Format your response as:\n1. Planting Timeline (specific dates/months)\n2. Soil Preparation (pH, amendments, prep steps)\n3. Planting Instructions (depth, spacing, technique)\n4. Maintenance Schedule (weekly tasks through season)\n5. Harvest Timing (when and how to harvest)",
+            "chainOfThought": "Before responding, consider: 1) Local frost dates 2) Current season 3) Plant hardiness 4) Soil conditions. Then structure your response following the 5-part format."
+          }
+        ]
+      }
+    ]
+  },
+  "fieldsUpdated": ["systemPrompt", "userPromptTemplate", "fewShotExamples", "outputFormat", "chainOfThought"],
+  "progress": 0.8,
+  "done": false
+}
+
+⚠️ CRITICAL for Prompt Engineering pattern:
+- ALWAYS populate systemPrompt, userPromptTemplate, fewShotExamples, outputFormat fields
+- Use subItems for supplementary details (constraints, variables, edge cases)
+- Each phase represents a component of the final prompt (System, User, Examples, Output)
+- The Generate Prompt feature extracts these fields to create the executable prompt
 ` : `
 {
   "message": "I've built [X phases, Y items]. [State what you added]. The only gap I see is [specific gap]. [Ask ONE strategic follow-up question that maximizes information gain]",
