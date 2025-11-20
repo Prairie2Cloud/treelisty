@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 133
+**Build:** 134
 **Date:** 2025-11-20
 
 ---
@@ -26,6 +26,28 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 134 | 2025-11-20
+**UX Fix: AI Tools Panel Overlap with AI Wizard**
+- FIX: Moved AI Tools Panel from lower right to lower left
+- UX: AI Tools Panel and AI Wizard no longer overlap
+- LAYOUT: Both panels now accessible without blocking interaction
+
+**User Report:**
+"The AI Tools Console appears on the lower right and blocks interaction with AI Wizard in same location. Resolution: Move AI Tools console to lower left of screen and out of the way."
+
+**Before Build 134:**
+- AI Tools Panel: `position: fixed; bottom: 20px; right: 20px;` (lower right)
+- AI Wizard: `justify-content: flex-end` (slides in from right)
+- Both on right side → overlap → blocked interaction
+
+**After Build 134:**
+- AI Tools Panel: `position: fixed; bottom: 20px; left: 20px;` (lower left) ✅
+- AI Wizard: Still on right side (unchanged)
+- No overlap → both accessible
+
+**Implementation:**
+- Line 1705: Changed `right: 20px` to `left: 20px`
 
 ### v2.3.0 | Build 133 | 2025-11-20
 **Critical Bug Fix: Canvas View Quadtree Infinite Recursion**
