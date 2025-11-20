@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 130
+**Build:** 131
 **Date:** 2025-11-20
 
 ---
@@ -26,6 +26,99 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 131 | 2025-11-20
+**Major Upgrade: Master Prompt Engineer Meta-Framework**
+- UPGRADE: Replaced domain-specific example with Master Prompt Engineer meta-framework
+- TEACH: 5-part framework (Persona → Task → Context → Constraints → Output Format)
+- TEACH: 4-step process (Input Acquisition → Analysis (3C) → Improvement → Delivery)
+- EXAMPLES: Climate change article (weak → strong), Resume review (vague → structured)
+- BONUS: Gardening example retained as subItem showing framework application
+- META-LEVEL: Now teaches HOW to engineer prompts (not just one domain)
+
+**User Request:**
+- User shared professional "Master Prompt Engineer" prompt with structured framework
+- Asked: "Is our AI Prompt master this good? Can we learn (steal) anything from it?"
+- User chose option 2: "Switch to prompt engineering meta-example (like Master Prompt Engineer)"
+
+**What We Learned from Master Prompt Engineer:**
+1. **Explicit Framework Language**: Persona → Task → Context → Constraints → Output Format
+2. **Process Steps**: Input Acquisition → Analysis → Improvement → Delivery
+3. **Analysis Criteria**: 3C Framework (Clarity, Context, Constraints)
+4. **Standardized Output**: Critique → Optimized Prompt → Explanation
+5. **Tone Guidance**: "Be analytical, precise, and helpful"
+
+**Before Build 131 (Domain-Specific):**
+- Example: Pacific Northwest gardening consultant
+- Shows: One concrete use case (gardening advice)
+- Teaches: What a good prompt looks like (by example)
+- Level: Single domain
+
+**After Build 131 (Meta-Framework):**
+- Example: Master Prompt Engineer
+- Shows: How to engineer ANY prompt (universal framework)
+- Teaches: The principles of prompt engineering (Persona/Task/Context/Constraints/Format)
+- Level: Meta-level (teaches the teaching)
+- Bonus: Gardening example as subItem showing framework application
+
+**New Structure:**
+
+**Phase 0: System Configuration**
+```
+systemPrompt: "You are a Master Prompt Engineer specializing in Large Language Model interactions...
+
+Your Framework (apply to every prompt):
+1. PERSONA/ROLE - Assign specific expert identity
+2. TASK - Define objective with active verbs
+3. CONTEXT - Add necessary background
+4. CONSTRAINTS - Define rules (do's and don'ts)
+5. OUTPUT FORMAT - Specify exact structure
+
+Your Process:
+1. INPUT ACQUISITION - If no prompt provided, request it
+2. ANALYSIS - Evaluate for Clarity, Context, Constraints (3C Framework)
+3. IMPROVEMENT - Rewrite using the 5-part framework above
+4. DELIVERY - Present as: Critique → Optimized Prompt → Explanation"
+```
+
+**Phase 1: User Interaction**
+```
+userPromptTemplate: "Please provide the prompt you would like me to improve. I'll analyze it for clarity, context, and constraints, then rewrite it using proven prompt engineering principles (Persona → Task → Context → Constraints → Output Format). I'll deliver a structured response with: (1) Critique of the original, (2) Optimized version, and (3) Explanation of improvements."
+
+Alternative (Batch Mode): "I have three prompts to improve. I'll share them one at a time..."
+```
+
+**Phase 2: Examples & Training**
+```
+Example 1 - Climate Change (weak → strong)
+Example 2 - Resume Review (vague → structured)
+SubItem - Gardening Assistant (domain-specific application of framework)
+```
+
+**Phase 3: Output Specification**
+```
+outputFormat: "Deliver every improved prompt in this format:
+**1. CRITIQUE OF ORIGINAL PROMPT**
+**2. OPTIMIZED PROMPT**
+**3. EXPLANATION OF CHANGES**"
+
+chainOfThought: "Before rewriting, analyze using 3C Framework: (1) CLARITY, (2) CONTEXT, (3) CONSTRAINTS. Then apply 5-part framework."
+```
+
+**Implementation:**
+- Line 12532-12533: Changed project name to "Master Prompt Engineer"
+- Line 12545: Added 5-part framework and 4-step process in systemPrompt
+- Line 12569: Interactive userPromptTemplate (ready-to-use, no variables)
+- Line 12589: Climate change and resume examples (weak → strong transformations)
+- Line 12592-12594: Gardening example as subItem (shows framework application)
+- Line 12603-12604: Standardized output format (Critique → Optimized → Explanation)
+- Line 12617-12618: Updated critical instructions to emphasize meta-framework teaching
+
+**Why This Upgrade Matters:**
+- Build 129-130: Showed what a good prompt looks like (domain example)
+- Build 131: Teaches HOW to create good prompts (meta-framework)
+- AI Wizard now instructs AI to teach prompt engineering principles, not just show examples
+- Users learn transferable framework they can apply to any domain
 
 ### v2.3.0 | Build 130 | 2025-11-20
 **UX Improvement: Remove Placeholder Variables from AI Prompt Design**
