@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 126 | 2025-11-19
+    TreeListy v2.3.0 | Build 127 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -16,14 +16,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 126):
-    - FIX: Sonnet timeout errors now show helpful solutions
-    - FIX: Increased client timeout from 9s to 25s (give Netlify full time)
-    - IMPROVE: Better error messages for CORS issues when running from file://
-    - GUIDE: Clear instructions to run via local server or use deployed site
+    Changelog (Build 127):
+    - ENFORCE: Deep Mode now requires user API key (consistent with Gemini/ChatGPT)
+    - BLOCK: Server Sonnet + Deep Mode blocked upfront with clear error message
+    - FIX: Prevents Netlify timeout issues by requiring direct API for Deep Mode
+    - IMPROVE: Clear explanation why Deep Mode needs user key (15-30s Extended Thinking)
 
-    Previous (Build 125):
-    - FIX: Canvas View selection box positioning fix
+    Previous (Build 126):
+    - FIX: Sonnet timeout error messages improved
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1654,8 +1654,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 126 | 2025-11-19">
-                    v2.3.0 • Build 126
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 127 | 2025-11-19">
+                    v2.3.0 • Build 127
                 </div>
             </div>
         </div>
@@ -3034,6 +3034,11 @@ The AI will analyze the structure and convert it to a tree."
             // Otherwise, use Claude (existing logic below)
             const localApiKey = getLocalAPIKey('anthropic'); // Get Claude key for Claude logic
 
+            // ENFORCE: Deep Mode requires user API key (consistent with Gemini/ChatGPT)
+            if (useExtendedThinking && !localApiKey) {
+                throw new Error(`🧠 Deep Mode requires your own API key to avoid Netlify's 10-second timeout.\n\n✅ Solutions:\n1. Add your Anthropic API key (🔑 button) - enables Deep Mode with Extended Thinking\n2. Switch to ⚡ Fast Mode - works with server API key\n\n💡 Deep Mode uses Extended Thinking (5000 token reasoning budget) which can take 15-30 seconds - too slow for Netlify's free tier limit.\n\nGemini and ChatGPT also require user API keys for the same reason.`);
+            }
+
             const requestData = {
                 model: AI_CONFIG.model,
                 max_tokens: maxTokens,
@@ -3054,7 +3059,7 @@ The AI will analyze the structure and convert it to a tree."
 
             let response;
 
-            // DEEP MODE OPTIMIZATION: Skip Netlify and use direct API to avoid 10s timeout
+            // DEEP MODE: Use direct API (no timeout limit, requires user key - enforced above)
             if (useExtendedThinking && localApiKey) {
                 console.log('🧠 Deep Mode: Using direct API (no timeout limit)');
                 try {
@@ -3069,9 +3074,6 @@ The AI will analyze the structure and convert it to a tree."
                     }
                     throw directError;
                 }
-            } else if (useExtendedThinking && !localApiKey) {
-                // Deep mode but no API key
-                throw new Error('Deep Mode requires your API key to avoid Netlify timeout limits.\n\nPlease add your Anthropic API key (🔑 button) or switch to Fast Mode (⚡).');
             } else {
                 // FAST MODE or no extended thinking: Use Netlify function (has 10s limit but works everywhere)
                 console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');

@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 126
+**Build:** 127
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,27 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 127 | 2025-11-19
+**Architecture Fix: Deep Mode Consistency**
+- ENFORCE: Deep Mode now requires user API key (consistent with Gemini/ChatGPT)
+- BLOCK: Server Sonnet + Deep Mode blocked upfront with clear error message
+- FIX: Prevents Netlify timeout issues by requiring direct API for Deep Mode
+- IMPROVE: Clear explanation why Deep Mode needs user key (15-30s Extended Thinking)
+- ISSUE: User reported Sonnet timing out even with "Best (Sonnet)" selected
+- ROOT CAUSE: Gemini/ChatGPT always use direct API, but Sonnet allowed server key through Netlify
+- ARCHITECTURE: Now all providers (Claude, Gemini, ChatGPT) require user API key for Deep Mode
+- ERROR MESSAGE: "🧠 Deep Mode requires your own API key to avoid Netlify's 10-second timeout"
+
+**Before Build 127:**
+- Gemini Deep Mode: ✅ Works (requires user key, direct API)
+- ChatGPT Deep Mode: ✅ Works (requires user key, direct API)
+- Sonnet Deep Mode: ❌ Allowed server key → Netlify timeout → CORS error
+
+**After Build 127:**
+- Gemini Deep Mode: ✅ Works (requires user key, direct API)
+- ChatGPT Deep Mode: ✅ Works (requires user key, direct API)
+- Sonnet Deep Mode: ✅ Works (requires user key, direct API) - **NOW CONSISTENT**
 
 ### v2.3.0 | Build 126 | 2025-11-19
 **Bug Fix: Sonnet Timeout & CORS Error Handling**
