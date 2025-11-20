@@ -1,58 +1,100 @@
-# 🌳 Treeplexity
+# 🌳 TreeListy
 
 **Universal Project Decomposition Tool**
 
 *From Complexity to Clarity*
 
+**Version**: 2.3.0 | [Web App](./treeplexity.html) | [Examples](./examples/)
+
 ---
 
-## What is Treeplexity?
+## What is TreeListy?
 
-Treeplexity is a universal tool for breaking down any complex project, problem, or process into manageable parts. Structure your work into phases, track dependencies between components, and analyze your entire plan at a glance.
+TreeListy is a universal tool for breaking down any complex project, problem, or process into manageable parts. Structure your work into phases, track dependencies between components, and analyze your entire plan at a glance.
 
-**Use it for:**
-- 💻 Software projects
-- 🎉 Event planning
-- 🔬 Research projects
-- 🎯 Personal goals
-- 📈 Business strategy
-- 🏗️ Construction projects
-- 📚 Curriculum design
-- ...and literally anything else that benefits from structured thinking!
+**Now with Canvas View**: Toggle between hierarchical tree view and infinite visual canvas with drag-drop, auto-layouts, and real-time collaboration.
+
+**Use it for (15+ specialized patterns):**
+- 📋 Generic projects (construction, infrastructure)
+- 🤔 Philosophy (dialectics, arguments, treatises)
+- 💼 Sales pipelines (deals, quarters, forecasting)
+- 🎓 Academic writing (thesis, dissertations, research)
+- 🚀 Product roadmaps (features, sprints, releases)
+- 🧠 Prompt engineering (AI prompts, examples, testing)
+- 📚 Book writing (chapters, scenes, plot arcs)
+- 🎉 Event planning (stages, vendors, logistics)
+- 💪 Fitness programs (workouts, exercises, progression)
+- 📊 Strategic planning (pillars, initiatives, KPIs)
+- 📖 Course design (units, lessons, assessments)
+- 🎬 AI video production (Sora/Veo scenes, prompts)
+- 👨‍👩‍👧‍👦 Family trees (genealogy, ancestry, DNA)
+- 💬 Dialogue & rhetoric (debates, persuasion analysis)
+- 📧 Gmail workflows (threads, emails, analysis) **NEW**
+- 💾 File systems (Google Drive, local storage, organization)
 
 ---
 
 ## Key Features
 
+### 🎨 Dual View System (NEW in v2.2)
+**Canvas View** - Infinite visual canvas:
+- Drag & drop nodes freely
+- 5 auto-layout algorithms (Tree, Timeline, Hierarchical, Force-Directed, Radial)
+- Multi-select and group drag
+- Phase zones with color coding
+- Visual dependency arrows
+- Grid snapping, pan & zoom (10%-500%)
+
+**Tree View** - Traditional hierarchical:
+- Expandable/collapsible phases
+- Form-based editing
+- PM tracking (status, progress, assignments)
+- Excel import/export
+
+**Toggle instantly** with zero data loss between views.
+
 ### 🎯 Hierarchical Decomposition
 Break complex projects into:
-- **Phases** → Major stages (e.g., Planning → Build → Launch)
-- **Items** → Components within each phase
-- **SubItems** → Detailed tasks and subtasks
+- **Root** → Overall project/product/document
+- **Phases** → Major stages (Acts, Quarters, Chapters, Generations)
+- **Items** → Components within each phase (Scenes, Deals, Sections, People)
+- **Subtasks** → Detailed tasks and subtasks (Shots, Actions, Points, Events)
 
 ### 🔗 Dependency Management
 - Visual dependency tracking
 - Circular dependency detection
 - Critical path calculation
 - Topological sorting
+- Cross-phase dependencies
 
 ### 📊 Analysis & Insights
 - Cost aggregation and rollups
 - Anomaly detection
 - Phase breakdowns
-- Export to Excel with professional formatting
+- Pattern-specific sorting (14 options for filesystem)
+- Export to Excel with professional 4-sheet workbooks
 
-### 🤖 AI-Powered
-- Natural language project creation
-- Intelligent item suggestions
-- Automated analysis
-- Context-aware recommendations
+### 🤖 AI-Powered (3 Providers)
+- **AI Wizard**: Conversational tree building with Smart Merge
+- **Analyze Text**: Extract structure from documents (Quick/Deep modes)
+- **AI Review**: Comprehensive quality analysis
+- **Smart Suggest**: Context-aware field suggestions
+- **Generate Prompt**: Export as AI-ready prompts
+- **Extended Thinking**: Sonnet 4.5 deep reasoning mode
+- **Multi-Provider**: Claude (Haiku/Sonnet 4.5), Gemini (2.0 Flash), ChatGPT (GPT-4o)
 
 ### 💾 Data Portability
-- JSON import/export
-- Excel export with multiple sheets
-- Git-friendly format
-- Template-driven approach
+- JSON import/export (git-friendly)
+- Excel export with 4 sheets (Overview, Tree, Dependencies, PM Tracking)
+- Google Drive import (OAuth, full folder hierarchies)
+- Shareable URLs (base64 compression)
+- Pattern auto-detection
+
+### 📱 Progressive Web App
+- Installable on desktop & mobile
+- Offline capable
+- 4 visual themes (Default, Steampunk, Powerpuff, Tron)
+- App-like experience
 
 ---
 
@@ -62,29 +104,39 @@ Break complex projects into:
 
 1. **Open the tool**
    ```
-   Open treeplexity.html in your browser
+   Open treelisty-canvas.html in your browser (or treeplexity.html for tree-only)
    ```
 
-2. **Create your first item**
-   - Right-click any phase
-   - Select "Add Item"
-   - Fill in details
+2. **Choose a pattern**
+   - Click the pattern dropdown in header
+   - Select from 14 specialized patterns
+   - Or use AI Wizard to build from scratch
 
-3. **Add dependencies**
-   - Click "Set Dependencies" on any item
-   - Choose what this item depends on
+3. **Create your structure**
+   - **Tree View**: Right-click phases to add items, use forms to edit
+   - **Canvas View**: Drag nodes, use auto-layout, organize visually
+   - Toggle between views anytime
 
-4. **Analyze**
-   - View cost breakdowns
-   - See critical path
-   - Export to Excel
+4. **Add AI intelligence**
+   - Use AI Wizard for conversational building
+   - Analyze Text to convert documents to trees
+   - AI Review for quality checks
+   - Smart Suggest for field completion
 
-### Using Templates (Coming Soon)
+5. **Export & Share**
+   - Excel (4 professional sheets)
+   - JSON (git-friendly)
+   - Share URL (base64 encoded)
+   - Google Drive export
 
-Templates provide starting points for different domains:
-- Software Development → Story points, sprints, technical dependencies
-- Event Planning → Budget, logistics, timeline
-- Research Project → Months, experiments, publications
+### Pattern-Specific Features
+
+Each pattern includes:
+- Custom terminology (levels, types)
+- Specialized fields (prompts, DNA, deal value, word count)
+- Pattern-aware AI (Philosophy prof, Sales strategist, Film director)
+- Smart sorting options (Generic: 6, Sales: 7, Filesystem: **14**)
+- Auto-generated visualizations
 
 ---
 
@@ -92,11 +144,23 @@ Templates provide starting points for different domains:
 
 ```
 treeplexity/
-├── treeplexity.html       # Main application
-├── templates/             # Domain-specific templates
-├── examples/              # Example projects
-├── docs/                  # Documentation
-└── assets/                # Images and icons
+├── treelisty-canvas.html          # Main app (dual view: Tree + Canvas)
+├── treeplexity.html               # Tree-only version
+├── treelisty-canvas-integrated.html  # Full integration (846KB)
+├── examples/                      # Example projects
+│   ├── Kafka.json                # Philosophy pattern example
+│   ├── plato-allegory-of-cave.json
+│   ├── hegel-becoming.json
+│   ├── p2c-econ-analysis.json    # Generic project example
+│   ├── google-drive-*.json       # Filesystem pattern examples
+│   └── test_*.json               # Test files for various patterns
+├── export_google_drive_to_treelisty.py  # Google Drive import script
+├── apply_canvas_integration.py   # Canvas integration script
+├── manifest.json                 # PWA configuration
+├── .claude/
+│   └── skills/
+│       └── treeplexity.md        # Claude Code skill (v2.2.0)
+└── docs/                         # Documentation (30+ markdown files)
 ```
 
 ---
@@ -136,57 +200,87 @@ By defining what depends on what, Treeplexity can:
 
 ---
 
-## Comparison to CAPEX Master
+## Evolution & Heritage
 
-Treeplexity is a fork of [CAPEX Master](../capex/) - a tool originally built for capital expenditure planning.
+TreeListy (formerly Treeplexity) evolved from CAPEX Master - originally built for infrastructure capital expenditure planning at Prairie2Cloud.
 
-**What's Different:**
-- ✅ Generic branding (not P2C/CAPEX specific)
-- ✅ Universal terminology (projects, not just CAPEX)
-- ✅ Tree emoji 🌳 (not cloud ☁️)
-- ✅ Indigo/purple color scheme (not green)
-- ✅ "From Complexity to Clarity" tagline
-- ✅ Removed "CONFIDENTIAL" markings
+**Major Evolutions:**
+- ✅ **v1.0**: Rebranded from CAPEX Master to Treeplexity (universal branding)
+- ✅ **v2.0**: Added 14 specialized patterns (Philosophy, Sales, Book Writing, etc.)
+- ✅ **v2.1**: AI integration (3 providers, Extended Thinking, Smart Merge)
+- ✅ **v2.2**: Canvas View (dual view system, drag-drop, 5 auto-layouts)
 
-**What's the Same:**
-- ✅ All core functionality preserved
-- ✅ Tree visualization with pan/zoom
-- ✅ Dependency management
-- ✅ AI integration
-- ✅ Excel/JSON export
-
-**Why Fork?**
-CAPEX Master remains focused on infrastructure project planning for P2C.
-Treeplexity explores the universal potential of the same underlying framework.
+**From Infrastructure to Universal:**
+- Started: Infrastructure project planning (costs, lead times, dependencies)
+- Now: 14+ domains (philosophy, sales, video production, genealogy, file systems)
+- Same core: Hierarchical decomposition, dependency tracking, visual analysis
+- New capabilities: Pattern intelligence, AI assistance, dual view system, PWA
 
 ---
 
 ## Roadmap
 
-### Phase 1: Basic Fork ✅ COMPLETE
-- [x] Copy and rebrand
-- [x] Update colors and logo
-- [x] Remove domain-specific terminology
-- [x] Test all features work
+### ✅ Phase 1: Foundation (COMPLETE)
+- [x] Generic branding and rebranding
+- [x] Universal terminology
+- [x] Tree visualization with pan/zoom
+- [x] Dependency management
+- [x] Excel/JSON import/export
 
-### Phase 2: Core Features (Week 2-3)
-- [ ] Editable phase names in UI
-- [ ] Configurable metric types
-- [ ] Project settings panel
-- [ ] Template selector on startup
+### ✅ Phase 2: Pattern System (COMPLETE)
+- [x] 14 specialized patterns
+- [x] Pattern-specific fields and types
+- [x] Custom terminology per pattern
+- [x] Pattern-specific sorting (up to 14 options)
+- [x] Pattern auto-detection
 
-### Phase 3: Templates (Week 4-5)
-- [ ] Software Development template
-- [ ] Event Planning template
-- [ ] Research Project template
-- [ ] Personal Goals template
-- [ ] Business Strategy template
+### ✅ Phase 3: AI Integration (COMPLETE)
+- [x] Multi-provider support (Claude, Gemini, ChatGPT)
+- [x] AI Wizard (conversational building)
+- [x] Analyze Text (document extraction)
+- [x] AI Review (quality analysis)
+- [x] Smart Suggest (field suggestions)
+- [x] Extended Thinking (deep reasoning)
+- [x] Smart Merge (data protection)
+- [x] Pattern expert personas
 
-### Phase 4: Polish (Week 6)
-- [ ] User documentation
-- [ ] Tutorial system
-- [ ] Template creation guide
-- [ ] Mobile responsiveness improvements
+### ✅ Phase 4: Canvas View (COMPLETE)
+- [x] Dual view system (Tree ↔ Canvas)
+- [x] Drag & drop nodes
+- [x] 5 auto-layout algorithms
+- [x] Multi-select and group drag
+- [x] Phase zones, visual connections
+- [x] Grid snapping, pan/zoom controls
+- [x] Zero data loss between views
+
+### ✅ Phase 5: PWA & Integrations (COMPLETE)
+- [x] Progressive Web App (installable)
+- [x] 4 visual themes
+- [x] Google Drive import (OAuth)
+- [x] Shareable URLs
+- [x] 4-sheet Excel workbooks
+- [x] Pattern-aware exports
+
+### 🚧 Phase 6: Collaboration (IN PROGRESS)
+- [ ] Real-time multi-user editing
+- [ ] Comment threads on nodes
+- [ ] Activity log and version history
+- [ ] User accounts and teams
+- [ ] Role-based permissions
+
+### 📋 Phase 7: Mobile & UX (PLANNED)
+- [ ] Mobile-optimized layouts
+- [ ] Touch gestures (pinch-zoom, swipe)
+- [ ] Voice input for quick add
+- [ ] Interactive tutorial system
+- [ ] Onboarding flow
+
+### 📋 Phase 8: Ecosystem (PLANNED)
+- [ ] Public API
+- [ ] Webhooks for integrations
+- [ ] Zapier/Make connectors
+- [ ] Browser extension for capturing
+- [ ] Plugin system for custom patterns
 
 ---
 
@@ -224,16 +318,31 @@ Instead of learning 10 different tools for 10 different domains, learn Treeplexi
 ## Technical Details
 
 ### Technologies
-- Pure HTML/CSS/JavaScript (no dependencies)
-- Single-file application (portable)
-- JSON data format (git-friendly)
-- AI integration via Claude API
+- Pure HTML/CSS/JavaScript (no build step required)
+- Single-file applications (highly portable)
+- JSON data format (git-friendly, diffable)
+- AI integration via 3 providers (Claude, Gemini, ChatGPT)
+- Canvas rendering with SVG/HTML hybrid
+- LocalStorage for offline persistence
+- Service Worker for PWA capabilities
+
+### File Sizes
+- `treelisty-canvas.html`: ~400KB (dual view)
+- `treeplexity.html`: ~350KB (tree-only)
+- `treelisty-canvas-integrated.html`: 846KB (full integration)
 
 ### Browser Support
-- ✅ Chrome/Edge (recommended)
-- ✅ Firefox
-- ✅ Safari
-- ⚠️ Mobile (functional but not optimized yet)
+- ✅ Chrome/Edge (recommended, best performance)
+- ✅ Firefox (full support)
+- ✅ Safari (full support)
+- ✅ Mobile browsers (PWA installable)
+- ⚠️ Mobile UX optimization in progress
+
+### Performance
+- Handles 200+ nodes smoothly in Tree View
+- Canvas View optimized for 100+ nodes
+- Virtual rendering planned for 500+ nodes
+- Zoom/pan with hardware acceleration
 
 ### Data Format
 Projects are stored as JSON with this structure:
@@ -257,28 +366,55 @@ Projects are stored as JSON with this structure:
 
 ## Contributing
 
-Want to contribute a template for your domain?
+Want to contribute a pattern for your domain?
 
-1. Create a template JSON file
-2. Add example items with realistic values
-3. Document what "cost" means in your domain
-4. Share with the community!
+### Creating a New Pattern
+1. Define pattern structure (Root/Phase/Item/Subtask terminology)
+2. Specify custom fields relevant to your domain
+3. Create example JSON files
+4. Submit as pull request or issue
 
-See [TEMPLATES_GUIDE.md](../capex/mcp-server/TEMPLATES_GUIDE.md) for details.
+### Ideas for New Patterns
+- Legal (cases, motions, discovery, arguments)
+- Music Production (albums, tracks, stems, takes)
+- Scientific Research (hypotheses, experiments, analyses)
+- Game Design (mechanics, levels, quests, items)
+- Cooking/Recipes (menus, courses, recipes, steps)
+- Architecture (buildings, systems, components, details)
+
+### Documentation Contributions
+- Examples and use cases
+- Video tutorials
+- Pattern best practices
+- Integration guides
 
 ---
 
 ## Documentation
 
-**In this folder:**
-- [REBRANDING_COMPLETE.md](REBRANDING_COMPLETE.md) - Complete list of changes from CAPEX Master
+### Primary Documentation
+- **[TreeListy Features 2025](TREELISTY_FEATURES_2025.md)** - Complete feature matrix (NEW)
+- **[Skill File](.claude/skills/treeplexity.md)** - Claude Code skill v2.2.0
+- **[Canvas Integration](TREELISTY_CANVAS_INTEGRATED_README.md)** - Dual view system guide
+- **[Quick Start](QUICK_START_VERIFICATION.md)** - 5-minute verification guide
+- **[Google Drive Import](GOOGLE_DRIVE_EXPORT_INSTRUCTIONS.md)** - Import from Google Drive
 
-**In parent project:**
-- [Quick Start Guide](../capex/mcp-server/TREEPLEXITY_QUICK_START.md)
-- [Full Fork Plan](../capex/mcp-server/TREEPLEXITY_FORK_PLAN.md)
-- [Generic Power Discovery](../capex/mcp-server/GENERIC_POWER.md)
-- [Universal Vision](../capex/mcp-server/THE_UNIVERSAL_VISION.md)
-- [Templates Guide](../capex/mcp-server/TEMPLATES_GUIDE.md)
+### Pattern-Specific Guides
+- **[Philosophy](examples/PLATO-CAVE-INSTRUCTIONS.md)** - Plato's Cave example
+- **[Dialogue](examples/HEGEL-BECOMING-INSTRUCTIONS.md)** - Hegel dialectics example
+- **[File System](FILE_SYSTEM_PATTERN_PLAN.md)** - Filesystem pattern with 14 sort options
+- **[Pattern Sorting](PATTERN_SORTING_ANALYSIS.md)** - Analysis of sort options per pattern
+
+### Technical Documentation
+- **[Canvas Integration Guide](CANVAS_INTEGRATION_GUIDE.md)** - Technical implementation
+- **[Integration Complete](INTEGRATION_COMPLETE.md)** - v2.1 canvas integration details
+- **[PWA Setup](PWA-ONBOARDING-README.md)** - Progressive Web App configuration
+- **[Header Redesign](HEADER_REDESIGN.md)** - UI/UX documentation
+
+### Historical Documentation
+- [Rebranding Complete](REBRANDING_COMPLETE.md) - v1.0 rebrand from CAPEX Master
+- [Pattern Onboarding](PATTERN_ONBOARDING.md) - Pattern system development
+- [Fidelity Reports](FIDELITY_REPORT.md) - Data integrity testing
 
 ---
 
@@ -298,6 +434,20 @@ Treeplexity maintains the same license and acknowledgments.
 
 ---
 
-**Treeplexity: One tool for everything** 🌳✨
+**TreeListy: Universal decomposition for everything** 🌳✨
 
 *Structure your thinking. Master complexity. Achieve clarity.*
+
+**Version 2.2.0** | 14 Patterns | Dual View System | AI-Powered | PWA-Ready
+
+---
+
+**Key Stats**:
+- 14+ specialized patterns
+- 3 AI providers (Claude, Gemini, ChatGPT)
+- 5 auto-layout algorithms
+- 4 visual themes
+- 14 sort options (filesystem pattern)
+- 50-state undo system
+- 846KB full-featured single file
+- Zero dependencies

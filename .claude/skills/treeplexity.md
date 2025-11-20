@@ -1,28 +1,67 @@
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.0.0
+**Version**: 2.3.0
 **Author**: TreeListy Team
 **Description**: Work with TreeListy hierarchical project trees using natural language and AI
 
-## What's New in v2.0
+## What's New in v2.3
 
-**Major AI Features Added**:
+**Gmail Import & Analysis (NEW)**:
+- 📧 **Gmail Pattern**: Import and analyze email threads with full conversation context
+- 🔗 **Python Export Script**: Fetch Gmail threads via API (export_gmail_to_treelisty.py)
+- 🤖 **AI Email Analysis**: Rhetoric, tone, sentiment, relationship dynamics
+- 💬 **Context-Aware Responses**: AI sees full thread history for suggestions
+- 📊 **10 Email Fields**: recipientEmail, ccEmail, subjectLine, emailBody, threadId, messageCount, etc.
+- 🏷️ **6 Thread Types**: Cold Outreach, Newsletter, Response, Follow-up, Internal, Transactional
+
+**Canvas View Improvements**:
+- ✅ **Fixed Selection Box**: Middle-click selection now appears at correct mouse position
+- 🎯 **Zoom/Pan Accuracy**: Selection box accounts for zoom and pan transformations
+
+## What's New in v2.2
+
+**Canvas Integration (NEW)**:
+- 🎨 **Dual View System**: Toggle between Tree View (hierarchical list) and Canvas View (infinite canvas)
+- 🖱️ **Drag & Drop**: Move nodes freely, multi-select (Ctrl+Click), group drag
+- 📐 **5 Auto-Layouts**: Classic Tree, Timeline, Hierarchical, Force-Directed, Radial
+- 🎯 **Phase Zones**: Visual colored regions for each phase
+- 🔗 **Visual Connections**: Bezier curve arrows showing dependencies
+- 📏 **Grid Snapping**: Toggle grid alignment for precise layouts
+- 🔍 **Pan & Zoom**: Infinite canvas with zoom controls (10%-500%)
+
+**New Patterns Added**:
+- 🎉 **Event Planning**: Stages, activities, vendors, booking deadlines
+- 💪 **Fitness Program**: Phases, workouts, exercises, sets/reps
+- 📊 **Strategic Plan**: Pillars, initiatives, investment, metrics
+- 👨‍👩‍👧‍👦 **Family Tree**: Generations, people, genealogy, DNA info
+- 💾 **File System**: Drives, folders, files with **14 sort options** (size, date, type, owner, extension)
+- 💬 **Dialogue & Rhetoric**: Speakers, statements, rhetorical devices, fallacies
+
+**PWA Features**:
+- 📱 Installable as native app (desktop/mobile)
+- 🌐 Offline capable
+- 🎨 4 visual themes (Default, Steampunk, Powerpuff, Tron)
+
+**AI Features**:
 - 🧙 **AI Wizard**: Interactive conversational tree building with Smart Merge protection
 - 📄 **Analyze Text**: Extract structure from documents (Quick/Deep modes with Extended Thinking)
 - 🔬 **AI Review**: Comprehensive tree analysis for completeness, logic, and pattern alignment
 - 💡 **Smart Suggest**: Dual-mode field suggestions (AI context-aware vs Quick static)
 - 📝 **Generate Prompt**: Export pattern-aware AI-ready prompts (executable, not meta-docs)
-- 🔑 **Multi-Provider Support**: Claude (Haiku/Sonnet), Gemini (Flash/Pro), ChatGPT (4o-mini/4o)
+- 🔑 **Multi-Provider Support**: Claude (Haiku/Sonnet 4.5), Gemini (2.0 Flash), ChatGPT (GPT-4o)
 - 🛡️ **Smart Merge**: Data protection algorithm that never deletes existing content
 - 🧠 **Extended Thinking**: Sonnet 4.5 Deep Mode with 5000 token reasoning budget
 - 🎭 **Pattern Expert Personas**: Philosophy prof, Sales strategist, Film director, Prompt engineer, etc.
 
 **Web UI Capabilities**:
 - Interactive tree visualization with pan/zoom
+- Dual view mode (Tree ↔ Canvas toggle)
 - Shareable URLs (base64 compression)
 - Excel Import/Export (4-sheet workbooks)
+- Google Drive import (OAuth, full hierarchy)
 - PM Tracking with full status/progress management
 - Undo system (Ctrl+Z, 50 states)
+- Pattern-specific sorting (14 options for filesystem pattern)
 
 **Pattern-Specific AI Intelligence**:
 - Each pattern now has specialized AI behavior
@@ -40,16 +79,23 @@ TreeListy is a hierarchical project management tool that organizes work into 4 l
 - **Items**: Individual tasks/scenes/deals/arguments
 - **Subtasks**: Granular steps
 
-TreeListy supports 9 specialized patterns, each with unique fields:
-1. **Generic Project** - Cost, Lead Time, general planning
-2. **Philosophy** - Arguments, speakers, premises, dialectics
-3. **Sales Pipeline** - Deal value, probability, contacts
-4. **Academic Thesis** - Word count, citations, arguments
-5. **Product Roadmap** - Story points, user impact, technical risk
-6. **AI Prompt Design** - System prompts, examples, CoT, tools
-7. **Book Writing** - Chapters, word counts, plot structure
-8. **AI Video Production** - Video prompts, camera, lighting (Sora/Veo)
-9. **Course Design** - Learning objectives, exercises, assessments
+TreeListy supports **15 specialized patterns**, each with unique fields:
+1. **Generic Project** 📋 - Cost, Lead Time, general planning (6 sort options)
+2. **Philosophy** 🤔 - Arguments, speakers, premises, dialectics
+3. **Sales Pipeline** 💼 - Deal value, probability, contacts (7 sort options)
+4. **Academic Thesis** 🎓 - Word count, citations, arguments
+5. **Product Roadmap** 🚀 - Story points, user impact, technical risk
+6. **Prompt Engineering** 🧠 - System prompts, examples, CoT, tools
+7. **Book Writing** 📚 - Chapters, word counts, plot structure
+8. **Event Planning** 🎉 - Budget, vendors, booking deadlines
+9. **Fitness Program** 💪 - Sets, reps, intensity, equipment
+10. **Strategic Plan** 📊 - Investment, metrics, risk level
+11. **Course Design** 📖 - Learning objectives, exercises, assessments
+12. **AI Video Production** 🎬 - Video prompts, camera, lighting (Sora/Veo)
+13. **Family Tree** 👨‍👩‍👧‍👦 - Genealogy, birth/death dates, DNA info
+14. **Dialogue & Rhetoric** 💬 - Rhetorical devices, fallacies, persuasiveness
+15. **Gmail Email Workflow** 📧 - Threads, messages, sender, recipients (**6 sort options**: date, subject, message count)
+**Plus**: **File System** 💾 - Files, folders, size, dates (**14 sort options**: name, size, modified, created, type, extension, owner)
 
 ---
 
@@ -211,7 +257,7 @@ Ensures output is actionable, not meta-documentation about prompts.
 
 ## Multi-Provider AI Support
 
-TreeListy supports 3 AI providers with 6 models:
+TreeListy supports 3 AI providers with multiple models:
 
 ### Providers & Models
 
@@ -220,11 +266,9 @@ TreeListy supports 3 AI providers with 6 models:
 - **Sonnet 4.5**: Powerful, Extended Thinking support, best for Deep Mode
 
 **Google Gemini**:
-- **1.5 Flash**: Fast, lightweight
-- **1.5 Pro**: More thorough, higher quality
+- **2.0 Flash**: Fast, cost-effective, latest model
 
 **OpenAI ChatGPT**:
-- **GPT-4o mini**: Fast, economical
 - **GPT-4o**: Most capable, comprehensive analysis
 
 ### API Key Management
@@ -285,22 +329,73 @@ Smart Merge result:
 
 ---
 
+## Canvas View - Dual View System
+
+TreeListy features a **dual view system** that lets you toggle between Tree View and Canvas View:
+
+### 🎨 Canvas View (NEW in v2.2)
+
+**What it is**: An infinite canvas where you can drag, drop, and arrange nodes visually.
+
+**Key Features**:
+- **Drag & Drop**: Click and drag any node to move it freely
+- **Multi-Select**: Ctrl+Click to select multiple nodes, drag them together
+- **5 Auto-Layout Algorithms**:
+  1. **Classic Tree**: Traditional hierarchical tree from left to right
+  2. **Timeline**: Horizontal layout showing phases sequentially
+  3. **Hierarchical**: Top-down organization chart style
+  4. **Force-Directed**: Physics-based automatic spacing
+  5. **Radial**: Circular layout with root in center
+- **Phase Zones**: Colored dashed regions showing each phase boundary
+- **Visual Connections**: Bezier curve arrows showing dependencies
+- **Grid Snapping**: Toggle to align nodes precisely
+- **Pan & Zoom**: Infinite canvas with mouse wheel zoom (10%-500%)
+- **Fit to View**: Auto-zoom to see entire tree
+- **Reset View**: Return to default zoom/position
+
+**When to use Canvas View**:
+- Visual brainstorming and planning
+- Presentations and demos
+- Spatial organization (grouping related items)
+- Finding patterns across phases
+- Working with large trees (easier to navigate)
+
+**When to use Tree View**:
+- Data entry and editing (forms are more efficient)
+- PM tracking (status, progress, assignments)
+- Detailed field editing
+- Excel export/import
+- Dependency management
+
+**Toggling**: Click the "🎨 Canvas View" or "📊 Tree View" button in header to switch instantly with zero data loss.
+
+---
+
 ## Web UI Capabilities
 
 TreeListy includes a rich web interface (treeplexity.html) with:
 
 ### Visual Features
+- **Dual View System**: Toggle between Tree View (hierarchical list) and Canvas View (infinite canvas)
 - **Interactive tree visualization**: Expandable/collapsible phases and items
 - **Dependency arrows**: Visual representation of relationships
 - **Phase colors**: Color-coded timeline (green → blue → orange → purple)
 - **Pan/Zoom controls**: Navigate large trees easily
 - **Detail panel**: Click any item to view/edit full details
+- **4 Visual Themes**: Default (indigo), Steampunk (bronze), Powerpuff (pink), Tron (cyan)
 
 ### Collaboration Features
 - **Shareable URLs**: Compress entire tree to base64, share via URL
-- **Excel Import/Export**: 4-sheet professional workbooks
-- **Pattern detection**: Auto-detects pattern when importing Excel
+- **Excel Import/Export**: 4-sheet professional workbooks (Overview, Tree, Dependencies, PM Tracking)
+- **Google Drive Import**: OAuth-based import of full folder hierarchies
+- **Pattern detection**: Auto-detects pattern when importing Excel/JSON
 - **Append mode**: Merge multiple Excel files into one tree
+
+### PWA Features
+- **Installable**: Add to home screen on desktop/mobile
+- **Offline Capable**: Works without internet (after first load)
+- **App-like Experience**: Full-screen, native feel
+- **Progressive Enhancement**: Graceful fallback for older browsers
 
 ### PM Tracking
 - Status tracking: To Do, In Progress, Blocked, Done
@@ -498,6 +593,100 @@ When the user mentions TreeListy or asks to work with `.json` tree files, you ca
 - `duration` (text): Session length
 - `difficultyLevel` (select): Beginner, Intermediate, Advanced
 - `prerequisites` (text): Required prior knowledge
+
+### Event Planning
+- `budget` (number): Budget for activity
+- `vendor` (text): External vendor or supplier
+- `bookingDeadline` (date): Last date to book/reserve
+- `guestCount` (number): Expected attendees
+- `location` (text): Venue, room, area
+- `responsiblePerson` (text): Team member handling this
+
+### Fitness Program
+- `sets` (number): Number of sets
+- `reps` (text): Repetitions per set (e.g., "8-12", "AMRAP")
+- `duration` (text): Time for exercise/workout
+- `intensity` (select): Light, Moderate, High, Max
+- `equipment` (text): Required equipment
+- `formCues` (textarea): Technique reminders
+- `restPeriod` (text): Rest between sets
+
+### Strategic Plan
+- `investment` (number): Capital investment required
+- `keyMetric` (text): Success measurement
+- `targetValue` (text): Goal to achieve
+- `responsibleExecutive` (text): Executive sponsor
+- `strategicTheme` (select): Growth, Efficiency, Innovation, Transformation, Risk Mitigation
+- `riskLevel` (select): Low, Medium, High
+
+### Family Tree
+- `fullName` (text): Complete name including middle names
+- `maidenName` (text): Birth surname (if changed)
+- `gender` (select): Male, Female, Other, Unknown
+- `birthDate` (date): Date of birth
+- `birthPlace` (text): City, state, country
+- `livingStatus` (select): Living, Deceased, Unknown
+- `deathDate` (date): Date of death (if deceased)
+- `marriageDate` (date): Date of marriage
+- `spouseName` (text): Current or former spouse
+- `occupation` (text): Primary occupation
+- `dnaInfo` (textarea): Haplogroup, DNA matches, test results
+- `sources` (textarea): Birth certificates, census records
+
+### Dialogue & Rhetoric
+- `speaker` (text): Who is making this statement
+- `verbatimQuote` (textarea): Exact words spoken/written
+- `rhetoricalDevice` (select): Logos, Pathos, Ethos, Metaphor, Analogy, etc.
+- `logicalStructure` (textarea): Premises and conclusion breakdown
+- `fallaciesPresent` (textarea): Logical fallacies identified
+- `hiddenMotivation` (textarea): Unstated goals or motivations
+- `emotionalTone` (select): Calm, Passionate, Angry, Defensive, etc.
+- `counterargument` (textarea): Strongest rebuttal
+- `evidenceQuality` (select): Strong, Moderate, Weak, None, Misleading
+- `effectivenessRating` (number): 1-10 persuasiveness rating
+
+### Gmail Email Workflow (📧 6 Sort Options)
+- `recipientEmail` (text): Primary recipient address
+- `ccEmail` (text): Carbon copy recipients
+- `subjectLine` (text): Email subject line
+- `emailBody` (textarea): Main content of the email
+- `sendDate` (date): When email was sent/received
+- `status` (select): Draft, Ready, Sent, Replied, Archived
+- `threadId` (text): Gmail thread identifier
+- `messageCount` (number): Number of messages in thread
+- `sender` (text): Email sender
+- `labels` (text): Gmail labels/categories
+
+**Gmail Sort Options** (6 total):
+1. Date (Newest First / Oldest First)
+2. Subject (A-Z / Z-A)
+3. Messages (Most First / Least First)
+
+**Special Features**:
+- Import via Python script: `export_gmail_to_treelisty.py`
+- Slash command: `/refresh-gmail`
+- AI analysis: Rhetoric, tone, sentiment, relationship dynamics
+- Context-aware responses: AI sees full thread history
+
+### File System (💾 14 Sort Options)
+- `fileSize` (number): Size in bytes
+- `fileExtension` (text): File type (.pdf, .docx, .mp4)
+- `filePath` (text): Complete file path
+- `dateModified` (date): Last modification date
+- `dateCreated` (date): Creation date
+- `fileOwner` (text): Owner/creator name
+- `isFolder` (boolean): Is this a folder?
+- `fileUrl` (text): Web link (for cloud files)
+- `sharedWith` (text): Share permissions
+
+**File System Sort Options** (14 total):
+1. Name (A-Z / Z-A)
+2. Size (Largest / Smallest First)
+3. Modified Date (Newest / Oldest First)
+4. Created Date (Newest / Oldest First)
+5. Type (Folders First / Files First)
+6. Extension (A-Z / Z-A)
+7. Owner (A-Z / Z-A)
 
 ---
 

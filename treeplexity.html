@@ -4926,41 +4926,205 @@ Focus on logical structure and content organization best practices.`;
             });
         }
 
-        function applyForceDirectedLayout() {
-            // Simple force-directed layout simulation
-            const iterations = 100;
-            const repulsion = 5000;
-            const attraction = 0.01;
-            const centerPull = 0.001;
+        // Barnes-Hut Quadtree for O(n log n) force approximation
+        class QuadtreeNode {
+            constructor(x, y, width, height) {
+                this.x = x;
+                this.y = y;
+                this.width = width;
+                this.height = height;
+                this.mass = 0;
+                this.centerX = 0;
+                this.centerY = 0;
+                this.children = [];
+                this.node = null;  // Actual canvas node if leaf
+                this.subdivided = false;
+            }
 
-            // Initialize random positions if not set
+            insert(node) {
+                // Check if node is within bounds
+                if (node.canvasX < this.x || node.canvasX > this.x + this.width ||
+                    node.canvasY < this.y || node.canvasY > this.y + this.height) {
+                    return false;
+                }
+
+                // If this is empty, place node here
+                if (this.mass === 0) {
+                    this.node = node;
+                    this.mass = 1;
+                    this.centerX = node.canvasX;
+                    this.centerY = node.canvasY;
+                    return true;
+                }
+
+                // If this is a leaf, subdivide
+                if (!this.subdivided) {
+                    this.subdivide();
+                }
+
+                // Update center of mass
+                const totalMass = this.mass + 1;
+                this.centerX = (this.centerX * this.mass + node.canvasX) / totalMass;
+                this.centerY = (this.centerY * this.mass + node.canvasY) / totalMass;
+                this.mass = totalMass;
+
+                // Insert into appropriate child
+                for (let child of this.children) {
+                    if (child.insert(node)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
+
+            subdivide() {
+                const halfWidth = this.width / 2;
+                const halfHeight = this.height / 2;
+
+                // Create 4 quadrants: NW, NE, SW, SE
+                this.children = [
+                    new QuadtreeNode(this.x, this.y, halfWidth, halfHeight),
+                    new QuadtreeNode(this.x + halfWidth, this.y, halfWidth, halfHeight),
+                    new QuadtreeNode(this.x, this.y + halfHeight, halfWidth, halfHeight),
+                    new QuadtreeNode(this.x + halfWidth, this.y + halfHeight, halfWidth, halfHeight)
+                ];
+
+                // Reinsert existing node
+                if (this.node) {
+                    for (let child of this.children) {
+                        if (child.insert(this.node)) {
+                            break;
+                        }
+                    }
+                    this.node = null;
+                }
+
+                this.subdivided = true;
+            }
+
+            calculateForce(node, force, repulsion, theta = 0.5) {
+                // Skip if this is the same node
+                if (this.node === node) {
+                    return;
+                }
+
+                const dx = this.centerX - node.canvasX;
+                const dy = this.centerY - node.canvasY;
+                const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+
+                // If this is a leaf or far enough, treat as single body
+                if (!this.subdivided || (this.width / dist < theta)) {
+                    const forceMag = repulsion * this.mass / (dist * dist);
+                    force.x -= (dx / dist) * forceMag;
+                    force.y -= (dy / dist) * forceMag;
+                } else {
+                    // Recurse into children
+                    for (let child of this.children) {
+                        if (child.mass > 0) {
+                            child.calculateForce(node, force, repulsion, theta);
+                        }
+                    }
+                }
+            }
+        }
+
+        function buildQuadtree(nodes) {
+            // Find bounds
+            let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+            nodes.forEach(node => {
+                minX = Math.min(minX, node.canvasX);
+                minY = Math.min(minY, node.canvasY);
+                maxX = Math.max(maxX, node.canvasX);
+                maxY = Math.max(maxY, node.canvasY);
+            });
+
+            // Add padding
+            const padding = 100;
+            minX -= padding;
+            minY -= padding;
+            const width = maxX - minX + padding * 2;
+            const height = maxY - minY + padding * 2;
+
+            // Build tree
+            const root = new QuadtreeNode(minX, minY, width, height);
+            nodes.forEach(node => root.insert(node));
+            return root;
+        }
+
+        function applyForceDirectedLayout() {
+            // Enhanced force-directed layout with Barnes-Hut, collision detection, and phase-aware forces
+            const iterations = 500;  // Increased from 100 for better convergence
+            const baseRepulsion = 8000;  // Stronger repulsion
+            const baseAttraction = 0.02;  // Stronger attraction
+            const nodeRadius = 120;  // Collision detection radius
+            const phaseAttractionStrength = 0.008;  // Keep nodes near their phase
+            const centerPull = 0.001;  // Weak pull toward center
+
+            // Collect all nodes and track phase membership
             let allNodes = [];
+            const phaseMap = new Map();  // Map node ID to phase
+
             capexTree.children.forEach(phase => {
                 phase.items?.forEach(item => {
                     allNodes.push(item);
+                    phaseMap.set(item.id, phase);
+
                     if (item.subItems) {
-                        allNodes = allNodes.concat(item.subItems);
+                        item.subItems.forEach(subtask => {
+                            allNodes.push(subtask);
+                            phaseMap.set(subtask.id, phase);
+                        });
                     }
                 });
             });
 
-            // Run simulation
+            // Calculate initial phase centers for phase-aware forces
+            const phaseCenters = new Map();
+            capexTree.children.forEach(phase => {
+                const phaseNodes = allNodes.filter(n => phaseMap.get(n.id) === phase);
+                if (phaseNodes.length > 0) {
+                    const avgX = phaseNodes.reduce((sum, n) => sum + n.canvasX, 0) / phaseNodes.length;
+                    const avgY = phaseNodes.reduce((sum, n) => sum + n.canvasY, 0) / phaseNodes.length;
+                    phaseCenters.set(phase.id, { x: avgX, y: avgY });
+                }
+            });
+
+            // Main simulation loop with progressive damping
             for (let iter = 0; iter < iterations; iter++) {
-                // Apply repulsion between all nodes
+                const progress = iter / iterations;
+                const damping = 0.95 - (progress * 0.45);  // Progressive cooling: 0.95 → 0.5
+                const tempRepulsion = baseRepulsion * (1 - progress * 0.3);  // Reduce repulsion over time
+
+                // Build quadtree for Barnes-Hut approximation (O(n log n) instead of O(n²))
+                const quadtree = buildQuadtree(allNodes);
+
+                // Apply repulsion using Barnes-Hut approximation
+                allNodes.forEach(node => {
+                    const force = { x: 0, y: 0 };
+                    quadtree.calculateForce(node, force, tempRepulsion);
+                    node.canvasX += force.x * damping;
+                    node.canvasY += force.y * damping;
+                });
+
+                // Collision detection: prevent overlaps (still O(n²) but necessary for precision)
                 for (let i = 0; i < allNodes.length; i++) {
                     for (let j = i + 1; j < allNodes.length; j++) {
                         const dx = allNodes[j].canvasX - allNodes[i].canvasX;
                         const dy = allNodes[j].canvasY - allNodes[i].canvasY;
-                        const dist = Math.sqrt(dx * dx + dy * dy) || 1;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
 
-                        const force = repulsion / (dist * dist);
-                        const fx = (dx / dist) * force;
-                        const fy = (dy / dist) * force;
+                        const minDist = nodeRadius * 2;
+                        if (dist < minDist && dist > 0) {
+                            // Push nodes apart to prevent overlap
+                            const pushForce = (minDist - dist) / dist * 0.5;
+                            const pushX = dx * pushForce;
+                            const pushY = dy * pushForce;
 
-                        allNodes[i].canvasX -= fx;
-                        allNodes[i].canvasY -= fy;
-                        allNodes[j].canvasX += fx;
-                        allNodes[j].canvasY += fy;
+                            allNodes[i].canvasX -= pushX;
+                            allNodes[i].canvasY -= pushY;
+                            allNodes[j].canvasX += pushX;
+                            allNodes[j].canvasY += pushY;
+                        }
                     }
                 }
 
@@ -4971,22 +5135,64 @@ Focus on logical structure and content organization best practices.`;
                             item.subItems.forEach(subtask => {
                                 const dx = subtask.canvasX - item.canvasX;
                                 const dy = subtask.canvasY - item.canvasY;
+                                const dist = Math.sqrt(dx * dx + dy * dy);
 
-                                item.canvasX += dx * attraction;
-                                item.canvasY += dy * attraction;
-                                subtask.canvasX -= dx * attraction;
-                                subtask.canvasY -= dy * attraction;
+                                if (dist > 0) {
+                                    // Spring-like attraction
+                                    const force = baseAttraction * dist;
+                                    const fx = (dx / dist) * force;
+                                    const fy = (dy / dist) * force;
+
+                                    item.canvasX += fx * damping;
+                                    item.canvasY += fy * damping;
+                                    subtask.canvasX -= fx * damping;
+                                    subtask.canvasY -= fy * damping;
+                                }
                             });
                         }
                     });
                 });
 
-                // Pull towards center
+                // Apply phase-aware forces (keep nodes grouped by phase)
                 allNodes.forEach(node => {
-                    node.canvasX -= (node.canvasX - 600) * centerPull;
-                    node.canvasY -= (node.canvasY - 400) * centerPull;
+                    const phase = phaseMap.get(node.id);
+                    if (phase) {
+                        const phaseCenter = phaseCenters.get(phase.id);
+                        if (phaseCenter) {
+                            const dx = phaseCenter.x - node.canvasX;
+                            const dy = phaseCenter.y - node.canvasY;
+                            const dist = Math.sqrt(dx * dx + dy * dy);
+
+                            if (dist > 0) {
+                                // Gentle pull toward phase center (weaker over time)
+                                const force = phaseAttractionStrength * dist * (1 - progress);
+                                node.canvasX += (dx / dist) * force;
+                                node.canvasY += (dy / dist) * force;
+                            }
+                        }
+                    }
                 });
+
+                // Pull towards global center (very weak)
+                allNodes.forEach(node => {
+                    node.canvasX -= (node.canvasX - 600) * centerPull * damping;
+                    node.canvasY -= (node.canvasY - 400) * centerPull * damping;
+                });
+
+                // Recalculate phase centers every 50 iterations for better clustering
+                if (iter % 50 === 0) {
+                    capexTree.children.forEach(phase => {
+                        const phaseNodes = allNodes.filter(n => phaseMap.get(n.id) === phase);
+                        if (phaseNodes.length > 0) {
+                            const avgX = phaseNodes.reduce((sum, n) => sum + n.canvasX, 0) / phaseNodes.length;
+                            const avgY = phaseNodes.reduce((sum, n) => sum + n.canvasY, 0) / phaseNodes.length;
+                            phaseCenters.set(phase.id, { x: avgX, y: avgY });
+                        }
+                    });
+                }
             }
+
+            console.log(`Force-directed layout complete: ${iterations} iterations, ${allNodes.length} nodes`);
         }
 
         // Canvas container event listeners
@@ -17532,9 +17738,10 @@ ${jsonText}`;
                     <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid var(--phase-1);">
                         <p style="font-size: 14px; margin-bottom: 12px;"><strong>1. Choose Your Pattern</strong></p>
                         <p style="font-size: 13px; margin-bottom: 8px;">• Use the Pattern dropdown (top) to select your project type:</p>
-                        <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">📋 Generic Project, 💼 Sales Pipeline, 🎓 Academic Writing</p>
-                        <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">🚀 Product Roadmap, 📚 Book Writing, 🧠 AI Prompt Design</p>
-                        <p style="font-size: 12px; margin-bottom: 12px; padding-left: 16px;">🏛️ Philosophy, 💡 Strategic Planning, ✏️ Custom Pattern</p>
+                        <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">📋 Generic Project, 💼 Sales Pipeline, 🎓 Academic Writing, 🚀 Product Roadmap</p>
+                        <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">📚 Book Writing, 🧠 AI Prompt Design, 🏛️ Philosophy, 💡 Strategic Planning</p>
+                        <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">🎬 Film Production, 📧 Email Workflow <em>(NEW!)</em>, 💾 File System</p>
+                        <p style="font-size: 12px; margin-bottom: 12px; padding-left: 16px;">...and more! (15 specialized patterns total)</p>
 
                         <p style="font-size: 14px; margin-bottom: 12px;"><strong>2. Build Your Tree (3 Ways)</strong></p>
 
