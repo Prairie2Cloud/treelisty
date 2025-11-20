@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 124
+**Build:** 125
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,14 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 125 | 2025-11-19
+**Bug Fix: Canvas View Selection Box**
+- FIX: Canvas View selection box now appears at correct mouse position
+- FIX: Selection box positioning accounts for zoom and pan transformations
+- TECHNICAL: Added coordinate space conversion (canvas space → screen space)
+- ISSUE: Previously, middle-click selection box appeared far from mouse location
+- ROOT CAUSE: Selection box was positioned using canvas coordinates without zoom/pan conversion
 
 ### v2.3.0 | Build 124 | 2025-11-19
 **Gmail Import & Analysis**

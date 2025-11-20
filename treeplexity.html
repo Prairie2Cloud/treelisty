@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 124 | 2025-11-19
+    TreeListy v2.3.0 | Build 125 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -16,16 +16,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 124):
-    - NEW: 📧 Gmail pattern for importing and analyzing email threads
-    - NEW: AI-powered email analysis (rhetoric, tone, sentiment, relationship dynamics)
-    - NEW: Context-aware response generation (AI sees full thread history)
-    - NEW: Python export script (export_gmail_to_treelisty.py) + /refresh-gmail command
-    - IMPROVE: Import email threads with full conversation history and context
-    - TECHNICAL: Email analyst expert persona with thread-aware field instructions
+    Changelog (Build 125):
+    - FIX: Canvas View selection box now appears at correct mouse position
+    - FIX: Selection box positioning accounts for zoom and pan transformations
+    - TECHNICAL: Added coordinate space conversion (canvas space → screen space)
 
-    Previous (Build 122):
-    - NEW: Two-Style Video Prompt Generator (📊 Explainer + 🎭 Narrative)
+    Previous (Build 124):
+    - NEW: 📧 Gmail pattern for importing and analyzing email threads
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1656,8 +1653,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 124 | 2025-11-19">
-                    v2.3.0 • Build 124
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 125 | 2025-11-19">
+                    v2.3.0 • Build 125
                 </div>
             </div>
         </div>
@@ -5059,10 +5056,16 @@ Focus on logical structure and content organization best practices.`;
                         const maxX = Math.max(selectionStart.x, selectionEnd.x);
                         const maxY = Math.max(selectionStart.y, selectionEnd.y);
 
-                        selectionBox.style.left = `${minX}px`;
-                        selectionBox.style.top = `${minY}px`;
-                        selectionBox.style.width = `${maxX - minX}px`;
-                        selectionBox.style.height = `${maxY - minY}px`;
+                        // Convert canvas coordinates back to screen coordinates (reverse the zoom/pan transformation)
+                        const screenMinX = (minX + canvasPan.x) * canvasZoom;
+                        const screenMinY = (minY + canvasPan.y) * canvasZoom;
+                        const screenMaxX = (maxX + canvasPan.x) * canvasZoom;
+                        const screenMaxY = (maxY + canvasPan.y) * canvasZoom;
+
+                        selectionBox.style.left = `${screenMinX}px`;
+                        selectionBox.style.top = `${screenMinY}px`;
+                        selectionBox.style.width = `${screenMaxX - screenMinX}px`;
+                        selectionBox.style.height = `${screenMaxY - screenMinY}px`;
                     }
                     return;
                 }
