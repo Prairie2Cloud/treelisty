@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 129
+**Build:** 130
 **Date:** 2025-11-20
 
 ---
@@ -26,6 +26,51 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 130 | 2025-11-20
+**UX Improvement: Remove Placeholder Variables from AI Prompt Design**
+- FIX: Removed {{placeholder}} variables from JSON example in wizard
+- IMPROVE: Interactive style - AI asks clarifying questions first (ready-to-use)
+- IMPROVE: Specific style alternative - list concrete plants/topics (no variables)
+- ALIGN: Restores Build 119 principle - prompts work immediately without substitution
+- EXAMPLE: "Start by asking me what plants I want to grow, my experience level, and garden conditions..."
+- EXAMPLE: Alternative in subItem - "Provide guide for garlic, kale, chard, lettuce, onions..."
+
+**User Feedback:**
+- User reported: "I don't like the variables. It would be better if the AI asked those questions of the user at the time or covered only a few popular garden plants with fall maintenance needs."
+- Build 129 example used: `"I want to grow {{plant_name}} in {{location}}..."` with variables
+- Violates Build 119 principle: "Prompts now generate ready-to-use (NO {{placeholders}})"
+
+**Problem:**
+- Build 129 JSON example included placeholder variables: {{plant_name}}, {{location}}, {{experience_level}}
+- Required manual substitution before use (template mode, not instance mode)
+- Regression from Build 119's "ready-to-use" principle
+
+**Solution:**
+- **Interactive Style** (line 12564): "I need fall/winter gardening advice for Victoria, BC. Start by asking me what plants I want to grow, my experience level, and my garden conditions (soil type, sun exposure). Then provide a tailored planting and maintenance guide based on my answers."
+- **Specific Style** (line 12567-12568): "Provide a comprehensive fall/winter gardening guide for Victoria, BC covering garlic (hardneck varieties like Music and German White), kale, chard, lettuce, and overwintering onions. Include optimal planting times (month-specific), soil preparation steps, and weekly maintenance schedules through winter."
+- Added critical instruction (line 12612): "NO PLACEHOLDER VARIABLES: Use interactive style (AI asks questions) or specific style (list concrete plants/topics)"
+- Added reminder (line 12613): "READY-TO-USE: Prompts must work immediately when pasted (no {{variable}} substitution needed)"
+
+**Before Build 130:**
+```
+userPromptTemplate: "I want to grow {{plant_name}} in {{location}}. What are..."
+Variables: {{plant_name}}, {{location}}, {{experience_level}}
+❌ Requires manual substitution
+```
+
+**After Build 130:**
+```
+Interactive: "Start by asking me what plants I want to grow... then provide tailored guide"
+OR
+Specific: "Provide guide for garlic, kale, chard, lettuce, and overwintering onions..."
+✅ Works immediately when pasted
+```
+
+**Implementation:**
+- Line 12564: Changed to interactive style (AI asks questions first)
+- Line 12567-12568: Added specific style alternative in subItem
+- Line 12612-12613: Added NO PLACEHOLDER VARIABLES instructions
 
 ### v2.3.0 | Build 129 | 2025-11-20
 **Bug Fix: AI Wizard → Generate Prompt Context Loss for AI Prompt Design**
