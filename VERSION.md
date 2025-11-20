@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 127
+**Build:** 128
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,39 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 128 | 2025-11-19
+**UX Improvement: AI Wizard Meta-Level Guidance for AI Prompt Design**
+- UX: AI Wizard first question now attunes users to meta-level thinking
+- NEW: Pattern-specific question for AI Prompt Design with concrete examples
+- IMPROVE: Clear reminder "You're DESIGNING a prompt (meta-level), not using one"
+- GUIDE: Examples show correct framing: "A prompt that takes X and returns Y"
+- FIX: Prevents confusion between designing a prompt vs. using a prompt
+
+**User Issue:**
+- User asked: "What should I answer? That I want a prompt that researches NW gardening, or that I just want to know about NW gardening?"
+- This revealed ambiguity in the question "What is the exact GOAL of this prompt engineering?"
+
+**Before Build 128:**
+Question: "What is the exact GOAL of this prompt engineering? What specific output/result should it produce?"
+- Ambiguous: Could mean (1) what the prompt will do, or (2) what the user wants
+- No examples of good vs bad answers
+- No meta-level framing
+
+**After Build 128:**
+Question: "What prompt do you want to design? Describe what it should DO when someone uses it.
+
+Examples:
+• 'A prompt that takes a business idea and returns a 5-year financial projection with key metrics'
+• 'A prompt that analyzes code for security vulnerabilities and suggests fixes with severity ratings'
+• 'A prompt that converts casual emails into formal business communications'
+
+Remember: You're DESIGNING a prompt (meta-level), not using one. Tell me what task the prompt should perform."
+
+**Implementation:**
+- Line 12586-12593: Pattern-specific first question for Prompt Engineering
+- Line 12386-12388: Added meta-level clarity guidance in TURN 1 instructions
+- Both changes ensure AI Wizard understands user needs meta-level guidance
 
 ### v2.3.0 | Build 127 | 2025-11-19
 **Architecture Fix: Deep Mode Consistency**
