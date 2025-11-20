@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 125 | 2025-11-19
+    TreeListy v2.3.0 | Build 126 | 2025-11-19
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -16,13 +16,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 125):
-    - FIX: Canvas View selection box now appears at correct mouse position
-    - FIX: Selection box positioning accounts for zoom and pan transformations
-    - TECHNICAL: Added coordinate space conversion (canvas space → screen space)
+    Changelog (Build 126):
+    - FIX: Sonnet timeout errors now show helpful solutions
+    - FIX: Increased client timeout from 9s to 25s (give Netlify full time)
+    - IMPROVE: Better error messages for CORS issues when running from file://
+    - GUIDE: Clear instructions to run via local server or use deployed site
 
-    Previous (Build 124):
-    - NEW: 📧 Gmail pattern for importing and analyzing email threads
+    Previous (Build 125):
+    - FIX: Canvas View selection box positioning fix
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1653,8 +1654,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 125 | 2025-11-19">
-                    v2.3.0 • Build 125
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 126 | 2025-11-19">
+                    v2.3.0 • Build 126
                 </div>
             </div>
         </div>
@@ -3082,8 +3083,9 @@ The AI will analyze the structure and convert it to a tree."
                 };
 
                 // Add timeout to prevent hanging on Netlify's 10s function limit
+                // Increased to 25s to give Netlify full time (Sonnet can be slow)
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 9000); // 9s timeout (before Netlify's 10s)
+                const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout (Netlify has 10s limit on free tier)
 
                 try {
                     response = await fetch(AI_CONFIG.apiEndpoint, {
@@ -3109,14 +3111,14 @@ The AI will analyze the structure and convert it to a tree."
 
                             // Check if this is a CORS error (common when running from file:// or localhost)
                             if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
-                                throw new Error(`Netlify timeout AND direct API failed. Error: Failed to fetch (CORS)`);
+                                throw new Error(`Sonnet request timeout on Netlify (10s free tier limit).\n\nDirect API fallback blocked by browser (CORS - you're running from file://).\n\n✅ Solutions:\n1. Run via local server: python -m http.server 8000\n2. Deploy to https://treelisty.netlify.app (no CORS issues)\n3. Use ⚡ Fast Mode instead (faster, works everywhere)\n\n💡 Sonnet is powerful but slow - works best on deployed sites or with local server.`);
                             }
 
                             throw new Error(`Netlify timeout AND direct API failed. Error: ${directError.message}`);
                         }
                     } else if (fetchError.name === 'AbortError') {
                         // Timeout but no user API key - can't fallback
-                        throw new Error('Request timeout - Netlify function took too long (>9s). Add your API key (🔑 button) to enable automatic fallback to direct API with no timeout limit.');
+                        throw new Error(`Sonnet request timeout on Netlify (10s free tier limit).\n\nAdd your API key (🔑 button) to bypass Netlify timeout.\n\nOr use ⚡ Fast Mode (Haiku) - faster and works everywhere.`);
                     } else {
                         throw fetchError;
                     }
@@ -3161,13 +3163,13 @@ The AI will analyze the structure and convert it to a tree."
 
                                 // Check if this is a CORS error
                                 if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
-                                    throw new Error(`Netlify 504 timeout AND direct API failed. Error: Failed to fetch (CORS)`);
+                                    throw new Error(`Sonnet request timeout on Netlify (10s free tier limit).\n\nDirect API fallback blocked by browser (CORS - you're running from file://).\n\n✅ Solutions:\n1. Run via local server: python -m http.server 8000\n2. Use deployed site: https://treelisty.netlify.app\n3. Use ⚡ Fast Mode (Haiku) - faster and works everywhere\n\n💡 Sonnet is powerful but slow - works best on deployed sites or with local server.`);
                                 }
 
                                 throw new Error(`Netlify 504 timeout AND direct API failed. Error: ${directError.message}`);
                             }
                         } else {
-                            throw new Error('Netlify function timeout (504). Add your API key (🔑 button) to enable automatic fallback to direct API.');
+                            throw new Error(`Sonnet request timeout on Netlify (10s free tier limit).\n\nAdd your API key (🔑 button) to bypass Netlify timeout.\n\nOr use ⚡ Fast Mode (Haiku) - faster and works everywhere.`);
                         }
                     }
 
@@ -3980,6 +3982,7 @@ Focus on logical structure and content organization best practices.`;
         let maxExpandedDepth = Infinity;  // Track how deep we're currently showing
         let gridEnabled = false;
         const gridSize = 40;  // Grid snap size
+        let clusterByField = '';  // Track which metadata field to cluster by (itemType, owner, etc.)
 
         // Multi-selection state
         let isSelecting = false;
@@ -5173,6 +5176,57 @@ Focus on logical structure and content organization best practices.`;
                     }
                 });
 
+                // Apply metadata-based clustering (if enabled)
+                if (clusterByField) {
+                    const clusterStrength = 0.015;  // Strength of clustering attraction
+
+                    // Helper function to get comparable value for clustering
+                    const getClusterValue = (node, field) => {
+                        if (field === 'cost') {
+                            // Group by cost ranges (0-10k, 10k-50k, 50k-200k, 200k+)
+                            const cost = node.cost || 0;
+                            if (cost < 10000) return 'low';
+                            if (cost < 50000) return 'medium';
+                            if (cost < 200000) return 'high';
+                            return 'very-high';
+                        } else if (field === 'modifiedDate') {
+                            // Group by month
+                            if (!node.modifiedDate) return 'unknown';
+                            return node.modifiedDate.substring(0, 7); // YYYY-MM
+                        } else {
+                            // Direct field value (itemType, owner, pmRAGStatus, etc.)
+                            return node[field] || 'unknown';
+                        }
+                    };
+
+                    // Apply clustering forces between nodes with matching metadata
+                    for (let i = 0; i < allNodes.length; i++) {
+                        for (let j = i + 1; j < allNodes.length; j++) {
+                            const valueA = getClusterValue(allNodes[i], clusterByField);
+                            const valueB = getClusterValue(allNodes[j], clusterByField);
+
+                            // If nodes share the same metadata value, attract them
+                            if (valueA === valueB && valueA !== 'unknown') {
+                                const dx = allNodes[j].canvasX - allNodes[i].canvasX;
+                                const dy = allNodes[j].canvasY - allNodes[i].canvasY;
+                                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                                if (dist > 0) {
+                                    // Gentle attraction between similar nodes
+                                    const force = clusterStrength * dist * (1 - progress * 0.5);
+                                    const fx = (dx / dist) * force;
+                                    const fy = (dy / dist) * force;
+
+                                    allNodes[i].canvasX += fx;
+                                    allNodes[i].canvasY += fy;
+                                    allNodes[j].canvasX -= fx;
+                                    allNodes[j].canvasY -= fy;
+                                }
+                            }
+                        }
+                    }
+                }
+
                 // Pull towards global center (very weak)
                 allNodes.forEach(node => {
                     node.canvasX -= (node.canvasX - 600) * centerPull * damping;
@@ -5192,7 +5246,8 @@ Focus on logical structure and content organization best practices.`;
                 }
             }
 
-            console.log(`Force-directed layout complete: ${iterations} iterations, ${allNodes.length} nodes`);
+            const clusterMsg = clusterByField ? ` with clustering by ${clusterByField}` : '';
+            console.log(`Force-directed layout complete: ${iterations} iterations, ${allNodes.length} nodes${clusterMsg}`);
         }
 
         // Canvas container event listeners
@@ -15382,6 +15437,24 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
                 });
             }
 
+            // Cluster-by selector event listener
+            const clusterBySelect = document.getElementById('cluster-by-select');
+            if (clusterBySelect) {
+                clusterBySelect.addEventListener('change', (e) => {
+                    clusterByField = e.target.value;
+                    if (clusterByField) {
+                        console.log(`Clustering enabled by: ${clusterByField}`);
+                        // Re-apply force-directed layout if currently in canvas mode
+                        if (viewMode === 'canvas') {
+                            applyForceDirectedLayout();
+                            renderCanvas();
+                        }
+                    } else {
+                        console.log('Clustering disabled');
+                    }
+                });
+            }
+
             if (gridToggleBtn) {
                 gridToggleBtn.addEventListener('click', toggleGrid);
             }
@@ -20359,6 +20432,14 @@ ${jsonText}`;
                 <option value="force" style="background: #1a1a2e; color: #ffffff;">🌀 Force-Directed</option>
                 <option value="radial" style="background: #1a1a2e; color: #ffffff;">⭕ Radial</option>
                 <option value="grid" style="background: #1a1a2e; color: #ffffff;">⊞ Grid</option>
+            </select>
+            <select id="cluster-by-select" style="padding: 8px 14px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                <option value="" style="background: #1a1a2e; color: #ffffff;">🔗 Cluster By</option>
+                <option value="itemType" style="background: #1a1a2e; color: #ffffff;">📦 Type</option>
+                <option value="owner" style="background: #1a1a2e; color: #ffffff;">👤 Owner</option>
+                <option value="pmRAGStatus" style="background: #1a1a2e; color: #ffffff;">🚦 Status</option>
+                <option value="cost" style="background: #1a1a2e; color: #ffffff;">💰 Cost Range</option>
+                <option value="modifiedDate" style="background: #1a1a2e; color: #ffffff;">📅 Date</option>
             </select>
             <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
             <button id="grid-toggle" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;">

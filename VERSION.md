@@ -2,7 +2,7 @@
 
 ## Current Version
 **Version:** 2.3.0
-**Build:** 125
+**Build:** 126
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,18 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 126 | 2025-11-19
+**Bug Fix: Sonnet Timeout & CORS Error Handling**
+- FIX: Sonnet timeout errors now show helpful solutions instead of cryptic CORS messages
+- FIX: Increased client timeout from 9s to 25s (give Netlify full 10-second limit)
+- IMPROVE: Better error messages for CORS issues when running from file://
+- GUIDE: Clear instructions to run via local server (python -m http.server 8000)
+- GUIDE: Direct users to deployed site (https://treelisty.netlify.app) for no CORS issues
+- GUIDE: Recommend Fast Mode (Haiku) as alternative to Sonnet when running from file://
+- ISSUE: Sonnet can exceed Netlify's 10-second free tier timeout on complex requests
+- ROOT CAUSE: file:// protocol blocks CORS requests, preventing direct API fallback
+- SOLUTION: Users can use local server, deployed site, or switch to Fast Mode
 
 ### v2.3.0 | Build 125 | 2025-11-19
 **Bug Fix: Canvas View Selection Box**
