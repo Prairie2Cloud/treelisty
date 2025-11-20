@@ -1,8 +1,8 @@
 # TreeListy Version Tracker
 
 ## Current Version
-**Version:** 2.2.0
-**Build:** 122
+**Version:** 2.3.0
+**Build:** 124
 **Date:** 2025-11-19
 
 ---
@@ -26,6 +26,18 @@
 ---
 
 ## Version History
+
+### v2.3.0 | Build 124 | 2025-11-19
+**Gmail Import & Analysis**
+- NEW: 📧 Gmail pattern for importing and analyzing email threads
+- NEW: Python export script (export_gmail_to_treelisty.py) - fetches Gmail via API
+- NEW: /refresh-gmail slash command for easy Gmail refresh from Claude Code
+- NEW: Import email threads with full conversation history and context
+- NEW: AI-powered email analysis (rhetoric, tone, sentiment, relationship dynamics)
+- NEW: Context-aware response generation (AI sees full thread history)
+- NEW: Email analyst expert persona with thread-aware field instructions
+- TECHNICAL: Pattern supports 10 fields (recipientEmail, ccEmail, subjectLine, emailBody, etc.)
+- FIX: Resolved Build 123 syntax error through clean re-implementation
 
 ### v2.2.0 | Build 122 | 2025-11-19
 **Two-Style Video Prompt Generator (POC)**
