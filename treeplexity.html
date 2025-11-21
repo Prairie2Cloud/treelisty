@@ -6,17 +6,24 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.4.0 | Build 146 | 2025-11-21
+    TreeListy v2.5.0 | Build 147 | 2025-11-21
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
     - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
+    - Pattern Translation Engine with shadow data preservation
     - Smart JSON save with pattern-based filenames
     - LocalStorage auto-save every 2 minutes
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 146):
+    Changelog (Build 147):
+    - NEW: Pattern Translation Engine - Convert Generic → Sales (and reverse) with field mapping
+    - NEW: Shadow Data Preservation - Original data backed up during translation
+    - FIX: Temperature parameter now correctly applied from Creativity slider
+    - FIX: Translation confirmation dialog with cancel option
+
+    Previous (Build 146):
     - NEW: AI Tuner - Customize AI tone, verbosity, creativity, and custom instructions
     - NEW: Persistent AI personas - Settings saved in tree JSON and travel with file
     - NEW: Live preview in AI Settings modal shows before/after prompt transformation
@@ -1770,8 +1777,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.4.0 | Build 146 | 2025-11-21">
-                    v2.4.0 • Build 146
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.5.0 | Build 147 | 2025-11-21">
+                    v2.5.0 • Build 147
                 </div>
             </div>
         </div>
@@ -3104,10 +3111,204 @@ The AI will analyze the structure and convert it to a tree."
             if (customInstructions) {
                 customInstructions.addEventListener('input', updateAIPreview);
             }
+
+            // Pattern selector - handle pattern switching with translation
+            const patternSelect = document.getElementById('pattern-select');
+            if (patternSelect) {
+                patternSelect.addEventListener('change', (e) => {
+                    const oldPattern = currentPattern;
+                    const newPattern = e.target.value;
+
+                    // Check if a translation rule exists
+                    const ruleKey = `${oldPattern}->${newPattern}`;
+                    if (TRANSLATION_RULES[ruleKey]) {
+                        const patternNames = {
+                            generic: 'Generic Project',
+                            sales: 'Sales Pipeline',
+                            thesis: 'Academic Writing',
+                            roadmap: 'Product Roadmap',
+                            book: 'Book Writing',
+                            film: 'Film Production',
+                            prompting: 'AI Prompt Design',
+                            gmail: 'Gmail Threads',
+                            eventplanning: 'Event Planning',
+                            fitness: 'Fitness Program',
+                            strategy: 'Strategy Consulting',
+                            coursedesign: 'Course Design',
+                            familytree: 'Family Tree',
+                            philosophy: 'Philosophy Dialogue',
+                            rhetoric: 'Rhetoric Analysis',
+                            filesystem: 'Filesystem'
+                        };
+
+                        const confirmTranslation = confirm(
+                            `✨ Translate data from ${patternNames[oldPattern] || oldPattern} to ${patternNames[newPattern] || newPattern}?\n\n` +
+                            `This will intelligently map fields (e.g., Cost → Deal Value).\n\n` +
+                            `Your original data will be preserved in shadow storage and can be restored.`
+                        );
+
+                        if (confirmTranslation) {
+                            // Save state for undo
+                            saveState(`Pattern Switch: ${oldPattern} → ${newPattern}`);
+
+                            // Apply translation
+                            translateTree(oldPattern, newPattern);
+
+                            // Update current pattern
+                            currentPattern = newPattern;
+
+                            // Re-render
+                            render();
+
+                            showToast('✅ Data translated successfully', `Fields mapped from ${patternNames[oldPattern]} to ${patternNames[newPattern]}`);
+                        } else {
+                            // User cancelled - revert dropdown
+                            e.target.value = oldPattern;
+                        }
+                    } else {
+                        // No translation rule - just switch pattern
+                        saveState(`Pattern Switch: ${oldPattern} → ${newPattern}`);
+                        currentPattern = newPattern;
+                        render();
+                    }
+                });
+            }
         });
 
         // =============================================================================
         // END AI TUNER
+        // =============================================================================
+
+        // =============================================================================
+        // PATTERN TRANSLATION ENGINE - Shadow Data Preservation
+        // =============================================================================
+
+        // Translation rules: Map fields from one pattern to another
+        const TRANSLATION_RULES = {
+            'generic->sales': (item) => {
+                const updates = {};
+
+                // 1. Map Cost → Deal Value
+                if (item.cost !== undefined && item.cost !== null) {
+                    updates.dealValue = item.cost;
+                }
+
+                // 2. Map Status → Stage Probability (Heuristic)
+                if (item.pmStatus) {
+                    if (item.pmStatus === 'Done' || item.pmStatus === 'Completed') {
+                        updates.stageProbability = 100;
+                    } else if (item.pmStatus === 'In Progress') {
+                        updates.stageProbability = 60;
+                    } else {
+                        updates.stageProbability = 10;
+                    }
+                }
+
+                // 3. Map Lead Time → Notes (preserve as context)
+                if (item.leadTime) {
+                    updates.notes = (item.notes || '') + `\n[Original Lead Time: ${item.leadTime}]`;
+                }
+
+                // 4. Map Owner Email → Contact Person
+                if (item.pmOwnerEmail) {
+                    updates.contactPerson = item.pmOwnerEmail;
+                }
+
+                // 5. Map Description
+                if (item.description) {
+                    updates.description = item.description;
+                }
+
+                return updates;
+            },
+
+            'sales->generic': (item) => {
+                const updates = {};
+
+                // Reverse mapping: Sales → Generic
+                if (item.dealValue !== undefined && item.dealValue !== null) {
+                    updates.cost = item.dealValue;
+                }
+
+                if (item.stageProbability !== undefined) {
+                    if (item.stageProbability >= 90) {
+                        updates.pmStatus = 'Done';
+                    } else if (item.stageProbability >= 50) {
+                        updates.pmStatus = 'In Progress';
+                    } else {
+                        updates.pmStatus = 'Not Started';
+                    }
+                }
+
+                if (item.contactPerson) {
+                    updates.pmOwnerEmail = item.contactPerson;
+                }
+
+                return updates;
+            }
+        };
+
+        // Recursively translate a node and its children
+        function translateNode(node, fromPattern, toPattern) {
+            const ruleKey = `${fromPattern}->${toPattern}`;
+            const translator = TRANSLATION_RULES[ruleKey];
+
+            if (!translator) {
+                console.log(`⚠️ No translation rule for ${ruleKey}`);
+                return; // No rule exists
+            }
+
+            // 1. Initialize shadow storage if missing
+            if (!node.shadowData) {
+                node.shadowData = {};
+            }
+
+            // 2. Backup current pattern data (only fields being translated)
+            if (!node.shadowData[fromPattern]) {
+                node.shadowData[fromPattern] = {};
+                // Store only fields that will be changed
+                const updates = translator(node);
+                Object.keys(updates).forEach(key => {
+                    if (node[key] !== undefined) {
+                        node.shadowData[fromPattern][key] = node[key];
+                    }
+                });
+            }
+
+            // 3. Apply translation updates
+            const updates = translator(node);
+            Object.assign(node, updates);
+
+            console.log(`✅ Translated node: ${node.name}`, updates);
+
+            // 4. Process children recursively
+            if (node.items) {
+                node.items.forEach(child => translateNode(child, fromPattern, toPattern));
+            }
+            if (node.children) {
+                node.children.forEach(child => translateNode(child, fromPattern, toPattern));
+            }
+            if (node.subItems) {
+                node.subItems.forEach(child => translateNode(child, fromPattern, toPattern));
+            }
+        }
+
+        // Translate entire tree
+        function translateTree(fromPattern, toPattern) {
+            console.log(`🔄 Starting tree translation: ${fromPattern} → ${toPattern}`);
+
+            // Start from root's children (phases)
+            if (capexTree.children) {
+                capexTree.children.forEach(phase => {
+                    translateNode(phase, fromPattern, toPattern);
+                });
+            }
+
+            console.log(`✅ Tree translation complete`);
+        }
+
+        // =============================================================================
+        // END PATTERN TRANSLATION ENGINE
         // =============================================================================
 
         // =============================================================================
@@ -3540,11 +3741,13 @@ The AI will analyze the structure and convert it to a tree."
             }
 
             // Apply AI Tuner persona settings to system prompt
+            const aiConfig = getAIConfig(); // Get AI config for temperature
             const finalSystemPrompt = applyPersonaTuning(systemPrompt || 'You are an expert project analyst specializing in breaking down complex projects into manageable components.');
 
             const requestData = {
                 model: AI_CONFIG.model,
                 max_tokens: maxTokens,
+                temperature: aiConfig.creativity, // ✅ INJECTED: Maps slider (0.0-1.0) to API temperature
                 system: finalSystemPrompt,
                 messages: [{
                     role: 'user',
