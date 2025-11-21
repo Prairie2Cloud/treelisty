@@ -6,23 +6,33 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 143 | 2025-11-20
+    TreeListy v2.4.0 | Build 146 | 2025-11-21
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
-    - AI-powered (Claude, Gemini, ChatGPT)
+    - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
     - Smart JSON save with pattern-based filenames
     - LocalStorage auto-save every 2 minutes
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 143):
+    Changelog (Build 146):
+    - NEW: AI Tuner - Customize AI tone, verbosity, creativity, and custom instructions
+    - NEW: Persistent AI personas - Settings saved in tree JSON and travel with file
+    - NEW: Live preview in AI Settings modal shows before/after prompt transformation
+
+    Previous (Build 145):
+    - NEW: Filesystem pattern "Digital Librarian" AI - Smart Suggest for all file metadata fields
+    - COMPLETE: All 15 patterns now have pattern-specific Smart Suggest coverage
+
+    Previous (Build 144):
+    - FIX: Canvas View dependency arrows for hidden phases (no more random purple lines)
+    - FIX: Philosophy Pattern AI Analysis using correct persona (not generic PM)
+    - FIX: Pattern loading from JSON handles both string and object formats
+
+    Previous (Build 143):
     - FIX: CORS protection for ALL AI providers (Gemini, ChatGPT, Claude)
     - FIX: Clear error messages when using Gemini/ChatGPT from local files
-    - ENHANCEMENT: Consistent CORS handling across all three providers
-
-    Previous (Build 142):
-    - FIX: Auto-switch Claude Deep Mode to Fast Mode on local files
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1537,6 +1547,89 @@
         background: rgba(99, 102, 241, 0.4);
     }
 
+    /* ============================================================================
+       AI SETTINGS MODAL - STYLING
+       ============================================================================ */
+
+    /* AI Settings Modal - Radio Button Styling */
+    .ai-radio-option {
+        display: flex;
+        align-items: flex-start;
+        gap: 10px;
+        padding: 12px;
+        background: rgba(255,255,255,0.03);
+        border: 2px solid rgba(255,255,255,0.1);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .ai-radio-option:hover {
+        background: rgba(255,255,255,0.06);
+        border-color: rgba(99, 102, 241, 0.4);
+    }
+
+    .ai-radio-option input[type="radio"] {
+        margin-top: 2px;
+        cursor: pointer;
+    }
+
+    .ai-radio-option input[type="radio"]:checked + .radio-label {
+        color: #6366f1;
+    }
+
+    .ai-radio-option:has(input[type="radio"]:checked) {
+        background: rgba(99, 102, 241, 0.1);
+        border-color: #6366f1;
+    }
+
+    .radio-label {
+        display: flex;
+        flex-direction: column;
+        gap: 4px;
+    }
+
+    .radio-label strong {
+        font-size: 13px;
+        color: rgba(255,255,255,0.9);
+    }
+
+    .radio-label small {
+        font-size: 11px;
+        color: rgba(255,255,255,0.5);
+    }
+
+    /* Creativity Slider */
+    #creativity-slider {
+        -webkit-appearance: none;
+        appearance: none;
+        height: 6px;
+        background: rgba(255,255,255,0.1);
+        border-radius: 3px;
+        outline: none;
+    }
+
+    #creativity-slider::-webkit-slider-thumb {
+        -webkit-appearance: none;
+        appearance: none;
+        width: 18px;
+        height: 18px;
+        background: #6366f1;
+        border-radius: 50%;
+        cursor: pointer;
+        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
+    }
+
+    #creativity-slider::-moz-range-thumb {
+        width: 18px;
+        height: 18px;
+        background: #6366f1;
+        border-radius: 50%;
+        cursor: pointer;
+        border: none;
+        box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
+    }
+
     </style>
     <!-- SheetJS library for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -1677,8 +1770,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 143 | 2025-11-20">
-                    v2.3.0 • Build 143
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.4.0 | Build 146 | 2025-11-21">
+                    v2.4.0 • Build 146
                 </div>
             </div>
         </div>
@@ -1738,6 +1831,7 @@
         <button class="btn" id="auto-enhance-btn" title="Takes text from recommendations and prompts pattern ai to make improvements" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600; justify-content: flex-start;">🔄 Auto-Enhance</button>
         <button class="btn" id="generate-prompt-btn" title="Generate a complete prompt from your tree structure" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 600; justify-content: flex-start;">📝 Generate Prompt</button>
         <button class="btn btn-primary" id="ai-btn" title="Nothing useful yet" style="width: 100%; justify-content: flex-start;">🤖 AI Analysis</button>
+        <button class="btn" id="ai-settings-btn" title="Configure AI Persona & Behavior" style="width: 100%; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; font-weight: 600; justify-content: flex-start;">⚙️ AI Settings</button>
 
         <div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(99, 102, 241, 0.2);">
             <label for="unified-ai-mode-select-panel" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">AI Model:</label>
@@ -2008,6 +2102,147 @@ The AI will analyze the structure and convert it to a tree."
                 <button class="btn" id="api-key-cancel">Cancel</button>
                 <button class="btn" id="api-key-clear" style="margin-right: auto; background: rgba(239, 68, 68, 0.1); color: #ef4444;">🗑️ Clear All Keys</button>
                 <button class="btn btn-primary" id="api-key-save" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">Save & Continue</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- AI Settings Modal -->
+    <div id="ai-settings-modal" class="modal" style="display: none;">
+        <div class="modal-content" style="max-width: 700px; max-height: 85vh; overflow-y: auto;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 15px; border-bottom: 2px solid rgba(255,255,255,0.1);">
+                <h2 style="margin: 0; font-size: 22px; display: flex; align-items: center; gap: 10px;">
+                    <span>⚙️</span> AI Settings
+                    <span style="font-size: 13px; font-weight: 400; color: rgba(255,255,255,0.5); margin-left: 10px;">Tune Your AI Persona</span>
+                </h2>
+                <button onclick="closeAISettingsModal()" style="background: none; border: none; color: rgba(255,255,255,0.6); font-size: 28px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+            </div>
+
+            <!-- Tone Section -->
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
+                    🎭 Tone & Persona
+                </label>
+                <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px;">
+                    <label class="ai-radio-option">
+                        <input type="radio" name="ai-tone" value="neutral" checked>
+                        <span class="radio-label">
+                            <strong>⚖️ Neutral</strong>
+                            <small>Professional, balanced, objective</small>
+                        </span>
+                    </label>
+                    <label class="ai-radio-option">
+                        <input type="radio" name="ai-tone" value="critical">
+                        <span class="radio-label">
+                            <strong>🔍 Critical</strong>
+                            <small>Red team, skeptical, finds flaws</small>
+                        </span>
+                    </label>
+                    <label class="ai-radio-option">
+                        <input type="radio" name="ai-tone" value="enthusiastic">
+                        <span class="radio-label">
+                            <strong>🚀 Enthusiastic</strong>
+                            <small>Encouraging, optimistic, opportunity-focused</small>
+                        </span>
+                    </label>
+                    <label class="ai-radio-option">
+                        <input type="radio" name="ai-tone" value="socratic">
+                        <span class="radio-label">
+                            <strong>❓ Socratic</strong>
+                            <small>Asks questions, guides discovery</small>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Verbosity Section -->
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
+                    📝 Output Style
+                </label>
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px;">
+                    <label class="ai-radio-option">
+                        <input type="radio" name="ai-verbosity" value="concise" checked>
+                        <span class="radio-label">
+                            <strong>⚡ Concise</strong>
+                            <small>Brief, bullet points</small>
+                        </span>
+                    </label>
+                    <label class="ai-radio-option">
+                        <input type="radio" name="ai-verbosity" value="balanced">
+                        <span class="radio-label">
+                            <strong>📊 Balanced</strong>
+                            <small>Clear paragraphs</small>
+                        </span>
+                    </label>
+                    <label class="ai-radio-option">
+                        <input type="radio" name="ai-verbosity" value="verbose">
+                        <span class="radio-label">
+                            <strong>📚 Verbose</strong>
+                            <small>Detailed, thorough</small>
+                        </span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Creativity Slider -->
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
+                    🌡️ Creativity Level
+                    <span id="creativity-value" style="color: #6366f1; margin-left: 8px;">0.5</span>
+                </label>
+                <div style="display: flex; align-items: center; gap: 15px;">
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Consistent</span>
+                    <input type="range" id="creativity-slider" min="0" max="100" value="50" style="flex: 1;">
+                    <span style="font-size: 12px; color: rgba(255,255,255,0.5);">Creative</span>
+                </div>
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px; margin-bottom: 0;">
+                    Lower values (0.0-0.3): Deterministic, factual tasks. Higher values (0.7-1.0): Creative writing, brainstorming.
+                </p>
+            </div>
+
+            <!-- Custom Instructions -->
+            <div style="margin-bottom: 25px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
+                    ✍️ Custom Instructions <span style="font-weight: 400; color: rgba(255,255,255,0.5);">(Optional Override)</span>
+                </label>
+                <textarea id="custom-instructions" rows="4" style="width: 100%; padding: 12px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; color: white; font-family: 'SF Mono', Monaco, monospace; font-size: 13px; resize: vertical;" placeholder="Examples:
+• 'Always include code examples in TypeScript'
+• 'Assume I'm a beginner - explain concepts simply'
+• 'Be extremely detailed about security implications'
+• 'Focus on cost optimization strategies'"></textarea>
+                <p style="font-size: 12px; color: rgba(255,255,255,0.4); margin-top: 8px; margin-bottom: 0;">
+                    💡 These instructions override all other settings. The AI will prioritize this guidance above all else.
+                </p>
+            </div>
+
+            <!-- Live Preview -->
+            <div style="margin-bottom: 25px; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
+                    👁️ Live Preview
+                </label>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 8px;">
+                    <strong>Before (Base Prompt):</strong>
+                </div>
+                <div style="padding: 10px; background: rgba(255,255,255,0.05); border-radius: 6px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: rgba(255,255,255,0.5); margin-bottom: 12px;">
+                    You are an expert project manager specializing in breaking down complex tasks...
+                </div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 8px;">
+                    <strong>After (With Your Settings):</strong>
+                </div>
+                <div id="preview-after" style="padding: 10px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: rgba(255,255,255,0.8); white-space: pre-wrap;">You are an expert project manager specializing in breaking down complex tasks...</div>
+            </div>
+
+            <!-- Action Buttons -->
+            <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.1);">
+                <button onclick="resetAISettings()" class="btn" style="padding: 10px 20px; background: rgba(255,255,255,0.05);">
+                    🔄 Reset to Defaults
+                </button>
+                <button onclick="closeAISettingsModal()" class="btn" style="padding: 10px 20px;">
+                    Cancel
+                </button>
+                <button onclick="saveAISettings()" class="btn btn-primary" style="padding: 10px 20px; background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);">
+                    💾 Save Settings
+                </button>
             </div>
         </div>
     </div>
@@ -2686,6 +2921,196 @@ The AI will analyze the structure and convert it to a tree."
         // =============================================================================
 
         // =============================================================================
+        // AI TUNER - PERSONA PERSISTENCE
+        // =============================================================================
+
+        // Helper to get AI config with safe defaults
+        function getAIConfig() {
+            const defaults = {
+                tone: 'neutral',        // neutral, critical, enthusiastic, socratic
+                verbosity: 'concise',   // concise, balanced, verbose
+                creativity: 0.5,        // 0.0 to 1.0 (maps to temperature)
+                customInstructions: ''  // User override
+            };
+
+            // Merge saved config if it exists
+            return { ...defaults, ...(capexTree.aiConfig || {}) };
+        }
+
+        // Apply persona tuning to system prompts
+        function applyPersonaTuning(baseSystemPrompt) {
+            const config = getAIConfig();
+            let tuning = "";
+
+            // 1. Tone Injection
+            if (config.tone === 'critical') {
+                tuning += "ROLE ADAPTATION: You are a ruthless Red Team critic. Challenge assumptions. Find flaws. Do not be polite.\n";
+            } else if (config.tone === 'socratic') {
+                tuning += "ROLE ADAPTATION: Do not give answers directly. Ask probing questions to guide the user to discover the solution themselves.\n";
+            } else if (config.tone === 'enthusiastic') {
+                tuning += "ROLE ADAPTATION: Be high-energy and encouraging. Focus on opportunities and 'yes, and' thinking. Use energizing language.\n";
+            }
+            // neutral = no injection
+
+            // 2. Verbosity Injection
+            if (config.verbosity === 'concise') {
+                tuning += "OUTPUT STYLE: Be extremely brief. Use telegraphic style. No fluff. Bullet points preferred.\n";
+            } else if (config.verbosity === 'verbose') {
+                tuning += "OUTPUT STYLE: Be thorough and detailed. Explain reasoning fully. Provide comprehensive analysis with examples.\n";
+            }
+            // balanced = no injection
+
+            // 3. User Override (HIGHEST PRIORITY)
+            if (config.customInstructions && config.customInstructions.trim()) {
+                tuning += `\nUSER PRIORITY INSTRUCTION: ${config.customInstructions.trim()}\n`;
+            }
+
+            // Prepend tuning to the base prompt
+            if (tuning) {
+                return `${tuning}\n${baseSystemPrompt}`;
+            }
+            return baseSystemPrompt;
+        }
+
+        // Open AI Settings Modal
+        function openAISettingsModal() {
+            const modal = document.getElementById('ai-settings-modal');
+            const config = getAIConfig();
+
+            // Load current settings
+            document.querySelector(`input[name="ai-tone"][value="${config.tone}"]`).checked = true;
+            document.querySelector(`input[name="ai-verbosity"][value="${config.verbosity}"]`).checked = true;
+
+            const creativityValue = Math.round(config.creativity * 100);
+            document.getElementById('creativity-slider').value = creativityValue;
+            document.getElementById('creativity-value').textContent = config.creativity.toFixed(1);
+
+            document.getElementById('custom-instructions').value = config.customInstructions;
+
+            // Update preview
+            updateAIPreview();
+
+            modal.style.display = 'flex';
+        }
+
+        // Close AI Settings Modal
+        function closeAISettingsModal() {
+            document.getElementById('ai-settings-modal').style.display = 'none';
+        }
+
+        // Update Live Preview
+        function updateAIPreview() {
+            const tone = document.querySelector('input[name="ai-tone"]:checked').value;
+            const verbosity = document.querySelector('input[name="ai-verbosity"]:checked').value;
+            const creativity = document.getElementById('creativity-slider').value / 100;
+            const customInstructions = document.getElementById('custom-instructions').value;
+
+            // Build preview tuning
+            let tuning = "";
+
+            if (tone === 'critical') {
+                tuning += "ROLE ADAPTATION: You are a ruthless Red Team critic. Challenge assumptions. Find flaws. Do not be polite.\n";
+            } else if (tone === 'socratic') {
+                tuning += "ROLE ADAPTATION: Do not give answers directly. Ask probing questions to guide the user to discover the solution themselves.\n";
+            } else if (tone === 'enthusiastic') {
+                tuning += "ROLE ADAPTATION: Be high-energy and encouraging. Focus on opportunities and 'yes, and' thinking. Use energizing language.\n";
+            }
+
+            if (verbosity === 'concise') {
+                tuning += "OUTPUT STYLE: Be extremely brief. Use telegraphic style. No fluff. Bullet points preferred.\n";
+            } else if (verbosity === 'verbose') {
+                tuning += "OUTPUT STYLE: Be thorough and detailed. Explain reasoning fully. Provide comprehensive analysis with examples.\n";
+            }
+
+            if (customInstructions.trim()) {
+                tuning += `\nUSER PRIORITY INSTRUCTION: ${customInstructions.trim()}\n`;
+            }
+
+            const basePrompt = "You are an expert project manager specializing in breaking down complex tasks...";
+            const finalPrompt = tuning ? `${tuning}\n${basePrompt}` : basePrompt;
+
+            document.getElementById('preview-after').textContent = finalPrompt;
+        }
+
+        // Save AI Settings
+        function saveAISettings() {
+            const tone = document.querySelector('input[name="ai-tone"]:checked').value;
+            const verbosity = document.querySelector('input[name="ai-verbosity"]:checked').value;
+            const creativity = document.getElementById('creativity-slider').value / 100;
+            const customInstructions = document.getElementById('custom-instructions').value;
+
+            // Save to tree
+            capexTree.aiConfig = {
+                tone,
+                verbosity,
+                creativity,
+                customInstructions
+            };
+
+            // Persist to localStorage
+            saveToLocalStorage();
+
+            console.log('✅ AI Settings saved:', capexTree.aiConfig);
+
+            // Show toast notification
+            showToast('✅ AI Settings Saved', 'Your AI persona preferences have been saved to this tree.');
+
+            closeAISettingsModal();
+        }
+
+        // Reset to Defaults
+        function resetAISettings() {
+            document.querySelector('input[name="ai-tone"][value="neutral"]').checked = true;
+            document.querySelector('input[name="ai-verbosity"][value="concise"]').checked = true;
+            document.getElementById('creativity-slider').value = 50;
+            document.getElementById('creativity-value').textContent = '0.5';
+            document.getElementById('custom-instructions').value = '';
+
+            updateAIPreview();
+        }
+
+        // Event Listeners for AI Settings Modal
+        window.addEventListener('DOMContentLoaded', () => {
+            // AI Settings button
+            const aiSettingsBtn = document.getElementById('ai-settings-btn');
+            if (aiSettingsBtn) {
+                aiSettingsBtn.addEventListener('click', openAISettingsModal);
+            }
+
+            // Tone radio buttons
+            const toneRadios = document.querySelectorAll('input[name="ai-tone"]');
+            toneRadios.forEach(radio => {
+                radio.addEventListener('change', updateAIPreview);
+            });
+
+            // Verbosity radio buttons
+            const verbosityRadios = document.querySelectorAll('input[name="ai-verbosity"]');
+            verbosityRadios.forEach(radio => {
+                radio.addEventListener('change', updateAIPreview);
+            });
+
+            // Creativity slider
+            const slider = document.getElementById('creativity-slider');
+            if (slider) {
+                slider.addEventListener('input', (e) => {
+                    const value = (e.target.value / 100).toFixed(1);
+                    document.getElementById('creativity-value').textContent = value;
+                    updateAIPreview();
+                });
+            }
+
+            // Custom instructions
+            const customInstructions = document.getElementById('custom-instructions');
+            if (customInstructions) {
+                customInstructions.addEventListener('input', updateAIPreview);
+            }
+        });
+
+        // =============================================================================
+        // END AI TUNER
+        // =============================================================================
+
+        // =============================================================================
         // REAL AI INTEGRATION - Claude by Anthropic (via Netlify Function)
         // =============================================================================
 
@@ -3040,6 +3465,9 @@ The AI will analyze the structure and convert it to a tree."
             const MAX_RETRIES = 2;
             const provider = getAIProvider();
 
+            // Apply AI Tuner persona settings to system prompt
+            systemPrompt = applyPersonaTuning(systemPrompt);
+
             // Debug logging for Deep Mode routing
             if (useExtendedThinking) {
                 console.log('🔍 Deep Mode requested:', { provider, useExtendedThinking, hasLocalKey: !!getLocalAPIKey('anthropic') });
@@ -3111,10 +3539,13 @@ The AI will analyze the structure and convert it to a tree."
                 throw new Error(`🧠 Deep Mode requires your own API key to avoid Netlify's 10-second timeout.\n\n✅ Solutions:\n1. Add your Anthropic API key (🔑 button) - enables Deep Mode with Extended Thinking\n2. Switch to ⚡ Fast Mode - works with server API key\n\n💡 Deep Mode uses Extended Thinking (5000 token reasoning budget) which can take 15-30 seconds - too slow for Netlify's free tier limit.\n\nGemini and ChatGPT also require user API keys for the same reason.`);
             }
 
+            // Apply AI Tuner persona settings to system prompt
+            const finalSystemPrompt = applyPersonaTuning(systemPrompt || 'You are an expert project analyst specializing in breaking down complex projects into manageable components.');
+
             const requestData = {
                 model: AI_CONFIG.model,
                 max_tokens: maxTokens,
-                system: systemPrompt || 'You are an expert project analyst specializing in breaking down complex projects into manageable components.',
+                system: finalSystemPrompt,
                 messages: [{
                     role: 'user',
                     content: prompt
@@ -3324,8 +3755,29 @@ The AI will analyze the structure and convert it to a tree."
             let userPrompt = '';
 
             if (isSubtask) {
-                // SUBTASK AI: Help articulate task details, steps for success, and recommendations
-                systemPrompt = `You are an expert project manager specializing in breaking down complex tasks into actionable steps.
+                // SUBTASK AI: Pattern-aware analysis for subtasks
+                const pattern = PATTERNS[currentPattern];
+                const levels = pattern.levels;
+
+                // Pattern-specific subtask analysis
+                if (currentPattern === 'philosophy') {
+                    systemPrompt = `You are a philosophy professor specializing in philosophical argumentation and dialectical reasoning.`;
+
+                    userPrompt = `Analyze this philosophical ${levels.subtask.toLowerCase()}:
+
+**${levels.subtask}:** ${item.name}
+**Description:** ${item.description || 'N/A'}
+${item.textualReference ? `**Textual Reference:** ${item.textualReference}\n` : ''}${item.notes ? `**Notes:** ${item.notes}\n` : ''}
+Provide philosophical analysis covering:
+1. **Argumentative Function** - How does this support strengthen the parent claim?
+2. **Logical Structure** - Is the reasoning valid? Are there gaps?
+3. **Evidence Quality** - How strong is the supporting evidence or reasoning?
+4. **Objections** - What counter-arguments might challenge this support?
+5. **Recommendations** - How to strengthen this supporting argument`;
+
+                } else {
+                    // Generic PM analysis for non-philosophy patterns
+                    systemPrompt = `You are an expert project manager specializing in breaking down complex tasks into actionable steps.
 Your expertise includes:
 - Task decomposition and milestone definition
 - Identifying blockers and dependencies
@@ -3335,7 +3787,7 @@ Your expertise includes:
 
 Provide practical, step-by-step guidance formatted with clear sections and bullet points.`;
 
-                userPrompt = `Help me execute this task for a project:
+                    userPrompt = `Help me execute this task for a project:
 
 **Task:** ${item.name}
 **Status:** ${item.pmStatus || 'To Do'}
@@ -3357,10 +3809,30 @@ Help me with:
 5. **Recommendations** - Best practices, tips, or resources for successful completion
 
 Focus on practical, executable guidance. Be specific and actionable.`;
+                }
 
             } else if (analysisType === 'subtask') {
-                // Same as isSubtask - this is a fallback if analysisType is explicitly set to 'subtask'
-                systemPrompt = `You are an expert project manager specializing in breaking down complex tasks into actionable steps.
+                // Fallback - same as isSubtask, pattern-aware
+                const pattern = PATTERNS[currentPattern];
+                const levels = pattern.levels;
+
+                if (currentPattern === 'philosophy') {
+                    systemPrompt = `You are a philosophy professor specializing in philosophical argumentation and dialectical reasoning.`;
+
+                    userPrompt = `Analyze this philosophical ${levels.subtask.toLowerCase()}:
+
+**${levels.subtask}:** ${item.name}
+**Description:** ${item.description || 'N/A'}
+${item.textualReference ? `**Textual Reference:** ${item.textualReference}\n` : ''}${item.notes ? `**Notes:** ${item.notes}\n` : ''}
+Provide philosophical analysis covering:
+1. **Argumentative Function** - How does this support strengthen the parent claim?
+2. **Logical Structure** - Is the reasoning valid? Are there gaps?
+3. **Evidence Quality** - How strong is the supporting evidence or reasoning?
+4. **Objections** - What counter-arguments might challenge this support?
+5. **Recommendations** - How to strengthen this supporting argument`;
+
+                } else {
+                    systemPrompt = `You are an expert project manager specializing in breaking down complex tasks into actionable steps.
 Your expertise includes:
 - Task decomposition and milestone definition
 - Identifying blockers and dependencies
@@ -3370,7 +3842,7 @@ Your expertise includes:
 
 Provide practical, step-by-step guidance formatted with clear sections and bullet points.`;
 
-                userPrompt = `Help me execute this task for a project:
+                    userPrompt = `Help me execute this task for a project:
 
 **Task:** ${item.name}
 **Status:** ${item.pmStatus || 'To Do'}
@@ -3392,6 +3864,7 @@ Help me with:
 5. **Recommendations** - Best practices, tips, or resources for successful completion
 
 Focus on practical, executable guidance. Be specific and actionable.`;
+                }
 
             } else if (analysisType === 'item') {
                 // PROJECT ITEM AI: Pattern-aware analysis
@@ -3399,7 +3872,7 @@ Focus on practical, executable guidance. Be specific and actionable.`;
                 const levels = pattern.levels;
 
                 // Pattern-specific system prompts and analysis
-                if (pattern.id === 'philosophy') {
+                if (currentPattern === 'philosophy') {
                     systemPrompt = `You are a philosophy professor specializing in classical and contemporary philosophical arguments, dialectical reasoning, and philosophical methodology.`;
 
                     userPrompt = `Analyze this philosophical ${levels.item.toLowerCase()}:
@@ -3418,7 +3891,7 @@ Provide a philosophical analysis covering:
 5. **Historical/Textual Context** - Relevant philosophical traditions or sources
 6. **Recommendations** - How to strengthen this argument or explore it further`;
 
-                } else if (pattern.id === 'sales') {
+                } else if (currentPattern === 'sales') {
                     systemPrompt = `You are a sales strategist with 20 years of enterprise B2B experience, specializing in deal progression, competitive positioning, and revenue forecasting.`;
 
                     userPrompt = `Analyze this sales ${levels.item.toLowerCase()}:
@@ -3437,7 +3910,7 @@ Provide a sales analysis covering:
 5. **Close Strategy** - Recommended approach to accelerate close
 6. **Upsell/Cross-sell** - Opportunities to expand deal value`;
 
-                } else if (pattern.id === 'thesis') {
+                } else if (currentPattern === 'thesis') {
                     systemPrompt = `You are an academic advisor helping graduate students structure rigorous research, with expertise in thesis development, argumentation, and scholarly writing.`;
 
                     userPrompt = `Analyze this academic ${levels.item.toLowerCase()}:
@@ -3456,7 +3929,7 @@ Provide an academic analysis covering:
 5. **Scholarly Rigor** - Areas to strengthen academic quality
 6. **Recommendations** - Specific next steps for development`;
 
-                } else if (pattern.id === 'roadmap') {
+                } else if (currentPattern === 'roadmap') {
                     systemPrompt = `You are a product manager experienced in agile development, feature prioritization, and engineering execution strategy.`;
 
                     userPrompt = `Analyze this product ${levels.item.toLowerCase()}:
@@ -3475,7 +3948,7 @@ Provide a product analysis covering:
 5. **Implementation Strategy** - Recommended approach (MVP, feature flag, phased rollout)
 6. **Success Metrics** - How to measure if this feature succeeds`;
 
-                } else if (pattern.id === 'prompting') {
+                } else if (currentPattern === 'prompting') {
                     systemPrompt = `You are an AI/ML engineer expert in prompt engineering for Claude and GPT-4, specializing in system design, agent workflows, and prompt optimization.`;
 
                     userPrompt = `Analyze this prompt ${levels.item.toLowerCase()}:
@@ -3494,7 +3967,7 @@ Provide a prompt engineering analysis covering:
 5. **Edge Cases** - What failure modes should be addressed?
 6. **Optimization** - How to improve accuracy, cost, or latency`;
 
-                } else if (pattern.id === 'book') {
+                } else if (currentPattern === 'book') {
                     systemPrompt = `You are a professional fiction editor and writing coach, specializing in narrative structure, character development, and storytelling craft.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3513,7 +3986,7 @@ Provide a narrative analysis covering:
 5. **Scene Craft** - Suggestions for strengthening individual scenes
 6. **Recommendations** - Specific revisions to improve this chapter`;
 
-                } else if (pattern.id === 'film') {
+                } else if (currentPattern === 'film') {
                     systemPrompt = `You are a cinematographer and film director specializing in AI video production (Sora, Veo, Runway Gen-3), with expertise in visual storytelling, camera work, and production planning.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3532,7 +4005,7 @@ Provide a production analysis covering:
 5. **Sequence Flow** - How does this scene connect to dependencies?
 6. **Optimization** - How to improve prompt for better AI generation`;
 
-                } else if (pattern.id === 'course') {
+                } else if (currentPattern === 'course') {
                     systemPrompt = `You are an instructional designer specializing in curriculum development, learning objectives, and educational best practices.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3551,7 +4024,7 @@ Provide a pedagogical analysis covering:
 5. **Prerequisites** - Are dependencies and prior knowledge appropriate?
 6. **Recommendations** - How to improve learning outcomes`;
 
-                } else if (pattern.id === 'fitness') {
+                } else if (currentPattern === 'fitness') {
                     systemPrompt = `You are a certified personal trainer and exercise physiologist with expertise in program design, exercise science, progressive overload, and injury prevention.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3570,7 +4043,7 @@ Provide a fitness analysis covering:
 5. **Recovery** - Is rest time and workout spacing appropriate?
 6. **Recommendations** - How to optimize this workout for better results`;
 
-                } else if (pattern.id === 'event') {
+                } else if (currentPattern === 'event') {
                     systemPrompt = `You are a professional event planner with experience in corporate events, weddings, and large-scale conferences, specializing in logistics, vendor coordination, and timeline management.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3589,7 +4062,7 @@ Provide an event planning analysis covering:
 5. **Contingency Planning** - What backup plans are needed for this activity?
 6. **Recommendations** - How to improve execution and guest experience`;
 
-                } else if (pattern.id === 'strategy') {
+                } else if (currentPattern === 'strategy') {
                     systemPrompt = `You are a business strategy consultant specializing in strategic planning, KPI development, organizational transformation, and competitive positioning.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3608,7 +4081,7 @@ Provide a strategic analysis covering:
 5. **Risk Assessment** - What could prevent success and how to mitigate?
 6. **Recommendations** - How to maximize strategic impact`;
 
-                } else if (pattern.id === 'familytree') {
+                } else if (currentPattern === 'familytree') {
                     systemPrompt = `You are a professional genealogist and family historian specializing in genealogical research, family tree documentation, and historical record analysis.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3627,7 +4100,7 @@ Provide a genealogical analysis covering:
 5. **Conflicting Data** - Are there any inconsistencies to resolve?
 6. **Recommendations** - Next steps for strengthening this family branch documentation`;
 
-                } else if (pattern.id === 'dialogue') {
+                } else if (currentPattern === 'dialogue') {
                     systemPrompt = `You are a rhetoric and argumentation expert specializing in debate analysis, logical fallacies, persuasive communication, and interpersonal psychology. Your expertise includes classical rhetoric (Aristotle, Cicero), modern argumentation theory, and political theater analysis.`;
 
                     userPrompt = `Analyze this ${levels.item.toLowerCase()}:
@@ -3648,7 +4121,7 @@ Provide a rhetorical analysis covering:
 6. **Evidence Assessment** - How strong is the supporting evidence? What's missing?
 7. **Recommendations** - How could this argument be strengthened or how should an opponent respond?`;
 
-                } else if (pattern.id === 'filesystem') {
+                } else if (currentPattern === 'filesystem') {
                     systemPrompt = `You are "LibrarianAI" for TreeListy.
 
 Your job is to manage and enrich a **single filesystem** (one TreeListy tree) without ever directly deleting or renaming anything. You operate only by updating node metadata and proposing non-destructive actions.
@@ -3752,7 +4225,7 @@ From a PM and CFO perspective, provide analysis covering:
                 }).join('\n') || 'No phases defined';
 
                 // Pattern-specific prompts
-                if (pattern.id === 'book-writing') {
+                if (currentPattern === 'book') {
                     systemPrompt = `You are a literary consultant specializing in narrative structure and book development. Provide insights on story structure, pacing, character development, and writing best practices.`;
 
                     userPrompt = `Analyze this book writing project:
@@ -3779,7 +4252,7 @@ ${allItems.filter(i => i.dependencies?.length > 0).map(i =>
 
 Focus on narrative structure and storytelling best practices.`;
 
-                } else if (pattern.id === 'ai-prompt-design') {
+                } else if (currentPattern === 'prompting') {
                     systemPrompt = `You are a prompt engineering expert specializing in LLM workflows, agent design, and AI system architecture. Provide insights on prompt structure, agent orchestration, and best practices.`;
 
                     userPrompt = `Analyze this AI prompt design project:
@@ -4273,6 +4746,11 @@ Focus on logical structure and content organization best practices.`;
 
             // Recursively draw connections for all nodes
             capexTree.children.forEach(phase => {
+                // Skip hidden phases - don't draw connections for nodes that aren't visible
+                if (phase.showInCanvas === false) {
+                    return;
+                }
+
                 phase.items?.forEach(item => {
                     drawNodeConnections(item);
                 });
@@ -4963,6 +5441,11 @@ Focus on logical structure and content organization best practices.`;
             const nodeGap = 350;
 
             capexTree.children.forEach((phase, phaseIdx) => {
+                // Skip hidden phases
+                if (phase.showInCanvas === false) {
+                    return;
+                }
+
                 let currentX = 200;
 
                 phase.items?.forEach((item) => {
@@ -5001,6 +5484,11 @@ Focus on logical structure and content organization best practices.`;
             let currentY = 100;
 
             capexTree.children.forEach((phase) => {
+                // Skip hidden phases
+                if (phase.showInCanvas === false) {
+                    return;
+                }
+
                 phase.items?.forEach((item) => {
                     item.canvasX = currentX;
                     item.canvasY = currentY;
@@ -5027,6 +5515,11 @@ Focus on logical structure and content organization best practices.`;
             let index = 0;
 
             capexTree.children.forEach((phase) => {
+                // Skip hidden phases
+                if (phase.showInCanvas === false) {
+                    return;
+                }
+
                 phase.items?.forEach((item) => {
                     const col = index % cols;
                     const row = Math.floor(index / cols);
@@ -5056,14 +5549,21 @@ Focus on logical structure and content organization best practices.`;
             const radius = 300;
             let totalItems = 0;
 
-            // Count items
+            // Count items (only from visible phases)
             capexTree.children.forEach(phase => {
-                totalItems += phase.items?.length || 0;
+                if (phase.showInCanvas !== false) {
+                    totalItems += phase.items?.length || 0;
+                }
             });
 
             let index = 0;
 
             capexTree.children.forEach((phase) => {
+                // Skip hidden phases
+                if (phase.showInCanvas === false) {
+                    return;
+                }
+
                 phase.items?.forEach((item) => {
                     const angle = (index / totalItems) * Math.PI * 2;
                     item.canvasX = centerX + Math.cos(angle) * radius;
@@ -5238,17 +5738,34 @@ Focus on logical structure and content organization best practices.`;
             let allNodes = [];
             const phaseMap = new Map();  // Map node ID to phase
 
-            capexTree.children.forEach(phase => {
-                phase.items?.forEach(item => {
-                    allNodes.push(item);
-                    phaseMap.set(item.id, phase);
+            // Recursive function to add node and all its descendants
+            function addNodeAndDescendants(node, phase) {
+                allNodes.push(node);
+                phaseMap.set(node.id, phase);
 
-                    if (item.subItems) {
-                        item.subItems.forEach(subtask => {
-                            allNodes.push(subtask);
-                            phaseMap.set(subtask.id, phase);
-                        });
-                    }
+                // Recursively add all subItems
+                if (node.subItems) {
+                    node.subItems.forEach(subtask => {
+                        addNodeAndDescendants(subtask, phase);
+                    });
+                }
+
+                // Also handle 'children' for filesystem pattern
+                if (node.children) {
+                    node.children.forEach(child => {
+                        addNodeAndDescendants(child, phase);
+                    });
+                }
+            }
+
+            capexTree.children.forEach(phase => {
+                // Skip hidden phases
+                if (phase.showInCanvas === false) {
+                    return;
+                }
+
+                phase.items?.forEach(item => {
+                    addNodeAndDescendants(item, phase);
                 });
             });
 
@@ -5302,28 +5819,39 @@ Focus on logical structure and content organization best practices.`;
                     }
                 }
 
-                // Apply attraction for parent-child relationships
-                capexTree.children.forEach(phase => {
-                    phase.items?.forEach(item => {
-                        if (item.subItems) {
-                            item.subItems.forEach(subtask => {
-                                const dx = subtask.canvasX - item.canvasX;
-                                const dy = subtask.canvasY - item.canvasY;
-                                const dist = Math.sqrt(dx * dx + dy * dy);
+                // Apply attraction for parent-child relationships (recursive)
+                function applyParentChildAttraction(parent, damping) {
+                    const childList = parent.subItems || parent.children || [];
+                    childList.forEach(child => {
+                        const dx = child.canvasX - parent.canvasX;
+                        const dy = child.canvasY - parent.canvasY;
+                        const dist = Math.sqrt(dx * dx + dy * dy);
 
-                                if (dist > 0) {
-                                    // Spring-like attraction
-                                    const force = baseAttraction * dist;
-                                    const fx = (dx / dist) * force;
-                                    const fy = (dy / dist) * force;
+                        if (dist > 0) {
+                            // Spring-like attraction
+                            const force = baseAttraction * dist;
+                            const fx = (dx / dist) * force;
+                            const fy = (dy / dist) * force;
 
-                                    item.canvasX += fx * damping;
-                                    item.canvasY += fy * damping;
-                                    subtask.canvasX -= fx * damping;
-                                    subtask.canvasY -= fy * damping;
-                                }
-                            });
+                            parent.canvasX += fx * damping;
+                            parent.canvasY += fy * damping;
+                            child.canvasX -= fx * damping;
+                            child.canvasY -= fy * damping;
                         }
+
+                        // Recursively apply to this child's children
+                        applyParentChildAttraction(child, damping);
+                    });
+                }
+
+                capexTree.children.forEach(phase => {
+                    // Skip hidden phases
+                    if (phase.showInCanvas === false) {
+                        return;
+                    }
+
+                    phase.items?.forEach(item => {
+                        applyParentChildAttraction(item, damping);
                     });
                 });
 
@@ -7176,6 +7704,16 @@ let currentSortConfig = null; // Stores current sort configuration
 // ============================================================================
 // PATTERN FUNCTIONS
 // ============================================================================
+
+// Helper: Get pattern key from either string or object format
+function getPatternKey(pattern) {
+    if (typeof pattern === 'string') {
+        return pattern;
+    } else if (pattern && pattern.key) {
+        return pattern.key;
+    }
+    return null;
+}
 
 function getPatternLabels() {
     console.log('getPatternLabels called, currentPattern:', currentPattern);
@@ -10332,6 +10870,29 @@ function hidePatternDescription() {
                 instructions += fieldInstructions[fieldType] || `From a rhetoric expert perspective (Aristotelian persuasion, critical discourse analysis), suggest a ${fieldType} value analyzing argument structure, persuasion techniques, and logical coherence.`;
             }
 
+            // Filesystem pattern - Digital Librarian AI
+            else if (pattern === 'filesystem') {
+                const fieldInstructions = {
+                    tags: 'Suggest 3-5 taxonomic tags based on the filename, location, and file extension. Use consistent casing (lowercase-kebab). Examples: "financial-report", "customer-data", "design-asset", "code-source", "archive-2024".',
+                    fileOwner: 'Suggest the most likely owner/creator based on the folder context, file type, and naming patterns. Format as email or department: "finance@company.com", "engineering-dept", "john.doe", "admin".',
+                    permissions: 'Suggest appropriate permissions (Read Only, Read/Write, Owner, Viewer, Editor) based on file type, sensitivity, and likely use case. Financial data → Read Only, Shared docs → Read/Write, System files → Owner only.',
+                    description: 'Write a clear 1-2 sentence summary of what this file/folder likely contains based on its name, extension, location, and context. Be specific about content type and purpose.',
+                    name: 'Suggest a clean, standardized filename if the current one is messy. Use ISO 8601 dates (YYYY-MM-DD), no spaces (use hyphens or underscores), descriptive keywords, and proper casing. Example: "2024-Q3-financial-report.pdf" instead of "report final FINAL (1).pdf".',
+                    notes: 'Suggest data governance notes: retention policy (how long to keep), backup priority (critical/standard/low), security classification (public/internal/confidential/restricted), compliance requirements (GDPR, HIPAA, SOX), and archival recommendations.',
+                    fileSize: 'Estimate realistic file size in bytes based on file type and likely content. Documents (50KB-5MB), Images (100KB-10MB), Videos (10MB-2GB), Code (10KB-500KB), Archives (1MB-500MB).',
+                    fileExtension: 'Suggest the correct file extension based on the filename and file type. Be specific: .pdf, .docx, .xlsx, .pptx, .jpg, .png, .mp4, .zip, .py, .js, .html, etc.',
+                    filePath: 'Suggest a logical full file path based on the file type, organizational context, and best practices for file organization. Use clear folder hierarchies.',
+                    dateModified: 'Suggest when this file was likely last modified based on context clues (project timelines, version numbers, naming patterns). Use ISO 8601 format.',
+                    dateCreated: 'Suggest when this file was likely created based on naming conventions, project context, or folder structure. Use ISO 8601 format.',
+                    sharedWith: 'Suggest who should have access to this file based on content type, sensitivity, and organizational context. List email addresses or group names.',
+                    driveType: 'Suggest the appropriate storage location (Local Drive, Google Drive, OneDrive, Dropbox, Network Drive, External Drive) based on file type, sharing needs, and organizational policies.',
+                    mimeType: 'Suggest the MIME type based on file extension. Examples: application/pdf, image/jpeg, text/html, video/mp4, application/zip, text/plain, application/json.',
+                    fileUrl: 'Suggest whether this should be stored in cloud storage and note the URL pattern (e.g., "Google Drive - shared link", "OneDrive - team folder", "Local only").',
+                    isFolder: 'Determine if this should be a folder or file based on naming patterns. Folders typically have generic names (Documents, 2024-Reports, Assets) while files have extensions.'
+                };
+                instructions += fieldInstructions[fieldType] || `Act as a Digital Librarian and File Management expert. Suggest appropriate metadata for this file/folder, considering: organizational best practices, data governance, security classification, and clean naming conventions. Help tame messy filesystems.`;
+            }
+
             // Other patterns
             else {
                 instructions += `Consider the project context, dependencies, and sibling items. Suggest a realistic, specific ${fieldType} value that fits the pattern.`;
@@ -11732,14 +12293,20 @@ function hidePatternDescription() {
                             Object.assign(capexTree, data);
 
                             // Restore pattern if saved
-                            if (capexTree.pattern && capexTree.pattern.key) {
-                                currentPattern = capexTree.pattern.key;
+                            if (capexTree.pattern) {
+                                // Handle both string and object formats
+                                if (typeof capexTree.pattern === 'string') {
+                                    currentPattern = capexTree.pattern;
+                                } else if (capexTree.pattern.key) {
+                                    currentPattern = getPatternKey(capexTree.pattern);
+                                    if (currentPattern === 'custom' && capexTree.pattern.labels) {
+                                        customPatternNames = capexTree.pattern.labels;
+                                    }
+                                }
+
                                 const patternSelect = document.getElementById('pattern-select');
                                 if (patternSelect) {
                                     patternSelect.value = currentPattern;
-                                }
-                                if (currentPattern === 'custom' && capexTree.pattern.labels) {
-                                    customPatternNames = capexTree.pattern.labels;
                                 }
 
                                 console.log('Pattern loaded from file:', currentPattern);
@@ -18708,13 +19275,16 @@ ${jsonText}`;
             // SHEET 1: EXECUTIVE SUMMARY
             // =================================================================
             const resolvePatternName = () => {
-                if (capexTree.pattern && capexTree.pattern.key) {
-                    if (capexTree.pattern.key === 'custom') {
-                        const labels = capexTree.pattern.labels || {};
-                        return labels.root ? `Custom (${labels.root})` : 'Custom Pattern';
-                    }
-                    if (PATTERNS[capexTree.pattern.key]) {
-                        return PATTERNS[capexTree.pattern.key].name;
+                if (capexTree.pattern) {
+                    const patternKey = getPatternKey(capexTree.pattern);
+                    if (patternKey) {
+                        if (patternKey === 'custom') {
+                            const labels = capexTree.pattern.labels || {};
+                            return labels.root ? `Custom (${labels.root})` : 'Custom Pattern';
+                        }
+                        if (PATTERNS[patternKey]) {
+                            return PATTERNS[patternKey].name;
+                        }
                     }
                 }
                 if (PATTERNS[currentPattern]) {
@@ -20312,8 +20882,11 @@ ${jsonText}`;
                     capexTree = loadedTree;
 
                     // Update currentPattern if it's in the loaded data
-                    if (capexTree.pattern && capexTree.pattern.key) {
-                        currentPattern = capexTree.pattern.key;
+                    if (capexTree.pattern) {
+                        const patternKey = getPatternKey(capexTree.pattern);
+                        if (patternKey) {
+                            currentPattern = patternKey;
+                        }
                     }
 
                     console.log('✅ Shared project loaded successfully!');
@@ -20378,8 +20951,11 @@ ${jsonText}`;
                         try {
                             const treeData = JSON.parse(file.content);
                             capexTree = treeData;
-                            if (treeData.pattern && treeData.pattern.key) {
-                                currentPattern = treeData.pattern.key;
+                            if (treeData.pattern) {
+                                const patternKey = getPatternKey(treeData.pattern);
+                                if (patternKey) {
+                                    currentPattern = patternKey;
+                                }
                             }
                             render();
                             console.log(`✅ Loaded ${file.name}`);
@@ -20497,8 +21073,11 @@ ${jsonText}`;
 
                             // Load the tree
                             capexTree = treeData;
-                            if (treeData.pattern && treeData.pattern.key) {
-                                currentPattern = treeData.pattern.key;
+                            if (treeData.pattern) {
+                                const patternKey = getPatternKey(treeData.pattern);
+                                if (patternKey) {
+                                    currentPattern = patternKey;
+                                }
                             }
                             render();
 
@@ -20540,8 +21119,8 @@ ${jsonText}`;
         console.log('Pattern selector found:', patternSelect);
         if (patternSelect) {
             // Load saved pattern from data
-            if (capexTree.pattern && capexTree.pattern.key) {
-                currentPattern = capexTree.pattern.key;
+            if (capexTree.pattern && getPatternKey(capexTree.pattern)) {
+                currentPattern = getPatternKey(capexTree.pattern);
                 patternSelect.value = currentPattern;
                 console.log('Loaded saved pattern:', currentPattern);
                 if (currentPattern === 'custom' && capexTree.pattern.labels) {
