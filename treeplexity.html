@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.3.0 | Build 134 | 2025-11-20
+    TreeListy v2.3.0 | Build 143 | 2025-11-20
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -16,13 +16,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 134):
-    - FIX: AI Tools Panel now positioned lower left (was lower right, blocked AI Wizard)
-    - UX: AI Tools Panel and AI Wizard no longer overlap
-    - LAYOUT: AI Tools (lower left) + AI Wizard (lower right) = no interaction blocking
+    Changelog (Build 143):
+    - FIX: CORS protection for ALL AI providers (Gemini, ChatGPT, Claude)
+    - FIX: Clear error messages when using Gemini/ChatGPT from local files
+    - ENHANCEMENT: Consistent CORS handling across all three providers
 
-    Previous (Build 133):
-    - FIX: Quadtree infinite recursion crash in Canvas View
+    Previous (Build 142):
+    - FIX: Auto-switch Claude Deep Mode to Fast Mode on local files
     ═══════════════════════════════════════════════════════════════════════════
     -->
 
@@ -1418,8 +1418,32 @@
         box-shadow:
             0 8px 32px rgba(99, 102, 241, 0.4),
             0 4px 16px rgba(99, 102, 241, 0.3),
-            0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+            0 0 0 3px rgba(99, 102, 241, 0.6) !important;
         transform: translateY(-2px);
+    }
+
+    .canvas-node.selected::before {
+        content: '✓';
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: #6366f1;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 100;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .canvas-node.dragging-group {
+        opacity: 0.7;
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.8);
     }
 
     .phase-zone {
@@ -1653,8 +1677,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 134 | 2025-11-20">
-                    v2.3.0 • Build 134
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.3.0 | Build 143 | 2025-11-20">
+                    v2.3.0 • Build 143
                 </div>
             </div>
         </div>
@@ -2130,8 +2154,32 @@ The AI will analyze the structure and convert it to a tree."
         box-shadow:
             0 8px 32px rgba(99, 102, 241, 0.4),
             0 4px 16px rgba(99, 102, 241, 0.3),
-            0 0 0 3px rgba(99, 102, 241, 0.2) !important;
+            0 0 0 3px rgba(99, 102, 241, 0.6) !important;
         transform: translateY(-2px);
+    }
+
+    .canvas-node.selected::before {
+        content: '✓';
+        position: absolute;
+        top: -10px;
+        right: -10px;
+        background: #6366f1;
+        color: white;
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: bold;
+        z-index: 100;
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+    }
+
+    .canvas-node.dragging-group {
+        opacity: 0.7;
+        box-shadow: 0 0 20px rgba(99, 102, 241, 0.8);
     }
 
     .phase-zone {
@@ -3001,6 +3049,16 @@ The AI will analyze the structure and convert it to a tree."
             if (provider === 'gemini') {
                 const geminiKey = getLocalAPIKey('gemini');
                 if (geminiKey) {
+                    // Check if running from local file - CORS will block Gemini API
+                    const isLocalFile = window.location.protocol === 'file:';
+                    if (isLocalFile) {
+                        console.error('❌ Gemini API blocked - running from local file');
+                        console.warn('💡 Gemini requires web server deployment to avoid CORS');
+                        console.warn('✅ Solution 1: Deploy to Netlify/Vercel for Gemini support');
+                        console.warn('✅ Solution 2: Use Claude (has proxy fallback for local files)');
+                        throw new Error(`Gemini API requires web server deployment (CORS policy).\n\n💡 Solutions:\n1. Deploy to Netlify/Vercel - full Gemini support\n2. Use Claude provider - works from local files via proxy\n3. Open in web server (not file://)\n\n🔍 Running from: ${window.location.protocol}\n✅ Claude has proxy fallback, Gemini requires deployment`);
+                    }
+
                     console.log('🔷 Using Google Gemini');
                     try {
                         const response = await callGeminiDirectAPI(prompt, systemPrompt, maxTokens, geminiKey);
@@ -3020,6 +3078,16 @@ The AI will analyze the structure and convert it to a tree."
             if (provider === 'openai') {
                 const openaiKey = getLocalAPIKey('openai');
                 if (openaiKey) {
+                    // Check if running from local file - CORS will block OpenAI API
+                    const isLocalFile = window.location.protocol === 'file:';
+                    if (isLocalFile) {
+                        console.error('❌ ChatGPT API blocked - running from local file');
+                        console.warn('💡 ChatGPT requires web server deployment to avoid CORS');
+                        console.warn('✅ Solution 1: Deploy to Netlify/Vercel for ChatGPT support');
+                        console.warn('✅ Solution 2: Use Claude (has proxy fallback for local files)');
+                        throw new Error(`ChatGPT API requires web server deployment (CORS policy).\n\n💡 Solutions:\n1. Deploy to Netlify/Vercel - full ChatGPT support\n2. Use Claude provider - works from local files via proxy\n3. Open in web server (not file://)\n\n🔍 Running from: ${window.location.protocol}\n✅ Claude has proxy fallback, ChatGPT requires deployment`);
+                    }
+
                     console.log('💬 Using OpenAI ChatGPT');
                     try {
                         const response = await callOpenAIDirectAPI(prompt, systemPrompt, maxTokens, openaiKey);
@@ -3065,22 +3133,44 @@ The AI will analyze the structure and convert it to a tree."
 
             // CRITICAL: Deep Mode with user key MUST use direct API (never Netlify)
             // Gemini and ChatGPT always use direct API, Sonnet must too
-            if (useExtendedThinking && localApiKey) {
-                console.log('🧠 Deep Mode: Using direct API (no timeout limit)');
-                console.log('⚠️ Bypassing Netlify completely - extended thinking takes 15-30s');
-                try {
-                    response = await callClaudeDirectAPI(requestData, localApiKey);
-                    console.log('✅ Direct API successful (Deep Mode)');
-                } catch (directError) {
-                    console.error('❌ Direct API failed:', directError);
 
-                    // Check if this is a CORS error (running from file://)
-                    if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
-                        throw new Error(`Deep Mode requires direct API access, but browser blocked the request (CORS policy).\n\n💡 Solutions:\n1. Deploy to a web server (Netlify/Vercel) for full Deep Mode support\n2. Use Fast Mode (⚡) which works from local files via Netlify proxy\n3. For now: Export tree to JSON and use Claude.ai directly`);
+            // Auto-detect local file access (file:// protocol)
+            const isLocalFile = window.location.protocol === 'file:';
+
+            if (useExtendedThinking && localApiKey) {
+                // Check if running from local file - CORS will block direct API
+                if (isLocalFile) {
+                    console.warn('⚠️ Deep Mode requested but running from local file');
+                    console.warn('🔄 Auto-switching to Fast Mode (Netlify proxy) to avoid CORS');
+                    console.warn('💡 Deploy to web server for full Deep Mode support');
+
+                    // Show user-facing info message about the auto-switch
+                    console.info('ℹ️ Running from local file - using Fast Mode instead of Deep Mode to avoid CORS errors');
+                    console.info('✅ Fast Mode still works great from local files via Netlify proxy');
+
+                    // Fall through to Fast Mode (Netlify proxy) below
+                    // This will work from local files but has 10s timeout limit
+                } else {
+                    // Running from web server - use direct API for Deep Mode
+                    console.log('🧠 Deep Mode: Using direct API (no timeout limit)');
+                    console.log('⚠️ Bypassing Netlify completely - extended thinking takes 15-30s');
+                    try {
+                        response = await callClaudeDirectAPI(requestData, localApiKey);
+                        console.log('✅ Direct API successful (Deep Mode)');
+                    } catch (directError) {
+                        console.error('❌ Direct API failed:', directError);
+
+                        // Check if this is a CORS error
+                        if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
+                            throw new Error(`Deep Mode requires direct API access, but browser blocked the request (CORS policy).\n\n💡 Solutions:\n1. Deploy to a web server (Netlify/Vercel) for full Deep Mode support\n2. Use Fast Mode (⚡) which works from local files via Netlify proxy\n3. For now: Export tree to JSON and use Claude.ai directly`);
+                        }
+                        throw directError;
                     }
-                    throw directError;
                 }
-            } else {
+            }
+
+            // FAST MODE or no extended thinking or auto-switched from Deep Mode (local file)
+            if (!useExtendedThinking || !localApiKey || isLocalFile) {
                 // FAST MODE or no extended thinking: Use Netlify function (has 10s limit but works everywhere)
                 console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
 
@@ -4115,6 +4205,12 @@ Focus on logical structure and content organization best practices.`;
 
             // Render all nodes recursively
             capexTree.children.forEach((phase, phaseIdx) => {
+                // Check if phase is visible in Canvas View (default: true)
+                if (phase.showInCanvas === false) {
+                    console.log(`Skipping phase "${phase.name}" - hidden in Canvas View`);
+                    return; // Skip this phase
+                }
+
                 // Support both 'items' (standard) and 'children' (filesystem pattern)
                 const nodeList = phase.items || phase.children || [];
                 nodeList.forEach((item, itemIdx) => {
@@ -4591,33 +4687,68 @@ Focus on logical structure and content organization best practices.`;
             }
 
             // Left-click to expand/collapse if has children, otherwise show info panel
+            // CTRL+CLICK to multi-select
             node.addEventListener('click', (e) => {
                 console.log('Left-click detected on:', item.name);
                 e.stopPropagation();
 
-                // Set as active node
-                activeNode = item;
+                // CTRL+CLICK or CMD+CLICK: Toggle selection (multi-select)
+                if (e.ctrlKey || e.metaKey) {
+                    console.log('Ctrl+Click detected - toggling selection');
 
-                // Highlight selected node
-                document.querySelectorAll('.canvas-node').forEach(n => n.classList.remove('selected'));
-                node.classList.add('selected');
+                    // Check if already selected
+                    const index = selectedNodes.indexOf(item);
 
-                // Check if node has children (support both subItems and children)
-                const hasChildren = (item.subItems && item.subItems.length > 0) ||
-                                  (item.children && item.children.length > 0);
-
-                if (hasChildren) {
-                    // Toggle expand/collapse
-                    item.expanded = !item.expanded;
-                    console.log('Toggling expand for:', item.name, 'expanded:', item.expanded);
-                    renderCanvas();
-                } else {
-                    // Leaf node - show info panel
-                    if (typeof showInfo === 'function') {
-                        console.log('Calling TreeListy showInfo function');
-                        showInfo(item);
+                    if (index > -1) {
+                        // Already selected - DESELECT
+                        selectedNodes.splice(index, 1);
+                        node.classList.remove('selected');
+                        console.log(`Deselected: ${item.name}. Now ${selectedNodes.length} selected.`);
                     } else {
-                        console.error('showInfo function not found!');
+                        // Not selected - ADD TO SELECTION
+                        selectedNodes.push(item);
+                        node.classList.add('selected');
+                        console.log(`Selected: ${item.name}. Now ${selectedNodes.length} selected.`);
+                    }
+
+                    // Set most recently clicked as activeNode
+                    activeNode = item;
+
+                    // Update selection counter
+                    updateSelectionCounter();
+
+                } else {
+                    // NORMAL CLICK: Clear all selections and select only this node
+
+                    // Clear all selections
+                    selectedNodes = [];
+                    document.querySelectorAll('.canvas-node').forEach(n => n.classList.remove('selected'));
+
+                    // Select this node
+                    activeNode = item;
+                    selectedNodes = [item];
+                    node.classList.add('selected');
+
+                    // Update selection counter
+                    updateSelectionCounter();
+
+                    // Check if node has children (support both subItems and children)
+                    const hasChildren = (item.subItems && item.subItems.length > 0) ||
+                                      (item.children && item.children.length > 0);
+
+                    if (hasChildren) {
+                        // Toggle expand/collapse
+                        item.expanded = !item.expanded;
+                        console.log('Toggling expand for:', item.name, 'expanded:', item.expanded);
+                        renderCanvas();
+                    } else {
+                        // Leaf node - show info panel
+                        if (typeof showInfo === 'function') {
+                            console.log('Calling TreeListy showInfo function');
+                            showInfo(item);
+                        } else {
+                            console.error('showInfo function not found!');
+                        }
                     }
                 }
             });
@@ -4711,6 +4842,20 @@ Focus on logical structure and content organization best practices.`;
             }
         }
 
+        function updateSelectionCounter() {
+            const counter = document.getElementById('selection-counter');
+            const countSpan = document.getElementById('selection-count');
+
+            if (counter && countSpan) {
+                if (selectedNodes.length > 1) {
+                    countSpan.textContent = selectedNodes.length;
+                    counter.style.display = 'block';
+                } else {
+                    counter.style.display = 'none';
+                }
+            }
+        }
+
         function resetView() {
             canvasPan = { x: 0, y: 0 };
             canvasZoom = 1;
@@ -4765,6 +4910,7 @@ Focus on logical structure and content organization best practices.`;
                 }
             });
             selectedNodes = [];
+            updateSelectionCounter();
         }
 
         function toggleGrid() {
@@ -5959,6 +6105,50 @@ Focus on logical structure and content organization best practices.`;
                     treeManager.save(capexTree, { forceSaveAs: false });
                 } else {
                     console.warn('TreeManager not initialized yet');
+                }
+            }
+
+            // Check for Ctrl+A (Windows/Linux) or Cmd+A (Mac) - Select all nodes in Canvas View
+            if ((e.ctrlKey || e.metaKey) && e.key === 'a') {
+                // Only work in Canvas View and not when typing in text fields
+                const activeElement = document.activeElement;
+                if (activeElement &&
+                    (activeElement.tagName === 'INPUT' ||
+                     activeElement.tagName === 'TEXTAREA' ||
+                     activeElement.isContentEditable)) {
+                    return; // Let the browser handle Ctrl+A in text fields
+                }
+
+                // Only work in Canvas View
+                if (currentView === 'canvas' && canvasNodes.length > 0) {
+                    e.preventDefault();
+                    console.log('⌨️ Ctrl+A pressed - selecting all visible nodes');
+
+                    // Clear current selection
+                    selectedNodes = [];
+
+                    // Select all visible canvas nodes
+                    canvasNodes.forEach(nodeObj => {
+                        const node = nodeObj.data;
+                        const nodeEl = nodeObj.element;
+
+                        if (node.canvasX !== undefined && node.canvasY !== undefined) {
+                            selectedNodes.push(node);
+                            nodeEl.classList.add('selected');
+                        }
+                    });
+
+                    updateSelectionCounter();
+                    console.log(`Selected ${selectedNodes.length} nodes`);
+                }
+            }
+
+            // Check for Escape - Clear selection in Canvas View
+            if (e.key === 'Escape') {
+                // Only work in Canvas View
+                if (currentView === 'canvas' && selectedNodes.length > 0) {
+                    console.log('⌨️ Escape pressed - clearing selection');
+                    clearSelection();
                 }
             }
         });
@@ -7330,6 +7520,7 @@ function hidePatternDescription() {
                         `;
                     } else if (node.type === 'phase') {
                         const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0) || (node.children && node.children.length > 0);
+                        const isVisibleInCanvas = node.showInCanvas !== false;
                         nodeDiv.innerHTML = `
                             <div class="node-header">
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
@@ -7337,6 +7528,9 @@ function hidePatternDescription() {
                                 <div class="node-content">
                                     <div class="node-title">${node.name}</div>
                                 </div>
+                                <button class="canvas-visibility-toggle" title="${isVisibleInCanvas ? 'Hide from Canvas View' : 'Show in Canvas View'}" style="background: none; border: none; cursor: pointer; padding: 4px; margin-left: 8px; font-size: 16px; opacity: ${isVisibleInCanvas ? '1' : '0.3'};">
+                                    ${isVisibleInCanvas ? '👁️' : '👁️'}
+                                </button>
                             </div>
                         `;
                     } else {
@@ -7351,6 +7545,38 @@ function hidePatternDescription() {
                                 </div>
                             </div>
                         `;
+                    }
+
+                    // Add event listener for canvas visibility toggle (phases only)
+                    if (node.type === 'phase') {
+                        const toggleBtn = nodeDiv.querySelector('.canvas-visibility-toggle');
+                        if (toggleBtn) {
+                            toggleBtn.addEventListener('click', (e) => {
+                                e.preventDefault();
+                                e.stopPropagation();
+
+                                // Toggle visibility
+                                node.showInCanvas = !(node.showInCanvas !== false);
+                                console.log(`Phase "${node.name}" showInCanvas: ${node.showInCanvas}`);
+
+                                // Re-render tree to update button appearance
+                                const treeContainer = document.getElementById('tree-container');
+                                const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                                const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
+                                render();
+                                if (treeContainer) {
+                                    setTimeout(() => {
+                                        treeContainer.scrollTop = scrollTop;
+                                        treeContainer.scrollLeft = scrollLeft;
+                                    }, 0);
+                                }
+
+                                // If in Canvas View, re-render canvas
+                                if (currentView === 'canvas') {
+                                    renderCanvas();
+                                }
+                            });
+                        }
                     }
 
                     // Event listeners
@@ -7374,16 +7600,18 @@ function hidePatternDescription() {
                             node.expanded = !node.expanded;
                             console.log('→ Toggled', node.name, 'to', node.expanded ? 'EXPANDED' : 'COLLAPSED');
 
-                            // Preserve scroll position during re-render
+                            // Preserve scroll position during re-render (both vertical and horizontal)
                             const treeContainer = document.getElementById('tree-container');
-                            const scrollPos = treeContainer ? treeContainer.scrollTop : 0;
+                            const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                            const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
 
                             render();
 
                             // Restore scroll position after render
                             if (treeContainer) {
                                 setTimeout(() => {
-                                    treeContainer.scrollTop = scrollPos;
+                                    treeContainer.scrollTop = scrollTop;
+                                    treeContainer.scrollLeft = scrollLeft;
                                 }, 0);
                             }
                         } else {
@@ -7450,6 +7678,7 @@ function hidePatternDescription() {
                     `;
                 } else if (node.type === 'phase') {
                     const total = calculatePhaseTotal(node);
+                    const isVisibleInCanvas = node.showInCanvas !== false;
                     nodeDiv.innerHTML = `
                         <div class="node-header">
                             <span class="node-icon">${node.icon}</span>
@@ -7458,6 +7687,9 @@ function hidePatternDescription() {
                                 <div class="node-subtitle">${node.subtitle}</div>
                                 ${PATTERNS[currentPattern].fields && PATTERNS[currentPattern].fields.cost ? `<div class="node-cost">${formatCost(total)}</div>` : ''}
                             </div>
+                            <button class="canvas-visibility-toggle" title="${isVisibleInCanvas ? 'Hide from Canvas View' : 'Show in Canvas View'}" style="background: none; border: none; cursor: pointer; padding: 4px 8px; margin-right: 8px; font-size: 18px; opacity: ${isVisibleInCanvas ? '1' : '0.3'};">
+                                ${isVisibleInCanvas ? '👁️' : '👁️'}
+                            </button>
                             ${node.items || node.children ? '<span class="expand-toggle">▶</span>' : ''}
                         </div>
                     `;
@@ -7477,21 +7709,55 @@ function hidePatternDescription() {
                     `;
                 }
 
+                // Add event listener for canvas visibility toggle (phases only)
+                if (node.type === 'phase') {
+                    const toggleBtn = nodeDiv.querySelector('.canvas-visibility-toggle');
+                    if (toggleBtn) {
+                        toggleBtn.addEventListener('click', (e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+
+                            // Toggle visibility
+                            node.showInCanvas = !(node.showInCanvas !== false);
+                            console.log(`Phase "${node.name}" showInCanvas: ${node.showInCanvas}`);
+
+                            // Re-render tree to update button appearance
+                            const treeContainer = document.getElementById('tree-container');
+                            const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                            const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
+                            render();
+                            if (treeContainer) {
+                                setTimeout(() => {
+                                    treeContainer.scrollTop = scrollTop;
+                                    treeContainer.scrollLeft = scrollLeft;
+                                }, 0);
+                            }
+
+                            // If in Canvas View, re-render canvas
+                            if (currentView === 'canvas') {
+                                renderCanvas();
+                            }
+                        });
+                    }
+                }
+
                 nodeDiv.addEventListener('click', (e) => {
                     e.stopPropagation();
                     if ((node.items && node.items.length > 0) || (node.children && node.children.length > 0)) {
                         node.expanded = !node.expanded;
 
-                        // Preserve scroll position during re-render
+                        // Preserve scroll position during re-render (both vertical and horizontal)
                         const treeContainer = document.getElementById('tree-container');
-                        const scrollPos = treeContainer ? treeContainer.scrollTop : 0;
+                        const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                        const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
 
                         render();
 
                         // Restore scroll position after render
                         if (treeContainer) {
                             setTimeout(() => {
-                                treeContainer.scrollTop = scrollPos;
+                                treeContainer.scrollTop = scrollTop;
+                                treeContainer.scrollLeft = scrollLeft;
                             }, 0);
                         }
                     } else {
@@ -7680,16 +7946,18 @@ function hidePatternDescription() {
                                     if (hasSubtasks) {
                                         item.expanded = false;
 
-                                        // Preserve scroll position during re-render
+                                        // Preserve scroll position during re-render (both vertical and horizontal)
                                         const treeContainer = document.getElementById('tree-container');
-                                        const scrollPos = treeContainer ? treeContainer.scrollTop : 0;
+                                        const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                                        const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
 
                                         render();
 
                                         // Restore scroll position after render
                                         if (treeContainer) {
                                             setTimeout(() => {
-                                                treeContainer.scrollTop = scrollPos;
+                                                treeContainer.scrollTop = scrollTop;
+                                                treeContainer.scrollLeft = scrollLeft;
                                             }, 0);
                                         }
                                     }
@@ -7699,16 +7967,18 @@ function hidePatternDescription() {
                                     if (hasSubtasks) {
                                         item.expanded = true;
 
-                                        // Preserve scroll position during re-render
+                                        // Preserve scroll position during re-render (both vertical and horizontal)
                                         const treeContainer = document.getElementById('tree-container');
-                                        const scrollPos = treeContainer ? treeContainer.scrollTop : 0;
+                                        const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                                        const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
 
                                         render();
 
                                         // Restore scroll position after render
                                         if (treeContainer) {
                                             setTimeout(() => {
-                                                treeContainer.scrollTop = scrollPos;
+                                                treeContainer.scrollTop = scrollTop;
+                                                treeContainer.scrollLeft = scrollLeft;
                                             }, 0);
                                         }
                                     }
@@ -7836,16 +8106,18 @@ function hidePatternDescription() {
                                             if (hasChildren) {
                                                 subItem.expanded = false;
 
-                                                // Preserve scroll position during re-render
+                                                // Preserve scroll position during re-render (both vertical and horizontal)
                                                 const treeContainer = document.getElementById('tree-container');
-                                                const scrollPos = treeContainer ? treeContainer.scrollTop : 0;
+                                                const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                                                const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
 
                                                 render();
 
                                                 // Restore scroll position after render
                                                 if (treeContainer) {
                                                     setTimeout(() => {
-                                                        treeContainer.scrollTop = scrollPos;
+                                                        treeContainer.scrollTop = scrollTop;
+                                                        treeContainer.scrollLeft = scrollLeft;
                                                     }, 0);
                                                 }
                                             }
@@ -7855,16 +8127,18 @@ function hidePatternDescription() {
                                             if (hasChildren) {
                                                 subItem.expanded = true;
 
-                                                // Preserve scroll position during re-render
+                                                // Preserve scroll position during re-render (both vertical and horizontal)
                                                 const treeContainer = document.getElementById('tree-container');
-                                                const scrollPos = treeContainer ? treeContainer.scrollTop : 0;
+                                                const scrollTop = treeContainer ? treeContainer.scrollTop : 0;
+                                                const scrollLeft = treeContainer ? treeContainer.scrollLeft : 0;
 
                                                 render();
 
                                                 // Restore scroll position after render
                                                 if (treeContainer) {
                                                     setTimeout(() => {
-                                                        treeContainer.scrollTop = scrollPos;
+                                                        treeContainer.scrollTop = scrollTop;
+                                                        treeContainer.scrollLeft = scrollLeft;
                                                     }, 0);
                                                 }
                                             }
@@ -9948,6 +10222,114 @@ function hidePatternDescription() {
                     notes: 'Suggest key observations: communication style, negotiation position, objections raised, next steps needed, relationship temperature (warm/neutral/cold).'
                 };
                 instructions += fieldInstructions[fieldType] || `Analyze the email context and conversation history to suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Event Planning pattern
+            else if (pattern === 'event') {
+                const fieldInstructions = {
+                    budget: 'Suggest realistic budget based on activity type. Catering: $25-75/person, Venue: $2-10K, AV/Tech: $1-5K, Entertainment: $500-5K. Consider event scale and location.',
+                    vendor: 'Suggest appropriate vendor type and realistic company name. Include specialization (e.g., "ABC Catering - Corporate Events", "Premier AV - Full-service production").',
+                    bookingDeadline: 'Suggest booking deadline based on vendor type: Venues (6-12 months ahead), Catering (2-3 months), Entertainment (3-6 months), AV/Tech (1-2 months).',
+                    guestCount: 'Suggest realistic guest count based on event type: Corporate (50-500), Wedding (100-250), Conference (100-1000), Team building (20-100).',
+                    location: 'Suggest specific location based on activity. Be detailed: "Grand Ballroom, 2nd floor" not just "Hotel". Include practical details.',
+                    responsiblePerson: 'Suggest appropriate role based on activity type: Event Manager (overall), AV Coordinator (tech), Catering Manager (food), Registration Lead (check-in).',
+                    description: 'Write 2-3 sentences: what this activity entails, its role in the event, and key success factors.',
+                    name: 'Suggest a clear activity name that includes the type and purpose.',
+                    notes: 'Suggest key considerations: vendor contracts, backup plans, timing dependencies, permits needed, weather contingencies.'
+                };
+                instructions += fieldInstructions[fieldType] || `From an event planner\'s perspective, suggest a realistic ${fieldType} value considering logistics, timeline, and vendor coordination.`;
+            }
+
+            // Fitness pattern
+            else if (pattern === 'fitness') {
+                const fieldInstructions = {
+                    sets: 'Suggest sets based on training goal: Hypertrophy (3-4 sets), Strength (5+ sets), Endurance (2-3 sets), Skill work (3-5 sets). Consider training age and recovery capacity.',
+                    reps: 'Suggest rep ranges by goal: Strength (3-6 reps), Hypertrophy (8-12 reps), Endurance (15+ reps), Power (1-5 reps explosive). Match to exercise type (compound vs isolation).',
+                    duration: 'Suggest duration based on workout type: Strength session (45-75 min), Cardio (20-60 min), Circuit training (30-45 min), Recovery/mobility (15-30 min).',
+                    intensity: 'Suggest intensity level based on training phase, exercise type, and proximity to competition/testing. Consider recovery status.',
+                    equipment: 'Suggest realistic equipment based on exercise. Be specific: "Olympic Barbell, 45lb plates" not just "weights". Consider gym vs home setup.',
+                    formCues: 'Provide 3 specific biomechanical safety cues focusing on joint angles, spine position, and common injury risks. Example: "Deadlift: Neutral spine, shoulders over bar, drive through heels." Reference anatomy.',
+                    restPeriod: 'Suggest rest based on goal: Strength (3-5 min - CNS recovery), Hypertrophy (60-90s - metabolic stress), Endurance (30-45s - conditioning), Power (2-3 min).',
+                    description: 'Write 2-3 sentences: training stimulus, primary muscle groups, and how this fits into the program phase.',
+                    name: 'Suggest a descriptive workout name indicating focus (e.g., "Upper Body Hypertrophy A", "Lower Power Day").',
+                    notes: 'Suggest key considerations: progression scheme (linear, wave, double progression), deload timing, exercise substitutions, injury prevention.'
+                };
+                instructions += fieldInstructions[fieldType] || `From a certified strength coach perspective (CSCS), suggest a ${fieldType} value based on training science and periodization principles.`;
+            }
+
+            // Strategic Planning pattern
+            else if (pattern === 'strategy') {
+                const fieldInstructions = {
+                    investment: 'Suggest realistic capital investment based on initiative scope. Consider: Technology ($100K-$5M), Market expansion ($500K-$10M), Operational improvements ($50K-$2M). Include CAPEX and OPEX.',
+                    keyMetric: 'Suggest a specific, measurable KPI that defines success. Use SMART criteria. Examples: "Revenue growth %", "Customer acquisition cost", "Market share %", "Employee retention rate".',
+                    targetValue: 'Suggest a specific, ambitious but achievable target for the metric. Base on industry benchmarks. Example: "Increase revenue by 25% YoY", "Reduce CAC by $150".',
+                    responsibleExecutive: 'Suggest appropriate C-level owner: CEO (transformation), CFO (financial), CTO (technology), CMO (marketing), COO (operations), CHRO (people).',
+                    strategicTheme: 'Assign theme based on initiative nature: Growth (revenue expansion), Efficiency (cost reduction), Innovation (new products), Transformation (business model change), Risk Mitigation (compliance, security).',
+                    riskLevel: 'Assess risk considering: Market uncertainty, technical complexity, regulatory factors, resource constraints. High risk: unproven, complex, resource-intensive.',
+                    description: 'Write 2-3 sentences: strategic rationale, expected business impact, and key success factors.',
+                    name: 'Suggest a clear initiative name that communicates strategic intent and business value.',
+                    notes: 'Suggest key considerations: competitive response, regulatory requirements, change management, ROI timeline, resource conflicts.'
+                };
+                instructions += fieldInstructions[fieldType] || `From a strategy consultant perspective (McKinsey/BCG), suggest a ${fieldType} value considering competitive dynamics, market forces, and organizational capabilities.`;
+            }
+
+            // Course Design pattern
+            else if (pattern === 'course') {
+                const fieldInstructions = {
+                    learningObjectives: 'Write 2-3 specific learning objectives using Bloom\'s Taxonomy action verbs (Remember: define, list; Understand: explain, summarize; Apply: demonstrate, solve; Analyze: compare, critique; Evaluate: judge, defend; Create: design, compose). Make them measurable and specific.',
+                    duration: 'Suggest duration based on lesson type: Lecture (50-75 min), Lab/Practical (90-120 min), Discussion (30-60 min), Workshop (2-4 hours), Field work (half-day to full-day).',
+                    difficultyLevel: 'Suggest level based on prerequisite knowledge, cognitive complexity (Bloom\'s level), and abstraction required. Beginner: foundational concepts. Intermediate: application/analysis. Advanced: synthesis/evaluation.',
+                    prerequisites: 'List specific prior knowledge, skills, or courses needed. Be concrete: "Understanding of basic statistics (mean, median, standard deviation)" not just "some statistics".',
+                    assessmentType: 'Suggest assessment matching learning objectives. Use Bloom\'s level: Quiz (remember/understand), Assignment (apply/analyze), Project (analyze/evaluate/create), Discussion (understand/evaluate), Exam (comprehensive).',
+                    resourcesNeeded: 'List specific resources: Textbook chapters with page numbers, required readings with citations, software/tools, datasets, lab equipment, handouts.',
+                    homework: 'Suggest homework that reinforces learning objectives. Estimate time required (typically 2-3x class time for college courses). Make it specific and scaffolded.',
+                    description: 'Write 2-3 sentences: key concepts covered, pedagogical approach, and how this builds toward course goals.',
+                    name: 'Suggest a clear lesson title that reflects content and cognitive level.',
+                    notes: 'Suggest key considerations: active learning strategies, accommodation needs, technology requirements, formative assessment touchpoints.'
+                };
+                instructions += fieldInstructions[fieldType] || `From an instructional designer perspective (ADDIE model, Bloom\'s Taxonomy), suggest a ${fieldType} value considering learning science and curriculum design principles.`;
+            }
+
+            // Family Tree pattern
+            else if (pattern === 'familytree') {
+                const fieldInstructions = {
+                    fullName: 'Suggest full legal name including middle names. Use historical naming conventions for era (e.g., patronymics, matronymics in certain cultures).',
+                    maidenName: 'Suggest maiden name (birth surname) if person changed name after marriage. Consider cultural naming traditions.',
+                    gender: 'Suggest gender based on name and historical context. Use "Unknown" if insufficient evidence.',
+                    birthDate: 'Suggest realistic birth date based on generation, parent ages, and historical context. Parents typically 20-35 years older than children.',
+                    birthPlace: 'Suggest birth location with specificity appropriate to era and records. Format: City, State/Province, Country. Consider migration patterns.',
+                    livingStatus: 'Determine based on birth year and typical lifespan. Anyone born before 1920 likely deceased. Use "Unknown" if uncertain.',
+                    deathDate: 'Suggest death date if deceased. Consider typical lifespan for era: pre-1900 (40-60 years), 1900-1950 (60-70 years), post-1950 (70-85 years).',
+                    deathPlace: 'Suggest death location considering migration history and family patterns. Often different from birthplace.',
+                    marriageDate: 'Suggest marriage date considering historical marriage ages: Pre-1900 (women 18-22, men 22-26), Modern (women 25-30, men 27-32). Check birth dates of children.',
+                    marriagePlace: 'Suggest marriage location based on family residence patterns and cultural traditions.',
+                    spouseName: 'Suggest spouse name if married. Consider multiple marriages if dates suggest (remarriage after death/divorce).',
+                    occupation: 'Suggest historically appropriate occupation for era, location, and social class. Be specific: "Locomotive Engineer" not just "Railroad worker".',
+                    photoURL: 'Suggest type of photo if known: "Portrait photo circa 1920s" or "Family photo, wedding day". Note if no photo available.',
+                    dnaInfo: 'Suggest relevant genetic information: Haplogroups (Y-DNA for paternal line, mtDNA for maternal line), ethnic percentages, DNA matches, genetic markers.',
+                    sources: 'Suggest appropriate primary sources: Birth/death certificates, census records (1850-1940 US), marriage licenses, military records, church records, immigration documents.',
+                    relationshipType: 'Classify relationship: Biological (default), Adopted, Step (remarriage), Foster, Half-Sibling (shared one parent). Consider family dynamics.',
+                    description: 'Write 2-3 sentences: brief biography, significant life events, and family role/legacy.',
+                    name: 'Suggest identifying name (often nickname or commonly used name): "John Smith (Big John)" or "Mary Johnson (née Williams)".',
+                    notes: 'Suggest key considerations: Missing records, conflicting data, DNA confirmation status, historical context, research leads to pursue.'
+                };
+                instructions += fieldInstructions[fieldType] || `From a genealogist perspective (NGSQ standards), suggest a ${fieldType} value based on historical records, naming patterns, and genealogical best practices.`;
+            }
+
+            // Dialogue & Rhetoric pattern
+            else if (pattern === 'dialogue') {
+                const fieldInstructions = {
+                    speaker: 'Identify speaker and relevant context: Name, role/title, political affiliation, expertise, or motivation. Example: "Senator Jane Smith (R-TX, Healthcare Committee Chair)".',
+                    verbatimQuote: 'Extract the exact statement word-for-word. Capture tone indicators (emphasis, pauses). Essential for accurate rhetorical analysis.',
+                    rhetoricalDevice: 'Identify primary persuasion technique: Logos (logical reasoning), Pathos (emotional appeal), Ethos (credibility), Metaphor, Analogy, Repetition, Hyperbole, Irony, Appeal to Authority.',
+                    logicalStructure: 'Break down argument into formal logic: "Premise 1: [claim], Premise 2: [claim], Conclusion: [claim]". Identify deductive/inductive/abductive reasoning.',
+                    fallaciesPresent: 'Identify logical fallacies with examples: Ad hominem (attack person not argument), Straw man (misrepresent position), Slippery slope, False dichotomy, Appeal to emotion, Hasty generalization. Explain how fallacy appears.',
+                    hiddenMotivation: 'Analyze subtext and hidden agenda. What is the speaker really trying to achieve? Consider: Political positioning, fundraising, deflection, changing topic, rallying base.',
+                    description: 'Write 2-3 sentences: summarize the argument, identify rhetorical strategy, and assess persuasive effectiveness.',
+                    name: 'Suggest a short label capturing the argument\'s core claim or tactic (e.g., "Healthcare Cost Deflection", "Moral Authority Appeal").',
+                    notes: 'Suggest key observations: Communication style, negotiation position, emotional valence, audience targeting, cultural context, historical parallels.'
+                };
+                instructions += fieldInstructions[fieldType] || `From a rhetoric expert perspective (Aristotelian persuasion, critical discourse analysis), suggest a ${fieldType} value analyzing argument structure, persuasion techniques, and logical coherence.`;
             }
 
             // Other patterns
@@ -20597,6 +20979,11 @@ ${jsonText}`;
                 <span id="zoom-level" style="font-size: 12px; font-weight: 600; color: var(--treeplex-primary); min-width: 50px; text-align: center;">100%</span>
                 <button id="zoom-in" class="btn" style="padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: var(--text-primary); font-weight: 600; transition: all 0.2s;">+</button>
             </div>
+        </div>
+
+        <!-- Selection Counter -->
+        <div id="selection-counter" style="display: none; position: fixed; top: 200px; left: 50%; transform: translateX(-50%); background: rgba(99, 102, 241, 0.95); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; z-index: 1000; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px);">
+            <span id="selection-count">0</span> nodes selected
         </div>
 
         <div id="canvas">
