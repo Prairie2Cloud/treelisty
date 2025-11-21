@@ -6,22 +6,28 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.5.0 | Build 147 | 2025-11-21
+    TreeListy v2.6.0 | Build 148 | 2025-11-21
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
     - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
     - Pattern Translation Engine with shadow data preservation
+    - Modern collapsible sidebar UI (icon-based navigation)
     - Smart JSON save with pattern-based filenames
     - LocalStorage auto-save every 2 minutes
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 147):
+    Changelog (Build 148):
+    - NEW: Collapsible AI Tools Sidebar - Icon-based left-docked navigation (60px → 260px on hover)
+    - NEW: Modern Chat UI - Neutral slate grey for AI, vibrant primary for user (ChatGPT aesthetic)
+    - NEW: Typography Improvements - Larger titles (17px), better hierarchy, improved scannability
+    - ENHANCEMENT: Reclaimed ~200px canvas width when sidebar collapsed
+
+    Previous (Build 147):
     - NEW: Pattern Translation Engine - Convert Generic → Sales (and reverse) with field mapping
     - NEW: Shadow Data Preservation - Original data backed up during translation
     - FIX: Temperature parameter now correctly applied from Creativity slider
-    - FIX: Translation confirmation dialog with cancel option
 
     Previous (Build 146):
     - NEW: AI Tuner - Customize AI tone, verbosity, creativity, and custom instructions
@@ -1637,6 +1643,122 @@
         box-shadow: 0 2px 6px rgba(99, 102, 241, 0.4);
     }
 
+    /* ============================================================================
+       UI MODERNIZATION - BUILD 148
+       ============================================================================ */
+
+    /* AI TOOLS SIDEBAR - Collapsible Left-Docked */
+    #ai-tools-panel {
+        position: fixed !important;
+        top: 70px !important;
+        left: 0 !important;
+        bottom: 0 !important;
+        width: 60px !important;
+        min-width: 60px !important;
+        background: #1E2128 !important;
+        border-right: 1px solid var(--border) !important;
+        border-top: none !important;
+        border-bottom: none !important;
+        border-left: none !important;
+        border-radius: 0 !important;
+        padding: 16px 8px !important;
+        transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        overflow: hidden !important;
+        z-index: 900 !important;
+        display: flex !important;
+        flex-direction: column !important;
+        gap: 12px !important;
+        box-shadow: 4px 0 24px rgba(0,0,0,0.2) !important;
+    }
+
+    /* Expand on Hover */
+    #ai-tools-panel:hover {
+        width: 260px !important;
+        background: var(--card-bg) !important;
+    }
+
+    /* Sidebar Buttons */
+    #ai-tools-panel .btn {
+        justify-content: flex-start !important;
+        padding: 10px 12px !important;
+        white-space: nowrap !important;
+        overflow: hidden !important;
+        width: 100% !important;
+        background: transparent !important;
+        border: 1px solid transparent !important;
+        color: var(--text-secondary) !important;
+        transition: all 0.2s !important;
+    }
+
+    /* Button Icons (Always Visible) */
+    #ai-tools-panel .btn::before {
+        content: attr(data-icon);
+        font-size: 20px;
+        min-width: 24px;
+        margin-right: 16px;
+        text-align: center;
+    }
+
+    /* Button Hover State */
+    #ai-tools-panel .btn:hover {
+        background: rgba(255, 255, 255, 0.05) !important;
+        color: var(--text-primary) !important;
+        border-color: rgba(255, 255, 255, 0.1) !important;
+    }
+
+    /* Active/Primary Button Override */
+    #ai-tools-panel .btn.btn-primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+    }
+
+    /* Hide text when collapsed */
+    #ai-tools-panel:not(:hover) .btn span {
+        opacity: 0;
+    }
+
+    #ai-tools-panel .btn span {
+        transition: opacity 0.2s;
+        opacity: 1;
+    }
+
+    /* TYPOGRAPHY IMPROVEMENTS - Better Hierarchy */
+    /* Primary Title - Bigger & Bolder */
+    .node-title, .item-name {
+        font-size: 17px !important;
+        font-weight: 700 !important;
+        color: #F3F4F6 !important;
+        letter-spacing: -0.01em;
+        margin-bottom: 6px !important;
+        line-height: 1.3;
+    }
+
+    /* Subtitle/Description - Receded */
+    .node-subtitle, .item-description {
+        font-size: 13px !important;
+        color: #9CA3AF !important;
+        font-weight: 400;
+        line-height: 1.5;
+    }
+
+    /* Tags/Badges - More refined */
+    .badge {
+        font-size: 10px !important;
+        padding: 3px 8px !important;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        border-radius: 4px !important;
+        font-weight: 700 !important;
+    }
+
+    /* Node Cards - Better Depth */
+    .tree-node {
+        box-shadow:
+            0 1px 0 rgba(255,255,255,0.1) inset,
+            0 4px 12px rgba(0,0,0,0.4);
+    }
+
     </style>
     <!-- SheetJS library for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -1777,8 +1899,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.5.0 | Build 147 | 2025-11-21">
-                    v2.5.0 • Build 147
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.6.0 | Build 148 | 2025-11-21">
+                    v2.6.0 • Build 148
                 </div>
             </div>
         </div>
@@ -1823,41 +1945,18 @@
     <!-- Context Menu (populated dynamically) -->
     <div class="context-menu" id="context-menu"></div>
 
-    <!-- Floating AI Tools Panel -->
-    <div id="ai-tools-panel" style="position: fixed; bottom: 20px; left: 20px; z-index: 500; display: none; flex-direction: column; gap: 10px; padding: 16px; background: rgba(20, 20, 30, 0.98); backdrop-filter: blur(10px); border: 2px solid rgba(168, 85, 247, 0.4); border-radius: 16px; box-shadow: 0 8px 32px rgba(168, 85, 247, 0.3); min-width: 240px;">
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-            <div style="font-weight: 700; font-size: 15px; color: #e4e4e7; display: flex; align-items: center; gap: 8px;">
-                🤖 AI Tools
-            </div>
-            <button id="close-ai-tools" style="background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 0; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: all 0.2s;" title="Close AI Tools Panel">✕</button>
-        </div>
+    <!-- AI Tools Sidebar (Collapsible) -->
+    <div id="ai-tools-panel">
+        <button class="btn" data-icon="🔍" id="analyze-text-btn" title="Analyze Text"><span>Analyze Text</span></button>
+        <button class="btn" data-icon="🪄" id="wizard-btn" title="AI Wizard"><span>AI Wizard</span></button>
+        <button class="btn" data-icon="🔬" id="ai-review-btn" title="AI Review"><span>AI Review</span></button>
+        <button class="btn" data-icon="🔄" id="auto-enhance-btn" title="Auto-Enhance"><span>Auto-Enhance</span></button>
+        <button class="btn" data-icon="📝" id="generate-prompt-btn" title="Generate Prompt"><span>Generate Prompt</span></button>
+        <button class="btn btn-primary" data-icon="🤖" id="ai-btn" title="AI Analysis"><span>AI Analysis</span></button>
 
-        <button class="btn" id="analyze-text-btn" title="Input/paste/load txt to be analyzed" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600; justify-content: flex-start;">🔍 Analyze Text</button>
-        <button class="btn" id="wizard-btn" title="Grow your tree via chat" style="width: 100%; background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600; justify-content: flex-start;">🪄 AI Wizard</button>
-        <button class="btn" id="ai-review-btn" title="Get recommendations for improvement" style="width: 100%; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; font-weight: 600; justify-content: flex-start;">🔬 AI Review</button>
-        <button class="btn" id="auto-enhance-btn" title="Takes text from recommendations and prompts pattern ai to make improvements" style="width: 100%; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; font-weight: 600; justify-content: flex-start;">🔄 Auto-Enhance</button>
-        <button class="btn" id="generate-prompt-btn" title="Generate a complete prompt from your tree structure" style="width: 100%; background: linear-gradient(135deg, #10b981, #059669); color: white; font-weight: 600; justify-content: flex-start;">📝 Generate Prompt</button>
-        <button class="btn btn-primary" id="ai-btn" title="Nothing useful yet" style="width: 100%; justify-content: flex-start;">🤖 AI Analysis</button>
-        <button class="btn" id="ai-settings-btn" title="Configure AI Persona & Behavior" style="width: 100%; background: linear-gradient(135deg, #6366f1, #4f46e5); color: white; font-weight: 600; justify-content: flex-start;">⚙️ AI Settings</button>
+        <div style="flex: 1;"></div>
 
-        <div style="margin-top: 8px; padding-top: 12px; border-top: 1px solid rgba(99, 102, 241, 0.2);">
-            <label for="unified-ai-mode-select-panel" style="display: block; font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px;">AI Model:</label>
-            <select id="unified-ai-mode-select-panel" class="btn" style="width: 100%; padding: 8px 10px; cursor: pointer; font-weight: 600; font-size: 13px;" title="Choose AI provider and model">
-                <optgroup label="🆓 Server (Free - Rate Limited: 200/hr)">
-                    <option value="server-haiku" title="Server Claude Haiku - Fast & cheap, 200 req/hr limit">⚡ Fast (Haiku)</option>
-                    <option value="server-sonnet" selected title="Server Claude Sonnet 4.5 - Best reasoning, 200 req/hr limit">🧠 Best (Sonnet 4.5)</option>
-                </optgroup>
-                <optgroup label="🔑 Your Key (Unlimited - Requires API Key)">
-                    <option value="user-haiku" title="Your Claude Haiku - Fast & cheap, unlimited with your key">⚡ Fast (Haiku)</option>
-                    <option value="user-sonnet" title="Your Claude Sonnet 4.5 - Best reasoning with extended thinking, unlimited">🧠 Best (Sonnet 4.5)</option>
-                    <option value="user-gemini" title="Your Gemini - Fast & cost-effective, requires Google API key">🔷 Gemini</option>
-                    <option value="user-chatgpt" title="Your ChatGPT - Versatile & popular, requires OpenAI API key">💬 ChatGPT</option>
-                </optgroup>
-                <optgroup label="Disable AI Features">
-                    <option value="off" title="Turn off all AI features">❌ Off</option>
-                </optgroup>
-            </select>
-        </div>
+        <button class="btn" data-icon="⚙️" id="ai-settings-btn" title="AI Settings"><span>AI Settings</span></button>
     </div>
 
     <!-- Modal -->
@@ -13173,29 +13272,36 @@ function hidePatternDescription() {
             const messageDiv = document.createElement('div');
 
             if (role === 'ai') {
+                // Neutral Slate Grey for AI (modern ChatGPT/Claude aesthetic)
                 messageDiv.style.cssText = `
-                    background: linear-gradient(135deg, #a855f7, #ec4899);
-                    color: white;
-                    padding: 15px;
+                    background: #2A2F3C;
+                    color: #E2E2E2;
+                    padding: 16px 20px;
                     border-radius: 12px;
-                    border-bottom-left-radius: 4px;
-                    max-width: 80%;
+                    border-top-left-radius: 2px;
+                    max-width: 85%;
                     align-self: flex-start;
                     line-height: 1.6;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+                    border: 1px solid #3A3F4D;
+                    font-size: 14px;
                 `;
-                messageDiv.textContent = '🧠 ' + content;
+                messageDiv.innerHTML = content.replace(/\n/g, '<br>');
             } else {
+                // Vibrant Primary for User
                 messageDiv.style.cssText = `
-                    background: var(--treeplex-primary);
+                    background: linear-gradient(135deg, #6366f1, #4f46e5);
                     color: white;
-                    padding: 15px;
+                    padding: 12px 18px;
                     border-radius: 12px;
-                    border-bottom-right-radius: 4px;
+                    border-bottom-right-radius: 2px;
                     max-width: 80%;
                     align-self: flex-end;
-                    line-height: 1.6;
+                    line-height: 1.5;
+                    box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+                    font-size: 14px;
                 `;
-                messageDiv.textContent = '👤 ' + content;
+                messageDiv.textContent = content;
             }
 
             chatHistory.appendChild(messageDiv);
