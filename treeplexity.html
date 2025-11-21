@@ -22,7 +22,9 @@
     - NEW: Collapsible AI Tools Sidebar - Icon-based left-docked navigation (60px → 260px on hover)
     - NEW: Modern Chat UI - Neutral slate grey for AI, vibrant primary for user (ChatGPT aesthetic)
     - NEW: Typography Improvements - Larger titles (17px), better hierarchy, improved scannability
+    - NEW: Zoom controls integrated into sidebar above Settings (fixes layout conflict)
     - ENHANCEMENT: Reclaimed ~200px canvas width when sidebar collapsed
+    - FIX: Removed standalone zoom panel that was obstructing AI sidebar
 
     Previous (Build 147):
     - NEW: Pattern Translation Engine - Convert Generic → Sales (and reverse) with field mapping
@@ -1759,6 +1761,38 @@
             0 4px 12px rgba(0,0,0,0.4);
     }
 
+    /* ZOOM CONTROLS IN SIDEBAR */
+    /* Hide old standalone zoom controls if they exist */
+    .zoom-controls {
+        display: none !important;
+    }
+
+    /* Sidebar zoom controls container */
+    .sidebar-zoom-controls {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        width: 100%;
+        padding: 8px 0;
+        border-top: 1px solid rgba(255,255,255,0.1);
+    }
+
+    /* Zoom level display in sidebar */
+    .zoom-level-sidebar {
+        text-align: center;
+        font-size: 11px;
+        color: var(--text-secondary);
+        padding: 4px;
+        background: rgba(255,255,255,0.03);
+        border-radius: 4px;
+        font-weight: 600;
+    }
+
+    /* Ensure zoom buttons follow sidebar button styling */
+    .sidebar-zoom-controls .btn {
+        padding: 8px 12px !important;
+    }
+
     </style>
     <!-- SheetJS library for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -1906,20 +1940,6 @@
         </div>
     </div>
 
-    <!-- Pan/Zoom Controls -->
-    <div class="zoom-controls">
-        <button class="zoom-btn" id="zoom-in" title="Zoom In">
-            <span>+</span>
-        </button>
-        <button class="zoom-btn" id="zoom-out" title="Zoom Out">
-            <span>−</span>
-        </button>
-        <button class="zoom-btn" id="zoom-reset" title="Reset View">
-            <span>⟲</span>
-        </button>
-        <div class="zoom-level" id="zoom-level">100%</div>
-    </div>
-
     <!-- Tree View Container -->
     <div class="tree-view-container">
 
@@ -1955,6 +1975,14 @@
         <button class="btn btn-primary" data-icon="🤖" id="ai-btn" title="AI Analysis"><span>AI Analysis</span></button>
 
         <div style="flex: 1;"></div>
+
+        <!-- Zoom Controls in Sidebar -->
+        <div class="sidebar-zoom-controls">
+            <button class="btn" data-icon="+" id="zoom-in" title="Zoom In"><span>Zoom In</span></button>
+            <button class="btn" data-icon="−" id="zoom-out" title="Zoom Out"><span>Zoom Out</span></button>
+            <button class="btn" data-icon="⟲" id="zoom-reset" title="Reset Zoom"><span>Reset Zoom</span></button>
+            <div class="zoom-level-sidebar" id="zoom-level">100%</div>
+        </div>
 
         <button class="btn" data-icon="⚙️" id="ai-settings-btn" title="AI Settings"><span>AI Settings</span></button>
     </div>
