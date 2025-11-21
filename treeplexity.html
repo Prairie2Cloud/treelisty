@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.6.0 | Build 148 | 2025-11-21
+    TreeListy v2.7.0 | Build 149 | 2025-11-21
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
@@ -18,7 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 148):
+    Changelog (Build 149):
+    - NEW: Action-Oriented Button Labels - "Import Text" replaces "Analyze Text" (clearer purpose)
+    - NEW: Dynamic AI Button - Changes based on pattern (Sales: "💰 Deal Scorecard", Film: "🎬 Scene Breakdown", etc.)
+    - NEW: Pattern-Specific Tooltips - Contextual explanations for all 15 patterns
+    - ENHANCEMENT: User-friendly language replaces developer-speak ("Chat Builder" vs "AI Wizard")
+    - ENHANCEMENT: Icons updated to match action semantics (📥 Import, 📤 Export, 🩺 Check Quality)
+    - UX: Sidebar buttons now communicate outcome rather than technology
+
+    Previous (Build 148):
     - NEW: Collapsible AI Tools Sidebar - Icon-based left-docked navigation (60px → 260px on hover)
     - NEW: Modern Chat UI - Neutral slate grey for AI, vibrant primary for user (ChatGPT aesthetic)
     - NEW: Typography Improvements - Larger titles (17px), better hierarchy, improved scannability
@@ -1933,8 +1941,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.6.0 | Build 148 | 2025-11-21">
-                    v2.6.0 • Build 148
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.7.0 | Build 149 | 2025-11-21">
+                    v2.7.0 • Build 149
                 </div>
             </div>
         </div>
@@ -1967,12 +1975,12 @@
 
     <!-- AI Tools Sidebar (Collapsible) -->
     <div id="ai-tools-panel">
-        <button class="btn" data-icon="🔍" id="analyze-text-btn" title="Analyze Text"><span>Analyze Text</span></button>
-        <button class="btn" data-icon="🪄" id="wizard-btn" title="AI Wizard"><span>AI Wizard</span></button>
-        <button class="btn" data-icon="🔬" id="ai-review-btn" title="AI Review"><span>AI Review</span></button>
-        <button class="btn" data-icon="🔄" id="auto-enhance-btn" title="Auto-Enhance"><span>Auto-Enhance</span></button>
-        <button class="btn" data-icon="📝" id="generate-prompt-btn" title="Generate Prompt"><span>Generate Prompt</span></button>
-        <button class="btn btn-primary" data-icon="🤖" id="ai-btn" title="AI Analysis"><span>AI Analysis</span></button>
+        <button class="btn" data-icon="📥" id="analyze-text-btn" title="Convert text/files into tree structure"><span>Import Text</span></button>
+        <button class="btn" data-icon="💬" id="wizard-btn" title="Build and edit tree via chat"><span>Chat Builder</span></button>
+        <button class="btn" data-icon="🩺" id="ai-review-btn" title="Check for logic gaps and missing fields"><span>Check Quality</span></button>
+        <button class="btn" data-icon="✨" id="auto-enhance-btn" title="Auto-fill details and add subtasks"><span>Smart Expand</span></button>
+        <button class="btn" data-icon="📤" id="generate-prompt-btn" title="Export tree as text for other LLMs"><span>Export Prompt</span></button>
+        <button class="btn btn-primary" data-icon="🤖" id="ai-btn" title="Run pattern-specific analysis"><span>AI Analysis</span></button>
 
         <div style="flex: 1;"></div>
 
@@ -8146,7 +8154,46 @@ function applyPattern(patternKey) {
 
         // Update sort dropdown for new pattern
         updateSortDropdown();
+
+        // Update AI button label to match pattern
+        updateAIButtonLabel();
     }
+}
+
+// Update AI Analysis button label based on active pattern
+function updateAIButtonLabel() {
+    const btn = document.getElementById('ai-btn');
+    if (!btn) return;
+
+    const span = btn.querySelector('span');
+    if (!span) return;
+
+    const labelMap = {
+        'generic': { text: '📊 Project Report', tooltip: 'Generate executive summary and risk assessment' },
+        'sales': { text: '💰 Deal Scorecard', tooltip: 'Analyze deal probability, revenue weight, and blockers' },
+        'film': { text: '🎬 Scene Breakdown', tooltip: 'Analyze shot lists, camera moves, and continuity' },
+        'book': { text: '📖 Story Arc Review', tooltip: 'Analyze pacing, character beats, and plot structure' },
+        'philosophy': { text: '🧠 Logic Audit', tooltip: 'Check validity of premises and argument strength' },
+        'thesis': { text: '📚 Academic Review', tooltip: 'Analyze structure, citations, and argumentation' },
+        'roadmap': { text: '🚀 Roadmap Analysis', tooltip: 'Check feature dependencies and timeline coherence' },
+        'prompting': { text: '🧪 Prompt Test', tooltip: 'Analyze prompt structure against best practices' },
+        'gmail': { text: '📧 Thread Summary', tooltip: 'Summarize conversation and identify action items' },
+        'event': { text: '🎉 Event Checklist', tooltip: 'Check logistics, timeline, and vendor coordination' },
+        'fitness': { text: '💪 Workout Audit', tooltip: 'Analyze progression, volume, and recovery balance' },
+        'strategy': { text: '🎯 Strategy Review', tooltip: 'Analyze objectives, initiatives, and resource alignment' },
+        'course': { text: '🎓 Curriculum Check', tooltip: 'Check learning objectives and scaffolding' },
+        'family': { text: '👨‍👩‍👧‍👦 Family Tree Analysis', tooltip: 'Analyze relationships and genealogical connections' },
+        'rhetoric': { text: '🗣️ Argument Review', tooltip: 'Analyze rhetorical devices and persuasion structure' },
+        'filesystem': { text: '🧹 Clean Up Files', tooltip: 'Find duplicates, suggest better names and organization' },
+        'default': { text: '📊 Project Report', tooltip: 'Generate analysis report for this tree' }
+    };
+
+    const config = labelMap[currentPattern] || labelMap.default;
+    span.textContent = config.text;
+    btn.title = config.tooltip;
+    btn.setAttribute('data-icon', config.text.split(' ')[0]); // Extract emoji for collapsed view
+
+    console.log(`✅ AI button updated for "${currentPattern}" pattern: ${config.text}`);
 }
 
 // Populate sort dropdown based on current pattern
@@ -21451,6 +21498,9 @@ ${jsonText}`;
         // Initial render
         render();
 
+        // Update AI button label for initial pattern
+        updateAIButtonLabel();
+
         // Initialize pattern selector
         const patternSelect = document.getElementById('pattern-select');
         console.log('Pattern selector found:', patternSelect);
@@ -21471,6 +21521,9 @@ ${jsonText}`;
 
                 // Update sort dropdown for the loaded pattern
                 updateSortDropdown();
+
+                // Update AI button label for the loaded pattern
+                updateAIButtonLabel();
             }
             // Handle pattern selection
             patternSelect.addEventListener('change', function() {
