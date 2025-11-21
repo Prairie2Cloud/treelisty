@@ -14496,8 +14496,14 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
         // Generate Prompt button
         document.getElementById('generate-prompt-btn').addEventListener('click', () => {
             const promptText = generatePromptFromTree();
-            document.getElementById('generated-prompt-text').value = promptText;
-            document.getElementById('generate-prompt-modal').style.display = 'flex';
+
+            // Some patterns (like film) handle display asynchronously via style selectors
+            // and return null - don't show modal in that case
+            if (promptText !== null && promptText !== undefined) {
+                document.getElementById('generated-prompt-text').value = promptText;
+                document.getElementById('generate-prompt-modal').style.display = 'flex';
+            }
+            // If null, the pattern is handling its own display logic (e.g., style selector first)
         });
 
         // Close prompt modal
@@ -14627,7 +14633,9 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             if (!style) {
                 showVideoStyleSelector((selectedStyle) => {
                     const prompt = generateAIVideoPrompts(tree, pattern, selectedStyle);
-                    displayGeneratedPrompt(prompt, `${tree.name} - ${selectedStyle === 'narrative' ? 'Story' : 'Explainer'} Video`);
+                    // Show the prompt in the modal (consistent with other patterns)
+                    document.getElementById('generated-prompt-text').value = prompt;
+                    document.getElementById('generate-prompt-modal').style.display = 'flex';
                 });
                 return null; // Will be called again with style
             }
