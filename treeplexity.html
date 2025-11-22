@@ -3920,26 +3920,21 @@ The AI will analyze the structure and convert it to a tree."
                     // Fall through to Fast Mode (Netlify proxy) below
                     // This will work from local files but has 10s timeout limit
                 } else {
-                    // Running from web server - use direct API for Deep Mode
-                    console.log('🧠 Deep Mode: Using direct API (no timeout limit)');
-                    console.log('⚠️ Bypassing Netlify completely - extended thinking takes 15-30s');
-                    try {
-                        response = await callClaudeDirectAPI(requestData, localApiKey);
-                        console.log('✅ Direct API successful (Deep Mode)');
-                    } catch (directError) {
-                        console.error('❌ Direct API failed:', directError);
+                    // Running from web server - browsers will block direct API due to CORS
+                    console.warn('⚠️ Deep Mode requested from browser - CORS will block direct API');
+                    console.warn('🔄 Auto-disabling Extended Thinking to avoid CORS/timeout issues');
+                    console.warn('💡 Your API key will still be used via Netlify proxy (better quality than server key)');
 
-                        // Check if this is a CORS error
-                        if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
-                            throw new Error(`Deep Mode requires direct API access, but browser blocked the request (CORS policy).\n\n💡 Solutions:\n1. Deploy to a web server (Netlify/Vercel) for full Deep Mode support\n2. Use Fast Mode (⚡) which works from local files via Netlify proxy\n3. For now: Export tree to JSON and use Claude.ai directly`);
-                        }
-                        throw directError;
-                    }
+                    // Disable Extended Thinking for this request (will use Netlify proxy below)
+                    // User's API key still gets used, just without Extended Thinking
+                    delete requestData.thinking;
+
+                    // Fall through to Netlify proxy below (line 3956)
                 }
             }
 
-            // FAST MODE or no extended thinking or auto-switched from Deep Mode (local file)
-            if (!useExtendedThinking || !localApiKey || isLocalFile) {
+            // FAST MODE or no extended thinking or auto-switched from Deep Mode (local file or CORS avoidance)
+            if (!requestData.thinking || !localApiKey || isLocalFile) {
                 // FAST MODE or no extended thinking: Use Netlify function (has 10s limit but works everywhere)
                 console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
 
