@@ -13407,7 +13407,15 @@ function hidePatternDescription() {
                 console.log('🪄 System prompt length:', systemPrompt.length);
                 console.log('🪄 User prompt length:', userPrompt.length);
 
-                const response = await callClaudeAPI(userPrompt, systemPrompt, 4000); // Increased to 4000 (Haiku max) to reduce truncation
+                // Check if user selected Deep Mode (user-sonnet, user-gemini, user-chatgpt)
+                const aiModeInfo = parseUnifiedMode();
+                const useDeepMode = aiModeInfo.mode === 'deep'; // Deep Mode = Extended Thinking
+
+                if (useDeepMode) {
+                    console.log('🧠 Wizard using Deep Mode (Extended Thinking enabled)');
+                }
+
+                const response = await callClaudeAPI(userPrompt, systemPrompt, 4000, useDeepMode); // Deep Mode enables Extended Thinking
 
                 console.log('🪄 AI Raw Response:', response);
 
