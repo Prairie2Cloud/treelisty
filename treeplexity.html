@@ -6,10 +6,10 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.7.0 | Build 149 | 2025-11-21
+    TreeListy v2.8.0 | Build 150 | 2025-11-21
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
-    - 15 specialized patterns (Generic, Philosophy, Sales, Gmail, etc.)
+    - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
     - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
     - Pattern Translation Engine with shadow data preservation
     - Modern collapsible sidebar UI (icon-based navigation)
@@ -18,13 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 149):
-    - NEW: Action-Oriented Button Labels - "Import Text" replaces "Analyze Text" (clearer purpose)
-    - NEW: Dynamic AI Button - Changes based on pattern (Sales: "💰 Deal Scorecard", Film: "🎬 Scene Breakdown", etc.)
-    - NEW: Pattern-Specific Tooltips - Contextual explanations for all 15 patterns
-    - ENHANCEMENT: User-friendly language replaces developer-speak ("Chat Builder" vs "AI Wizard")
-    - ENHANCEMENT: Icons updated to match action semantics (📥 Import, 📤 Export, 🩺 Check Quality)
-    - UX: Sidebar buttons now communicate outcome rather than technology
+    Changelog (Build 150):
+    - NEW: Veo3 (Google) & Sora2 (OpenAI) AI Video Patterns - Platform-specific workflows
+    - NEW: Metadata Clustering in Canvas - Group nodes by type, owner, status, cost, or date
+    - ENHANCED: Force-Directed Layout - Barnes-Hut O(n log n), collision detection, 500 iterations
+    - FIX: Extended Thinking temperature must be 1 (Claude API requirement)
 
     Previous (Build 148):
     - NEW: Collapsible AI Tools Sidebar - Icon-based left-docked navigation (60px → 260px on hover)
@@ -1881,6 +1879,8 @@
                     <option value="strategy" data-desc="Business: Strategy → Pillar → Initiative → Action">📊 Strategic Plan</option>
                     <option value="course" data-desc="Education: Course → Unit → Lesson → Exercise">📖 Course Design</option>
                     <option value="film" data-desc="Production: Film → Phase → Scene → Shot">🎬 Film Production</option>
+                    <option value="veo3" data-desc="Veo3: Project → Sequence → Scene → Shot/Frame">🎥 Veo3 (Google)</option>
+                    <option value="sora2" data-desc="Sora2: Project → Sequence → Beat → Shot/Remix">🎬 Sora2 (OpenAI)</option>
                     <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>
                     <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>
                     <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
@@ -1941,8 +1941,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.7.0 | Build 149 | 2025-11-21">
-                    v2.7.0 • Build 149
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.8.0 | Build 150 | 2025-11-21">
+                    v2.8.0 • Build 150
                 </div>
             </div>
         </div>
@@ -2068,6 +2068,8 @@
                         <option value="strategy" style="background: #1a1a2e; color: #ffffff;">🎯 Strategic Plan - Business initiatives</option>
                         <option value="course" style="background: #1a1a2e; color: #ffffff;">🎓 Course Design - Curriculum structure</option>
                         <option value="film" style="background: #1a1a2e; color: #ffffff;">🎬 Film Production - Video workflow</option>
+                        <option value="veo3" style="background: #1a1a2e; color: #ffffff;">🎥 Veo3 (Google) - Ingredient/Frame-based video</option>
+                        <option value="sora2" style="background: #1a1a2e; color: #ffffff;">🎬 Sora2 (OpenAI) - Cameo/Beat-based video</option>
                         <option value="philosophy" style="background: #1a1a2e; color: #ffffff;">🤔 Philosophy - Arguments & treatises</option>
                         <option value="prompting" style="background: #1a1a2e; color: #ffffff;">🧠 Prompt Engineering - AI prompts</option>
                         <option value="familytree" style="background: #1a1a2e; color: #ffffff;">👨‍👩‍👧‍👦 Family Tree - Genealogy</option>
@@ -3264,6 +3266,8 @@ The AI will analyze the structure and convert it to a tree."
                             roadmap: 'Product Roadmap',
                             book: 'Book Writing',
                             film: 'Film Production',
+                            veo3: 'Veo3 (Google)',
+                            sora2: 'Sora2 (OpenAI)',
                             prompting: 'AI Prompt Design',
                             gmail: 'Gmail Threads',
                             eventplanning: 'Event Planning',
@@ -3896,6 +3900,9 @@ The AI will analyze the structure and convert it to a tree."
                     type: "enabled",
                     budget_tokens: 5000  // Increased from 2000 for Deep Mode (more reasoning time)
                 };
+                // CRITICAL: Temperature MUST be 1 when thinking is enabled
+                // https://docs.claude.com/en/docs/build-with-claude/extended-thinking#important-considerations-when-using-extended-thinking
+                requestData.temperature = 1;
             }
 
             let response;
@@ -3962,21 +3969,38 @@ The AI will analyze the structure and convert it to a tree."
                 } catch (fetchError) {
                     clearTimeout(timeoutId);
 
-                    // AUTOMATIC FALLBACK: If timeout AND user has API key, try direct API
+                    // AUTOMATIC FALLBACK: If timeout AND user has API key, try direct API (only from local files)
                     if (fetchError.name === 'AbortError' && localApiKey) {
-                        console.warn('⚠️ Netlify timeout detected. Falling back to direct API (no timeout limit)...');
-                        try {
-                            response = await callClaudeDirectAPI(requestData, localApiKey);
-                            console.log('✅ Direct API fallback successful!');
-                        } catch (directError) {
-                            console.error('❌ Direct API fallback failed:', directError);
+                        const isLocalFile = window.location.protocol === 'file:';
 
-                            // Check if this is a CORS error (common when running from file:// or localhost)
-                            if (directError.message === 'Failed to fetch' || directError.name === 'TypeError') {
-                                throw new Error(`Sonnet request timeout on Netlify (10s free tier limit).\n\nDirect API fallback blocked by browser (CORS - you're running from file://).\n\n✅ Solutions:\n1. Run via local server: python -m http.server 8000\n2. Deploy to https://treelisty.netlify.app (no CORS issues)\n3. Use ⚡ Fast Mode instead (faster, works everywhere)\n\n💡 Sonnet is powerful but slow - works best on deployed sites or with local server.`);
+                        if (isLocalFile) {
+                            // Running from file:// - try direct API fallback
+                            console.warn('⚠️ Netlify timeout detected. Falling back to direct API (no timeout limit)...');
+                            try {
+                                response = await callClaudeDirectAPI(requestData, localApiKey);
+                                console.log('✅ Direct API fallback successful!');
+                            } catch (directError) {
+                                console.error('❌ Direct API fallback failed:', directError);
+                                throw new Error(`Netlify timeout AND direct API failed.\n\n✅ Solutions:\n1. Run via local server: python -m http.server 8000\n2. Use deployed site: https://treelisty.netlify.app\n3. Use ⚡ Fast Mode (Haiku) - faster and works everywhere`);
                             }
+                        } else {
+                            // Running from web deployment (https://) - Claude API doesn't support CORS
+                            throw new Error(`⏱️ Request timeout (Netlify 10-second limit exceeded)
 
-                            throw new Error(`Netlify timeout AND direct API failed. Error: ${directError.message}`);
+❌ Claude API doesn't support CORS - cannot bypass Netlify from browser
+
+This happened because:
+• Your request took longer than 10 seconds
+• Netlify free tier has 10-second function timeout
+• Claude's API blocks direct browser calls (CORS policy)
+• Unlike Gemini/ChatGPT, Claude requires a proxy server
+
+✅ Solutions:
+1. Use server-sonnet or server-haiku (Fast Mode) - usually completes in <10s
+2. Reduce your request size - fewer nodes, shorter text
+3. Self-host with backend that has no timeout limits
+
+💡 The Chat Builder works best with Fast Mode on Netlify.`);
                         }
                     } else if (fetchError.name === 'AbortError') {
                         // Timeout but no user API key - can't fallback
@@ -7370,6 +7394,71 @@ const PATTERNS = {
             trackingFor: ['subtask']
         }
     },
+    veo3: {
+        name: 'Veo3 (Google)',
+        icon: '🎥',
+        levels: {
+            root: 'Project',
+            phase: 'Sequence',
+            item: 'Scene',
+            subtask: 'Shot'
+        },
+        phaseSubtitles: ['Opening Sequence', 'Development', 'Climax Sequence'],
+        types: [
+            { value: 'ingredients', label: 'Ingredients to Video' },
+            { value: 'frames', label: 'Frames to Video' },
+            { value: 'extend', label: 'Extend Video' },
+            { value: 'standard', label: 'Standard Generation' }
+        ],
+        description: 'Google Veo 3.1 AI video generation with Flow workflow',
+        fields: {
+            flowMode: { label: 'Flow Mode', type: 'select', options: ['Ingredients to Video', 'Frames to Video', 'Extend', 'Standard'], helpText: '🎬 Veo 3 generation mode (ingredients, frame bridging, or extension)' },
+            videoPrompt: { label: 'Video Prompt', type: 'textarea', placeholder: 'Detailed text-to-video prompt...', helpText: '✍️ Primary prompt for Veo 3 generation' },
+            ingredientImages: { label: 'Ingredient Images', type: 'textarea', placeholder: 'URLs of reference images (character, objects, style)...', helpText: '🖼️ Reference images for character/object/style control (Ingredients mode)' },
+            startFrame: { label: 'Start Frame', type: 'text', placeholder: 'URL or ID...', helpText: '🎞️ Starting frame for frame bridging (Frames mode)' },
+            endFrame: { label: 'End Frame', type: 'text', placeholder: 'URL or ID...', helpText: '🎞️ Ending frame for frame bridging (Frames mode)' },
+            extendDuration: { label: 'Extend Duration', type: 'select', options: ['10 seconds', '20 seconds', '30 seconds', '60+ seconds'], helpText: '⏱️ Target duration for extended video (Extend mode)' },
+            duration: { label: 'Duration', type: 'select', options: ['4 seconds', '6 seconds', '8 seconds'], helpText: '⏱️ Standard Veo 3 durations @ 24 FPS' },
+            resolution: { label: 'Resolution', type: 'select', options: ['720p', '1080p'], helpText: '📺 Output resolution' },
+            audioType: { label: 'Audio Type', type: 'select', options: ['Dialogue', 'Sound Effects', 'Ambience', 'Mixed', 'Silent'], helpText: '🔊 Native audio generation type' },
+            cinematicStyle: { label: 'Cinematic Style', type: 'select', options: ['Realistic', 'Dramatic', 'Documentary', 'Commercial', 'Artistic', 'Music Video'], helpText: '🎭 Veo 3 cinematic style understanding' },
+            includeDependencies: true,
+            includeTracking: true,
+            trackingFor: ['subtask']
+        }
+    },
+    sora2: {
+        name: 'Sora2 (OpenAI)',
+        icon: '🎬',
+        levels: {
+            root: 'Project',
+            phase: 'Sequence',
+            item: 'Beat',
+            subtask: 'Shot'
+        },
+        phaseSubtitles: ['Setup', 'Conflict', 'Resolution'],
+        types: [
+            { value: 'cameo', label: 'Cameo Shot' },
+            { value: 'remix', label: 'Remix Variant' },
+            { value: 'standard', label: 'Standard Generation' },
+            { value: 'physics-complex', label: 'Complex Physics' }
+        ],
+        description: 'OpenAI Sora 2 AI video generation with cameo and remix capabilities',
+        fields: {
+            videoPrompt: { label: 'Video Prompt', type: 'textarea', placeholder: 'Detailed text-to-video prompt for Sora 2...', helpText: '✍️ Primary prompt for Sora 2 generation (physics-aware)' },
+            beatType: { label: 'Beat Type', type: 'select', options: ['Setup', 'Conflict', 'Transition', 'Resolution', 'Character Moment'], helpText: '🎯 Narrative beat purpose in storyboard' },
+            cameoUsed: { label: 'Uses Cameo', type: 'select', options: ['None', 'Cameo ID 1', 'Cameo ID 2', 'Cameo ID 3'], helpText: '👤 Insert pre-recorded cameo (person/object) into scene' },
+            remixSource: { label: 'Remix Source', type: 'text', placeholder: 'Source shot ID...', helpText: '🔄 Source shot for remix/modification (instead of full regeneration)' },
+            physicsComplexity: { label: 'Physics Complexity', type: 'select', options: ['Simple', 'Medium', 'Complex (Gymnastics/Water/Ballistics)'], helpText: '⚡ Physics accuracy level needed' },
+            duration: { label: 'Duration', type: 'select', options: ['4 seconds', '8 seconds', '12 seconds'], helpText: '⏱️ Sora 2 Pro fixed durations' },
+            resolution: { label: 'Resolution', type: 'select', options: ['720p', '1080p'], helpText: '📺 Output resolution for cinematic quality' },
+            nleExportFormat: { label: 'NLE Export', type: 'select', options: ['Premiere Pro', 'Final Cut Pro', 'DaVinci Resolve', 'After Effects', 'Raw Files'], helpText: '📤 Post-production NLE format' },
+            audioSync: { label: 'Audio Sync', type: 'select', options: ['Synchronized Dialogue', 'Sound Effects', 'Background Score', 'Silent'], helpText: '🎵 Sora 2 synchronized audio generation' },
+            includeDependencies: true,
+            includeTracking: true,
+            trackingFor: ['subtask']
+        }
+    },
     philosophy: {
         name: 'Philosophy',
         icon: '🤔',
@@ -8064,9 +8153,9 @@ function renameNodesForPattern(node, labels) {
 
     // Collect all possible terms from all patterns for replacement
     const allRootTerms = ['Project', 'Pipeline', 'Thesis', 'Product', 'Book', 'Event', 'Program', 'Strategy', 'Course', 'Film', 'Treatise', 'Family'];
-    const allPhaseTerms = ['Phase', 'Quarter', 'Chapter', 'Part', 'Stage', 'Pillar', 'Unit', 'Generation'];
-    const allItemTerms = ['Item', 'Deal', 'Section', 'Feature', 'Chapter', 'Activity', 'Workout', 'Initiative', 'Lesson', 'Scene', 'Argument', 'Person'];
-    const allSubtaskTerms = ['Task', 'Sub-task', 'Action', 'Point', 'Story', 'Scene', 'Exercise', 'Shot', 'Premise', 'Event'];
+    const allPhaseTerms = ['Phase', 'Quarter', 'Chapter', 'Part', 'Stage', 'Pillar', 'Unit', 'Generation', 'Act', 'Sequence'];
+    const allItemTerms = ['Item', 'Deal', 'Section', 'Feature', 'Chapter', 'Activity', 'Workout', 'Initiative', 'Lesson', 'Scene', 'Argument', 'Person', 'Beat'];
+    const allSubtaskTerms = ['Task', 'Sub-task', 'Action', 'Point', 'Story', 'Scene', 'Exercise', 'Shot', 'Premise', 'Event', 'Frame', 'Remix'];
 
     // Rename based on node type - replace ANY pattern term with the new one
     if (node.type === 'root') {
@@ -13410,7 +13499,7 @@ function hidePatternDescription() {
                     console.log('🧠 Wizard using Deep Mode (Extended Thinking enabled)');
                 }
 
-                const response = await callClaudeAPI(userPrompt, systemPrompt, 4000, useDeepMode); // Deep Mode enables Extended Thinking
+                const response = await callClaudeAPI(userPrompt, systemPrompt, 8000, useDeepMode); // Increased to 8000 for complex patterns (Film, Philosophy, etc.)
 
                 console.log('🪄 AI Raw Response:', response);
 
@@ -13812,6 +13901,8 @@ ALWAYS include in treeUpdate:
     • ${pattern.name === 'Book' ? 'Book: scenes, character moments, plot points' : ''}
     • ${pattern.name === 'Course' ? 'Course: lessons, activities, assessments, exercises' : ''}
     • ${pattern.name === 'Film Production' ? 'Film: shots, camera movements, lighting, blocking' : ''}
+    • ${pattern.name === 'Veo3 (Google)' ? 'Veo3: ingredient images, frame transitions, extensions, audio types (dialogue/SFX/ambience)' : ''}
+    • ${pattern.name === 'Sora2 (OpenAI)' ? 'Sora2: cameo shots, remix variants, physics complexity, beat types (setup/conflict/resolution)' : ''}
     • ${pattern.name === 'Prompt Engineering' ? 'Prompting: test cases, variations, edge cases' : ''}
     • Generic: steps, components, or sub-elements
   → Focus on ${pattern.name} deliverables, not generic task lists
@@ -17669,10 +17760,12 @@ AVAILABLE PATTERNS:
 8. Strategic Plan - Business initiatives and metrics (Strategy → Pillar → Initiative → Action)
 9. Course Design - Educational curriculum structure (Course → Unit → Lesson → Exercise)
 10. Film Production - Film/video production workflow (Film → Phase → Scene → Shot)
-11. Philosophy - Philosophical arguments and treatises (Treatise → Book → Argument → Premise)
-12. Prompt Engineering - AI prompts and testing (Library → Category → Prompt → Test Case)
-13. Family Tree - Genealogical documentation (Family → Generation → Person → Event)
-14. Dialogue & Rhetoric - Analyze debates, conversations, and arguments (Conversation → Speaker → Statement → Point)
+11. Veo3 (Google) - Google Veo 3 AI video generation (Project → Sequence → Scene → Shot/Frame)
+12. Sora2 (OpenAI) - OpenAI Sora 2 AI video generation (Project → Sequence → Beat → Shot/Remix)
+13. Philosophy - Philosophical arguments and treatises (Treatise → Book → Argument → Premise)
+14. Prompt Engineering - AI prompts and testing (Library → Category → Prompt → Test Case)
+15. Family Tree - Genealogical documentation (Family → Generation → Person → Event)
+16. Dialogue & Rhetoric - Analyze debates, conversations, and arguments (Conversation → Speaker → Statement → Point)
 
 TEXT TO ANALYZE:
 ${text.substring(0, 5000)}${text.length > 5000 ? '\n\n[... truncated for analysis ...]' : ''}
@@ -21982,4 +22075,4 @@ ${jsonText}`;
 
 </body>
 </html>
-<!-- Cache buster: 1762487974 -->
+<!-- Cache buster: 1732239150 -->
