@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.8.0 | Build 150 | 2025-11-21
+    TreeListy v2.8.1 | Build 151 | 2025-11-21
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 150):
+    Changelog (Build 151):
+    - FIX: Smart Suggest for videoPrompt - No more "Okay, buckle up!" conversational fluff
+    - NEW: Veo3/Sora2 Smart Suggest - Full field suggestions for new AI video patterns
+
+    Previous (Build 150):
     - NEW: Veo3 (Google) & Sora2 (OpenAI) AI Video Patterns - Platform-specific workflows
     - NEW: Metadata Clustering in Canvas - Group nodes by type, owner, status, cost, or date
     - ENHANCED: Force-Directed Layout - Barnes-Hut O(n log n), collision detection, 500 iterations
@@ -1941,8 +1945,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.8.0 | Build 150 | 2025-11-21">
-                    v2.8.0 • Build 150
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.8.1 | Build 151 | 2025-11-21">
+                    v2.8.1 • Build 151
                 </div>
             </div>
         </div>
@@ -11082,7 +11086,24 @@ function hidePatternDescription() {
             // Pattern-specific field instructions
             prompt += buildFieldInstructions(pattern, fieldType, itemContext);
 
-            prompt += `\nReturn ONLY the ${fieldType} value (1-3 sentences, no explanation).\n`;
+            // CRITICAL: For video prompts and other direct-use fields, be VERY strict
+            const directUseFields = ['videoPrompt', 'visualStyle', 'cameraMovement', 'flowMode', 'audioType',
+                                     'cinematicStyle', 'beatType', 'physicsComplexity', 'nleExportFormat', 'audioSync'];
+            if (directUseFields.includes(fieldType)) {
+                prompt += `\n⚠️ CRITICAL OUTPUT FORMAT ⚠️
+Return ONLY the raw ${fieldType} text that will be used directly with AI video generation.
+NO conversational introductions like "Okay, buckle up..." or "Get ready..." or "Here's..." or "Let me..."
+NO explanations, NO context, NO meta-commentary, NO exclamation marks before the actual content
+JUST the actual ${fieldType} text itself, ready to paste directly into Sora/Veo/Runway.
+
+Example WRONG: "Okay, buckle up! Here's an amazing prompt: [actual prompt]"
+Example WRONG: "Get ready to ignite the screen with this: [actual prompt]"
+Example CORRECT: "[actual prompt]"
+
+Your response:`;
+            } else {
+                prompt += `\nReturn ONLY the ${fieldType} value (1-3 sentences, no explanation).\n`;
+            }
 
             return prompt;
         }
@@ -11154,6 +11175,42 @@ function hidePatternDescription() {
                     name: 'Suggest a concise scene name that captures the key action or emotion.',
                     notes: 'Suggest key considerations: continuity, platform strengths, prompt specificity, motion artifacts.',
                     iterationNotes: 'Suggest prompt engineering tips specific to this scene type.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Veo3 pattern
+            else if (pattern === 'veo3') {
+                const fieldInstructions = {
+                    videoPrompt: 'Suggest a detailed Veo 3 prompt optimized for Google\'s model. Include: subject, action, camera movement, lighting, cinematic style.',
+                    flowMode: 'Suggest the best Veo 3 Flow mode (Ingredients/Frames/Extend/Standard) for this scene.',
+                    ingredientImages: 'Suggest what reference images would be needed for character/object/style consistency.',
+                    startFrame: 'Suggest description of the starting frame for frame-to-frame bridging.',
+                    endFrame: 'Suggest description of the ending frame for frame-to-frame bridging.',
+                    extendDuration: 'Suggest target duration for video extension based on scene complexity.',
+                    audioType: 'Suggest the best native audio type (Dialogue/SFX/Ambience/Mixed) for this scene.',
+                    cinematicStyle: 'Suggest the Veo 3 cinematic style that best matches this scene.',
+                    description: 'Write 2-3 sentences: what this scene shows, the Flow workflow, and visual approach.',
+                    name: 'Suggest a concise scene name capturing the key visual or action.',
+                    notes: 'Suggest key considerations: ingredient image quality, frame coherence, extension strategy.'
+                };
+                instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
+            }
+
+            // Sora2 pattern
+            else if (pattern === 'sora2') {
+                const fieldInstructions = {
+                    videoPrompt: 'Suggest a detailed Sora 2 prompt optimized for OpenAI\'s physics-accurate model. Include: subject, action, physics requirements, lighting, style.',
+                    beatType: 'Suggest the narrative beat type (Setup/Conflict/Transition/Resolution) for this shot.',
+                    cameoUsed: 'Suggest if this shot should use cameo integration and which cameo ID.',
+                    remixSource: 'Suggest if this should be a remix of an existing shot, and which shot ID.',
+                    physicsComplexity: 'Suggest physics complexity level (Simple/Medium/Complex) based on motion requirements.',
+                    duration: 'Suggest Sora 2 duration (4s/8s/12s) based on action complexity.',
+                    nleExportFormat: 'Suggest the best NLE format for post-production workflow.',
+                    audioSync: 'Suggest audio type (Synchronized Dialogue/SFX/Background Score) for this beat.',
+                    description: 'Write 2-3 sentences: what this beat accomplishes, physics requirements, and narrative purpose.',
+                    name: 'Suggest a concise beat name capturing the narrative moment.',
+                    notes: 'Suggest key considerations: physics accuracy, cameo setup, remix strategy, NLE workflow.'
                 };
                 instructions += fieldInstructions[fieldType] || `Suggest an appropriate ${fieldType} value.`;
             }
@@ -22075,4 +22132,4 @@ ${jsonText}`;
 
 </body>
 </html>
-<!-- Cache buster: 1732239150 -->
+<!-- Cache buster: 1732240151 -->
