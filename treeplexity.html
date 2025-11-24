@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.8.1 | Build 151 | 2025-11-21
+    TreeListy v2.9.0 | Build 152 | 2025-11-24
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 151):
+    Changelog (Build 152):
+    - NEW: Wolfram-style Hyperedges - N-ary relationships (montage, argument, theme, etc.)
+    - NEW: Convex Hull Visualization - Hyperedges render as semi-transparent blobs in Canvas View
+    - NEW: Multi-select Hyperedge Creation - Ctrl+Click nodes, right-click "Create Hyperedge"
+    - NEW: Provenance Stamping - All nodes track creation source (ai-sonnet, ai-gemini, user, etc.)
+    - NEW: Root-level Hyperedge Storage - Cross-phase relationships (Film flashbacks, Philosophy refutations)
+    - ENHANCED: Graham Scan Algorithm - O(n log n) convex hull computation for hyperedge visualization
+
+    Previous (Build 151):
     - FIX: Smart Suggest for videoPrompt - No more "Okay, buckle up!" conversational fluff
     - NEW: Veo3/Sora2 Smart Suggest - Full field suggestions for new AI video patterns
 
@@ -1945,8 +1953,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.8.1 | Build 151 | 2025-11-21">
-                    v2.8.1 • Build 151
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.0 | Build 152 | 2025-11-24">
+                    v2.9.0 • Build 152
                 </div>
             </div>
         </div>
@@ -4725,6 +4733,7 @@ Focus on logical structure and content organization best practices.`;
             type: 'root',
             icon: '🌳',
             expanded: true,
+            hyperedges: [],  // Root-level hyperedge storage for N-ary relationships
             children: [
                 {
                     id: 'phase-0',
@@ -5096,6 +5105,146 @@ Focus on logical structure and content organization best practices.`;
             }
         }
 
+        // =============================================================================
+        // CONVEX HULL COMPUTATION (Graham Scan Algorithm)
+        // =============================================================================
+
+        /**
+         * Compute convex hull using Graham scan algorithm
+         * @param {Array} points - Array of {x, y} points
+         * @returns {Array} Points forming the convex hull in counter-clockwise order
+         */
+        function computeConvexHull(points) {
+            if (points.length < 3) return points;
+
+            // Sort points by y-coordinate (bottom to top), then x-coordinate (left to right)
+            const sorted = [...points].sort((a, b) => {
+                if (a.y !== b.y) return a.y - b.y;
+                return a.x - b.x;
+            });
+
+            // Helper: Compute cross product of vectors OA and OB
+            const cross = (o, a, b) => (a.x - o.x) * (b.y - o.y) - (a.y - o.y) * (b.x - o.x);
+
+            // Build lower hull
+            const lower = [];
+            for (const p of sorted) {
+                while (lower.length >= 2 && cross(lower[lower.length - 2], lower[lower.length - 1], p) <= 0) {
+                    lower.pop();
+                }
+                lower.push(p);
+            }
+
+            // Build upper hull
+            const upper = [];
+            for (let i = sorted.length - 1; i >= 0; i--) {
+                const p = sorted[i];
+                while (upper.length >= 2 && cross(upper[upper.length - 2], upper[upper.length - 1], p) <= 0) {
+                    upper.pop();
+                }
+                upper.push(p);
+            }
+
+            // Remove last point of each half because it's repeated
+            lower.pop();
+            upper.pop();
+
+            return lower.concat(upper);
+        }
+
+        // =============================================================================
+        // HYPEREDGE VISUALIZATION
+        // =============================================================================
+
+        /**
+         * Draw all hyperedges as convex hull blobs
+         */
+        function drawHyperedges() {
+            const svg = document.getElementById('canvas-connections');
+            const hyperedges = getAllHyperedges();
+
+            if (!hyperedges || hyperedges.length === 0) {
+                return;
+            }
+
+            // Color palette for hyperedge types
+            const typeColors = {
+                'montage': 'rgba(251, 146, 60, 0.15)',       // Orange
+                'argument': 'rgba(59, 130, 246, 0.15)',      // Blue
+                'theme': 'rgba(168, 85, 247, 0.15)',         // Purple
+                'dependency-cluster': 'rgba(34, 197, 94, 0.15)', // Green
+                'default': 'rgba(156, 163, 175, 0.15)'       // Gray
+            };
+
+            hyperedges.forEach(hyperedge => {
+                // Get all nodes in this hyperedge
+                const nodes = hyperedge.nodeIds.map(id => getNodeById(id)).filter(n => n);
+
+                if (nodes.length < 2) {
+                    console.warn(`Hyperedge ${hyperedge.id} has < 2 valid nodes`);
+                    return;
+                }
+
+                // Get node positions (center of each node card)
+                const points = nodes.map(node => ({
+                    x: (node.canvasX || 0) + 160,  // Center X (320px width / 2)
+                    y: (node.canvasY || 0) + 60    // Center Y (120px height / 2)
+                }));
+
+                // Add padding around the hull
+                const padding = 40;
+                const centroid = {
+                    x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
+                    y: points.reduce((sum, p) => sum + p.y, 0) / points.length
+                };
+
+                const paddedPoints = points.map(p => ({
+                    x: p.x + (p.x - centroid.x) * (padding / Math.hypot(p.x - centroid.x, p.y - centroid.y)),
+                    y: p.y + (p.y - centroid.y) * (padding / Math.hypot(p.x - centroid.x, p.y - centroid.y))
+                }));
+
+                // Compute convex hull
+                const hull = computeConvexHull(paddedPoints);
+
+                if (hull.length < 3) {
+                    console.warn(`Hyperedge ${hyperedge.id} hull has < 3 points`);
+                    return;
+                }
+
+                // Create SVG polygon for the hull
+                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                const pointsStr = hull.map(p => `${p.x},${p.y}`).join(' ');
+                polygon.setAttribute('points', pointsStr);
+
+                // Get color from metadata or type
+                const color = hyperedge.metadata?.color || typeColors[hyperedge.type] || typeColors.default;
+                polygon.setAttribute('fill', color);
+                polygon.setAttribute('stroke', color.replace('0.15', '0.4'));
+                polygon.setAttribute('stroke-width', '2');
+                polygon.setAttribute('stroke-dasharray', '5,5');
+                polygon.style.pointerEvents = 'none';
+
+                svg.appendChild(polygon);
+
+                // Add label at centroid
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', centroid.x);
+                label.setAttribute('y', centroid.y - 20);
+                label.setAttribute('text-anchor', 'middle');
+                label.setAttribute('fill', color.replace('0.15', '1'));
+                label.setAttribute('font-size', '14');
+                label.setAttribute('font-weight', 'bold');
+                label.style.pointerEvents = 'none';
+                label.textContent = hyperedge.label;
+
+                svg.appendChild(label);
+            });
+        }
+
+        // =============================================================================
+        // END HYPEREDGE VISUALIZATION
+        // =============================================================================
+
         function drawConnections() {
             // Skip drawing connections for filesystem pattern (uses indent-based hierarchy)
             if (currentPattern === 'filesystem') {
@@ -5104,6 +5253,9 @@ Focus on logical structure and content organization best practices.`;
 
             const svg = document.getElementById('canvas-connections');
             svg.innerHTML = '';
+
+            // Draw hyperedges first (so they appear behind regular connections)
+            drawHyperedges();
 
             // Recursively draw connections for all nodes
             capexTree.children.forEach(phase => {
@@ -5217,6 +5369,182 @@ Focus on logical structure and content organization best practices.`;
             defs.appendChild(solidMarker);
             defs.appendChild(dashedMarker);
             svg.appendChild(defs);
+        }
+
+        /**
+         * Show dialog to create a hyperedge from selected nodes
+         */
+        function showHyperedgeDialog() {
+            // Remove any existing dialog
+            const existingDialog = document.getElementById('hyperedge-dialog');
+            if (existingDialog) existingDialog.remove();
+
+            // Create modal dialog
+            const dialog = document.createElement('div');
+            dialog.id = 'hyperedge-dialog';
+            dialog.style.cssText = `
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: var(--card-bg);
+                border: 2px solid var(--border);
+                border-radius: 12px;
+                padding: 24px;
+                z-index: 10001;
+                box-shadow: 0 12px 48px rgba(0,0,0,0.8);
+                min-width: 400px;
+                max-width: 500px;
+            `;
+
+            dialog.innerHTML = `
+                <h3 style="margin-top: 0; color: var(--text-primary);">Create Hyperedge</h3>
+                <p style="color: var(--text-secondary); font-size: 14px;">
+                    Creating hyperedge with ${selectedNodes.length} selected nodes
+                </p>
+
+                <div style="margin: 16px 0;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-primary); font-weight: 600;">
+                        Hyperedge Type:
+                    </label>
+                    <select id="hyperedge-type" style="
+                        width: 100%;
+                        padding: 10px;
+                        background: var(--input-bg);
+                        border: 1px solid var(--border);
+                        border-radius: 6px;
+                        color: var(--text-primary);
+                        font-size: 14px;
+                    ">
+                        <option value="montage">🎬 Montage (Film)</option>
+                        <option value="argument">🗣️ Argument (Philosophy)</option>
+                        <option value="theme">🎯 Theme (Roadmap/Product)</option>
+                        <option value="dependency-cluster">📦 Dependency Cluster</option>
+                        <option value="location">📍 Location Group (Film)</option>
+                        <option value="character">👥 Character Arc (Film)</option>
+                        <option value="custom">✏️ Custom</option>
+                    </select>
+                </div>
+
+                <div style="margin: 16px 0;">
+                    <label style="display: block; margin-bottom: 8px; color: var(--text-primary); font-weight: 600;">
+                        Label:
+                    </label>
+                    <input type="text" id="hyperedge-label" placeholder="e.g., 'Training Montage', 'Socratic Refutation'" style="
+                        width: 100%;
+                        padding: 10px;
+                        background: var(--input-bg);
+                        border: 1px solid var(--border);
+                        border-radius: 6px;
+                        color: var(--text-primary);
+                        font-size: 14px;
+                    ">
+                </div>
+
+                <div style="display: flex; gap: 12px; margin-top: 24px;">
+                    <button id="hyperedge-create-btn" style="
+                        flex: 1;
+                        padding: 12px 24px;
+                        background: var(--treeplex-primary);
+                        border: none;
+                        border-radius: 6px;
+                        color: white;
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-size: 14px;
+                    ">Create Hyperedge</button>
+                    <button id="hyperedge-cancel-btn" style="
+                        flex: 1;
+                        padding: 12px 24px;
+                        background: var(--input-bg);
+                        border: 1px solid var(--border);
+                        border-radius: 6px;
+                        color: var(--text-primary);
+                        font-weight: 600;
+                        cursor: pointer;
+                        font-size: 14px;
+                    ">Cancel</button>
+                </div>
+            `;
+
+            // Add backdrop
+            const backdrop = document.createElement('div');
+            backdrop.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.5);
+                z-index: 10000;
+            `;
+            backdrop.id = 'hyperedge-backdrop';
+
+            document.body.appendChild(backdrop);
+            document.body.appendChild(dialog);
+
+            // Focus label input
+            const labelInput = document.getElementById('hyperedge-label');
+            labelInput.focus();
+
+            // Handle create button
+            const createBtn = document.getElementById('hyperedge-create-btn');
+            createBtn.addEventListener('click', () => {
+                const type = document.getElementById('hyperedge-type').value;
+                const label = labelInput.value.trim();
+
+                if (!label) {
+                    alert('Please enter a label for the hyperedge');
+                    return;
+                }
+
+                // Get node IDs
+                const nodeIds = selectedNodes.map(n => n.id);
+
+                // Create hyperedge
+                const hyperedge = addHyperedge(type, label, nodeIds);
+
+                if (hyperedge) {
+                    console.log('✅ Hyperedge created:', hyperedge);
+
+                    // Clear selection
+                    selectedNodes = [];
+                    document.querySelectorAll('.canvas-node').forEach(n => n.classList.remove('selected'));
+                    updateSelectionCounter();
+
+                    // Re-render canvas to show the new hyperedge
+                    renderCanvas();
+
+                    // Close dialog
+                    dialog.remove();
+                    backdrop.remove();
+                } else {
+                    alert('Failed to create hyperedge');
+                }
+            });
+
+            // Handle cancel button
+            const cancelBtn = document.getElementById('hyperedge-cancel-btn');
+            cancelBtn.addEventListener('click', () => {
+                dialog.remove();
+                backdrop.remove();
+            });
+
+            // Close on backdrop click
+            backdrop.addEventListener('click', () => {
+                dialog.remove();
+                backdrop.remove();
+            });
+
+            // Close on Escape
+            const handleEscape = (e) => {
+                if (e.key === 'Escape') {
+                    dialog.remove();
+                    backdrop.remove();
+                    document.removeEventListener('keydown', handleEscape);
+                }
+            };
+            document.addEventListener('keydown', handleEscape);
         }
 
         function showCanvasContextMenu(x, y, item) {
@@ -5349,6 +5677,17 @@ Focus on logical structure and content organization best practices.`;
                     }
                 }}
             ];
+
+            // Add "Create Hyperedge" option if 2+ nodes are selected
+            if (selectedNodes.length >= 2) {
+                menuItems.push({
+                    label: `🔗 Create Hyperedge (${selectedNodes.length} nodes)`,
+                    action: () => {
+                        console.log('Create Hyperedge clicked');
+                        showHyperedgeDialog();
+                    }
+                });
+            }
 
             menuItems.forEach(menuItem => {
                 const btn = document.createElement('button');
@@ -12206,7 +12545,11 @@ Your response:`;
                     icon: '📦',
                     itemType: defaultType,
                     type: 'item',
-                    dependencies: []
+                    dependencies: [],
+                    provenance: {
+                        source: 'user',
+                        timestamp: new Date().toISOString()
+                    }
                 };
 
                 if (!activeNode.items) activeNode.items = [];
@@ -12256,7 +12599,12 @@ Your response:`;
                     pmNextSteps: '',
                     pmUpdates: [],
                     // Initialize subItems for nested support
-                    subItems: []
+                    subItems: [],
+                    // Provenance stamping
+                    provenance: {
+                        source: 'user',
+                        timestamp: new Date().toISOString()
+                    }
                 };
 
                 // Initialize subItems array if it doesn't exist
@@ -13745,7 +14093,8 @@ Your response:`;
                 // Update tree if provided
                 if (parsed.treeUpdate) {
                     console.log('🪄 Applying tree update:', parsed.treeUpdate);
-                    mergeTreeUpdate(parsed.treeUpdate);
+                    const aiSource = `ai-${aiModeInfo.model}`;  // e.g., 'ai-sonnet', 'ai-gemini', 'ai-chatgpt'
+                    mergeTreeUpdate(parsed.treeUpdate, aiSource);
                     updateWizardPreview();
                 }
 
@@ -14212,7 +14561,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
         }
 
         // Merge tree update into working tree (SMART MERGE - preserves existing data)
-        function mergeTreeUpdate(update) {
+        function mergeTreeUpdate(update, aiSource = 'ai-sonnet') {
             if (update.name) wizardState.workingTree.name = update.name;
             if (update.description) wizardState.workingTree.description = update.description;
 
@@ -14309,7 +14658,11 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                                 const newSubItemWithId = {
                                                     id: `${nestedArrayName === 'children' ? 'child' : 'subtask'}-${parentPhase}-${parentItemIdx}-${subIdx}`,
                                                     type: nestedArrayName === 'children' ? 'item' : 'subtask',
-                                                    ...newSubItem
+                                                    ...newSubItem,
+                                                    provenance: {
+                                                        source: aiSource,
+                                                        timestamp: new Date().toISOString()
+                                                    }
                                                 };
                                                 existingParent[nestedArrayName].push(newSubItemWithId);
                                             }
@@ -14345,7 +14698,11 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                         type: 'item',
                                         icon: '📄',
                                         expanded: false,
-                                        ...updatedItem
+                                        ...updatedItem,
+                                        provenance: {
+                                            source: aiSource,
+                                            timestamp: new Date().toISOString()
+                                        }
                                     };
                                     if (nestedArrayName) {
                                         newItem[nestedArrayName] = addNestedItemIds(updatedItem[nestedArrayName], nestedArrayName, existingPhase.phase, newItemIdx);
@@ -14369,6 +14726,10 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                 id: `subtask-${phaseIdx}-${itemIdx}-${parentPath}${subIdx}`,
                                 type: 'subtask',
                                 ...subItem,
+                                provenance: {
+                                    source: aiSource,
+                                    timestamp: new Date().toISOString()
+                                },
                                 subItems: addSubItemIds(subItem.subItems, phaseIdx, itemIdx, `${parentPath}${subIdx}-`)
                             }));
                         }
@@ -14380,12 +14741,20 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                             icon: '📋',
                             expanded: true,
                             ...updatedPhase,
+                            provenance: {
+                                source: aiSource,
+                                timestamp: new Date().toISOString()
+                            },
                             items: (updatedPhase.items || []).map((item, itemIdx) => ({
                                 id: `item-${newPhaseIdx}-${itemIdx}`,
                                 type: 'item',
                                 icon: '📄',
                                 expanded: false,
                                 ...item,
+                                provenance: {
+                                    source: aiSource,
+                                    timestamp: new Date().toISOString()
+                                },
                                 subItems: addSubItemIds(item.subItems, newPhaseIdx, itemIdx)
                             }))
                         });
@@ -14404,6 +14773,145 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 console.log(`✅ Smart merge complete: ${wizardState.workingTree.children.length} phases, ${wizardState.workingTree.children.reduce((sum, p) => sum + (p.items?.length || 0), 0)} items`);
             }
         }
+
+        // =============================================================================
+        // HYPEREDGE MANAGEMENT (Wolfram-style N-ary relationships)
+        // =============================================================================
+
+        /**
+         * Add a new hyperedge to the root-level hyperedges array
+         * @param {string} type - Type of hyperedge (e.g., 'montage', 'argument', 'theme', 'dependency-cluster')
+         * @param {string} label - Human-readable label for the hyperedge
+         * @param {string[]} nodeIds - Array of global node IDs (2+ nodes)
+         * @param {object} metadata - Optional metadata (color, pattern, created, etc.)
+         * @returns {object} The created hyperedge
+         */
+        function addHyperedge(type, label, nodeIds, metadata = {}) {
+            if (!capexTree.hyperedges) {
+                capexTree.hyperedges = [];
+            }
+
+            if (nodeIds.length < 2) {
+                console.warn('Hyperedge requires at least 2 nodes');
+                return null;
+            }
+
+            const hyperedge = {
+                id: `hyperedge-${Date.now()}`,
+                type: type,
+                label: label,
+                nodeIds: nodeIds,
+                metadata: {
+                    created: new Date().toISOString(),
+                    ...metadata
+                }
+            };
+
+            capexTree.hyperedges.push(hyperedge);
+            console.log(`✅ Created hyperedge: ${label} (${nodeIds.length} nodes)`);
+
+            return hyperedge;
+        }
+
+        /**
+         * Remove a hyperedge by ID
+         * @param {string} hyperedgeId - The ID of the hyperedge to remove
+         * @returns {boolean} True if removed, false if not found
+         */
+        function removeHyperedge(hyperedgeId) {
+            if (!capexTree.hyperedges) {
+                return false;
+            }
+
+            const initialLength = capexTree.hyperedges.length;
+            capexTree.hyperedges = capexTree.hyperedges.filter(h => h.id !== hyperedgeId);
+
+            const removed = capexTree.hyperedges.length < initialLength;
+            if (removed) {
+                console.log(`✅ Removed hyperedge: ${hyperedgeId}`);
+            }
+
+            return removed;
+        }
+
+        /**
+         * Find all hyperedges containing a specific node
+         * @param {string} nodeId - The node ID to search for
+         * @returns {object[]} Array of hyperedges containing this node
+         */
+        function findHyperedgesForNode(nodeId) {
+            if (!capexTree.hyperedges) {
+                return [];
+            }
+
+            return capexTree.hyperedges.filter(h => h.nodeIds.includes(nodeId));
+        }
+
+        /**
+         * Get a specific hyperedge by ID
+         * @param {string} hyperedgeId - The hyperedge ID
+         * @returns {object|null} The hyperedge or null if not found
+         */
+        function getHyperedgeById(hyperedgeId) {
+            if (!capexTree.hyperedges) {
+                return null;
+            }
+
+            return capexTree.hyperedges.find(h => h.id === hyperedgeId) || null;
+        }
+
+        /**
+         * Get all hyperedges
+         * @returns {object[]} Array of all hyperedges
+         */
+        function getAllHyperedges() {
+            return capexTree.hyperedges || [];
+        }
+
+        /**
+         * Helper: Get a node by its global ID (searches entire tree)
+         * @param {string} nodeId - The node ID to find
+         * @returns {object|null} The node or null if not found
+         */
+        function getNodeById(nodeId) {
+            if (capexTree.id === nodeId) return capexTree;
+
+            function searchNode(node) {
+                if (node.id === nodeId) return node;
+
+                // Search children (phases)
+                if (node.children) {
+                    for (const child of node.children) {
+                        const found = searchNode(child);
+                        if (found) return found;
+                    }
+                }
+
+                // Search items
+                if (node.items) {
+                    for (const item of node.items) {
+                        const found = searchNode(item);
+                        if (found) return found;
+                    }
+                }
+
+                // Search subItems
+                if (node.subItems) {
+                    for (const subItem of node.subItems) {
+                        const found = searchNode(subItem);
+                        if (found) return found;
+                    }
+                }
+
+                return null;
+            }
+
+            return searchNode(capexTree);
+        }
+
+        // =============================================================================
+        // END HYPEREDGE MANAGEMENT
+        // =============================================================================
 
         // Update tree preview - copy working tree to main tree and render in real-time
         function updateWizardPreview() {
