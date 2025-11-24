@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.2 | Build 154 | 2025-11-24
+    TreeListy v2.9.3 | Build 155 | 2025-11-24
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 154):
+    Changelog (Build 155):
+    - FIX: Cluster-by dropdown scope issue - Moved function to global scope
+    - Pattern-specific options now properly populate for Philosophy, Film, Veo3, Sora2, Sales, Roadmap
+    - Function now accessible from all pattern switch and file load handlers
+
+    Previous (Build 154):
     - FIX: Cluster-by dropdown now properly dynamic (removed hardcoded HTML)
     - NEW: Philosophy sort options - speaker, argument type, validity, school, claim name
     - NEW: Film sort options - visual style, lighting mood, camera movement, AI platform, duration
@@ -1967,8 +1972,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.2 | Build 154 | 2025-11-24">
-                    v2.9.2 • Build 154
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.3 | Build 155 | 2025-11-24">
+                    v2.9.3 • Build 155
                 </div>
             </div>
         </div>
@@ -8706,6 +8711,110 @@ function updateSortDropdown() {
         sortSection.style.display = 'none';
         console.log(`⚠️ Pattern "${currentPattern}" has no sort options`);
     }
+}
+
+// Dynamically populate cluster-by dropdown based on current pattern
+function updateClusterByOptions() {
+    const clusterBySelect = document.getElementById('cluster-by-select');
+    if (!clusterBySelect) {
+        console.log('⚠️ Cluster-by select not found in DOM');
+        return;
+    }
+
+    const currentValue = clusterBySelect.value;
+    clusterBySelect.innerHTML = '';
+
+    // Always start with default option
+    const defaultOption = document.createElement('option');
+    defaultOption.value = '';
+    defaultOption.textContent = '🔗 Cluster By';
+    defaultOption.style.cssText = 'background: #1a1a2e; color: #ffffff;';
+    clusterBySelect.appendChild(defaultOption);
+
+    // Universal fields (work for all patterns)
+    const universalFields = [
+        { value: 'itemType', label: '📦 Type' },
+        { value: 'owner', label: '👤 Owner' },
+        { value: 'pmRAGStatus', label: '🚦 Status' },
+        { value: 'cost', label: '💰 Cost Range' },
+        { value: 'modifiedDate', label: '📅 Date' }
+    ];
+
+    // Pattern-specific fields
+    const patternFields = {
+        philosophy: [
+            { value: 'argumentType', label: '🎯 Argument Type' },
+            { value: 'validity', label: '✓ Logical Validity' },
+            { value: 'speaker', label: '🗣️ Speaker' },
+            { value: 'philosophicalSchool', label: '🏛️ School of Thought' }
+        ],
+        film: [
+            { value: 'visualStyle', label: '🎨 Visual Style' },
+            { value: 'lightingMood', label: '💡 Lighting Mood' },
+            { value: 'cameraMovement', label: '🎥 Camera Movement' },
+            { value: 'aiPlatform', label: '🤖 AI Platform' }
+        ],
+        veo3: [
+            { value: 'flowMode', label: '🎬 Flow Mode' },
+            { value: 'audioType', label: '🔊 Audio Type' },
+            { value: 'cinematicStyle', label: '🎨 Cinematic Style' }
+        ],
+        sora2: [
+            { value: 'beatType', label: '🎵 Beat Type' },
+            { value: 'cameoUsed', label: '👤 Cameo Used' },
+            { value: 'physicsComplexity', label: '⚛️ Physics Complexity' }
+        ],
+        sales: [
+            { value: 'leadStage', label: '📊 Lead Stage' },
+            { value: 'leadSource', label: '📍 Lead Source' },
+            { value: 'dealSize', label: '💰 Deal Size' }
+        ],
+        roadmap: [
+            { value: 'priority', label: '⭐ Priority' },
+            { value: 'stakeholder', label: '👥 Stakeholder' },
+            { value: 'featureCategory', label: '📦 Feature Category' }
+        ]
+    };
+
+    // Get pattern-specific fields for current pattern
+    const specificFields = patternFields[currentPattern] || [];
+
+    // Add universal fields first
+    universalFields.forEach(field => {
+        const option = document.createElement('option');
+        option.value = field.value;
+        option.textContent = field.label;
+        option.style.cssText = 'background: #1a1a2e; color: #ffffff;';
+        clusterBySelect.appendChild(option);
+    });
+
+    // Add separator if we have pattern-specific fields
+    if (specificFields.length > 0) {
+        const separator = document.createElement('option');
+        separator.disabled = true;
+        separator.textContent = '───────────────';
+        separator.style.cssText = 'background: #1a1a2e; color: #555;';
+        clusterBySelect.appendChild(separator);
+
+        // Add pattern-specific fields
+        specificFields.forEach(field => {
+            const option = document.createElement('option');
+            option.value = field.value;
+            option.textContent = field.label;
+            option.style.cssText = 'background: #1a1a2e; color: #ffffff;';
+            clusterBySelect.appendChild(option);
+        });
+    }
+
+    // Restore previous value if it still exists
+    if (currentValue) {
+        const optionExists = Array.from(clusterBySelect.options).some(opt => opt.value === currentValue);
+        if (optionExists) {
+            clusterBySelect.value = currentValue;
+        }
+    }
+
+    console.log(`✅ Cluster-by options updated for pattern: ${currentPattern} (${specificFields.length} pattern-specific fields)`);
 }
 
 function showCustomPatternDialog() {
@@ -17630,107 +17739,6 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
             }
 
             // Cluster-by selector event listener
-            // Dynamically populate cluster-by dropdown based on current pattern
-            function updateClusterByOptions() {
-                const clusterBySelect = document.getElementById('cluster-by-select');
-                if (!clusterBySelect) return;
-
-                const currentValue = clusterBySelect.value;
-                clusterBySelect.innerHTML = '';
-
-                // Always start with default option
-                const defaultOption = document.createElement('option');
-                defaultOption.value = '';
-                defaultOption.textContent = '🔗 Cluster By';
-                defaultOption.style.cssText = 'background: #1a1a2e; color: #ffffff;';
-                clusterBySelect.appendChild(defaultOption);
-
-                // Universal fields (work for all patterns)
-                const universalFields = [
-                    { value: 'itemType', label: '📦 Type' },
-                    { value: 'owner', label: '👤 Owner' },
-                    { value: 'pmRAGStatus', label: '🚦 Status' },
-                    { value: 'cost', label: '💰 Cost Range' },
-                    { value: 'modifiedDate', label: '📅 Date' }
-                ];
-
-                // Pattern-specific fields
-                const patternFields = {
-                    philosophy: [
-                        { value: 'argumentType', label: '🎯 Argument Type' },
-                        { value: 'validity', label: '✓ Logical Validity' },
-                        { value: 'speaker', label: '🗣️ Speaker' },
-                        { value: 'philosophicalSchool', label: '🏛️ School of Thought' }
-                    ],
-                    film: [
-                        { value: 'visualStyle', label: '🎨 Visual Style' },
-                        { value: 'lightingMood', label: '💡 Lighting Mood' },
-                        { value: 'cameraMovement', label: '🎥 Camera Movement' },
-                        { value: 'aiPlatform', label: '🤖 AI Platform' }
-                    ],
-                    veo3: [
-                        { value: 'flowMode', label: '🎬 Flow Mode' },
-                        { value: 'audioType', label: '🔊 Audio Type' },
-                        { value: 'cinematicStyle', label: '🎨 Cinematic Style' }
-                    ],
-                    sora2: [
-                        { value: 'beatType', label: '🎵 Beat Type' },
-                        { value: 'cameoUsed', label: '👤 Cameo Used' },
-                        { value: 'physicsComplexity', label: '⚛️ Physics Complexity' }
-                    ],
-                    sales: [
-                        { value: 'leadStage', label: '📊 Lead Stage' },
-                        { value: 'leadSource', label: '📍 Lead Source' },
-                        { value: 'dealSize', label: '💰 Deal Size' }
-                    ],
-                    roadmap: [
-                        { value: 'priority', label: '⭐ Priority' },
-                        { value: 'stakeholder', label: '👥 Stakeholder' },
-                        { value: 'featureCategory', label: '📦 Feature Category' }
-                    ]
-                };
-
-                // Get pattern-specific fields for current pattern
-                const specificFields = patternFields[currentPattern] || [];
-
-                // Add universal fields first
-                universalFields.forEach(field => {
-                    const option = document.createElement('option');
-                    option.value = field.value;
-                    option.textContent = field.label;
-                    option.style.cssText = 'background: #1a1a2e; color: #ffffff;';
-                    clusterBySelect.appendChild(option);
-                });
-
-                // Add separator if we have pattern-specific fields
-                if (specificFields.length > 0) {
-                    const separator = document.createElement('option');
-                    separator.disabled = true;
-                    separator.textContent = '───────────────';
-                    separator.style.cssText = 'background: #1a1a2e; color: #555;';
-                    clusterBySelect.appendChild(separator);
-
-                    // Add pattern-specific fields
-                    specificFields.forEach(field => {
-                        const option = document.createElement('option');
-                        option.value = field.value;
-                        option.textContent = field.label;
-                        option.style.cssText = 'background: #1a1a2e; color: #ffffff;';
-                        clusterBySelect.appendChild(option);
-                    });
-                }
-
-                // Restore previous value if it still exists
-                if (currentValue) {
-                    const optionExists = Array.from(clusterBySelect.options).some(opt => opt.value === currentValue);
-                    if (optionExists) {
-                        clusterBySelect.value = currentValue;
-                    }
-                }
-
-                console.log(`✅ Cluster-by options updated for pattern: ${currentPattern}`);
-            }
-
             const clusterBySelect = document.getElementById('cluster-by-select');
             if (clusterBySelect) {
                 // Populate on load
