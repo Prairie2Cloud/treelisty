@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.1 | Build 153 | 2025-11-24
+    TreeListy v2.9.2 | Build 154 | 2025-11-24
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 153):
+    Changelog (Build 154):
+    - FIX: Cluster-by dropdown now properly dynamic (removed hardcoded HTML)
+    - NEW: Philosophy sort options - speaker, argument type, validity, school, claim name
+    - NEW: Film sort options - visual style, lighting mood, camera movement, AI platform, duration
+    - ENHANCED: Cluster-by and sort dropdowns now fully pattern-aware
+
+    Previous (Build 153):
     - FIX: Pattern-specific clustering - Dropdown now shows relevant fields per pattern
     - Philosophy: argumentType, validity, speaker, philosophicalSchool
     - Film: visualStyle, lightingMood, cameraMovement, aiPlatform
@@ -1961,8 +1967,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.1 | Build 153 | 2025-11-24">
-                    v2.9.1 • Build 153
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.2 | Build 154 | 2025-11-24">
+                    v2.9.2 • Build 154
                 </div>
             </div>
         </div>
@@ -7753,7 +7759,16 @@ const PATTERNS = {
             includeDependencies: true,
             includeTracking: true,
             trackingFor: ['subtask']
-        }
+        },
+        sortOptions: [
+            { value: 'visualstyle', label: '🎨 Visual Style', field: 'visualStyle', order: 'asc', type: 'text' },
+            { value: 'lightingmood', label: '💡 Lighting Mood', field: 'lightingMood', order: 'asc', type: 'text' },
+            { value: 'cameramovement', label: '🎥 Camera Movement', field: 'cameraMovement', order: 'asc', type: 'text' },
+            { value: 'aiplatform', label: '🤖 AI Platform', field: 'aiPlatform', order: 'asc', type: 'text' },
+            { value: 'duration', label: '⏱️ Duration', field: 'duration', order: 'asc', type: 'text' },
+            { value: 'name-az', label: '🔤 Scene Name (A-Z)', field: 'name', order: 'asc', type: 'text' },
+            { value: 'name-za', label: '🔤 Scene Name (Z-A)', field: 'name', order: 'desc', type: 'text' }
+        ]
     },
     veo3: {
         name: 'Veo3 (Google)',
@@ -7867,7 +7882,16 @@ const PATTERNS = {
             philosophicalSchool: { label: 'School of Thought', type: 'select', options: ['Pre-Socratic', 'Platonic', 'Aristotelian', 'Stoic', 'Epicurean', 'Skeptic', 'Medieval', 'Rationalist', 'Empiricist', 'Kantian', 'Hegelian', 'Phenomenological', 'Analytic', 'Continental', 'Pragmatist', 'Other'], helpText: '🏛️ Philosophical tradition or school' },
             includeDependencies: true,
             includeTracking: false
-        }
+        },
+        sortOptions: [
+            { value: 'speaker-az', label: '🗣️ Speaker (A-Z)', field: 'speaker', order: 'asc', type: 'text' },
+            { value: 'speaker-za', label: '🗣️ Speaker (Z-A)', field: 'speaker', order: 'desc', type: 'text' },
+            { value: 'argumenttype', label: '🎯 Argument Type', field: 'argumentType', order: 'asc', type: 'text' },
+            { value: 'validity', label: '✓ Logical Validity', field: 'validity', order: 'asc', type: 'text' },
+            { value: 'school', label: '🏛️ Philosophical School', field: 'philosophicalSchool', order: 'asc', type: 'text' },
+            { value: 'name-az', label: '🔤 Claim Name (A-Z)', field: 'name', order: 'asc', type: 'text' },
+            { value: 'name-za', label: '🔤 Claim Name (Z-A)', field: 'name', order: 'desc', type: 'text' }
+        ]
     },
     prompting: {
         name: 'Prompt Engineering',
@@ -22726,12 +22750,7 @@ ${jsonText}`;
                 <option value="grid" style="background: #1a1a2e; color: #ffffff;">⊞ Grid</option>
             </select>
             <select id="cluster-by-select" style="padding: 8px 14px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
-                <option value="" style="background: #1a1a2e; color: #ffffff;">🔗 Cluster By</option>
-                <option value="itemType" style="background: #1a1a2e; color: #ffffff;">📦 Type</option>
-                <option value="owner" style="background: #1a1a2e; color: #ffffff;">👤 Owner</option>
-                <option value="pmRAGStatus" style="background: #1a1a2e; color: #ffffff;">🚦 Status</option>
-                <option value="cost" style="background: #1a1a2e; color: #ffffff;">💰 Cost Range</option>
-                <option value="modifiedDate" style="background: #1a1a2e; color: #ffffff;">📅 Date</option>
+                <!-- Options populated dynamically by updateClusterByOptions() -->
             </select>
             <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
             <button id="grid-toggle" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;">
