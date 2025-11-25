@@ -4,7 +4,7 @@
 
 *From Complexity to Clarity*
 
-**Version**: 2.3.0 | [Web App](./treeplexity.html) | [Examples](./examples/)
+**Version**: 2.9.4 (Build 156) | [Web App](./treeplexity.html) | [Examples](./examples/)
 
 ---
 
@@ -74,9 +74,14 @@ Break complex projects into:
 - Pattern-specific sorting (14 options for filesystem)
 - Export to Excel with professional 4-sheet workbooks
 
-### 🤖 AI-Powered (3 Providers)
+### 🤖 AI-Powered (3 Providers) + Semantic Chunking **NEW**
 - **AI Wizard**: Conversational tree building with Smart Merge
 - **Analyze Text**: Extract structure from documents (Quick/Deep modes)
+  - **🧠 Semantic Chunking Engine** (Build 156): NLP-powered text segmentation for large documents
+  - Prevents hallucinations on 5000+ word files by processing semantic chunks independently
+  - OpenAI text-embedding-3-small & Gemini text-embedding-004 integration
+  - Automatic structural fallback (Markdown headers → paragraphs → lines)
+  - Visual chunk distribution showing detected sections
 - **AI Review**: Comprehensive quality analysis
 - **Smart Suggest**: Context-aware field suggestions
 - **Generate Prompt**: Export as AI-ready prompts
@@ -238,6 +243,7 @@ TreeListy (formerly Treeplexity) evolved from CAPEX Master - originally built fo
 - [x] Multi-provider support (Claude, Gemini, ChatGPT)
 - [x] AI Wizard (conversational building)
 - [x] Analyze Text (document extraction)
+- [x] **Semantic Chunking Engine** (Build 156) - Embedding-based text segmentation
 - [x] AI Review (quality analysis)
 - [x] Smart Suggest (field suggestions)
 - [x] Extended Thinking (deep reasoning)
@@ -438,16 +444,17 @@ Treeplexity maintains the same license and acknowledgments.
 
 *Structure your thinking. Master complexity. Achieve clarity.*
 
-**Version 2.2.0** | 14 Patterns | Dual View System | AI-Powered | PWA-Ready
+**Version 2.9.4 (Build 156)** | 17 Patterns | Dual View System | AI-Powered | Semantic Chunking | PWA-Ready
 
 ---
 
 **Key Stats**:
-- 14+ specialized patterns
+- 17+ specialized patterns
 - 3 AI providers (Claude, Gemini, ChatGPT)
+- 🧠 Semantic chunking engine with embedding-based text segmentation
 - 5 auto-layout algorithms
 - 4 visual themes
 - 14 sort options (filesystem pattern)
 - 50-state undo system
-- 846KB full-featured single file
+- Hyperedge support (N-ary relationships)
 - Zero dependencies

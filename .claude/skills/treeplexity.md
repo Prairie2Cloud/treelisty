@@ -1,12 +1,42 @@
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.3.0
+**Version**: 2.9.4 (Build 156)
 **Author**: TreeListy Team
 **Description**: Work with TreeListy hierarchical project trees using natural language and AI
 
+## What's New in v2.9.4 (Build 156)
+
+**🧠 Semantic Chunking Engine (NEW)**:
+- **NLP-Powered Text Segmentation**: Prevents hallucinations on large documents (5000+ words)
+- **SemanticChunker Class**: Cosine similarity + 90th percentile adaptive thresholding
+- **EmbeddingManager Service**: OpenAI text-embedding-3-small & Gemini text-embedding-004
+- **Chunk-by-Chunk Processing**: Process semantic chunks independently in Quick/Deep modes
+- **Visual Chunk Distribution**: UI shows detected semantic sections with bar chart
+- **Automatic Fallback**: Structural parser (Markdown → paragraphs → lines) when no embedding provider
+- **Sliding Window Context**: Improved semantic boundary detection
+- **Batch Processing**: Max 20 texts per API call for efficiency
+- **Silent Error Handling**: Graceful degradation on failures
+
+**How Semantic Chunking Works**:
+1. Split text into sentences
+2. Create sliding window context (prev + current + next sentence)
+3. Generate embeddings for each window
+4. Calculate cosine distances between adjacent windows
+5. Determine adaptive threshold (90th percentile of distances)
+6. Identify semantic breakpoints where distance > threshold
+7. Merge sentences into semantic chunks
+8. Process each chunk separately with LLM
+9. Aggregate and deduplicate phases from all chunks
+
+**When It Activates**:
+- Automatically in Analyze Text (Quick & Deep modes)
+- For any text over ~1000 characters
+- Uses embedding API if available, falls back to structural split
+- Visible in modal as chunk visualization
+
 ## What's New in v2.3
 
-**Gmail Import & Analysis (NEW)**:
+**Gmail Import & Analysis**:
 - 📧 **Gmail Pattern**: Import and analyze email threads with full conversation context
 - 🔗 **Python Export Script**: Fetch Gmail threads via API (export_gmail_to_treelisty.py)
 - 🤖 **AI Email Analysis**: Rhetoric, tone, sentiment, relationship dynamics
@@ -129,9 +159,9 @@ TreeListy includes powerful AI capabilities that work alongside programmatic man
 
 ---
 
-### 2. 📄 Analyze Text - Extract Structure from Documents
+### 2. 📄 Analyze Text - Extract Structure from Documents + 🧠 Semantic Chunking
 
-**What it does**: Converts unstructured text into structured TreeListy trees
+**What it does**: Converts unstructured text into structured TreeListy trees with intelligent chunking
 
 **Usage**:
 - **Quick Mode**: "Analyze this text in Quick Mode: [paste document]"
@@ -139,8 +169,16 @@ TreeListy includes powerful AI capabilities that work alongside programmatic man
 - **Append**: "Append this analysis to existing tree"
 
 **Modes**:
-- **Quick Mode**: Fast analysis (2-4K tokens), straightforward documents
-- **Deep Mode**: Extended Thinking (5000 token reasoning budget), complex documents
+- **Quick Mode**: Fast analysis (1500 tokens per chunk), straightforward documents
+- **Deep Mode**: Extended Thinking (8192 tokens per chunk), complex documents
+
+**🧠 Semantic Chunking (Build 156)**:
+- **Automatic**: Activates for any text over ~1000 characters
+- **Intelligent Segmentation**: Uses embeddings to detect natural semantic boundaries
+- **Prevents Hallucinations**: Processes large files chunk-by-chunk instead of all at once
+- **Visual Feedback**: Shows chunk distribution in modal (purple bars = Quick, red bars = Deep)
+- **Fallback**: If no embedding API, uses structural split (Markdown headers → paragraphs → lines)
+- **Phase Aggregation**: Merges duplicate phases from chunks, preserves all items
 
 **Pattern-specific extraction**:
 - **Philosophy**: Extracts arguments, premises, objections, citations
