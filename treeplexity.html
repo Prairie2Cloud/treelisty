@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.10 | Build 163 | 2025-11-25
+    TreeListy v2.9.11 | Build 164 | 2025-11-25
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 163): Fix undefined response error + null guard
+    Changelog (Build 164): Model Selector + Latest Model IDs
+    - NEW: 🎯 Model Selector Dropdown - Choose specific AI models per call
+    - NEW: Claude: Haiku 3 (server), Haiku 3.5, Sonnet 4, Opus 4
+    - NEW: Gemini: Flash 2.0, Pro 2.5 Preview
+    - NEW: ChatGPT: 4o-mini, GPT-4o, o1 reasoning
+    - FIX: Updated Gemini models to latest (2.0-flash stable, 2.5-pro-preview)
+
+    Previous (Build 163): Fix undefined response error + null guard
     - FIX: Added null guard for AI response to prevent "Cannot read properties of undefined"
     - FIX: Better error message when AI returns empty/undefined response
     - INFO: Anthropic intentionally blocks direct browser API calls (no CORS headers)
@@ -1984,16 +1991,24 @@
             <div class="control-section" style="margin-right: 4px;">
                 <label for="unified-ai-mode-select" style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary);">
                     <span>🤖</span>
-                    <select id="unified-ai-mode-select" class="btn" style="padding: 6px 8px; cursor: pointer; font-weight: 600; min-width: 140px; font-size: 12px;" title="Choose AI provider and model">
+                    <select id="unified-ai-mode-select" class="btn" style="padding: 6px 8px; cursor: pointer; font-weight: 600; min-width: 160px; font-size: 12px;" title="Choose AI provider and model">
                         <optgroup label="🆓 Server (Free - 200/hr)">
-                            <option value="server-haiku" title="Fast & cheap">⚡ Haiku</option>
-                            <option value="server-sonnet" selected title="Best reasoning">🧠 Sonnet</option>
+                            <option value="server-haiku" title="Fast & cheap - Claude 3 Haiku">⚡ Haiku 3</option>
+                            <option value="server-sonnet" selected title="Best reasoning - Claude Sonnet 4">🧠 Sonnet 4</option>
                         </optgroup>
-                        <optgroup label="🔑 Your Key (Unlimited)">
-                            <option value="user-haiku" title="Your Haiku">⚡ Haiku</option>
-                            <option value="user-sonnet" title="Your Sonnet">🧠 Sonnet</option>
-                            <option value="user-gemini" title="Your Gemini">🔷 Gemini</option>
-                            <option value="user-chatgpt" title="Your ChatGPT">💬 ChatGPT</option>
+                        <optgroup label="🔑 Claude (Your Key)">
+                            <option value="user-haiku" title="Fast - Claude 3.5 Haiku">⚡ Haiku 3.5</option>
+                            <option value="user-sonnet" title="Best reasoning - Claude Sonnet 4">🧠 Sonnet 4</option>
+                            <option value="user-opus" title="Most capable - Claude Opus 4">👑 Opus 4</option>
+                        </optgroup>
+                        <optgroup label="🔷 Gemini (Your Key)">
+                            <option value="user-gemini-flash" title="Fast - Gemini 2.0 Flash">⚡ Flash 2.0</option>
+                            <option value="user-gemini-pro" title="Most capable - Gemini 2.5 Pro Preview">🧠 Pro 2.5</option>
+                        </optgroup>
+                        <optgroup label="💬 ChatGPT (Your Key)">
+                            <option value="user-gpt4o-mini" title="Fast & cheap - GPT-4o Mini">⚡ 4o-mini</option>
+                            <option value="user-gpt4o" title="Flagship - GPT-4o">🧠 GPT-4o</option>
+                            <option value="user-o1" title="Reasoning - o1">🔮 o1</option>
                         </optgroup>
                         <optgroup label="Disable">
                             <option value="off">❌ Off</option>
@@ -4007,48 +4022,118 @@ The AI will analyze the structure and convert it to a tree."
                 };
             }
 
-            // server-haiku, server-sonnet, user-haiku, user-sonnet, user-gemini, user-chatgpt
-            const [source, target] = unifiedMode.split('-');
-            const useServerKey = source === 'server';
-            const processingMode = useServerKey ? 'quick' : 'deep';
+            // Model definitions - all available models with their API IDs and metadata
+            const MODEL_DEFINITIONS = {
+                // Claude models (server = uses our Netlify proxy key, user = user's key)
+                'server-haiku': {
+                    provider: 'anthropic',
+                    model: 'haiku',
+                    modelId: 'claude-3-haiku-20240307',
+                    useServerKey: true,
+                    description: 'Fast & cheap - 200 req/hr limit'
+                },
+                'server-sonnet': {
+                    provider: 'anthropic',
+                    model: 'sonnet',
+                    modelId: 'claude-sonnet-4-20250514',
+                    useServerKey: true,
+                    description: 'Best reasoning - 200 req/hr limit'
+                },
+                'user-haiku': {
+                    provider: 'anthropic',
+                    model: 'haiku',
+                    modelId: 'claude-3-5-haiku-20241022',
+                    useServerKey: false,
+                    description: 'Fast - Claude 3.5 Haiku (~$1/1M in, $5/1M out)'
+                },
+                'user-sonnet': {
+                    provider: 'anthropic',
+                    model: 'sonnet',
+                    modelId: 'claude-sonnet-4-20250514',
+                    useServerKey: false,
+                    description: 'Best reasoning (~$3/1M in, $15/1M out)'
+                },
+                'user-opus': {
+                    provider: 'anthropic',
+                    model: 'opus',
+                    modelId: 'claude-opus-4-20250514',
+                    useServerKey: false,
+                    description: 'Most capable (~$15/1M in, $75/1M out)'
+                },
+                // Gemini models (always user key, direct API = no timeout!)
+                'user-gemini-flash': {
+                    provider: 'gemini',
+                    model: 'gemini-flash',
+                    modelId: 'gemini-2.0-flash',
+                    useServerKey: false,
+                    description: 'Fast - Gemini 2.0 Flash (Free tier available)'
+                },
+                'user-gemini-pro': {
+                    provider: 'gemini',
+                    model: 'gemini-pro',
+                    modelId: 'gemini-2.5-pro-preview-05-06',
+                    useServerKey: false,
+                    description: 'Most capable - Gemini 2.5 Pro Preview'
+                },
+                // Legacy: user-gemini maps to flash
+                'user-gemini': {
+                    provider: 'gemini',
+                    model: 'gemini-flash',
+                    modelId: 'gemini-2.0-flash',
+                    useServerKey: false,
+                    description: 'Gemini 2.0 Flash'
+                },
+                // ChatGPT models (always user key, direct API = no timeout!)
+                'user-gpt4o-mini': {
+                    provider: 'openai',
+                    model: 'gpt-4o-mini',
+                    modelId: 'gpt-4o-mini',
+                    useServerKey: false,
+                    description: 'Fast & cheap - GPT-4o Mini (~$0.15/1M in, $0.60/1M out)'
+                },
+                'user-gpt4o': {
+                    provider: 'openai',
+                    model: 'gpt-4o',
+                    modelId: 'gpt-4o',
+                    useServerKey: false,
+                    description: 'Flagship - GPT-4o (~$2.50/1M in, $10/1M out)'
+                },
+                'user-o1': {
+                    provider: 'openai',
+                    model: 'o1',
+                    modelId: 'o1',
+                    useServerKey: false,
+                    description: 'Reasoning model - o1 (~$15/1M in, $60/1M out)'
+                },
+                // Legacy: user-chatgpt maps to gpt-4o
+                'user-chatgpt': {
+                    provider: 'openai',
+                    model: 'gpt-4o',
+                    modelId: 'gpt-4o',
+                    useServerKey: false,
+                    description: 'GPT-4o'
+                }
+            };
 
-            let provider, model, modelId, description;
+            const modelDef = MODEL_DEFINITIONS[unifiedMode];
 
-            if (target === 'haiku') {
-                provider = 'anthropic';
-                model = 'haiku';
-                modelId = 'claude-3-haiku-20240307';
-                description = useServerKey
-                    ? 'Fast & cheap (~$0.25/1M in, $1.25/1M out) - 200 req/hr limit'
-                    : 'Fast & cheap (~$0.25/1M in, $1.25/1M out) - Unlimited with your key';
-            } else if (target === 'sonnet') {
-                provider = 'anthropic';
-                model = 'sonnet';
-                modelId = 'claude-sonnet-4-20250514';
-                description = useServerKey
-                    ? 'Best reasoning (~$3/1M in, $15/1M out) - 200 req/hr limit'
-                    : 'Best reasoning with extended thinking (~$3/1M in, $15/1M out) - Unlimited';
-            } else if (target === 'gemini') {
-                provider = 'gemini';
-                model = 'gemini';
-                modelId = 'gemini-2.0-flash-exp';
-                description = 'Fast & cost-effective (Free tier, then ~$0.075/1M) - Requires your key';
-            } else if (target === 'chatgpt') {
-                provider = 'openai';
-                model = 'gpt-4o';
-                modelId = 'gpt-4o';
-                description = 'Versatile & popular (~$2.50/1M in, $10/1M out) - Requires your key';
+            if (!modelDef) {
+                console.warn(`Unknown AI mode: ${unifiedMode}, falling back to server-sonnet`);
+                return parseUnifiedMode('server-sonnet');
             }
+
+            // Determine processing mode: server key = quick (10s limit), user key = deep (no limit for Gemini/ChatGPT)
+            const processingMode = modelDef.useServerKey ? 'quick' : 'deep';
 
             return {
                 enabled: true,
-                provider: provider,
-                model: model,
-                modelId: modelId,
+                provider: modelDef.provider,
+                model: modelDef.model,
+                modelId: modelDef.modelId,
                 mode: processingMode,
-                useServerKey: useServerKey,
-                requiresKey: !useServerKey,
-                description: description
+                useServerKey: modelDef.useServerKey,
+                requiresKey: !modelDef.useServerKey,
+                description: modelDef.description
             };
         }
 
