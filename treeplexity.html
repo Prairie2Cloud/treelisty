@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.3 | Build 155 | 2025-11-24
+    TreeListy v2.9.4 | Build 156 | 2025-11-24
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,17 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 155):
+    Changelog (Build 156):
+    - NEW: 🧠 Semantic Chunking Engine - NLP-powered text segmentation for large documents
+    - NEW: SemanticChunker class with cosine similarity and 90th percentile adaptive thresholding
+    - NEW: EmbeddingManager service supporting OpenAI text-embedding-3-small & Gemini text-embedding-004
+    - NEW: Chunk-by-chunk processing in Quick Mode and Deep Mode (prevents hallucinations on large files)
+    - NEW: Visual chunk distribution UI showing detected semantic sections
+    - ENHANCED: Automatic structural fallback (Markdown headers → paragraphs → lines) when no embedding provider
+    - TECH: Sliding window context buffering, batch API processing (max 20 per batch)
+    - TECH: Silent error handling with graceful degradation
+
+    Previous (Build 155):
     - FIX: Cluster-by dropdown scope issue - Moved function to global scope
     - Pattern-specific options now properly populate for Philosophy, Film, Veo3, Sora2, Sales, Roadmap
     - Function now accessible from all pattern switch and file load handlers
@@ -1972,8 +1982,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.3 | Build 155 | 2025-11-24">
-                    v2.9.3 • Build 155
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.4 | Build 156 | 2025-11-24">
+                    v2.9.4 • Build 156
                 </div>
             </div>
         </div>
@@ -2961,6 +2971,399 @@ The AI will analyze the structure and convert it to a tree."
 
     <script>
         console.log('TreeListy - Universal Project Decomposition - Horizontal Layout with Pan/Zoom');
+
+        // =============================================================================
+        // SEMANTIC CHUNKING ENGINE (NLP + Vector Search)
+        // =============================================================================
+
+        /**
+         * EmbeddingManager - Abstraction layer for embeddings from multiple providers
+         */
+        class EmbeddingManager {
+            /**
+             * Check if any embedding provider is available
+             */
+            static hasProvider() {
+                const openaiKey = localStorage.getItem('openai-api-key');
+                const geminiKey = localStorage.getItem('gemini-api-key');
+                return !!(openaiKey || geminiKey);
+            }
+
+            /**
+             * Get embeddings for an array of texts
+             * @param {string[]} texts - Array of text strings to embed
+             * @returns {Promise<number[][]>} Array of embedding vectors
+             */
+            static async getEmbeddings(texts) {
+                if (!texts || texts.length === 0) {
+                    throw new Error('No texts provided for embedding');
+                }
+
+                const openaiKey = localStorage.getItem('openai-api-key');
+                const geminiKey = localStorage.getItem('gemini-api-key');
+
+                // Try OpenAI first
+                if (openaiKey) {
+                    console.log(`🔢 Getting embeddings from OpenAI (${texts.length} texts)`);
+                    return await this._getOpenAIEmbeddings(texts, openaiKey);
+                }
+
+                // Fallback to Gemini
+                if (geminiKey) {
+                    console.log(`🔢 Getting embeddings from Gemini (${texts.length} texts)`);
+                    return await this._getGeminiEmbeddings(texts, geminiKey);
+                }
+
+                // No provider available
+                console.warn('⚠️ No embedding provider available (OpenAI or Gemini API key required)');
+                return null;
+            }
+
+            /**
+             * OpenAI text-embedding-3-small
+             */
+            static async _getOpenAIEmbeddings(texts, apiKey) {
+                const BATCH_SIZE = 20; // OpenAI limit
+                const batches = [];
+
+                for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+                    batches.push(texts.slice(i, i + BATCH_SIZE));
+                }
+
+                const allEmbeddings = [];
+
+                for (const batch of batches) {
+                    try {
+                        const response = await fetch('https://api.openai.com/v1/embeddings', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${apiKey}`
+                            },
+                            body: JSON.stringify({
+                                input: batch,
+                                model: 'text-embedding-3-small'
+                            })
+                        });
+
+                        if (!response.ok) {
+                            const error = await response.text();
+                            throw new Error(`OpenAI API error: ${error}`);
+                        }
+
+                        const data = await response.json();
+                        const embeddings = data.data.map(item => item.embedding);
+                        allEmbeddings.push(...embeddings);
+
+                    } catch (error) {
+                        console.error('OpenAI embedding error:', error);
+                        throw error;
+                    }
+                }
+
+                return allEmbeddings;
+            }
+
+            /**
+             * Gemini text-embedding-004
+             */
+            static async _getGeminiEmbeddings(texts, apiKey) {
+                const BATCH_SIZE = 20; // Conservative batch size
+                const batches = [];
+
+                for (let i = 0; i < texts.length; i += BATCH_SIZE) {
+                    batches.push(texts.slice(i, i + BATCH_SIZE));
+                }
+
+                const allEmbeddings = [];
+
+                for (const batch of batches) {
+                    try {
+                        // Gemini requires individual calls per text
+                        const batchEmbeddings = await Promise.all(
+                            batch.map(async (text) => {
+                                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/text-embedding-004:embedContent?key=${apiKey}`, {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify({
+                                        content: {
+                                            parts: [{ text: text }]
+                                        }
+                                    })
+                                });
+
+                                if (!response.ok) {
+                                    const error = await response.text();
+                                    throw new Error(`Gemini API error: ${error}`);
+                                }
+
+                                const data = await response.json();
+                                return data.embedding.values;
+                            })
+                        );
+
+                        allEmbeddings.push(...batchEmbeddings);
+
+                    } catch (error) {
+                        console.error('Gemini embedding error:', error);
+                        throw error;
+                    }
+                }
+
+                return allEmbeddings;
+            }
+        }
+
+        /**
+         * SemanticChunker - Rigorous semantic chunking with embedding-based breakpoints
+         */
+        class SemanticChunker {
+            constructor() {
+                this.DEFAULT_THRESHOLD = 0.7;
+                this.PERCENTILE_THRESHOLD = 90;
+            }
+
+            /**
+             * Calculate cosine similarity between two vectors
+             * @param {number[]} vecA - First vector
+             * @param {number[]} vecB - Second vector
+             * @returns {number} Cosine similarity (0-1)
+             */
+            cosineSimilarity(vecA, vecB) {
+                if (!vecA || !vecB || vecA.length !== vecB.length) {
+                    throw new Error('Vectors must have same length');
+                }
+
+                let dotProduct = 0;
+                let magnitudeA = 0;
+                let magnitudeB = 0;
+
+                for (let i = 0; i < vecA.length; i++) {
+                    dotProduct += vecA[i] * vecB[i];
+                    magnitudeA += vecA[i] * vecA[i];
+                    magnitudeB += vecB[i] * vecB[i];
+                }
+
+                magnitudeA = Math.sqrt(magnitudeA);
+                magnitudeB = Math.sqrt(magnitudeB);
+
+                if (magnitudeA === 0 || magnitudeB === 0) {
+                    return 0;
+                }
+
+                return dotProduct / (magnitudeA * magnitudeB);
+            }
+
+            /**
+             * Calculate breakpoint threshold using percentile method
+             * @param {number[]} distances - Array of cosine distances
+             * @returns {number} Threshold value
+             */
+            calculateBreakpointThreshold(distances) {
+                if (!distances || distances.length === 0) {
+                    return this.DEFAULT_THRESHOLD;
+                }
+
+                // Sort distances
+                const sorted = [...distances].sort((a, b) => a - b);
+
+                // Find 90th percentile
+                const index = Math.floor(sorted.length * (this.PERCENTILE_THRESHOLD / 100));
+                const threshold = sorted[Math.min(index, sorted.length - 1)];
+
+                console.log(`📊 Calculated breakpoint threshold: ${threshold.toFixed(3)} (90th percentile)`);
+
+                return threshold;
+            }
+
+            /**
+             * Split text into sentences using robust regex
+             * @param {string} text - Input text
+             * @returns {string[]} Array of sentences
+             */
+            splitIntoSentences(text) {
+                if (!text) return [];
+
+                // Split on sentence boundaries (., !, ?) followed by whitespace and capital letter
+                // or newline, but preserve acronyms (e.g., U.S.A.)
+                const sentences = text
+                    .replace(/([.!?])\s+(?=[A-Z])/g, '$1|SPLIT|')
+                    .replace(/\n+/g, '|SPLIT|')
+                    .split('|SPLIT|')
+                    .map(s => s.trim())
+                    .filter(s => s.length > 0);
+
+                console.log(`✂️ Split into ${sentences.length} sentences`);
+                return sentences;
+            }
+
+            /**
+             * Structural fallback split (when embeddings unavailable)
+             * @param {string} text - Input text
+             * @returns {Array<{text: string, start: number, end: number}>} Array of chunks
+             */
+            structuralSplit(text) {
+                console.log('📐 Using structural split (fallback mode)');
+
+                const chunks = [];
+                let currentChunk = '';
+                let start = 0;
+
+                // Split by Markdown headers first
+                const headerRegex = /^(#{1,6})\s+(.+)$/gm;
+                const parts = text.split(headerRegex);
+
+                if (parts.length > 1) {
+                    // Has headers - use them as boundaries
+                    for (let i = 0; i < parts.length; i += 3) {
+                        const content = parts[i] || '';
+                        const headerLevel = parts[i + 1];
+                        const headerText = parts[i + 2];
+
+                        if (content.trim()) {
+                            chunks.push({
+                                text: content.trim(),
+                                start: start,
+                                end: start + content.length
+                            });
+                            start += content.length;
+                        }
+
+                        if (headerLevel && headerText) {
+                            const header = `${headerLevel} ${headerText}`;
+                            chunks.push({
+                                text: header.trim(),
+                                start: start,
+                                end: start + header.length
+                            });
+                            start += header.length;
+                        }
+                    }
+                } else {
+                    // No headers - split by paragraphs
+                    const paragraphs = text.split(/\n\n+/);
+
+                    for (const para of paragraphs) {
+                        if (para.trim()) {
+                            chunks.push({
+                                text: para.trim(),
+                                start: start,
+                                end: start + para.length
+                            });
+                            start += para.length;
+                        }
+                    }
+                }
+
+                // If still no chunks, split by lines
+                if (chunks.length === 0) {
+                    const lines = text.split(/\n/);
+                    for (const line of lines) {
+                        if (line.trim()) {
+                            chunks.push({
+                                text: line.trim(),
+                                start: start,
+                                end: start + line.length
+                            });
+                            start += line.length;
+                        }
+                    }
+                }
+
+                console.log(`✅ Structural split: ${chunks.length} chunks`);
+                return chunks;
+            }
+
+            /**
+             * Core embedding-based chunking algorithm
+             * @param {string} text - Input text
+             * @returns {Promise<Array<{text: string, start: number, end: number}>>} Array of semantic chunks
+             */
+            async chunkByEmbedding(text) {
+                console.log('🧠 Starting embedding-based semantic chunking...');
+
+                try {
+                    // Step 1: Split into sentences
+                    const sentences = this.splitIntoSentences(text);
+
+                    if (sentences.length === 0) {
+                        console.warn('⚠️ No sentences found');
+                        return [{ text: text, start: 0, end: text.length }];
+                    }
+
+                    if (sentences.length === 1) {
+                        console.log('Single sentence - no chunking needed');
+                        return [{ text: text, start: 0, end: text.length }];
+                    }
+
+                    // Step 2: Create sliding window combinations (sentence + prev + next)
+                    const windowedSentences = sentences.map((sentence, i) => {
+                        const prev = i > 0 ? sentences[i - 1] : '';
+                        const next = i < sentences.length - 1 ? sentences[i + 1] : '';
+                        return `${prev} ${sentence} ${next}`.trim();
+                    });
+
+                    // Step 3: Get embeddings
+                    console.log(`📊 Getting embeddings for ${windowedSentences.length} windowed sentences...`);
+                    const embeddings = await EmbeddingManager.getEmbeddings(windowedSentences);
+
+                    if (!embeddings) {
+                        console.warn('⚠️ Embeddings unavailable, falling back to structural split');
+                        return this.structuralSplit(text);
+                    }
+
+                    // Step 4: Calculate cosine distances between adjacent sentences
+                    const distances = [];
+                    for (let i = 0; i < embeddings.length - 1; i++) {
+                        const similarity = this.cosineSimilarity(embeddings[i], embeddings[i + 1]);
+                        const distance = 1 - similarity; // Convert similarity to distance
+                        distances.push(distance);
+                    }
+
+                    // Step 5: Calculate adaptive threshold
+                    const threshold = this.calculateBreakpointThreshold(distances);
+
+                    // Step 6: Identify breakpoints where distance > threshold
+                    const breakpoints = [0]; // Start with first sentence
+                    for (let i = 0; i < distances.length; i++) {
+                        if (distances[i] > threshold) {
+                            breakpoints.push(i + 1);
+                            console.log(`📍 Breakpoint at sentence ${i + 1} (distance: ${distances[i].toFixed(3)})`);
+                        }
+                    }
+                    breakpoints.push(sentences.length); // End with last sentence
+
+                    // Step 7: Merge sentences between breakpoints into chunks
+                    const chunks = [];
+                    let charIndex = 0;
+
+                    for (let i = 0; i < breakpoints.length - 1; i++) {
+                        const startIdx = breakpoints[i];
+                        const endIdx = breakpoints[i + 1];
+                        const chunkSentences = sentences.slice(startIdx, endIdx);
+                        const chunkText = chunkSentences.join(' ');
+
+                        chunks.push({
+                            text: chunkText,
+                            start: charIndex,
+                            end: charIndex + chunkText.length
+                        });
+
+                        charIndex += chunkText.length + 1; // +1 for space
+                    }
+
+                    console.log(`✅ Semantic chunking complete: ${chunks.length} chunks (from ${sentences.length} sentences)`);
+                    return chunks;
+
+                } catch (error) {
+                    console.error('❌ Embedding-based chunking failed:', error);
+                    console.log('Falling back to structural split');
+                    return this.structuralSplit(text);
+                }
+            }
+        }
 
         // =============================================================================
         // PAN & ZOOM SYSTEM
@@ -18758,7 +19161,7 @@ EXAMPLE of a GOOD userPromptTemplate:
             }
         }
 
-        // Quick Mode: Basic structure conversion
+        // Quick Mode: Basic structure conversion with semantic chunking
         async function convertTextToTreeQuick(text, pattern) {
             const patternConfig = PATTERNS[pattern];
             const levels = patternConfig.levels;
@@ -18767,6 +19170,64 @@ EXAMPLE of a GOOD userPromptTemplate:
             // SPECIAL CASE: Prompt Engineering pattern - improve the prompt instead of extracting
             if (pattern === 'prompting') {
                 return await improvePromptWithAI(text, 'quick');
+            }
+
+            // =========================================================================
+            // SEMANTIC CHUNKING PREPROCESSING
+            // =========================================================================
+            console.log('🧠 Starting semantic chunking preprocessing...');
+            const chunker = new SemanticChunker();
+            let chunks;
+
+            // Show chunking status in UI
+            const modalBody = document.getElementById('modal-body');
+            if (modalBody) {
+                modalBody.innerHTML = '<div class="spinner"></div><p style="text-align: center; margin-top: 16px; color: var(--text-secondary);">🧠 Analyzing text structure...</p>';
+            }
+
+            // Tier 2: Scientific approach (if embedding provider available)
+            if (EmbeddingManager.hasProvider()) {
+                console.log('✅ Embedding provider detected - using scientific semantic chunking');
+                try {
+                    chunks = await chunker.chunkByEmbedding(text);
+                } catch (error) {
+                    console.warn('⚠️ Semantic chunking failed, falling back to structural split:', error);
+                    chunks = chunker.structuralSplit(text);
+                }
+            } else {
+                // Tier 1: Structural fallback
+                console.log('📐 No embedding provider - using structural split');
+                chunks = chunker.structuralSplit(text);
+            }
+
+            console.log(`✅ Text split into ${chunks.length} semantic chunks`);
+
+            // Show chunk visualization
+            if (modalBody && chunks.length > 1) {
+                const chunkLengths = chunks.map(c => c.text.length);
+                const maxLength = Math.max(...chunkLengths);
+                const bars = chunks.map((chunk, i) => {
+                    const width = (chunk.text.length / maxLength) * 100;
+                    return `<div style="background: linear-gradient(90deg, rgba(99, 102, 241, 0.6), rgba(139, 92, 246, 0.6)); height: 8px; width: ${width}%; border-radius: 4px; margin: 2px 0;" title="Chunk ${i + 1}: ${chunk.text.length} chars"></div>`;
+                }).join('');
+
+                modalBody.innerHTML = `
+                    <div style="padding: 20px;">
+                        <div style="text-align: center; margin-bottom: 16px;">
+                            <div class="spinner"></div>
+                            <p style="margin-top: 16px; color: var(--text-primary); font-weight: 600;">
+                                🧠 Detected ${chunks.length} Semantic Sections
+                            </p>
+                            <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">
+                                Processing each section with ${patternConfig.name} pattern...
+                            </p>
+                        </div>
+                        <div style="padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.3);">
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Chunk size distribution:</div>
+                            ${bars}
+                        </div>
+                    </div>
+                `;
             }
 
             // Generate quick field hints (top 5 most important fields)
@@ -18825,7 +19286,18 @@ EXAMPLE of a GOOD userPromptTemplate:
                 patternSpecialInstructions = `\n\n⚠️ AI VIDEO: Create ACTUAL SCENES (not workflows about making videos). Each item = one shot. Include videoPrompt, cameraMovement, visualStyle, duration.\n`;
             }
 
-            const prompt = `Convert this text into a hierarchical project structure using the "${patternConfig.name}" pattern.
+            // =========================================================================
+            // CHUNK PROCESSING LOOP
+            // =========================================================================
+            const allPhasesCollected = [];
+            let projectName = '';
+
+            for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+                const chunk = chunks[chunkIndex];
+                console.log(`🔄 Processing chunk ${chunkIndex + 1}/${chunks.length} (${chunk.text.length} chars)`);
+
+                // Pattern-aware context for this specific chunk
+                const chunkPrompt = `Extract items for the ${patternConfig.name} pattern from this SPECIFIC SECTION of a larger document (Section ${chunkIndex + 1}/${chunks.length}).
 
 PATTERN HIERARCHY:
 - Root: ${levels.root}
@@ -18834,56 +19306,39 @@ PATTERN HIERARCHY:
 - Subtask (Level 3): ${levels.subtask}
 ${itemTypeHints}${quickFieldHints}${patternSpecialInstructions}
 
-TEXT:
-${text}
+SECTION TEXT:
+${chunk.text}
 
 INSTRUCTIONS (BE CONCISE TO AVOID TIMEOUT):
-1. Identify natural hierarchical structure in the text
-2. Create 2-4 phases (${levels.phase}s) - MAXIMUM 4
-3. For each phase, create 2-5 items (${levels.item}s) - MAXIMUM 5 per phase
-4. ⚠️ IMPORTANT: Add 2-3 ${levels.subtask}s to items that need them
-   → ${levels.subtask}s break down each ${levels.item} into its constituent parts
+1. Identify hierarchical structure in THIS SECTION ONLY
+2. Create 1-2 phases (${levels.phase}s) for content in this section
+3. For each phase, create 2-4 items (${levels.item}s)
+4. Add 2-3 ${levels.subtask}s to items that need them
    → ${getPatternSubtaskGuidance(pattern)}
 5. Keep descriptions SHORT (under 100 characters)
-6. Extract the key fields listed above if values are mentioned in the text
-7. Focus on capturing the hierarchical structure in the text
+6. Extract key fields if mentioned
+7. ONLY extract content from this section - don't infer content from other sections
 
-JSON FORMATTING RULES (CRITICAL - FOLLOW EXACTLY):
-- NO trailing commas after the last element in arrays or objects
-- NO line breaks or tabs inside string values - use spaces instead
-- NO unescaped quotes inside strings
-- ONLY plain JSON - no markdown code blocks, no backticks, no explanations
+JSON FORMATTING RULES (CRITICAL):
+- NO trailing commas
+- ONLY plain JSON - no markdown, no explanations
 - Start response with { and end with }
 
-CORRECT EXAMPLE (note: NO trailing comma after last item):
-{"phases": [{"name": "Test", "items": [{"name": "Item"}]}]}
-
-WRONG (trailing comma):
-{"phases": [{"name": "Test", "items": [{"name": "Item"},]}]}
-
-Respond with ONLY valid, parseable JSON:
+Respond with ONLY valid JSON:
 {
-  "projectName": "Extracted or inferred project name",
+  "projectName": "Section ${chunkIndex + 1} or inferred name",
   "phases": [
     {
       "name": "Phase name",
-      "subtitle": "Phase subtitle or description",
+      "subtitle": "Phase subtitle",
       "icon": "📋",
       "items": [
         {
           "name": "Item name",
           "description": "Brief description",
-          "itemType": "type-from-list-above",
-          "... include any key fields from list above if mentioned ...": "value",
+          "itemType": "type",
           "subItems": [
-            {
-              "name": "${levels.subtask} 1",
-              "description": "Pattern-specific detail",
-              "subItems": [
-                { "name": "${levels.subtask} 1.1", "description": "Supports N-level nesting" }
-              ]
-            },
-            { "name": "${levels.subtask} 2", "description": "Pattern-specific detail" }
+            { "name": "${levels.subtask} 1", "description": "Detail" }
           ]
         }
       ]
@@ -18891,7 +19346,183 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            const response = await callClaudeAPI(prompt, '', 1500, false); // Reduced to avoid Netlify timeout
+                const response = await callClaudeAPI(chunkPrompt, '', 1500, false);
+
+                // Parse JSON response from this chunk
+                try {
+                    let jsonText = response.trim();
+
+                    // Remove markdown code blocks if present
+                    jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                    // Find the FIRST complete JSON object using proper brace matching
+                    const firstBrace = jsonText.indexOf('{');
+
+                    if (firstBrace === -1) {
+                        console.warn(`⚠️ Chunk ${chunkIndex + 1}: No JSON found, skipping`);
+                        continue;
+                    }
+
+                    if (firstBrace > 0) {
+                        console.log(`🪄 Chunk ${chunkIndex + 1}: Skipping text before JSON`);
+                    }
+
+                    let depth = 0;
+                    let endPos = -1;
+                    let inString = false;
+                    let escapeNext = false;
+
+                    for (let i = firstBrace; i < jsonText.length; i++) {
+                        const char = jsonText[i];
+
+                        if (escapeNext) {
+                            escapeNext = false;
+                            continue;
+                        }
+
+                        if (char === '\\') {
+                            escapeNext = true;
+                            continue;
+                        }
+
+                        if (char === '"') {
+                            inString = !inString;
+                            continue;
+                        }
+
+                        if (!inString) {
+                            if (char === '{') depth++;
+                            else if (char === '}') {
+                                depth--;
+                                if (depth === 0) {
+                                    endPos = i + 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (endPos === -1) {
+                        console.warn(`⚠️ Chunk ${chunkIndex + 1}: Incomplete JSON, skipping`);
+                        continue;
+                    }
+
+                    jsonText = jsonText.substring(firstBrace, endPos);
+
+                    // Parse JSON
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(jsonText);
+                    } catch (firstError) {
+                        console.warn(`🪄 Chunk ${chunkIndex + 1}: JSON parse failed, attempting sanitization...`, firstError.message);
+
+                        // Sanitize JSON: Fix control characters in string values
+                        let sanitized = '';
+                        let inString = false;
+                        let escapeNext = false;
+
+                        for (let i = 0; i < jsonText.length; i++) {
+                            const char = jsonText[i];
+
+                            if (escapeNext) {
+                                sanitized += char;
+                                escapeNext = false;
+                                continue;
+                            }
+
+                            if (char === '\\') {
+                                sanitized += char;
+                                escapeNext = true;
+                                continue;
+                            }
+
+                            if (char === '"') {
+                                sanitized += char;
+                                inString = !inString;
+                                continue;
+                            }
+
+                            // If we're inside a string value, escape control characters
+                            if (inString) {
+                                if (char === '\n') {
+                                    sanitized += '\\n';
+                                } else if (char === '\r') {
+                                    sanitized += '\\r';
+                                } else if (char === '\t') {
+                                    sanitized += '\\t';
+                                } else if (char.charCodeAt(0) < 32) {
+                                    sanitized += '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+                                } else {
+                                    sanitized += char;
+                                }
+                            } else {
+                                sanitized += char;
+                            }
+                        }
+
+                        jsonText = sanitized;
+                        console.log(`✅ Chunk ${chunkIndex + 1}: JSON sanitized successfully`);
+                        parsed = JSON.parse(jsonText);
+                    }
+
+                    // Aggregate results from this chunk
+                    if (!projectName && parsed.projectName) {
+                        projectName = parsed.projectName;
+                        console.log(`📝 Project name extracted from chunk ${chunkIndex + 1}: ${projectName}`);
+                    }
+
+                    if (parsed.phases && parsed.phases.length > 0) {
+                        console.log(`✅ Chunk ${chunkIndex + 1}: Extracted ${parsed.phases.length} phases`);
+                        allPhasesCollected.push(...parsed.phases);
+                    }
+
+                } catch (e) {
+                    console.error(`❌ Chunk ${chunkIndex + 1} failed to parse:`, e);
+                    console.error('Response (first 500 chars):', response.substring(0, 500));
+                    // Continue to next chunk instead of failing entirely
+                }
+            }
+
+            // =========================================================================
+            // MERGE DUPLICATE PHASES AND RETURN AGGREGATED RESULT
+            // =========================================================================
+            console.log(`✅ All chunks processed. Total phases collected: ${allPhasesCollected.length}`);
+
+            // Merge phases with the same name
+            const phaseMap = new Map();
+            allPhasesCollected.forEach(phase => {
+                const phaseName = phase.name;
+                if (phaseMap.has(phaseName)) {
+                    // Merge items into existing phase
+                    const existingPhase = phaseMap.get(phaseName);
+                    if (phase.items && phase.items.length > 0) {
+                        existingPhase.items.push(...phase.items);
+                    }
+                } else {
+                    // Add new phase
+                    phaseMap.set(phaseName, { ...phase });
+                }
+            });
+
+            const mergedPhases = Array.from(phaseMap.values());
+            console.log(`✅ After merging duplicates: ${mergedPhases.length} unique phases`);
+
+            // Use a generic project name if none was extracted
+            if (!projectName) {
+                projectName = `${patternConfig.name} Project`;
+            }
+
+            return {
+                projectName: projectName,
+                phases: mergedPhases
+            };
+        }
+
+        // OLD SINGLE-CHUNK FALLBACK (DEPRECATED - keeping for reference)
+        async function convertTextToTreeQuick_LEGACY(text, pattern) {
+            const patternConfig = PATTERNS[pattern];
+            const levels = patternConfig.levels;
+            const fields = patternConfig.fields || {};
 
             try {
                 // Try to extract JSON from response
@@ -19066,6 +19697,64 @@ ${jsonText}`;
             // SPECIAL CASE: Prompt Engineering pattern - improve the prompt instead of extracting
             if (pattern === 'prompting') {
                 return await improvePromptWithAI(text, 'deep');
+            }
+
+            // =========================================================================
+            // SEMANTIC CHUNKING PREPROCESSING (Deep Mode)
+            // =========================================================================
+            console.log('🧠 [Deep] Starting semantic chunking preprocessing...');
+            const chunker = new SemanticChunker();
+            let chunks;
+
+            // Show chunking status in UI
+            const modalBody = document.getElementById('modal-body');
+            if (modalBody) {
+                modalBody.innerHTML = '<div class="spinner"></div><p style="text-align: center; margin-top: 16px; color: var(--text-secondary);">🧠 Analyzing text structure (Deep Mode)...</p>';
+            }
+
+            // Tier 2: Scientific approach (if embedding provider available)
+            if (EmbeddingManager.hasProvider()) {
+                console.log('✅ [Deep] Embedding provider detected - using scientific semantic chunking');
+                try {
+                    chunks = await chunker.chunkByEmbedding(text);
+                } catch (error) {
+                    console.warn('⚠️ [Deep] Semantic chunking failed, falling back to structural split:', error);
+                    chunks = chunker.structuralSplit(text);
+                }
+            } else {
+                // Tier 1: Structural fallback
+                console.log('📐 [Deep] No embedding provider - using structural split');
+                chunks = chunker.structuralSplit(text);
+            }
+
+            console.log(`✅ [Deep] Text split into ${chunks.length} semantic chunks`);
+
+            // Show chunk visualization
+            if (modalBody && chunks.length > 1) {
+                const chunkLengths = chunks.map(c => c.text.length);
+                const maxLength = Math.max(...chunkLengths);
+                const bars = chunks.map((chunk, i) => {
+                    const width = (chunk.text.length / maxLength) * 100;
+                    return `<div style="background: linear-gradient(90deg, rgba(244, 63, 94, 0.6), rgba(251, 146, 60, 0.6)); height: 10px; width: ${width}%; border-radius: 4px; margin: 2px 0;" title="Chunk ${i + 1}: ${chunk.text.length} chars"></div>`;
+                }).join('');
+
+                modalBody.innerHTML = `
+                    <div style="padding: 20px;">
+                        <div style="text-align: center; margin-bottom: 16px;">
+                            <div class="spinner"></div>
+                            <p style="margin-top: 16px; color: var(--text-primary); font-weight: 600;">
+                                🧠 Deep Mode: ${chunks.length} Semantic Sections Detected
+                            </p>
+                            <p style="color: var(--text-secondary); font-size: 13px; margin-top: 4px;">
+                                Performing comprehensive extraction on each section...
+                            </p>
+                        </div>
+                        <div style="padding: 12px; background: rgba(244, 63, 94, 0.1); border-radius: 8px; border: 1px solid rgba(244, 63, 94, 0.3);">
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Chunk size distribution:</div>
+                            ${bars}
+                        </div>
+                    </div>
+                `;
             }
 
             // Generate dynamic field extraction guide from pattern.fields
@@ -19255,7 +19944,17 @@ Describe the ACTUAL SHOTS, not the process of creating them.
 
             const patternSpecificInstructions = getPatternSpecificInstructions(pattern);
 
-            const prompt = `Convert this text into a detailed hierarchical project structure using the "${patternConfig.name}" pattern.
+            // =========================================================================
+            // CHUNK PROCESSING LOOP (Deep Mode)
+            // =========================================================================
+            const allPhasesCollected = [];
+            let projectName = '';
+
+            for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
+                const chunk = chunks[chunkIndex];
+                console.log(`🔄 [Deep] Processing chunk ${chunkIndex + 1}/${chunks.length} (${chunk.text.length} chars)`);
+
+                const chunkPrompt = `Convert this SPECIFIC SECTION of a larger document into a detailed hierarchical structure using the "${patternConfig.name}" pattern (Section ${chunkIndex + 1}/${chunks.length}).
 
 PATTERN HIERARCHY (4 LEVELS):
 - Root: ${levels.root}
@@ -19265,18 +19964,18 @@ PATTERN HIERARCHY (4 LEVELS):
 ${patternFieldGuide}
 ${patternSpecificInstructions}
 
-TEXT TO ANALYZE:
-${text}
+SECTION TEXT (Section ${chunkIndex + 1}/${chunks.length}):
+${chunk.text}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-DEEP MODE INSTRUCTIONS - COMPREHENSIVE EXTRACTION
+DEEP MODE INSTRUCTIONS - COMPREHENSIVE EXTRACTION (SECTION ${chunkIndex + 1}/${chunks.length})
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-⚠️ CRITICAL REQUIREMENTS - YOU MUST MEET THESE MINIMUMS:
+⚠️ CRITICAL REQUIREMENTS - YOU MUST MEET THESE MINIMUMS FOR THIS SECTION:
 
-1. PHASES: Create 3-6 phases (${levels.phase}s)
-   → Do NOT summarize into fewer phases
-   → Each major section/movement/chapter = separate phase
+1. PHASES: Create 1-3 phases (${levels.phase}s) for THIS SECTION ONLY
+   → Do NOT summarize - extract actual phases present in this section
+   → Each major subsection/movement/chapter in THIS SECTION = separate phase
 
 2. ITEMS PER PHASE: REQUIRED MINIMUM 3-8 items (${levels.item}s) per phase
    → Do NOT create just 1 item per phase
@@ -19434,8 +20133,182 @@ Respond with ONLY valid, parseable JSON:
   ]
 }`;
 
-            // Deep Mode: Higher limits with extended thinking (uses direct API fallback if needed)
-            const response = await callClaudeAPI(prompt, '', 8192, true); // 8192 tokens + extended thinking for comprehensive analysis
+                // Deep Mode: Higher limits with extended thinking
+                const response = await callClaudeAPI(chunkPrompt, '', 8192, true); // 8192 tokens + extended thinking for comprehensive analysis
+
+                // Parse JSON response from this chunk
+                try {
+                    let jsonText = response.trim();
+
+                    // Remove markdown code blocks if present
+                    jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                    // Find the FIRST complete JSON object using proper brace matching
+                    const firstBrace = jsonText.indexOf('{');
+
+                    if (firstBrace === -1) {
+                        console.warn(`⚠️ [Deep] Chunk ${chunkIndex + 1}: No JSON found, skipping`);
+                        continue;
+                    }
+
+                    if (firstBrace > 0) {
+                        console.log(`🪄 [Deep] Chunk ${chunkIndex + 1}: Skipping text before JSON`);
+                    }
+
+                    let depth = 0;
+                    let endPos = -1;
+                    let inString = false;
+                    let escapeNext = false;
+
+                    for (let i = firstBrace; i < jsonText.length; i++) {
+                        const char = jsonText[i];
+
+                        if (escapeNext) {
+                            escapeNext = false;
+                            continue;
+                        }
+
+                        if (char === '\\') {
+                            escapeNext = true;
+                            continue;
+                        }
+
+                        if (char === '"') {
+                            inString = !inString;
+                            continue;
+                        }
+
+                        if (!inString) {
+                            if (char === '{') depth++;
+                            else if (char === '}') {
+                                depth--;
+                                if (depth === 0) {
+                                    endPos = i + 1;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+
+                    if (endPos === -1) {
+                        console.warn(`⚠️ [Deep] Chunk ${chunkIndex + 1}: Incomplete JSON, skipping`);
+                        continue;
+                    }
+
+                    jsonText = jsonText.substring(firstBrace, endPos);
+
+                    // Parse JSON
+                    let parsed;
+                    try {
+                        parsed = JSON.parse(jsonText);
+                    } catch (firstError) {
+                        console.warn(`🪄 [Deep] Chunk ${chunkIndex + 1}: JSON parse failed, attempting sanitization...`, firstError.message);
+
+                        // Sanitize JSON: Fix control characters in string values
+                        let sanitized = '';
+                        let inString = false;
+                        let escapeNext = false;
+
+                        for (let i = 0; i < jsonText.length; i++) {
+                            const char = jsonText[i];
+
+                            if (escapeNext) {
+                                sanitized += char;
+                                escapeNext = false;
+                                continue;
+                            }
+
+                            if (char === '\\') {
+                                sanitized += char;
+                                escapeNext = true;
+                                continue;
+                            }
+
+                            if (char === '"') {
+                                sanitized += char;
+                                inString = !inString;
+                                continue;
+                            }
+
+                            // If we're inside a string value, escape control characters
+                            if (inString) {
+                                if (char === '\n') {
+                                    sanitized += '\\n';
+                                } else if (char === '\r') {
+                                    sanitized += '\\r';
+                                } else if (char === '\t') {
+                                    sanitized += '\\t';
+                                } else if (char.charCodeAt(0) < 32) {
+                                    sanitized += '\\u' + ('0000' + char.charCodeAt(0).toString(16)).slice(-4);
+                                } else {
+                                    sanitized += char;
+                                }
+                            } else {
+                                sanitized += char;
+                            }
+                        }
+
+                        jsonText = sanitized;
+                        console.log(`✅ [Deep] Chunk ${chunkIndex + 1}: JSON sanitized successfully`);
+                        parsed = JSON.parse(jsonText);
+                    }
+
+                    // Aggregate results from this chunk
+                    if (!projectName && parsed.projectName) {
+                        projectName = parsed.projectName;
+                        console.log(`📝 [Deep] Project name extracted from chunk ${chunkIndex + 1}: ${projectName}`);
+                    }
+
+                    if (parsed.phases && parsed.phases.length > 0) {
+                        console.log(`✅ [Deep] Chunk ${chunkIndex + 1}: Extracted ${parsed.phases.length} phases with comprehensive detail`);
+                        allPhasesCollected.push(...parsed.phases);
+                    }
+
+                } catch (e) {
+                    console.error(`❌ [Deep] Chunk ${chunkIndex + 1} failed to parse:`, e);
+                    console.error('Response (first 500 chars):', response.substring(0, 500));
+                    // Continue to next chunk instead of failing entirely
+                }
+            }
+
+            // =========================================================================
+            // MERGE DUPLICATE PHASES AND RETURN AGGREGATED RESULT (Deep Mode)
+            // =========================================================================
+            console.log(`✅ [Deep] All chunks processed. Total phases collected: ${allPhasesCollected.length}`);
+
+            // Merge phases with the same name
+            const phaseMap = new Map();
+            allPhasesCollected.forEach(phase => {
+                const phaseName = phase.name;
+                if (phaseMap.has(phaseName)) {
+                    // Merge items into existing phase
+                    const existingPhase = phaseMap.get(phaseName);
+                    if (phase.items && phase.items.length > 0) {
+                        existingPhase.items.push(...phase.items);
+                    }
+                } else {
+                    // Add new phase
+                    phaseMap.set(phaseName, { ...phase });
+                }
+            });
+
+            const mergedPhases = Array.from(phaseMap.values());
+            console.log(`✅ [Deep] After merging duplicates: ${mergedPhases.length} unique phases`);
+
+            // Use a generic project name if none was extracted
+            if (!projectName) {
+                projectName = `${patternConfig.name} Project`;
+            }
+
+            return {
+                projectName: projectName,
+                phases: mergedPhases
+            };
+        }
+
+        // OLD SINGLE-CHUNK DEEP MODE (DEPRECATED - keeping for reference)
+        async function convertTextToTreeDeep_LEGACY(text, pattern) {
+            const response = 'DEPRECATED'; // Legacy function - semantic chunking is now standard
 
             try {
                 // Try to extract JSON from response
