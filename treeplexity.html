@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.9 | Build 162 | 2025-11-25
+    TreeListy v2.9.10 | Build 163 | 2025-11-25
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 162): AGGRESSIVE Large Tree Handling
+    Changelog (Build 163): Fix undefined response error + null guard
+    - FIX: Added null guard for AI response to prevent "Cannot read properties of undefined"
+    - FIX: Better error message when AI returns empty/undefined response
+    - INFO: Anthropic intentionally blocks direct browser API calls (no CORS headers)
+    - INFO: This is NOT a bug - it's their security architecture requiring server proxy
+
+    Previous (Build 162): AGGRESSIVE Large Tree Handling
     - FIX: 🛑 Large trees (30+ items) now FORCE treeUpdate: null in enhance mode
     - FIX: Removed instruction to "echo baseline" that was causing 32K responses
-    - NEW: JSON schema now shows TWO options: null (for questions) or minimal update
-    - NEW: Dynamic instruction based on tree size - small trees get summary, large get null
-    - The AI was ignoring soft "don't echo" instructions - now using hard "MUST use null"
 
     Previous (Build 161): Smart Fallback for Large Trees
     - NEW: 🚀 Auto-fallback to fast mode on timeout or response cutoff
@@ -2013,8 +2016,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.9 | Build 162 | 2025-11-25">
-                    v2.9.9 • Build 162
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.10 | Build 163 | 2025-11-25">
+                    v2.9.10 • Build 163
                 </div>
             </div>
         </div>
@@ -14556,6 +14559,11 @@ Your response:`;
                 const response = await callClaudeAPI(userPrompt, systemPrompt, 8000, useDeepMode); // Increased to 8000 for complex patterns (Film, Philosophy, etc.)
 
                 console.log('🪄 AI Raw Response:', response);
+
+                // Guard against undefined response
+                if (!response) {
+                    throw new Error('AI returned empty response. The request may have timed out or failed silently.');
+                }
 
                 // Try to extract JSON if AI added text before/after
                 let jsonStr = response.trim();
