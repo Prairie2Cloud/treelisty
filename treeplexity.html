@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.7 | Build 160 | 2025-11-25
+    TreeListy v2.9.8 | Build 161 | 2025-11-25
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,19 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 160): Wizard Token Optimization + Claude CORS Fix
+    Changelog (Build 161): Smart Fallback for Large Trees
+    - NEW: 🚀 Auto-fallback to fast mode on timeout or response cutoff
+    - NEW: Large tree detection (50+ items) - warns about potential timeout
+    - NEW: Timeout auto-retry - switches to fast mode and retries automatically
+    - NEW: Cutoff auto-retry - enables fast fallback after first cutoff error
+    - FIX: Better error messages for timeout (suggests Gemini for unlimited Deep Mode)
+    - FIX: Recovery prompt now instructs AI to return treeUpdate: null (no tree echo)
+
+    Previous (Build 160): Wizard Token Optimization + Claude CORS Fix
     - FIX: 🪄 Wizard "response cut off" bug - Added STRONG instruction to NOT echo entire tree
     - FIX: 🔄 Claude API routing - Anthropic blocks ALL direct browser calls (CORS policy)
     - INFO: Deep Mode for Claude MUST use Netlify proxy (10s timeout applies)
     - INFO: For unlimited Deep Mode, use Gemini (allows direct browser API calls)
-    - Wizard enhance mode now instructs AI to return ONLY new/modified items, not full tree
 
     Previous (Build 158): Based on Gemini code review recommendations
     - FIX: 🐛 Hyperedges Data Loss Bug - importAnalyzedTree and executeFlexibleImport now initialize hyperedges: []
@@ -2002,8 +2009,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.7 | Build 160 | 2025-11-25">
-                    v2.9.7 • Build 160
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.8 | Build 161 | 2025-11-25">
+                    v2.9.8 • Build 161
                 </div>
             </div>
         </div>
@@ -14512,9 +14519,31 @@ Your response:`;
                 console.log('🪄 System prompt length:', systemPrompt.length);
                 console.log('🪄 User prompt length:', userPrompt.length);
 
+                // SMART MODEL SELECTION for large trees
+                // Large trees (50+ items) should use fast models to avoid timeout/cutoff
+                const itemCount = (wizardState.workingTree.children || []).reduce((acc, phase) =>
+                    acc + (phase.items || []).length, 0);
+                const isLargeTree = itemCount >= 50;
+
                 // Check if user selected Deep Mode (user-sonnet, user-gemini, user-chatgpt)
                 const aiModeInfo = parseUnifiedMode();
-                const useDeepMode = aiModeInfo.mode === 'deep'; // Deep Mode = Extended Thinking
+                let useDeepMode = aiModeInfo.mode === 'deep'; // Deep Mode = Extended Thinking
+
+                // Check if we're in fallback mode (from previous cutoff error)
+                const useFastFallback = wizardState.useFastFallback || false;
+
+                if (isLargeTree && !useFastFallback) {
+                    console.log(`🪄 Large tree detected (${itemCount} items) - recommending fast model`);
+                    // For large trees, warn but still try their selected mode first
+                    if (useDeepMode) {
+                        console.warn('⚠️ Deep Mode on large tree may timeout. Will auto-fallback to fast model if needed.');
+                    }
+                }
+
+                if (useFastFallback) {
+                    console.log('🚀 Using fast fallback mode (previous response was cut off)');
+                    useDeepMode = false; // Force fast mode
+                }
 
                 if (useDeepMode) {
                     console.log('🧠 Wizard using Deep Mode (Extended Thinking enabled)');
@@ -14597,21 +14626,28 @@ Your response:`;
 
                     // Check retry limit
                     wizardState.retryCount = (wizardState.retryCount || 0) + 1;
-                    if (wizardState.retryCount > 2) {
+                    if (wizardState.retryCount > 3) {
                         throw new Error('Response was cut off multiple times. Try asking the wizard to add fewer items at once, or click "Finish & Apply" to save current progress.');
                     }
 
+                    // SMART FALLBACK: After first cutoff, switch to fast mode
+                    if (wizardState.retryCount === 1 && !wizardState.useFastFallback) {
+                        console.log('🚀 First cutoff - enabling fast fallback mode for subsequent requests');
+                        wizardState.useFastFallback = true;
+                        addWizardMessage('ai', "⚡ Switching to fast mode for better reliability with your large project...");
+                    }
+
                     // Try to recover by asking AI to simplify
-                    console.log('🪄 Attempting auto-recovery (attempt ' + wizardState.retryCount + '/2)...');
+                    console.log('🪄 Attempting auto-recovery (attempt ' + wizardState.retryCount + '/3)...');
 
                     // Add a recovery message to conversation
                     wizardState.conversation.push({
                         role: 'system',
-                        content: 'Your last response was cut off (too long). Please provide a MUCH SHORTER response with only 2-3 items MAX. Be extremely concise.'
+                        content: 'Your last response was cut off (too long). CRITICAL: Return ONLY a short message and treeUpdate: null. Do NOT include any tree data. Just ask a simple question.'
                     });
 
                     // Show user-friendly message
-                    addWizardMessage('ai', "Oops! My response was too long and got cut off. Let me try with a shorter answer...");
+                    addWizardMessage('ai', "Oops! My response was too long. Let me try with a much shorter answer...");
 
                     // Retry with simplified prompt
                     document.getElementById('wizard-user-input').disabled = false;
@@ -14741,9 +14777,35 @@ Your response:`;
                     conversation: wizardState.conversation
                 });
 
+                // SMART FALLBACK: Detect timeout and auto-retry with fast mode
+                const isTimeout = error.message?.includes('timeout') || error.message?.includes('10-second') || error.message?.includes('10s');
+
+                if (isTimeout && !wizardState.useFastFallback) {
+                    console.log('🚀 Timeout detected - enabling fast fallback mode and retrying...');
+                    wizardState.useFastFallback = true;
+                    wizardState.retryCount = (wizardState.retryCount || 0) + 1;
+
+                    if (wizardState.retryCount <= 2) {
+                        addWizardMessage('ai', "⚡ Request timed out. Switching to fast mode and trying again...");
+
+                        // Retry with fast mode
+                        document.getElementById('wizard-user-input').disabled = false;
+                        document.getElementById('wizard-send').disabled = false;
+                        wizardState.awaitingResponse = false;
+                        setTimeout(() => wizardAsk(), 500);
+                        return;
+                    }
+                }
+
                 // Show error message in chat
                 const errorMsg = error.message || 'Unknown error occurred';
-                addWizardMessage('ai', `I'm having trouble: ${errorMsg}\n\nPlease check:\n1. Is your API key configured? (Settings → API Key)\n2. Try refreshing the page\n3. Check browser console for details (F12)`);
+
+                // Simplify timeout errors for users
+                if (isTimeout) {
+                    addWizardMessage('ai', `⏱️ Request timed out. Try:\n\n1. Switch to Gemini (Settings → Provider) - no timeout limit\n2. Use Fast Mode (Haiku) - usually faster\n3. Ask me to make smaller changes at a time`);
+                } else {
+                    addWizardMessage('ai', `I'm having trouble: ${errorMsg}\n\nPlease check:\n1. Is your API key configured? (Settings → API Key)\n2. Try refreshing the page\n3. Check browser console for details (F12)`);
+                }
             }
 
             // Re-enable input
