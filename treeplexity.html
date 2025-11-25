@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.6 | Build 159 | 2025-11-25
+    TreeListy v2.9.7 | Build 160 | 2025-11-25
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 159): CRITICAL Deep Mode Fix
-    - FIX: 🚀 Deep Mode now uses DIRECT Anthropic API on deployed sites (bypasses Netlify 10s timeout!)
-    - FIX: Previous bug was incorrectly disabling Extended Thinking on deployed sites
-    - Deep Mode with your API key now works with full Extended Thinking (5000 token reasoning budget)
-    - Graceful fallback to Netlify proxy if CORS detected (shouldn't happen on Netlify)
+    Changelog (Build 160): Wizard Token Optimization + Claude CORS Fix
+    - FIX: 🪄 Wizard "response cut off" bug - Added STRONG instruction to NOT echo entire tree
+    - FIX: 🔄 Claude API routing - Anthropic blocks ALL direct browser calls (CORS policy)
+    - INFO: Deep Mode for Claude MUST use Netlify proxy (10s timeout applies)
+    - INFO: For unlimited Deep Mode, use Gemini (allows direct browser API calls)
+    - Wizard enhance mode now instructs AI to return ONLY new/modified items, not full tree
 
     Previous (Build 158): Based on Gemini code review recommendations
     - FIX: 🐛 Hyperedges Data Loss Bug - importAnalyzedTree and executeFlexibleImport now initialize hyperedges: []
@@ -2001,8 +2002,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.6 | Build 159 | 2025-11-25">
-                    v2.9.6 • Build 159
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.7 | Build 160 | 2025-11-25">
+                    v2.9.7 • Build 160
                 </div>
             </div>
         </div>
@@ -4390,50 +4391,27 @@ The AI will analyze the structure and convert it to a tree."
                     // Fall through to Fast Mode (Netlify proxy) below
                     // This will work from local files but has 10s timeout limit
                 } else {
-                    // Running from deployed web server - USE DIRECT API for Deep Mode!
-                    // Direct API has no timeout limit (Netlify's 10s limit doesn't apply)
-                    console.log('🚀 Deep Mode: Using direct Anthropic API (deployed site, no Netlify timeout)');
-                    console.log('🔑 Your API key enables Extended Thinking with full reasoning budget');
+                    // Running from deployed web server
+                    // IMPORTANT: Anthropic's API does NOT allow direct browser calls (CORS blocked)
+                    // We MUST use Netlify proxy, but Extended Thinking often exceeds 10s timeout
+                    console.warn('⚠️ Deep Mode: Anthropic API blocks direct browser calls (CORS policy)');
+                    console.warn('🔄 Using Netlify proxy with Extended Thinking - may timeout on complex requests');
+                    console.warn('💡 For guaranteed Deep Mode: Use Gemini (allows direct API) or upgrade to Netlify Pro');
 
-                    try {
-                        response = await callClaudeDirectAPI(requestData, localApiKey);
-                        console.log('✅ Direct API call successful!');
-
-                        // Parse and return the response
-                        if (!response.ok) {
-                            const error = await response.json().catch(() => ({}));
-                            throw new Error(error.error?.message || `Claude API error: ${response.status}`);
-                        }
-
-                        const data = await response.json();
-
-                        // Handle Extended Thinking response format
-                        if (data.content) {
-                            const textBlock = data.content.find(block => block.type === 'text');
-                            if (textBlock) {
-                                return textBlock.text;
-                            }
-                        }
-
-                        throw new Error('Unexpected response format from Claude API');
-                    } catch (directError) {
-                        console.error('❌ Direct API failed:', directError.message);
-
-                        // If CORS error, fall back to Netlify proxy without Extended Thinking
-                        if (directError.message.includes('CORS') || directError.message.includes('NetworkError') || directError.message.includes('Failed to fetch')) {
-                            console.warn('🔄 CORS detected - falling back to Netlify proxy (without Extended Thinking)');
-                            delete requestData.thinking;
-                            // Fall through to Netlify proxy below
-                        } else {
-                            throw directError; // Re-throw non-CORS errors
-                        }
-                    }
+                    // Keep Extended Thinking enabled - let it try via Netlify
+                    // User will get timeout error if it takes >10s, but smaller requests may work
+                    // Fall through to Netlify proxy below
                 }
             }
 
-            // FAST MODE or no extended thinking or auto-switched from Deep Mode (local file or CORS avoidance)
-            if (!requestData.thinking || !localApiKey || isLocalFile) {
-                // FAST MODE or no extended thinking: Use Netlify function (has 10s limit but works everywhere)
+            // ALL Claude API calls go through Netlify proxy (Anthropic blocks direct browser calls via CORS)
+            // This includes both Fast Mode and Deep Mode - Deep Mode may timeout on complex requests
+            if (true) { // Always use Netlify for Claude
+                // Log the mode being used
+                if (requestData.thinking) {
+                    console.log('🧠 Deep Mode: Using Netlify proxy with Extended Thinking');
+                    console.log('⚠️ Complex requests may timeout (Netlify free tier: 10s limit)');
+                }
                 console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
 
                 const netlifyRequestBody = {
@@ -14846,8 +14824,14 @@ Your response:`;
                 existingStructure += `- Filling gaps or missing sections\n`;
                 existingStructure += `- Expanding phases that seem incomplete\n`;
                 existingStructure += `- Adding subtasks to items that need them\n\n`;
-                existingStructure += `⚠️ SMART MERGE SYSTEM: After your FIRST response, include ONLY new or modified items in treeUpdate.\n`;
-                existingStructure += `   The system automatically preserves all existing items not mentioned. You do NOT need to resend the entire tree every time.\n`;
+                existingStructure += `\n⚠️⚠️⚠️ CRITICAL - DO NOT ECHO THE ENTIRE TREE ⚠️⚠️⚠️\n`;
+                existingStructure += `The tree already has ${itemCount} items. Your treeUpdate MUST contain ONLY:\n`;
+                existingStructure += `- NEW items you are ADDING (not existing ones)\n`;
+                existingStructure += `- Items you are MODIFYING (with changes)\n`;
+                existingStructure += `- DO NOT include unchanged items - they are preserved automatically\n`;
+                existingStructure += `- If just asking a question with no changes, use treeUpdate: null\n`;
+                existingStructure += `\n❌ WRONG: Echoing all ${itemCount} items back (wastes tokens, causes cutoff)\n`;
+                existingStructure += `✅ RIGHT: Only new/changed items, or null if just asking\n`;
             }
 
             const modeInstruction = wizardState.enhanceMode ?
