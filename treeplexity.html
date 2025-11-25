@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.4 | Build 157 | 2025-11-24
+    TreeListy v2.9.5 | Build 158 | 2025-11-24
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 157):
+    Changelog (Build 158): Based on Gemini code review recommendations
+    - FIX: 🐛 Hyperedges Data Loss Bug - importAnalyzedTree and executeFlexibleImport now initialize hyperedges: []
+    - FIX: ⚡ Performance - drawHyperedges now uses O(1) Map lookup instead of O(N) recursive getNodeById
+    - NEW: 📊 Deep Mode Progress UI - Real-time chunk-by-chunk progress bar during semantic analysis
+    - NEW: 🔗 Hyperedge Management UI - Delete hyperedges from root node info panel (no more JSON editing!)
+    - Added window.deleteHyperedge() global handler with undo support
+
+    Previous (Build 157):
     - FIX: 🔑 API Key Storage Bug - EmbeddingManager now uses correct localStorage key format
     - Fixed: Changed 'openai-api-key' → 'openai_api_key' (underscore format)
     - Fixed: Changed 'gemini-api-key' → 'gemini_api_key' (underscore format)
@@ -1988,8 +1995,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.4 | Build 157 | 2025-11-24">
-                    v2.9.4 • Build 157
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.5 | Build 158 | 2025-11-24">
+                    v2.9.5 • Build 158
                 </div>
             </div>
         </div>
@@ -5596,6 +5603,7 @@ Focus on logical structure and content organization best practices.`;
 
         /**
          * Draw all hyperedges as convex hull blobs
+         * Performance optimized: Uses O(1) Map lookup instead of O(N) recursive getNodeById
          */
         function drawHyperedges() {
             const svg = document.getElementById('canvas-connections');
@@ -5604,6 +5612,15 @@ Focus on logical structure and content organization best practices.`;
             if (!hyperedges || hyperedges.length === 0) {
                 return;
             }
+
+            // Build O(1) lookup map from canvasNodes to avoid O(N) getNodeById calls per node
+            // This reduces complexity from O(H * N * TreeDepth) to O(H * N) where H = hyperedges, N = nodes per edge
+            const nodeLookup = new Map();
+            canvasNodes.forEach(n => {
+                if (n.data && n.data.id) {
+                    nodeLookup.set(n.data.id, n.data);
+                }
+            });
 
             // Color palette for hyperedge types
             const typeColors = {
@@ -5615,8 +5632,8 @@ Focus on logical structure and content organization best practices.`;
             };
 
             hyperedges.forEach(hyperedge => {
-                // Get all nodes in this hyperedge
-                const nodes = hyperedge.nodeIds.map(id => getNodeById(id)).filter(n => n);
+                // Get all nodes in this hyperedge using O(1) lookup
+                const nodes = hyperedge.nodeIds.map(id => nodeLookup.get(id)).filter(n => n);
 
                 if (nodes.length < 2) {
                     console.warn(`Hyperedge ${hyperedge.id} has < 2 valid nodes`);
@@ -11690,6 +11707,23 @@ function hidePatternDescription() {
                         <p class="value">${formatCost(calculateTotal(node))}</p>
                     </div>
                 ` : ''}
+                ${node.type === 'root' && node.hyperedges && node.hyperedges.length > 0 ? `
+                    <div class="info-section">
+                        <h4>Hyperedges (Groups)</h4>
+                        <div style="display: flex; flex-direction: column; gap: 8px;">
+                            ${node.hyperedges.map(h => `
+                                <div style="display: flex; align-items: center; justify-content: space-between; background: rgba(255,255,255,0.05); padding: 10px 12px; border-radius: 8px; border-left: 3px solid ${h.type === 'montage' ? '#fb923c' : h.type === 'argument' ? '#3b82f6' : h.type === 'theme' ? '#a855f7' : h.type === 'dependency-cluster' ? '#22c55e' : '#9ca3af'};">
+                                    <div style="flex: 1;">
+                                        <span style="font-size: 14px; font-weight: 500;">${h.label || 'Unnamed Group'}</span>
+                                        <span style="opacity: 0.5; font-size: 12px; margin-left: 8px;">(${h.type || 'group'})</span>
+                                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 2px;">${h.nodeIds?.length || 0} nodes</div>
+                                    </div>
+                                    <button onclick="window.deleteHyperedge('${h.id}')" style="background: rgba(239, 68, 68, 0.2); border: none; cursor: pointer; font-size: 14px; padding: 6px 10px; border-radius: 6px; color: #ef4444;" title="Delete hyperedge">🗑️</button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                ` : ''}
             `;
 
             panel.classList.add('open');
@@ -15402,6 +15436,19 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             }
 
             return removed;
+        }
+
+        /**
+         * Global handler for deleting hyperedges from the info panel UI
+         * @param {string} id - The hyperedge ID to delete
+         */
+        window.deleteHyperedge = function(id) {
+            if (confirm('Delete this hyperedge group?')) {
+                saveState('Delete Hyperedge');
+                removeHyperedge(id);
+                renderCanvas(); // Re-draw canvas to remove the visual blob
+                showInfo(capexTree); // Refresh the info panel to update the list
+            }
         }
 
         /**
@@ -19960,6 +20007,38 @@ Describe the ACTUAL SHOTS, not the process of creating them.
                 const chunk = chunks[chunkIndex];
                 console.log(`🔄 [Deep] Processing chunk ${chunkIndex + 1}/${chunks.length} (${chunk.text.length} chars)`);
 
+                // Update UI with chunk progress feedback
+                const percent = Math.round(((chunkIndex + 1) / chunks.length) * 100);
+                const modalBody = document.getElementById('modal-body');
+                if (modalBody && chunks.length > 1) {
+                    const progressBars = chunks.map((c, i) => {
+                        const isProcessed = i < chunkIndex;
+                        const isProcessing = i === chunkIndex;
+                        const barColor = isProcessed ? 'rgba(16, 185, 129, 0.8)' : isProcessing ? 'rgba(251, 146, 60, 0.8)' : 'rgba(100, 100, 100, 0.3)';
+                        return `<div style="flex: 1; height: 8px; background: ${barColor}; border-radius: 4px; transition: background 0.3s;"></div>`;
+                    }).join('');
+
+                    modalBody.innerHTML = `
+                        <div style="padding: 20px;">
+                            <div style="text-align: center; margin-bottom: 16px;">
+                                <div class="spinner"></div>
+                                <p style="margin-top: 16px; color: var(--text-primary); font-weight: 600; font-size: 16px;">
+                                    🧠 Analyzing Section ${chunkIndex + 1} of ${chunks.length}
+                                </p>
+                                <p style="color: var(--text-secondary); font-size: 14px; margin-top: 4px;">
+                                    ${percent}% complete • ${chunk.text.length.toLocaleString()} characters
+                                </p>
+                            </div>
+                            <div style="display: flex; gap: 4px; padding: 12px; background: rgba(0, 0, 0, 0.2); border-radius: 8px;">
+                                ${progressBars}
+                            </div>
+                            <div style="text-align: center; margin-top: 12px; font-size: 12px; color: var(--text-secondary);">
+                                Deep Mode extracts comprehensive details from each section
+                            </div>
+                        </div>
+                    `;
+                }
+
                 const chunkPrompt = `Convert this SPECIFIC SECTION of a larger document into a detailed hierarchical structure using the "${patternConfig.name}" pattern (Section ${chunkIndex + 1}/${chunks.length}).
 
 PATTERN HIERARCHY (4 LEVELS):
@@ -20823,6 +20902,7 @@ ${jsonText}`;
                 name: treeData.projectName || 'Analyzed Project',
                 icon: '🌲',
                 expanded: true,
+                hyperedges: [], // Initialize empty hyperedges array to prevent data loss
                 children: treeData.phases?.map((phase, phaseIndex) => ({
                     type: 'phase',
                     id: `phase-${phaseIndex}`,
@@ -22754,6 +22834,7 @@ ${jsonText}`;
                     name: `Imported from ${excelImportState.file}`,
                     icon: '🌳',
                     expanded: true,
+                    hyperedges: [], // Initialize empty hyperedges array to prevent data loss
                     children: phases,
                     pattern: {
                         key: currentPattern,
