@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.8 | Build 161 | 2025-11-25
+    TreeListy v2.9.9 | Build 162 | 2025-11-25
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,17 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 161): Smart Fallback for Large Trees
+    Changelog (Build 162): AGGRESSIVE Large Tree Handling
+    - FIX: 🛑 Large trees (30+ items) now FORCE treeUpdate: null in enhance mode
+    - FIX: Removed instruction to "echo baseline" that was causing 32K responses
+    - NEW: JSON schema now shows TWO options: null (for questions) or minimal update
+    - NEW: Dynamic instruction based on tree size - small trees get summary, large get null
+    - The AI was ignoring soft "don't echo" instructions - now using hard "MUST use null"
+
+    Previous (Build 161): Smart Fallback for Large Trees
     - NEW: 🚀 Auto-fallback to fast mode on timeout or response cutoff
     - NEW: Large tree detection (50+ items) - warns about potential timeout
     - NEW: Timeout auto-retry - switches to fast mode and retries automatically
-    - NEW: Cutoff auto-retry - enables fast fallback after first cutoff error
-    - FIX: Better error messages for timeout (suggests Gemini for unlimited Deep Mode)
-    - FIX: Recovery prompt now instructs AI to return treeUpdate: null (no tree echo)
 
     Previous (Build 160): Wizard Token Optimization + Claude CORS Fix
     - FIX: 🪄 Wizard "response cut off" bug - Added STRONG instruction to NOT echo entire tree
@@ -2009,8 +2013,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.8 | Build 161 | 2025-11-25">
-                    v2.9.8 • Build 161
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.9.9 | Build 162 | 2025-11-25">
+                    v2.9.9 • Build 162
                 </div>
             </div>
         </div>
@@ -15166,8 +15170,18 @@ For AI Prompt Design, items MUST include these pattern-specific fields:
 - Each phase represents a component of the final prompt (System, User, Examples, Output)
 - The Generate Prompt feature extracts these fields to create the executable prompt
 ` : `
+⚠️ OPTION A - When just asking a question (NO tree changes):
 {
-  "message": "I've built [X phases, Y items]. [State what you added]. The only gap I see is [specific gap]. [Ask ONE strategic follow-up question that maximizes information gain]",
+  "message": "Your question here...",
+  "treeUpdate": null,
+  "fieldsUpdated": [],
+  "progress": 0.5,
+  "done": false
+}
+
+⚠️ OPTION B - When ADDING new items (include ONLY the new items):
+{
+  "message": "I've added [X]. [Ask ONE follow-up question]",
   "treeUpdate": {
     "name": "Project Name",
     "description": "Brief description",
@@ -15217,16 +15231,26 @@ For AI Prompt Design, items MUST include these pattern-specific fields:
 🚀 FIRST RESPONSE INSTRUCTION:
 ${wizardState.enhanceMode ? `
 ENHANCE MODE - First response:
-1. Return the EXISTING tree structure in treeUpdate (include all current phases/items to establish baseline)
+${itemCount > 30 ? `
+⛔ LARGE TREE DETECTED (${itemCount} items) - DO NOT ECHO THE TREE!
+1. Set treeUpdate to NULL (the system already has all the data)
+2. Set progress based on how complete the tree already is (0.5 to 0.8 typical)
+3. Ask: "I can see you have ${phaseCount} ${levels.phase.toLowerCase()}s and ${itemCount} ${levels.item.toLowerCase()}s. What would you like me to help you with? Add more items, expand existing ones, or fill gaps?"
+
+⛔⛔⛔ CRITICAL: For trees with 30+ items, you MUST use treeUpdate: null
+The existing tree is already loaded. Echoing it back wastes tokens and causes cutoff errors.
+` : `
+1. Return a SUMMARY of the tree structure in treeUpdate (max 5-10 representative items, NOT everything)
 2. Set progress based on how complete the tree already is (0.5 to 0.8 typical)
 3. Ask: "I can see you have [X]. What would you like me to help you with? Add more ${levels.item.toLowerCase()}s, expand existing ones with more detail, add subtasks, or fill gaps?"
+`}
 
-⚠️ FIRST RESPONSE: Include ALL existing phases, items, and subtasks to establish baseline.
-⚠️ SUBSEQUENT RESPONSES: Include ONLY new or modified items. The Smart Merge system automatically preserves everything else.
+⚠️ ALL RESPONSES (including first): Include ONLY new or modified items. NEVER echo the full tree.
+   - If just asking a question: Use treeUpdate: null
    - If adding new items to an existing phase: Include just that phase with the new items
    - If modifying an existing item: Include just that item with changes
    - If adding a new phase: Include just the new phase
-   - Items not mentioned are automatically preserved - you don't need to resend them!
+   - Items not mentioned are automatically preserved!
 ` : `
 BUILD MODE - First response:
 1. Create minimal tree with just project name and empty description
