@@ -11,7 +11,8 @@ export default defineConfig({
         // Test file patterns
         include: [
             'test/unit/**/*.test.js',
-            'test/integration/**/*.test.js'
+            'test/integration/**/*.test.js',
+            'test/scenarios/**/*.scenario.js'
         ],
         
         // Exclude patterns
