@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.9.11 | Build 164 | 2025-11-25
+    TreeListy v2.10.0 | Build 165 | 2025-11-28
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 164): Model Selector + Latest Model IDs
+    Changelog (Build 165): Cognitive Citadel Foundation
+    - NEW: 🛡️ Migration System - Schema versioning for backward compatibility
+    - NEW: 🛡️ Provenance Stamping - All nodes track origin (user/ai-import/legacy)
+    - NEW: 🛡️ Dialectic Mode - Forces AI to identify assumptions & counter-arguments
+    - NEW: Phenomenology array on nodes (future: capture "residue" that doesn't fit structure)
+    - NEW: Metrics stub on nodes (future: attention economics tracking)
+    - FIX: AI-imported content now properly tagged with provenance
+
+    Previous (Build 164): Model Selector + Latest Model IDs
     - NEW: 🎯 Model Selector Dropdown - Choose specific AI models per call
     - NEW: Claude: Haiku 3 (server), Haiku 3.5, Sonnet 4, Opus 4
     - NEW: Gemini: Flash 2.0, Pro 2.5 Preview
@@ -2449,6 +2457,20 @@ The AI will analyze the structure and convert it to a tree."
                 </p>
             </div>
 
+            <!-- Dialectic Mode Toggle (Cognitive Citadel) -->
+            <div style="margin-bottom: 25px; padding: 15px; background: rgba(220, 38, 38, 0.1); border: 1px solid rgba(220, 38, 38, 0.3); border-radius: 8px;">
+                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                    <input type="checkbox" id="ai-dialectic-mode" style="width: 18px; height: 18px; accent-color: #EF4444; margin-top: 2px;">
+                    <div>
+                        <strong style="color: #EF4444;">🛡️ Dialectic Mode</strong>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px;">
+                            Forces AI to identify assumptions and counter-arguments <em>before</em> helping.
+                            Breaks the agreement echo chamber.
+                        </div>
+                    </div>
+                </label>
+            </div>
+
             <!-- Live Preview -->
             <div style="margin-bottom: 25px; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
                 <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
@@ -3557,6 +3579,7 @@ The AI will analyze the structure and convert it to a tree."
                 tone: 'neutral',        // neutral, critical, enthusiastic, socratic
                 verbosity: 'concise',   // concise, balanced, verbose
                 creativity: 0.5,        // 0.0 to 1.0 (maps to temperature)
+                dialecticMode: false,   // Cognitive Citadel: force counter-arguments
                 customInstructions: ''  // User override
             };
 
@@ -3587,7 +3610,21 @@ The AI will analyze the structure and convert it to a tree."
             }
             // balanced = no injection
 
-            // 3. User Override (HIGHEST PRIORITY)
+            // 3. DIALECTIC MODE (Cognitive Citadel)
+            if (config.dialecticMode) {
+                tuning += `
+🛡️ DIALECTIC MODE ACTIVE:
+Before responding to the user's request, you MUST:
+1. Identify 2 hidden assumptions in their request
+2. Generate 1 strong counter-argument or alternative perspective
+3. Note 1 potential blind spot they may have
+
+Present these briefly as "**🛡️ Considerations:**" (4-5 lines max), then proceed with the requested task.
+Do not ask permission—just provide the critique, then help.
+`;
+            }
+
+            // 4. User Override (HIGHEST PRIORITY)
             if (config.customInstructions && config.customInstructions.trim()) {
                 tuning += `\nUSER PRIORITY INSTRUCTION: ${config.customInstructions.trim()}\n`;
             }
@@ -3613,6 +3650,9 @@ The AI will analyze the structure and convert it to a tree."
             document.getElementById('creativity-value').textContent = config.creativity.toFixed(1);
 
             document.getElementById('custom-instructions').value = config.customInstructions;
+            
+            // Load Dialectic Mode (Cognitive Citadel)
+            document.getElementById('ai-dialectic-mode').checked = config.dialecticMode || false;
 
             // Update preview
             updateAIPreview();
@@ -3631,6 +3671,7 @@ The AI will analyze the structure and convert it to a tree."
             const verbosity = document.querySelector('input[name="ai-verbosity"]:checked').value;
             const creativity = document.getElementById('creativity-slider').value / 100;
             const customInstructions = document.getElementById('custom-instructions').value;
+            const dialecticMode = document.getElementById('ai-dialectic-mode').checked;
 
             // Build preview tuning
             let tuning = "";
@@ -3649,6 +3690,10 @@ The AI will analyze the structure and convert it to a tree."
                 tuning += "OUTPUT STYLE: Be thorough and detailed. Explain reasoning fully. Provide comprehensive analysis with examples.\n";
             }
 
+            if (dialecticMode) {
+                tuning += "🛡️ DIALECTIC MODE: Identify assumptions and counter-arguments before helping.\n";
+            }
+
             if (customInstructions.trim()) {
                 tuning += `\nUSER PRIORITY INSTRUCTION: ${customInstructions.trim()}\n`;
             }
@@ -3665,12 +3710,14 @@ The AI will analyze the structure and convert it to a tree."
             const verbosity = document.querySelector('input[name="ai-verbosity"]:checked').value;
             const creativity = document.getElementById('creativity-slider').value / 100;
             const customInstructions = document.getElementById('custom-instructions').value;
+            const dialecticMode = document.getElementById('ai-dialectic-mode').checked;
 
             // Save to tree
             capexTree.aiConfig = {
                 tone,
                 verbosity,
                 creativity,
+                dialecticMode,
                 customInstructions
             };
 
@@ -3692,6 +3739,7 @@ The AI will analyze the structure and convert it to a tree."
             document.getElementById('creativity-slider').value = 50;
             document.getElementById('creativity-value').textContent = '0.5';
             document.getElementById('custom-instructions').value = '';
+            document.getElementById('ai-dialectic-mode').checked = false;
 
             updateAIPreview();
         }
@@ -3730,6 +3778,12 @@ The AI will analyze the structure and convert it to a tree."
             const customInstructions = document.getElementById('custom-instructions');
             if (customInstructions) {
                 customInstructions.addEventListener('input', updateAIPreview);
+            }
+
+            // Dialectic Mode checkbox (Cognitive Citadel)
+            const dialecticCheckbox = document.getElementById('ai-dialectic-mode');
+            if (dialecticCheckbox) {
+                dialecticCheckbox.addEventListener('change', updateAIPreview);
             }
 
             // Pattern selector - handle pattern switching with translation
@@ -8901,6 +8955,76 @@ const PATTERNS = {
     }
 };
 
+// =============================================================================
+// MIGRATION & SCHEMA MANAGEMENT (Cognitive Citadel Foundation)
+// =============================================================================
+
+const SCHEMA_VERSION = 1;
+
+/**
+ * Recursively normalizes node structure and adds defense fields
+ */
+function normalizeNode(node, source = 'legacy') {
+    if (!node) return;
+    
+    // 1. Provenance Stamping
+    if (!node.provenance) {
+        node.provenance = {
+            source: source,
+            timestamp: new Date().toISOString(),
+            modelId: null
+        };
+    }
+
+    // 2. Phenomenology (The "Residue" - node-specific reflections)
+    if (!node.phenomenology) {
+        node.phenomenology = [];
+    }
+
+    // 3. Metrics (Attention Economics)
+    if (!node.metrics) {
+        node.metrics = {
+            editCount: 0,
+            focusTime: 0,
+            lastModified: Date.now()
+        };
+    }
+
+    // Recurse through all child types
+    if (node.children) node.children.forEach(child => normalizeNode(child, source));
+    if (node.items) node.items.forEach(child => normalizeNode(child, source));
+    if (node.subItems) node.subItems.forEach(child => normalizeNode(child, source));
+}
+
+/**
+ * Migrates tree to current SCHEMA_VERSION
+ * Called on every file load to ensure backward compatibility
+ */
+function migrateTree(tree) {
+    const currentVersion = tree.schemaVersion || 0;
+
+    if (currentVersion < 1) {
+        console.log(`🛡️ Migrating tree from v${currentVersion} to v1 (Cognitive Citadel Foundation)`);
+        
+        // Initialize Hyperedges if missing
+        if (!tree.hyperedges) tree.hyperedges = [];
+        
+        // Initialize Snapshot references (for future IndexedDB storage)
+        if (!tree.snapshotRefs) tree.snapshotRefs = [];
+
+        // Normalize all nodes with legacy source
+        normalizeNode(tree, 'legacy');
+
+        tree.schemaVersion = 1;
+        console.log('✅ Migration to v1 complete');
+    }
+
+    // Future migrations stack here:
+    // if (currentVersion < 2) { ... }
+
+    return tree;
+}
+
 // ============================================================================
 // FILE SYSTEM ICON MAPPING
 // ============================================================================
@@ -13595,6 +13719,10 @@ Your response:`;
                 if (treeData) {
                     try {
                         const tree = JSON.parse(treeData);
+                        
+                        // Migrate tree to current schema (Cognitive Citadel Foundation)
+                        migrateTree(tree);
+                        
                         console.log('📥 Loaded tree from LocalStorage:', treeId);
                         Object.assign(capexTree, tree);
                         this.currentTreeId = treeId;
@@ -13858,6 +13986,10 @@ Your response:`;
                 reader.onload = (event) => {
                     try {
                         const data = JSON.parse(event.target.result);
+                        
+                        // Migrate tree to current schema (Cognitive Citadel Foundation)
+                        migrateTree(data);
+                        
                         // Validate basic structure
                         if (data.id && data.children) {
                             // Replace the tree data
@@ -21109,6 +21241,11 @@ ${jsonText}`;
                     icon: phase.icon || '📋',
                     expanded: true,
                     cost: 0,
+                    provenance: {
+                        source: 'ai-import',
+                        timestamp: new Date().toISOString(),
+                        modelId: null
+                    },
                     items: phase.items?.map((item, itemIndex) => {
                         const itemId = `item-${phaseIndex}-${itemIndex}`;
 
@@ -21130,6 +21267,12 @@ ${jsonText}`;
                             dealValue: item.dealValue || 0,
                             wordCount: item.wordCount || 0,
                             storyPoints: item.storyPoints || 0,
+                            // Provenance stamping (Cognitive Citadel)
+                            provenance: {
+                                source: 'ai-import',
+                                timestamp: new Date().toISOString(),
+                                modelId: null
+                            },
                             // Add any other fields from AI
                             ...item
                         };
@@ -21144,6 +21287,12 @@ ${jsonText}`;
                                 icon: subtask.icon || '📌',
                                 notes: subtask.notes || '',
                                 dependencies: subtask.dependencies || [],
+                                // Provenance stamping (Cognitive Citadel)
+                                provenance: {
+                                    source: 'ai-import',
+                                    timestamp: new Date().toISOString(),
+                                    modelId: null
+                                },
                                 // Pattern-specific fields
                                 ...subtask
                             }));
