@@ -4,7 +4,7 @@
 
 *From Complexity to Clarity*
 
-**Version**: 2.9.4 (Build 156) | [Web App](./treeplexity.html) | [Examples](./examples/)
+**Version**: 2.10.0 (Build 165) | [Web App](./treeplexity.html) | [Examples](./examples/)
 
 ---
 
@@ -398,29 +398,28 @@ Want to contribute a pattern for your domain?
 
 ## Documentation
 
-### Primary Documentation
-- **[TreeListy Features 2025](TREELISTY_FEATURES_2025.md)** - Complete feature matrix (NEW)
-- **[Skill File](.claude/skills/treeplexity.md)** - Claude Code skill v2.2.0
-- **[Canvas Integration](TREELISTY_CANVAS_INTEGRATED_README.md)** - Dual view system guide
-- **[Quick Start](QUICK_START_VERIFICATION.md)** - 5-minute verification guide
-- **[Google Drive Import](GOOGLE_DRIVE_EXPORT_INSTRUCTIONS.md)** - Import from Google Drive
+Documentation is organized in the `docs/` folder:
 
-### Pattern-Specific Guides
-- **[Philosophy](examples/PLATO-CAVE-INSTRUCTIONS.md)** - Plato's Cave example
-- **[Dialogue](examples/HEGEL-BECOMING-INSTRUCTIONS.md)** - Hegel dialectics example
-- **[File System](FILE_SYSTEM_PATTERN_PLAN.md)** - Filesystem pattern with 14 sort options
-- **[Pattern Sorting](PATTERN_SORTING_ANALYSIS.md)** - Analysis of sort options per pattern
+```
+docs/
+├── AI-CONTEXT.md           # Quick AI onboarding (start here!)
+├── guides/                 # Active documentation
+│   ├── TREELISTY_FEATURES_2025.md  # Complete feature matrix
+│   ├── PATTERN_SORTING_ANALYSIS.md # Sort options per pattern
+│   ├── GOOGLE_DRIVE_EXPORT_INSTRUCTIONS.md
+│   ├── NETLIFY_DEPLOYMENT.md
+│   └── PWA-ONBOARDING-README.md
+├── builds/                 # Build-specific notes
+│   └── BUILD_156_SEMANTIC_CHUNKING.md
+└── archive/                # Historical docs (40+ files)
+```
 
-### Technical Documentation
-- **[Canvas Integration Guide](CANVAS_INTEGRATION_GUIDE.md)** - Technical implementation
-- **[Integration Complete](INTEGRATION_COMPLETE.md)** - v2.1 canvas integration details
-- **[PWA Setup](PWA-ONBOARDING-README.md)** - Progressive Web App configuration
-- **[Header Redesign](HEADER_REDESIGN.md)** - UI/UX documentation
-
-### Historical Documentation
-- [Rebranding Complete](REBRANDING_COMPLETE.md) - v1.0 rebrand from CAPEX Master
-- [Pattern Onboarding](PATTERN_ONBOARDING.md) - Pattern system development
-- [Fidelity Reports](FIDELITY_REPORT.md) - Data integrity testing
+### Quick Links
+- **[AI Context](docs/AI-CONTEXT.md)** - Quick onboarding for AI assistants
+- **[Features 2025](docs/guides/TREELISTY_FEATURES_2025.md)** - Complete feature matrix
+- **[Skill File](.claude/skills/treeplexity.md)** - Claude Code skill definition
+- **[Philosophy Example](examples/PLATO-CAVE-INSTRUCTIONS.md)** - Plato's Cave
+- **[Hegel Example](examples/HEGEL-BECOMING-INSTRUCTIONS.md)** - Dialectics
 
 ---
 
@@ -444,7 +443,7 @@ Treeplexity maintains the same license and acknowledgments.
 
 *Structure your thinking. Master complexity. Achieve clarity.*
 
-**Version 2.9.4 (Build 156)** | 17 Patterns | Dual View System | AI-Powered | Semantic Chunking | PWA-Ready
+**Version 2.10.0 (Build 165)** | 17 Patterns | Dual View System | AI-Powered | Semantic Chunking | PWA-Ready
 
 ---
 
