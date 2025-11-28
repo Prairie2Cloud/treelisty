@@ -66,39 +66,41 @@ export default defineConfig({
         actionTimeout: 10000
     },
     
-    // Browser projects
+    // Browser projects - Chromium only for now
+    // Run `npx playwright install firefox webkit` to enable other browsers
     projects: [
         {
             name: 'chromium',
-            use: { 
+            use: {
                 ...devices['Desktop Chrome'],
                 launchOptions: {
                     args: ['--disable-web-security']  // Allow local file access
                 }
             }
-        },
-        {
-            name: 'firefox',
-            use: { ...devices['Desktop Firefox'] }
-        },
-        {
-            name: 'webkit',
-            use: { ...devices['Desktop Safari'] }
-        },
-        // Mobile viewports
-        {
-            name: 'mobile-chrome',
-            use: { ...devices['Pixel 5'] }
-        },
-        {
-            name: 'mobile-safari',
-            use: { ...devices['iPhone 12'] }
         }
+        // Uncomment after installing: npx playwright install firefox webkit
+        // {
+        //     name: 'firefox',
+        //     use: { ...devices['Desktop Firefox'] }
+        // },
+        // {
+        //     name: 'webkit',
+        //     use: { ...devices['Desktop Safari'] }
+        // },
+        // {
+        //     name: 'mobile-chrome',
+        //     use: { ...devices['Pixel 5'] }
+        // },
+        // {
+        //     name: 'mobile-safari',
+        //     use: { ...devices['iPhone 12'] }
+        // }
     ],
     
     // Local dev server configuration
+    // Serves from repo root (two levels up from test/treelisty-test)
     webServer: {
-        command: 'npx serve -p 3000 ..',
+        command: 'npx serve -p 3000 ../..',
         port: 3000,
         timeout: 120000,
         reuseExistingServer: !process.env.CI
