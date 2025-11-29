@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 191 | 2025-11-29
+    TreeListy v2.11.0 | Build 192 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 191): ✨ New "Explore TreeListy" Starter Tree
+    Changelog (Build 192): 💰 Hide $0 Cost in Canvas View
+    - FIX: Cost badge only shows in canvas if pattern supports cost AND cost > 0
+    - FIX: No more "$0" clutter on starter tree items
+    - FIX: Cost display respects pattern configuration
+
+    Previous (Build 191): ✨ New "Explore TreeListy" Starter Tree
     - NEW: Self-describing starter tree teaches TreeListy by example
     - NEW: 4 phases: Discover, Create, Enhance, Share
-    - NEW: All nodes have canvasX/canvasY for perfect Canvas View layout
-    - NEW: All phases have showInCanvas: true for view consistency
-    - FIX: Tree View and Canvas View now show identical content on load
-    - FIX: Newbies can explore features without reading docs
 
     Previous (Build 190): 🎨 Layout Fix - Edges Panel vs Info Panel
 
@@ -2170,8 +2171,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 191 | 2025-11-29">
-                    v2.11.0 • Build 191
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 192 | 2025-11-29">
+                    v2.11.0 • Build 192
                 </div>
             </div>
         </div>
@@ -7704,9 +7705,10 @@ Focus on logical structure and content organization best practices.`;
                 ragHtml = `<span style="display: inline-block; width: 10px; height: 10px; border-radius: 50%; background: ${ragColor}; margin-left: 8px; box-shadow: 0 0 6px ${ragColor}80;"></span>`;
             }
 
-            // Cost badge
+            // Cost badge - only show if pattern supports cost AND cost > 0
             let costHtml = '';
-            if (item.cost) {
+            const patternSupportsCost = PATTERNS[currentPattern]?.fields?.cost;
+            if (patternSupportsCost && item.cost && item.cost > 0) {
                 const costStr = item.cost >= 1000000 ? `$${(item.cost/1000000).toFixed(1)}M` :
                                item.cost >= 1000 ? `$${(item.cost/1000).toFixed(0)}K` :
                                `$${item.cost}`;
