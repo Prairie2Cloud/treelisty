@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 171 | 2025-11-29
+    TreeListy v2.11.0 | Build 172 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -2066,8 +2066,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 171 | 2025-11-29">
-                    v2.11.0 • Build 171
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 172 | 2025-11-29">
+                    v2.11.0 • Build 172
                 </div>
             </div>
         </div>
@@ -5801,6 +5801,8 @@ Focus on logical structure and content organization best practices.`;
             const svg = document.getElementById('canvas-connections');
             const hyperedges = getAllHyperedges();
 
+            console.log('🔗 drawHyperedges called, found', hyperedges?.length || 0, 'hyperedges');
+
             if (!hyperedges || hyperedges.length === 0) {
                 return;
             }
@@ -5820,6 +5822,7 @@ Focus on logical structure and content organization best practices.`;
                 'argument': 'rgba(59, 130, 246, 0.15)',      // Blue
                 'theme': 'rgba(168, 85, 247, 0.15)',         // Purple
                 'dependency-cluster': 'rgba(34, 197, 94, 0.15)', // Green
+                'analysis': 'rgba(139, 92, 246, 0.2)',       // Violet/Purple for Deep Dive
                 'default': 'rgba(156, 163, 175, 0.15)'       // Gray
             };
 
@@ -5827,8 +5830,10 @@ Focus on logical structure and content organization best practices.`;
                 // Get all nodes in this hyperedge using O(1) lookup
                 const nodes = hyperedge.nodeIds.map(id => nodeLookup.get(id)).filter(n => n);
 
+                console.log(`🔗 Hyperedge "${hyperedge.label}": ${hyperedge.nodeIds.length} nodeIds → ${nodes.length} found in canvasNodes`);
+
                 if (nodes.length < 2) {
-                    console.warn(`Hyperedge ${hyperedge.id} has < 2 valid nodes`);
+                    console.warn(`Hyperedge ${hyperedge.id} has < 2 valid nodes. NodeIds:`, hyperedge.nodeIds, 'canvasNodes has:', canvasNodes.length, 'nodes');
                     return;
                 }
 
@@ -14038,11 +14043,13 @@ Your response:`;
                     // Create hyperedge if multiple nodes were analyzed
                     let hyperedgeCreated = false;
                     if (nodes.length >= 2) {
+                        const nodeIds = nodes.map(n => n.id);
+                        console.log('🔗 Creating Deep Dive hyperedge with nodeIds:', nodeIds);
+
                         const hyperedge = {
                             id: `hyperedge-deepdive-${Date.now()}`,
-                            nodeIds: nodes.map(n => n.id),
-                            label: `Deep Dive: ${nodes.length} nodes analyzed`,
-                            color: '#8B5CF6', // Purple for analysis
+                            nodeIds: nodeIds,
+                            label: `🎓 Deep Dive Analysis`,
                             description: `Structured Scholar analysis linking: ${nodes.map(n => n.name).join(', ')}`,
                             createdAt: new Date().toISOString(),
                             type: 'analysis'
@@ -14051,6 +14058,9 @@ Your response:`;
                         if (!capexTree.hyperedges) capexTree.hyperedges = [];
                         capexTree.hyperedges.push(hyperedge);
                         hyperedgeCreated = true;
+
+                        console.log('🔗 Hyperedge created:', hyperedge);
+                        console.log('🔗 Total hyperedges now:', capexTree.hyperedges.length);
                     }
 
                     // Re-render
