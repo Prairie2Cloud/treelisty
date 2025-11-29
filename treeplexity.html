@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.10.1 | Build 168 | 2025-11-29
+    TreeListy v2.11.0 | Build 169 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,18 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 168): Fix Undefined Text in Tree/Canvas Views
+    Changelog (Build 169): 🎓 Deep Dive Analysis (Structured Scholar)
+    - NEW: Right-click → "Deep Dive Analysis" on any node(s)
+    - NEW: Generates 2-4 subItems per node (objections, implications, hidden premises)
+    - NEW: Auto-fills missing fields (speaker, keyTerms, textualReference)
+    - NEW: Multi-select support - Ctrl+click nodes, then Deep Dive all at once
+    - NEW: Auto-creates purple hyperedge linking analyzed nodes
+    - NEW: Philosophy-specific prompts using Structured Scholar technique
+    - NEW: Generic pattern support for non-philosophy deep dives
+
+    Previous (Build 168): Fix Undefined Text in Tree/Canvas Views
     - FIX: 🐛 Phase subtitle undefined - Now conditionally rendered
     - FIX: 🐛 Item/Node icons undefined - Added fallbacks (📋, 📄, 🌳)
-    - FIX: 🐛 Item description undefined - Now conditionally rendered
-    - FIX: 🐛 Info panel title icon undefined - Added fallback
-    - FIX: 🐛 Filesystem pattern icons - Added fallbacks for root/phase/item
 
     Previous (Build 167): Philosophy Structured Scholar Prompt (+4.7% depth)
     - ENHANCED: 🎓 Philosophy prompts use "Structured Scholar" technique (93% vs 88% baseline)
@@ -2060,8 +2066,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.10.1 | Build 168 | 2025-11-29">
-                    v2.10.1 • Build 168
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 169 | 2025-11-29">
+                    v2.11.0 • Build 169
                 </div>
             </div>
         </div>
@@ -6329,6 +6335,21 @@ Focus on logical structure and content organization best practices.`;
                     }
                 });
             }
+
+            // Add "Analyze Selection" - Deep Dive feature (Structured Scholar)
+            // Works for single node or multiple nodes
+            const nodesToAnalyze = selectedNodes.length > 0 ? selectedNodes : [item];
+            const analyzeLabel = nodesToAnalyze.length > 1
+                ? `🎓 Deep Dive (${nodesToAnalyze.length} nodes)`
+                : '🎓 Deep Dive Analysis';
+
+            menuItems.push({
+                label: analyzeLabel,
+                action: () => {
+                    console.log('Deep Dive Analysis clicked for:', nodesToAnalyze.map(n => n.name));
+                    handleAnalyzeSelection(nodesToAnalyze);
+                }
+            });
 
             menuItems.forEach(menuItem => {
                 const btn = document.createElement('button');
@@ -12011,6 +12032,7 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-delete">🗑️ Delete ${labels.item}</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🤖 AI Analysis</div>
+                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive Analysis</div>
                 `;
             } else if (activeNode.type === 'subtask') {
                 // Subtask context menu (can now have nested subtasks)
@@ -12021,6 +12043,7 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-delete">🗑️ Delete ${labels.subtask}</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🤖 AI Analysis</div>
+                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive Analysis</div>
                 `;
             } else if (activeNode.type === 'phase') {
                 // Phase context menu
@@ -12095,6 +12118,7 @@ function hidePatternDescription() {
             const addSubtaskBtn = document.getElementById('ctx-add-subtask');
             const deleteBtn = document.getElementById('ctx-delete');
             const aiBtn = document.getElementById('ctx-ai');
+            const deepDiveBtn = document.getElementById('ctx-deep-dive');
             const downloadBtn = document.getElementById('ctx-download');
             const uploadBtn = document.getElementById('ctx-upload');
             const expandBtn = document.getElementById('ctx-expand');
@@ -12106,6 +12130,7 @@ function hidePatternDescription() {
             if (addSubtaskBtn) addSubtaskBtn.onclick = handleAddSubtask;
             if (deleteBtn) deleteBtn.onclick = handleDelete;
             if (aiBtn) aiBtn.onclick = handleAI;
+            if (deepDiveBtn) deepDiveBtn.onclick = () => handleAnalyzeSelection([activeNode]);
             if (downloadBtn) downloadBtn.onclick = handleDownload;
             if (uploadBtn) uploadBtn.onclick = handleUpload;
             if (expandBtn) expandBtn.onclick = handleExpandAll;
@@ -13894,6 +13919,360 @@ Your response:`;
                         </div>
                     `;
                 }
+            }
+        }
+
+        // =============================================================================
+        // DEEP DIVE ANALYSIS - Structured Scholar for Selected Nodes
+        // =============================================================================
+        // Enriches selected nodes with:
+        // - subItems (objections, counter-arguments, implications)
+        // - Missing fields (speaker, keyTerms, textualReference)
+        // - Creates hyperedge linking analyzed nodes
+        // =============================================================================
+
+        async function handleAnalyzeSelection(nodes) {
+            if (!nodes || nodes.length === 0) {
+                console.warn('No nodes to analyze');
+                return;
+            }
+
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+
+            // Get pattern context
+            const pattern = PATTERNS[currentPattern];
+            const levels = pattern.levels;
+            const isPhilosophy = currentPattern === 'philosophy';
+
+            // Show loading state with progress
+            const nodeNames = nodes.map(n => n.name).join(', ');
+            const truncatedNames = nodeNames.length > 100 ? nodeNames.substring(0, 100) + '...' : nodeNames;
+
+            modalBody.innerHTML = `
+                <div style="padding: 40px; text-align: center;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <h3 style="color: var(--treeplex-primary); margin-bottom: 16px;">🎓 Deep Dive Analysis</h3>
+                    <p style="color: var(--text-secondary); margin-bottom: 8px;">
+                        Analyzing ${nodes.length} node${nodes.length > 1 ? 's' : ''}...
+                    </p>
+                    <p style="font-size: 12px; color: var(--text-secondary); opacity: 0.7;">
+                        ${truncatedNames}
+                    </p>
+                    <div style="margin-top: 20px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px;">
+                        <p style="font-size: 11px; color: var(--text-secondary); margin: 0;">
+                            🔬 Structured Scholar technique: Identifying objections, implications, and hidden premises...
+                        </p>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+
+            try {
+                // Build context from tree
+                const treeContext = {
+                    projectName: capexTree.name,
+                    projectDescription: capexTree.description,
+                    pattern: currentPattern,
+                    metadata: capexTree.metadata || {}
+                };
+
+                // Find parent phases for context
+                const nodesWithContext = nodes.map(node => {
+                    let parentPhase = null;
+                    if (capexTree.children) {
+                        for (const phase of capexTree.children) {
+                            if (phase.items && phase.items.find(item => item.id === node.id)) {
+                                parentPhase = { name: phase.name, subtitle: phase.subtitle };
+                                break;
+                            }
+                        }
+                    }
+                    return { ...node, parentPhase };
+                });
+
+                // Build the Structured Scholar prompt
+                const prompt = buildDeepDivePrompt(nodesWithContext, treeContext, isPhilosophy);
+
+                // Call AI
+                const response = await callDeepDiveAI(prompt, isPhilosophy);
+
+                // Parse and merge the enriched data
+                const enrichedNodes = parseDeepDiveResponse(response, nodes);
+
+                if (enrichedNodes && enrichedNodes.length > 0) {
+                    // Save state for undo
+                    saveState('Deep Dive Analysis');
+
+                    // Merge enriched data into actual nodes
+                    let totalSubItemsAdded = 0;
+                    enrichedNodes.forEach(enriched => {
+                        const originalNode = nodes.find(n => n.id === enriched.id);
+                        if (originalNode) {
+                            // Merge fields (don't overwrite existing non-empty values)
+                            if (enriched.speaker && !originalNode.speaker) originalNode.speaker = enriched.speaker;
+                            if (enriched.keyTerms && !originalNode.keyTerms) originalNode.keyTerms = enriched.keyTerms;
+                            if (enriched.textualReference && !originalNode.textualReference) originalNode.textualReference = enriched.textualReference;
+                            if (enriched.argumentType && !originalNode.argumentType) originalNode.argumentType = enriched.argumentType;
+
+                            // Merge subItems (add new ones, don't duplicate)
+                            if (enriched.subItems && enriched.subItems.length > 0) {
+                                if (!originalNode.subItems) originalNode.subItems = [];
+                                enriched.subItems.forEach(newSubItem => {
+                                    // Check if similar subItem already exists
+                                    const exists = originalNode.subItems.some(
+                                        existing => existing.name.toLowerCase() === newSubItem.name.toLowerCase()
+                                    );
+                                    if (!exists) {
+                                        // Add ID and type if missing
+                                        newSubItem.id = newSubItem.id || `subitem-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`;
+                                        newSubItem.type = newSubItem.type || 'subtask';
+                                        originalNode.subItems.push(newSubItem);
+                                        totalSubItemsAdded++;
+                                    }
+                                });
+                            }
+                        }
+                    });
+
+                    // Create hyperedge if multiple nodes were analyzed
+                    let hyperedgeCreated = false;
+                    if (nodes.length >= 2) {
+                        const hyperedge = {
+                            id: `hyperedge-deepdive-${Date.now()}`,
+                            nodeIds: nodes.map(n => n.id),
+                            label: `Deep Dive: ${nodes.length} nodes analyzed`,
+                            color: '#8B5CF6', // Purple for analysis
+                            description: `Structured Scholar analysis linking: ${nodes.map(n => n.name).join(', ')}`,
+                            createdAt: new Date().toISOString(),
+                            type: 'analysis'
+                        };
+
+                        if (!capexTree.hyperedges) capexTree.hyperedges = [];
+                        capexTree.hyperedges.push(hyperedge);
+                        hyperedgeCreated = true;
+                    }
+
+                    // Re-render
+                    render();
+                    if (currentView === 'canvas') {
+                        renderCanvas();
+                        drawHyperedges();
+                    }
+
+                    // Show success with summary
+                    modalBody.innerHTML = `
+                        <div style="padding: 30px;">
+                            <div style="text-align: center; margin-bottom: 24px;">
+                                <div style="font-size: 48px; margin-bottom: 16px;">🎓</div>
+                                <h3 style="color: var(--treeplex-primary); margin-bottom: 8px;">Deep Dive Complete!</h3>
+                                <p style="color: var(--text-secondary);">
+                                    Analyzed ${nodes.length} node${nodes.length > 1 ? 's' : ''} using Structured Scholar
+                                </p>
+                            </div>
+
+                            <div style="background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; padding: 16px; margin-bottom: 16px;">
+                                <h4 style="color: #10B981; margin-bottom: 12px;">📊 Analysis Summary</h4>
+                                <ul style="margin: 0; padding-left: 20px; color: var(--text-primary); line-height: 1.8;">
+                                    <li><strong>${totalSubItemsAdded}</strong> new sub-items added (objections, implications, etc.)</li>
+                                    <li><strong>${enrichedNodes.filter(n => n.speaker).length}</strong> speaker attributions</li>
+                                    <li><strong>${enrichedNodes.filter(n => n.keyTerms).length}</strong> key term annotations</li>
+                                    ${hyperedgeCreated ? `<li>🔗 <strong>Hyperedge created</strong> linking analyzed nodes</li>` : ''}
+                                </ul>
+                            </div>
+
+                            <div style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 16px;">
+                                <h4 style="color: var(--treeplex-primary); margin-bottom: 8px;">💡 What's New</h4>
+                                <p style="font-size: 13px; color: var(--text-secondary); line-height: 1.6; margin: 0;">
+                                    Expand the analyzed nodes to see new sub-items including objections, counter-arguments,
+                                    hidden premises, and philosophical implications. ${hyperedgeCreated ? 'The purple hyperedge in Canvas View shows the conceptual relationship between these nodes.' : ''}
+                                </p>
+                            </div>
+
+                            <div style="margin-top: 20px; text-align: center;">
+                                <button onclick="document.getElementById('modal').style.display='none'"
+                                    style="padding: 12px 24px; background: var(--treeplex-primary); color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">
+                                    Got it!
+                                </button>
+                            </div>
+                        </div>
+                    `;
+
+                } else {
+                    throw new Error('AI returned no enrichment data. Try again or select different nodes.');
+                }
+
+            } catch (error) {
+                console.error('Deep Dive Analysis failed:', error);
+                modalBody.innerHTML = `
+                    <div style="padding: 30px; text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                        <h3 style="margin-bottom: 16px; color: var(--text-primary);">Deep Dive Analysis Failed</h3>
+                        <p style="margin-bottom: 24px; color: var(--text-secondary); line-height: 1.6;">
+                            ${error.message}
+                        </p>
+                        <button onclick="document.getElementById('modal').style.display='none'"
+                            style="padding: 10px 20px; background: var(--treeplex-primary); color: white; border: none; border-radius: 6px; cursor: pointer;">
+                            Close
+                        </button>
+                    </div>
+                `;
+            }
+        }
+
+        // Build the Structured Scholar deep dive prompt
+        function buildDeepDivePrompt(nodesWithContext, treeContext, isPhilosophy) {
+            const nodesJson = JSON.stringify(nodesWithContext, null, 2);
+
+            if (isPhilosophy) {
+                return {
+                    system: `You are a philosophy professor using the "Structured Scholar" technique for deep textual analysis.
+Your expertise includes: identifying hidden premises, reconstructing arguments, citing secondary sources, and anticipating objections.
+
+You will receive JSON data for philosophical nodes to analyze. For EACH node, you must:
+1. Fill in missing fields (speaker, keyTerms, textualReference, argumentType)
+2. Generate 2-4 subItems that go deeper into the node's implications
+
+SubItem types to generate:
+- "implicit-premise" (🔮): Hidden assumptions the argument relies on
+- "objection" (⚔️): Named philosophical objections with specific critics (e.g., "Carnap", "Ryle")
+- "refutation" (🔄): Responses to objections
+- "implication" (💡): Philosophical consequences or downstream effects
+- "distinction" (⚖️): Important conceptual distinctions
+
+CRITICAL: Return ONLY valid JSON. No markdown, no explanations, just the JSON array.`,
+
+                    user: `Analyze these philosophical nodes and enrich them with deeper analysis.
+
+PROJECT CONTEXT:
+- Name: ${treeContext.projectName}
+- Pattern: ${treeContext.pattern}
+${treeContext.metadata?.tradition ? `- Tradition: ${treeContext.metadata.tradition}` : ''}
+${treeContext.metadata?.method ? `- Method: ${treeContext.metadata.method}` : ''}
+${treeContext.metadata?.secondarySources ? `- Secondary Sources Available: ${treeContext.metadata.secondarySources.slice(0, 3).join(', ')}` : ''}
+
+NODES TO ANALYZE:
+${nodesJson}
+
+Return a JSON array with the SAME node IDs, enriched with:
+1. speaker (if missing): The philosopher making this claim
+2. keyTerms (if missing): Technical philosophical terms used
+3. textualReference (if missing): Specific text citations
+4. argumentType (if missing): deductive, inductive, transcendental, dialectical, etc.
+5. subItems: Array of 2-4 new items (objections, implications, hidden premises)
+
+Each subItem needs: id (generate unique), name, type: "subtask", itemType (from list above), speaker, description, icon
+
+Example subItem:
+{
+  "id": "sub-12345",
+  "name": "Carnap's Verificationist Objection",
+  "type": "subtask",
+  "itemType": "objection",
+  "speaker": "Rudolf Carnap",
+  "description": "Carnap argues in 'Elimination of Metaphysics' (1932) that...",
+  "icon": "⚔️"
+}
+
+Return ONLY the JSON array, no other text.`
+                };
+            } else {
+                // Generic pattern - still useful for non-philosophy
+                return {
+                    system: `You are an expert analyst performing deep-dive analysis on project items.
+Your job is to identify risks, dependencies, hidden assumptions, and generate actionable sub-tasks.
+
+Return ONLY valid JSON. No markdown, no explanations.`,
+
+                    user: `Analyze these project items and enrich them with deeper analysis.
+
+PROJECT: ${treeContext.projectName}
+PATTERN: ${treeContext.pattern}
+
+ITEMS TO ANALYZE:
+${nodesJson}
+
+Return a JSON array with the SAME item IDs, enriched with:
+1. Any missing fields you can infer
+2. subItems: Array of 2-4 actionable sub-tasks or considerations
+
+Each subItem needs: id (generate unique), name, type: "subtask", itemType, description, icon
+
+Return ONLY the JSON array.`
+                };
+            }
+        }
+
+        // Call AI for deep dive analysis
+        async function callDeepDiveAI(prompt, isPhilosophy) {
+            // Use the existing AI provider selection
+            const aiProvider = document.getElementById('ai-provider')?.value || 'gemini';
+            const modelSelect = document.getElementById('ai-model-select');
+            const selectedModel = modelSelect?.value || '';
+
+            console.log(`Deep Dive using ${aiProvider} (${selectedModel})`);
+
+            // Call existing AI infrastructure
+            if (aiProvider === 'gemini') {
+                return await callGeminiAPI(prompt.system + '\n\n' + prompt.user, 'deep-dive');
+            } else if (aiProvider === 'claude') {
+                return await callClaudeAPI(prompt.system, prompt.user, 'deep-dive');
+            } else if (aiProvider === 'openai') {
+                return await callOpenAIAPI(prompt.system, prompt.user, 'deep-dive');
+            } else {
+                throw new Error(`Unknown AI provider: ${aiProvider}`);
+            }
+        }
+
+        // Parse AI response and extract enriched nodes
+        function parseDeepDiveResponse(response, originalNodes) {
+            try {
+                // Try to extract JSON from response
+                let jsonStr = response;
+
+                // Remove markdown code blocks if present
+                if (jsonStr.includes('```json')) {
+                    jsonStr = jsonStr.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+                } else if (jsonStr.includes('```')) {
+                    jsonStr = jsonStr.replace(/```\s*/g, '');
+                }
+
+                // Trim whitespace
+                jsonStr = jsonStr.trim();
+
+                // Parse JSON
+                const enrichedData = JSON.parse(jsonStr);
+
+                // Validate it's an array
+                if (!Array.isArray(enrichedData)) {
+                    console.warn('Deep Dive response is not an array, wrapping...');
+                    return [enrichedData];
+                }
+
+                // Map enriched data back to original node IDs
+                return enrichedData.map(enriched => {
+                    // Try to match by ID or name
+                    const matchingOriginal = originalNodes.find(
+                        orig => orig.id === enriched.id || orig.name === enriched.name
+                    );
+
+                    if (matchingOriginal) {
+                        return {
+                            id: matchingOriginal.id,
+                            speaker: enriched.speaker,
+                            keyTerms: enriched.keyTerms,
+                            textualReference: enriched.textualReference,
+                            argumentType: enriched.argumentType,
+                            subItems: enriched.subItems || []
+                        };
+                    }
+                    return enriched;
+                });
+
+            } catch (parseError) {
+                console.error('Failed to parse Deep Dive response:', parseError);
+                console.log('Raw response:', response);
+                throw new Error('AI response was not valid JSON. Please try again.');
             }
         }
 
