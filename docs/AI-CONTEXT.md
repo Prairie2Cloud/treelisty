@@ -1,9 +1,32 @@
 # TreeListy AI Context Document
 
-**Current Version**: v2.10.0 (Build 165) - "Cognitive Citadel"
-**Last Updated**: 2025-11-28
+**Current Version**: v2.11.0 (Build 187)
+**Last Updated**: 2025-11-29
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
+
+---
+
+## ⚠️ IMPORTANT: Deployment Procedure
+
+**TreeListy deploys via GitHub → Netlify (auto-deploy on push)**
+
+When you make changes to `treeplexity.html`, you MUST commit and push to deploy:
+
+```bash
+# 1. Stage the main file
+git add treeplexity.html
+
+# 2. Commit with build number in message
+git commit -m "Build XXX: Short description of changes"
+
+# 3. Push to GitHub (triggers automatic Netlify deploy)
+git push
+```
+
+**Netlify auto-deploys** within 1-2 minutes of push to `main` branch.
+
+**DO NOT** just edit the file - changes won't be live until pushed to GitHub!
 
 ---
 
@@ -39,13 +62,13 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Current Version Highlights (Build 165)
+## Current Version Highlights (Build 187)
 
-1. **Migration System**: Schema versioning for backward compatibility
-2. **Provenance Stamping**: Nodes track origin (user/ai-sonnet/ai-gemini/legacy)
-3. **Dialectic Mode**: AI identifies assumptions & counter-arguments
-4. **Model Selector**: Per-call model selection (Claude Haiku/Sonnet/Opus, Gemini Flash/Pro, GPT-4o/o1)
-5. **Semantic Chunking**: NLP-powered text segmentation for large documents
+1. **Collaboration System**: Share nodes → Edit → Share Back → Merge workflow
+2. **Branch & Merge**: URL-based async collaboration with device fingerprinting
+3. **Deep Dive Analysis**: AI-powered philosophical relationship analysis
+4. **Hyperedge Visualization**: N-ary relationships with hover effects
+5. **Model Selector**: Per-call model selection (Claude Haiku/Sonnet/Opus, Gemini Flash/Pro, GPT-4o/o1)
 
 ---
 
@@ -153,12 +176,18 @@ capexTree = {
 3. Add to `buildFieldInstructions()`
 4. Add sorting options if applicable
 
-### Deploying
+### Deploying (REQUIRED for changes to go live)
+
+**⚠️ ALWAYS commit and push after making changes!**
+
 ```bash
+# Stage, commit with build number, and push
 git add treeplexity.html
 git commit -m "Build XXX: Description"
-git push  # Triggers Netlify auto-deploy
+git push  # Triggers Netlify auto-deploy (~1-2 min)
 ```
+
+The site auto-deploys from GitHub. No manual Netlify action needed.
 
 ---
 
@@ -175,17 +204,18 @@ git push  # Triggers Netlify auto-deploy
 
 | Build | Date | Key Feature |
 |-------|------|-------------|
+| 187 | 2025-11-29 | Complete Collaboration System (Branch & Merge) |
+| 186 | 2025-11-29 | Share for Collaboration UI |
+| 185 | 2025-11-29 | Collaboration Foundation |
+| 179 | 2025-11-29 | Deep Dive Analysis + Hyperedge clicks |
+| 172 | 2025-11-29 | Hyperedge debug logging |
+| 169 | 2025-11-28 | Deep Dive Analysis (Structured Scholar) |
 | 165 | 2025-11-28 | Cognitive Citadel (migration, provenance, dialectic) |
 | 164 | 2025-11-25 | Model Selector dropdown |
-| 162 | 2025-11-24 | Aggressive large tree handling |
 | 156 | 2025-11-24 | Semantic Chunking Engine |
 | 152 | 2025-11-22 | Wolfram-style Hyperedges |
 | 143 | 2025-11-20 | CORS protection all providers |
 | 140 | 2025-11-20 | Selective Canvas visibility |
-| 139 | 2025-11-20 | Ctrl+Click multi-select |
-| 136 | 2025-11-20 | Welcome tree "Fractal Playground" |
-| 122 | 2025-11-19 | Two-style video prompt generator |
-| 115 | 2025-11-18 | Smart JSON save system |
 
 ---
 
