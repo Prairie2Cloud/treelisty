@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.10.0 | Build 167 | 2025-11-29
+    TreeListy v2.10.1 | Build 168 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 167): Philosophy Structured Scholar Prompt (+4.7% depth)
+    Changelog (Build 168): Fix Undefined Text in Tree/Canvas Views
+    - FIX: 🐛 Phase subtitle undefined - Now conditionally rendered
+    - FIX: 🐛 Item/Node icons undefined - Added fallbacks (📋, 📄, 🌳)
+    - FIX: 🐛 Item description undefined - Now conditionally rendered
+    - FIX: 🐛 Info panel title icon undefined - Added fallback
+    - FIX: 🐛 Filesystem pattern icons - Added fallbacks for root/phase/item
+
+    Previous (Build 167): Philosophy Structured Scholar Prompt (+4.7% depth)
     - ENHANCED: 🎓 Philosophy prompts use "Structured Scholar" technique (93% vs 88% baseline)
     - NEW: Mandatory NAMED secondary sources requirement (e.g., "Vlastos", "Williams")
     - NEW: Standard objections must cite specific philosophers
@@ -2053,8 +2060,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.10.0 | Build 167 | 2025-11-29">
-                    v2.10.0 • Build 167
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.10.1 | Build 168 | 2025-11-29">
+                    v2.10.1 • Build 168
                 </div>
             </div>
         </div>
@@ -9680,7 +9687,7 @@ function hidePatternDescription() {
                         nodeDiv.innerHTML = `
                             <div class="node-header">
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
-                                <span class="node-icon">${node.icon}</span>
+                                <span class="node-icon">${node.icon || '📁'}</span>
                                 <div class="node-content">
                                     <div class="node-title">${node.name}</div>
                                 </div>
@@ -9692,7 +9699,7 @@ function hidePatternDescription() {
                         nodeDiv.innerHTML = `
                             <div class="node-header">
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
-                                <span class="node-icon">${node.icon}</span>
+                                <span class="node-icon">${node.icon || '📋'}</span>
                                 <div class="node-content">
                                     <div class="node-title">${node.name}</div>
                                 </div>
@@ -9707,7 +9714,7 @@ function hidePatternDescription() {
                         nodeDiv.innerHTML = `
                             <div class="node-header">
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
-                                <span class="node-icon">${node.icon}</span>
+                                <span class="node-icon">${node.icon || '📄'}</span>
                                 <div class="node-content">
                                     <span class="item-name">${node.name}</span>
                                 </div>
@@ -9836,7 +9843,7 @@ function hidePatternDescription() {
                 if (node.type === 'root') {
                     nodeDiv.innerHTML = `
                         <div class="node-header">
-                            <span class="node-icon">${node.icon}</span>
+                            <span class="node-icon">${node.icon || '🌳'}</span>
                             <div class="node-content">
                                 <div class="node-title">${node.name}</div>
                                 <div class="node-subtitle">by geej</div>
@@ -9849,10 +9856,10 @@ function hidePatternDescription() {
                     const isVisibleInCanvas = node.showInCanvas !== false;
                     nodeDiv.innerHTML = `
                         <div class="node-header">
-                            <span class="node-icon">${node.icon}</span>
+                            <span class="node-icon">${node.icon || '📋'}</span>
                             <div class="node-content">
                                 <div class="node-title">${node.name}</div>
-                                <div class="node-subtitle">${node.subtitle}</div>
+                                ${node.subtitle ? `<div class="node-subtitle">${node.subtitle}</div>` : ''}
                                 ${PATTERNS[currentPattern].fields && PATTERNS[currentPattern].fields.cost ? `<div class="node-cost">${formatCost(total)}</div>` : ''}
                             </div>
                             <button class="canvas-visibility-toggle" title="${isVisibleInCanvas ? 'Hide from Canvas View' : 'Show in Canvas View'}" style="background: none; border: none; cursor: pointer; padding: 4px 8px; margin-right: 8px; font-size: 18px; opacity: ${isVisibleInCanvas ? '1' : '0.3'};">
@@ -9864,10 +9871,10 @@ function hidePatternDescription() {
                 } else {
                     nodeDiv.innerHTML = `
                         <div class="node-header">
-                            <span class="node-icon">${node.icon}</span>
+                            <span class="node-icon">${node.icon || '📄'}</span>
                             <div class="node-content">
                                 <div class="item-name">${node.name}</div>
-                                <div class="item-description">${node.description}</div>
+                                ${node.description ? `<div class="item-description">${node.description}</div>` : ''}
                                 <div class="item-meta">
                                     ${node.itemType ? `<span class="badge badge-${node.itemType}">${node.itemType}</span>` : ''}
                                     ${PATTERNS[currentPattern].fields && PATTERNS[currentPattern].fields.cost ? `<span class="item-cost">${formatCost(node.cost)}</span>` : ''}
@@ -10597,7 +10604,7 @@ function hidePatternDescription() {
                     </div>
                 `;
             } else {
-                titleElement.textContent = `${node.icon} ${node.name}`;
+                titleElement.textContent = `${node.icon || '📄'} ${node.name}`;
             }
 
             const body = document.getElementById('info-body');
