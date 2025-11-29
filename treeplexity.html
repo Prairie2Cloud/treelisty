@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.10.0 | Build 165 | 2025-11-28
+    TreeListy v2.10.0 | Build 167 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,21 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 165): Cognitive Citadel Foundation
+    Changelog (Build 167): Philosophy Structured Scholar Prompt (+4.7% depth)
+    - ENHANCED: 🎓 Philosophy prompts use "Structured Scholar" technique (93% vs 88% baseline)
+    - NEW: Mandatory NAMED secondary sources requirement (e.g., "Vlastos", "Williams")
+    - NEW: Standard objections must cite specific philosophers
+    - NEW: Expanded itemTypes: implicit-premise, distinction, thought-experiment, objection
+    - NEW: Required metadata: tradition, method, keyTerms, interlocutors, secondarySources
+    - RESEARCH: Tested 10 meta-prompting techniques; Structured Scholar won
+
+    Changelog (Build 166): Philosophy Pattern Prompt Optimization
+    - ENHANCED: 🧠 Philosophy pattern prompts optimized based on A/B testing (+10% structural fidelity)
+    - NEW: Explicit itemType examples with common error warnings
+    - FIX: "Bee analogy = question" misclassification now explicitly corrected
+    - IMPROVED: Deep Mode philosophy instructions with full JSON examples
+
+    Previous (Build 165): Cognitive Citadel Foundation
     - NEW: 🛡️ Migration System - Schema versioning for backward compatibility
     - NEW: 🛡️ Provenance Stamping - All nodes track origin (user/ai-import/legacy)
     - NEW: 🛡️ Dialectic Mode - Forces AI to identify assumptions & counter-arguments
@@ -2039,8 +2053,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.10.0 | Build 165 | 2025-11-28">
-                    v2.10.0 • Build 165
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.10.0 | Build 167 | 2025-11-29">
+                    v2.10.0 • Build 167
                 </div>
             </div>
         </div>
@@ -19649,7 +19663,7 @@ EXAMPLE of a GOOD userPromptTemplate:
             // Pattern-specific subtask guidance
             function getPatternSubtaskGuidance(pattern) {
                 const guidance = {
-                    philosophy: `For ${levels.item}s, add ${levels.subtask}s like: premises, objections, supporting evidence, textual references`,
+                    philosophy: `For ${levels.item}s (Claims), REQUIRED 1-3 ${levels.subtask}s (Supports): premises, objections, supporting evidence, textual references. NEVER skip subItems.`,
                     sales: `For ${levels.item}s (deals), add ${levels.subtask}s like: follow-up actions, next steps, activities to close`,
                     thesis: `For ${levels.item}s (arguments), add ${levels.subtask}s like: supporting evidence, citations, counter-arguments`,
                     roadmap: `For ${levels.item}s (features), add ${levels.subtask}s like: implementation steps, technical tasks, acceptance criteria`,
@@ -19664,7 +19678,39 @@ EXAMPLE of a GOOD userPromptTemplate:
 
             // Pattern-specific instructions for Quick Mode
             let patternSpecialInstructions = '';
-            if (pattern === 'film') {
+            if (pattern === 'philosophy') {
+                patternSpecialInstructions = `
+
+⚠️ PHILOSOPHY PATTERN REQUIREMENTS (Academic Standard):
+
+## SCHOLARLY REQUIREMENTS
+Your output must include:
+1. **NAMED SECONDARY SOURCES**: Cite at least 2-3 specific scholars who have written on this text (e.g., "Vlastos (1991)", "Williams (1978)")
+2. **STANDARD OBJECTIONS**: Name specific objections with their associated philosophers (e.g., "Lichtenberg's objection", "Cartesian Circle")
+3. **TRADITION PLACEMENT**: Identify the specific philosophical school (Platonic, Rationalist, Empiricist, etc.)
+
+## STRUCTURE
+1. Create 3-5 movements (phases) following the text's argumentative structure
+2. EVERY claim MUST have 1-3 subItems (supporting premises, evidence, or reasoning)
+3. Include IMPLICIT premises (unstated assumptions required for validity)
+
+## ITEM TYPES (Use precisely)
+- question: Interrogative moves that drive inquiry forward
+- premise: Explicit foundational claims
+- implicit-premise: Unstated assumptions required for validity
+- definition: Attempts to characterize a concept
+- distinction: Conceptual clarification separating ideas
+- thought-experiment: Hypothetical scenario testing intuitions
+- refutation: Counter-arguments that challenge positions
+- objection: Standard criticism from the literature
+- conclusion: Claims derived from prior reasoning
+
+## METADATA (Required)
+Include in root metadata: tradition, method, keyTerms, interlocutors, secondarySources, standardObjections
+
+⚠️ KEY: Name SPECIFIC scholars and objections. Do not use generic placeholders.
+`;
+            } else if (pattern === 'film') {
                 patternSpecialInstructions = `\n\n⚠️ AI VIDEO: Create ACTUAL SCENES (not workflows about making videos). Each item = one shot. Include videoPrompt, cameraMovement, visualStyle, duration.\n`;
             }
 
@@ -20220,7 +20266,7 @@ ${jsonText}`;
             // Pattern-specific subtask guidance for Deep Mode
             function getDeepModeSubtaskGuidance(pattern) {
                 const guidance = {
-                    philosophy: `Philosophy: ${levels.subtask}s = premises, objections, supporting evidence, citations from source texts`,
+                    philosophy: `Philosophy: ${levels.subtask}s = premises, objections, supporting evidence, citations. REQUIRED: 1-3 subItems per claim. NEVER skip subItems.`,
                     sales: `Sales: ${levels.subtask}s = follow-up actions, meeting notes, deliverables, next steps to advance the deal`,
                     thesis: `Academic: ${levels.subtask}s = supporting arguments, citations, evidence, counter-arguments to address`,
                     roadmap: `Engineering: ${levels.subtask}s = implementation tasks, technical specs, acceptance criteria, testing steps`,
@@ -20236,6 +20282,41 @@ ${jsonText}`;
             // Pattern-specific extraction instructions
             function getPatternSpecificInstructions(pattern) {
                 const instructions = {
+                    philosophy: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ PHILOSOPHY PATTERN - CRITICAL REQUIREMENTS
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📜 ARGUMENTATIVE STRUCTURE (3-5 PHASES):
+Follow the text's own argumentative flow. Common patterns include:
+- Problem/Question → Method → Analysis → Conclusion
+- Thesis → Antithesis → Synthesis
+- Doubt → Investigation → Discovery → Implications
+
+📋 SUBITEMS REQUIREMENT:
+- EVERY claim MUST have 1-3 subItems
+- SubItems = premises, evidence, textual references, supporting reasoning
+- NEVER create claims without supporting subItems
+
+🏷️ ARGUMENT TYPES (Use correctly):
+- question: Interrogative moves that drive the inquiry forward
+- premise: Foundational claims or assumptions supporting later arguments
+- definition: Explicit attempts to define or characterize concepts
+- refutation: Counter-arguments that challenge or disprove prior claims
+  ⚠️ Includes: analogies, thought experiments, reductio arguments used to COUNTER a position
+- conclusion: Claims derived from prior reasoning
+
+⚠️ KEY DISTINCTION:
+When an analogy or thought experiment is used to CHALLENGE or DISPROVE a claim,
+it is a REFUTATION, not a question or premise. Look for the argumentative function.
+
+✅ CORRECT TYPING:
+- "If a deceiver deceives me, I must exist to be deceived" → refutation (self-refuting doubt)
+- "What is the nature of X?" → question
+- "X is defined as Y" → definition
+- "Therefore, X must be true" → conclusion
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`,
                     film: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ AI VIDEO PRODUCTION - CRITICAL INSTRUCTIONS
