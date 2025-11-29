@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 187 | 2025-11-29
+    TreeListy v2.11.0 | Build 188 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,16 +18,18 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 187): 🤝 Complete Collaboration System (Branch & Merge)
+    Changelog (Build 188): 🔀 Smart Merge with Project Validation
+    - NEW: ⚠️ Detects if wrong project is loaded when merging
+    - NEW: Shows expected vs current project name comparison
+    - NEW: Clear instructions to load correct project first
+    - NEW: "Force Merge Anyway" option for advanced users
+    - FIX: Button state properly resets between modal views
+
+    Previous (Build 187): 🤝 Complete Collaboration System (Branch & Merge)
     - NEW: 📥 ?branch= URL detection and parsing on page load
     - NEW: 🤝 Branch editing mode with purple banner for collaborators
     - NEW: 📤 "Share Back" button to send edits to original author
     - NEW: 🔀 Merge modal for accepting incoming collaboration changes
-    - NEW: ✅ Accept & Merge replaces/updates nodes at original location
-    - NEW: 📊 Node preview and ancestry breadcrumb in merge modal
-    - NEW: ⚠️ Merge warning with undo support (Ctrl+Z)
-    - NEW: 🔔 Toast notifications for collaboration events
-    - FLOW: Share → Edit → Share Back → Merge (complete async workflow)
 
     Previous (Build 186): 🤝 Share for Collaboration UI
     - NEW: 🔑 getDeviceFingerprint() - Canvas-based device ID for contributor tracking
@@ -2157,8 +2159,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 187 | 2025-11-29">
-                    v2.11.0 • Build 187
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 188 | 2025-11-29">
+                    v2.11.0 • Build 188
                 </div>
             </div>
         </div>
@@ -18307,7 +18309,70 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             const modal = document.getElementById('merge-branch-modal');
             const body = document.getElementById('merge-branch-body');
 
+            // Check if current project matches the source project
+            const projectMismatch = capexTree.id !== branch.sourceProjectId &&
+                                    capexTree.name !== branch.sourceProjectName;
+
+            // Store branch for later (needed if user loads correct project)
             pendingMergeBranch = branch;
+
+            // If project doesn't match, show warning modal instead
+            if (projectMismatch) {
+                body.innerHTML = `
+                    <div style="margin-bottom: 20px;">
+                        <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1)); padding: 20px; border-radius: 8px; border-left: 3px solid #ef4444; margin-bottom: 20px;">
+                            <div style="font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 8px; color: #ef4444; font-size: 16px;">
+                                <span>⚠️</span> Wrong Project Loaded
+                            </div>
+                            <p style="color: var(--text-secondary); font-size: 14px; margin: 0 0 12px 0;">
+                                This collaboration response was created from a different project. You need to load the original project first.
+                            </p>
+                        </div>
+
+                        <!-- Project Comparison -->
+                        <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 16px;">
+                            <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 13px;">
+                                <span style="color: var(--text-secondary);">Expected project:</span>
+                                <span style="font-weight: 600; color: #10b981;">"${branch.sourceProjectName}"</span>
+
+                                <span style="color: var(--text-secondary);">Currently loaded:</span>
+                                <span style="font-weight: 600; color: #ef4444;">"${capexTree.name}"</span>
+                            </div>
+                        </div>
+
+                        <!-- Instructions -->
+                        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #6366f1;">
+                            <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #6366f1;">
+                                <span>📋</span> How to Merge
+                            </div>
+                            <ol style="margin-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                                <li>Close this modal</li>
+                                <li>Load the project <strong>"${branch.sourceProjectName}"</strong> (File → Open JSON)</li>
+                                <li>Open this URL again (or click the link in your email)</li>
+                                <li>The merge will proceed correctly</li>
+                            </ol>
+                        </div>
+
+                        <!-- Alternative: Force merge anyway -->
+                        <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border);">
+                            <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 8px;">
+                                <strong>Alternative:</strong> If you want to add these nodes to the current project anyway, you can force the merge.
+                                The nodes will be added but may not replace the originals.
+                            </p>
+                        </div>
+                    </div>
+                `;
+
+                // Update buttons for mismatch state
+                const acceptBtn = document.getElementById('merge-branch-accept');
+                if (acceptBtn) {
+                    acceptBtn.textContent = '⚡ Force Merge Anyway';
+                    acceptBtn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                }
+
+                modal.style.display = 'flex';
+                return;
+            }
 
             // Count nodes
             let totalNodes = 0;
@@ -18384,6 +18449,13 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                     </div>
                 </div>
             `;
+
+            // Reset button state (in case previous modal showed mismatch warning)
+            const acceptBtn = document.getElementById('merge-branch-accept');
+            if (acceptBtn) {
+                acceptBtn.textContent = '✅ Accept & Merge Changes';
+                acceptBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+            }
 
             modal.style.display = 'flex';
         }
