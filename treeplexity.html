@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 188 | 2025-11-29
+    TreeListy v2.11.0 | Build 189 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 188): 🔀 Smart Merge with Project Validation
-    - NEW: ⚠️ Detects if wrong project is loaded when merging
+    Changelog (Build 189): 📧 Improved Collaboration Email & Merge UI
+    - NEW: 🔀 "Merge Branch" button in sidebar to paste collaboration URLs
+    - NEW: 📧 "Copy Email" button copies rich HTML with clickable button
+    - NEW: Paste Branch modal for easy URL import
+    - IMPROVED: Email template is cleaner and more concise
+    - FIX: Rich HTML email with styled "Click to View & Edit" button
+
+    Previous (Build 188): 🔀 Smart Merge with Project Validation
+    - NEW: Detects if wrong project is loaded when merging
     - NEW: Shows expected vs current project name comparison
-    - NEW: Clear instructions to load correct project first
-    - NEW: "Force Merge Anyway" option for advanced users
-    - FIX: Button state properly resets between modal views
 
     Previous (Build 187): 🤝 Complete Collaboration System (Branch & Merge)
     - NEW: 📥 ?branch= URL detection and parsing on page load
@@ -2159,8 +2163,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 188 | 2025-11-29">
-                    v2.11.0 • Build 188
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 189 | 2025-11-29">
+                    v2.11.0 • Build 189
                 </div>
             </div>
         </div>
@@ -2194,6 +2198,7 @@
     <!-- AI Tools Sidebar (Collapsible) -->
     <div id="ai-tools-panel">
         <button class="btn" data-icon="📥" id="analyze-text-btn" title="Convert text/files into tree structure"><span>Import Text</span></button>
+        <button class="btn" data-icon="🔀" id="merge-branch-btn" title="Paste a collaboration URL to merge changes"><span>Merge Branch</span></button>
         <button class="btn" data-icon="💬" id="wizard-btn" title="Build and edit tree via chat"><span>Chat Builder</span></button>
         <button class="btn" data-icon="🩺" id="ai-review-btn" title="Check for logic gaps and missing fields"><span>Check Quality</span></button>
         <button class="btn" data-icon="✨" id="auto-enhance-btn" title="Auto-fill details and add subtasks"><span>Smart Expand</span></button>
@@ -2683,8 +2688,11 @@ The AI will analyze the structure and convert it to a tree."
                 <button class="btn" id="share-branch-copy" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
                     📋 Copy URL
                 </button>
+                <button class="btn" id="share-branch-copy-email" style="background: linear-gradient(135deg, #f59e0b, #d97706);">
+                    📧 Copy Email
+                </button>
                 <button class="btn btn-primary" id="share-branch-email" style="background: linear-gradient(135deg, #10b981, #059669);">
-                    📧 Open Email
+                    ✉️ Open Email App
                 </button>
             </div>
         </div>
@@ -2724,6 +2732,37 @@ The AI will analyze the structure and convert it to a tree."
                 </button>
                 <button id="branch-exit-btn" class="btn" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
                     ✖ Exit
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Paste Branch URL Modal -->
+    <div class="modal" id="paste-branch-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white;">
+                🔀 Merge Collaboration Branch
+            </div>
+            <div class="modal-body">
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                    Paste a collaboration URL you received from a collaborator to merge their changes into your project.
+                </p>
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">Branch URL:</label>
+                    <textarea id="paste-branch-url-input"
+                              placeholder="Paste the full URL here (starts with https://treelisty.netlify.app?branch=...)"
+                              style="width: 100%; height: 120px; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 12px; border-radius: 6px; font-family: monospace; font-size: 11px; resize: vertical;"></textarea>
+                </div>
+                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 12px; border-radius: 6px; border-left: 3px solid #6366f1;">
+                    <p style="color: var(--text-secondary); font-size: 12px; margin: 0;">
+                        <strong>Tip:</strong> Make sure your original project is loaded before merging. The system will check if the projects match.
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="paste-branch-cancel">Cancel</button>
+                <button class="btn btn-primary" id="paste-branch-merge" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    🔀 Parse & Merge
                 </button>
             </div>
         </div>
@@ -17951,15 +17990,70 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             const subject = encodeURIComponent(
                 `TreeListy Collaboration: ${branch.sourceProjectName}`
             );
+            // Shorter email - just essentials with link at end
             const body = encodeURIComponent(
                 `Hi,\n\n` +
                 `I'd like your input on part of my TreeListy project "${branch.sourceProjectName}".\n\n` +
-                `I'm sharing ${branch.nodes.length} node(s) for you to review and edit.\n\n` +
-                `Click this link to view and edit:\n${shareURL}\n\n` +
-                `When you're done making changes, click the "Share Back" button and send me the new link.\n\n` +
+                `Click below to view and edit (${branch.nodes.length} node${branch.nodes.length > 1 ? 's' : ''}):\n\n` +
+                `${shareURL}\n\n` +
+                `When done, click "Share Back" and send me the new link.\n\n` +
                 `Thanks!`
             );
             return `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        /**
+         * Copy rich HTML email to clipboard (for pasting into email clients)
+         * @param {object} branch - Branch token
+         * @param {string} shareURL - Shareable URL
+         */
+        async function copyRichEmailToClipboard(branch, shareURL) {
+            const htmlContent = `
+                <p>Hi,</p>
+                <p>I'd like your input on part of my TreeListy project "<strong>${branch.sourceProjectName}</strong>".</p>
+                <p>I'm sharing ${branch.nodes.length} node${branch.nodes.length > 1 ? 's' : ''} for you to review and edit.</p>
+                <p style="margin: 20px 0;">
+                    <a href="${shareURL}" style="display: inline-block; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">
+                        🤝 Click to View & Edit
+                    </a>
+                </p>
+                <p style="font-size: 12px; color: #666;">When you're done making changes, click the "Share Back" button and send me the new link.</p>
+                <p>Thanks!</p>
+            `;
+
+            const plainText = `Hi,
+
+I'd like your input on part of my TreeListy project "${branch.sourceProjectName}".
+
+Click to view and edit: ${shareURL}
+
+When done, click "Share Back" and send me the new link.
+
+Thanks!`;
+
+            try {
+                // Try to copy as rich HTML (works in modern browsers)
+                const blob = new Blob([htmlContent], { type: 'text/html' });
+                const plainBlob = new Blob([plainText], { type: 'text/plain' });
+
+                await navigator.clipboard.write([
+                    new ClipboardItem({
+                        'text/html': blob,
+                        'text/plain': plainBlob
+                    })
+                ]);
+                return true;
+            } catch (err) {
+                console.log('Rich copy failed, falling back to plain text:', err);
+                // Fallback to plain text
+                try {
+                    await navigator.clipboard.writeText(plainText);
+                    return true;
+                } catch (err2) {
+                    console.error('Clipboard write failed:', err2);
+                    return false;
+                }
+            }
         }
 
         // Initialize Share Branch modal event handlers
@@ -17989,12 +18083,36 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 }
             });
 
-            // Email button
+            // Email button (opens email app)
             document.getElementById('share-branch-email')?.addEventListener('click', () => {
                 if (pendingShareBranch) {
                     const shareURL = document.getElementById('share-branch-url-input')?.value;
                     const mailtoLink = generateCollaborationEmail(pendingShareBranch, shareURL);
                     window.location.href = mailtoLink;
+                }
+            });
+
+            // Copy Email button (copies rich HTML email to clipboard)
+            document.getElementById('share-branch-copy-email')?.addEventListener('click', async () => {
+                if (pendingShareBranch) {
+                    const shareURL = document.getElementById('share-branch-url-input')?.value;
+                    const success = await copyRichEmailToClipboard(pendingShareBranch, shareURL);
+
+                    const btn = document.getElementById('share-branch-copy-email');
+                    if (success) {
+                        const originalText = btn.textContent;
+                        btn.textContent = '✅ Copied!';
+                        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                        setTimeout(() => {
+                            btn.textContent = originalText;
+                            btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                        }, 2000);
+                    } else {
+                        btn.textContent = '❌ Failed';
+                        setTimeout(() => {
+                            btn.textContent = '📧 Copy Email';
+                        }, 2000);
+                    }
                 }
             });
 
@@ -18039,6 +18157,77 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             // Exit branch editing mode
             document.getElementById('branch-exit-btn')?.addEventListener('click', () => {
                 exitBranchEditMode();
+            });
+
+            // =========== PASTE BRANCH URL MODAL HANDLERS ===========
+
+            // Open paste branch modal
+            document.getElementById('merge-branch-btn')?.addEventListener('click', () => {
+                document.getElementById('paste-branch-modal').style.display = 'flex';
+                document.getElementById('paste-branch-url-input').value = '';
+                document.getElementById('paste-branch-url-input').focus();
+            });
+
+            // Cancel paste branch
+            document.getElementById('paste-branch-cancel')?.addEventListener('click', () => {
+                document.getElementById('paste-branch-modal').style.display = 'none';
+            });
+
+            // Parse and merge pasted URL
+            document.getElementById('paste-branch-merge')?.addEventListener('click', () => {
+                const urlInput = document.getElementById('paste-branch-url-input');
+                const url = urlInput.value.trim();
+
+                if (!url) {
+                    showToast('❌ Please paste a URL first', 'error');
+                    return;
+                }
+
+                // Extract branch parameter from URL
+                let branchParam = null;
+                try {
+                    const urlObj = new URL(url);
+                    branchParam = urlObj.searchParams.get('branch');
+                } catch (e) {
+                    // Maybe they just pasted the branch parameter directly
+                    if (url.includes('branch=')) {
+                        branchParam = url.split('branch=')[1].split('&')[0];
+                    }
+                }
+
+                if (!branchParam) {
+                    showToast('❌ Invalid URL - no branch parameter found', 'error');
+                    return;
+                }
+
+                // Close paste modal
+                document.getElementById('paste-branch-modal').style.display = 'none';
+
+                // Parse and show merge modal
+                const branch = parseBranchFromURL(branchParam);
+                if (!branch) {
+                    showToast('❌ Failed to parse branch data', 'error');
+                    return;
+                }
+
+                // Show appropriate modal based on branch type
+                if (branch.isResponse) {
+                    showMergeBranchModal(branch);
+                } else {
+                    // Original share - ask if they want to edit or merge
+                    if (isOriginalBranchCreator(branch)) {
+                        showToast('ℹ️ This is your own shared branch', 'warning');
+                    } else {
+                        enterBranchEditMode(branch);
+                    }
+                }
+            });
+
+            // Close paste modal on backdrop click
+            document.getElementById('paste-branch-modal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'paste-branch-modal') {
+                    document.getElementById('paste-branch-modal').style.display = 'none';
+                }
             });
         });
 
