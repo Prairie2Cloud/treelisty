@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 189 | 2025-11-29
+    TreeListy v2.11.0 | Build 190 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 189): 📧 Improved Collaboration Email & Merge UI
-    - NEW: 🔀 "Merge Branch" button in sidebar to paste collaboration URLs
-    - NEW: 📧 "Copy Email" button copies rich HTML with clickable button
-    - NEW: Paste Branch modal for easy URL import
-    - IMPROVED: Email template is cleaner and more concise
-    - FIX: Rich HTML email with styled "Click to View & Edit" button
+    Changelog (Build 190): 🎨 Layout Fix - Edges Panel vs Info Panel
+    - FIX: Hyperedge visibility panel no longer overlaps with node info panel
+    - FIX: Panel repositions dynamically when info panel opens/closes
+    - NEW: repositionHyperedgePanel() function for smooth transitions
+
+    Previous (Build 189): 📧 Improved Collaboration Email & Merge UI
+    - NEW: "Merge Branch" button in sidebar to paste collaboration URLs
+    - NEW: "Copy Email" button copies rich HTML with clickable button
 
     Previous (Build 188): 🔀 Smart Merge with Project Validation
     - NEW: Detects if wrong project is loaded when merging
@@ -2163,8 +2165,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 189 | 2025-11-29">
-                    v2.11.0 • Build 189
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 190 | 2025-11-29">
+                    v2.11.0 • Build 190
                 </div>
             </div>
         </div>
@@ -6113,12 +6115,17 @@ Focus on logical structure and content organization best practices.`;
                 return;
             }
 
+            // Check if info panel is open to adjust position
+            const infoPanel = document.getElementById('info-panel');
+            const infoPanelOpen = infoPanel && infoPanel.classList.contains('open');
+            const rightOffset = infoPanelOpen ? 470 : 20; // 450px panel + 20px margin
+
             const panel = document.createElement('div');
             panel.id = 'hyperedge-visibility-panel';
             panel.style.cssText = `
                 position: fixed;
                 top: 120px;
-                right: 20px;
+                right: ${rightOffset}px;
                 width: 280px;
                 max-height: 400px;
                 background: var(--surface-elevated);
@@ -6127,6 +6134,7 @@ Focus on logical structure and content organization best practices.`;
                 box-shadow: 0 8px 32px rgba(0,0,0,0.3);
                 z-index: 999;
                 overflow: hidden;
+                transition: right 0.3s;
             `;
 
             const header = document.createElement('div');
@@ -13178,14 +13186,32 @@ function hidePatternDescription() {
 
             panel.classList.add('open');
             currentOpenItemId = node.id;
+
+            // Reposition hyperedge panel if it's open
+            repositionHyperedgePanel(true);
         }
 
         // Track which item's panel is currently open
         let currentOpenItemId = null;
 
+        /**
+         * Reposition the hyperedge visibility panel based on info panel state
+         * @param {boolean} infoPanelOpen - Whether info panel is open
+         */
+        function repositionHyperedgePanel(infoPanelOpen) {
+            const hyperedgePanel = document.getElementById('hyperedge-visibility-panel');
+            if (hyperedgePanel) {
+                const rightOffset = infoPanelOpen ? 470 : 20;
+                hyperedgePanel.style.right = `${rightOffset}px`;
+            }
+        }
+
         document.getElementById('close-info').addEventListener('click', () => {
             document.getElementById('info-panel').classList.remove('open');
             currentOpenItemId = null;
+
+            // Reposition hyperedge panel back to right edge
+            repositionHyperedgePanel(false);
         });
 
         // Context Menu
