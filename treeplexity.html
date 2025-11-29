@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 172 | 2025-11-29
+    TreeListy v2.11.0 | Build 187 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,73 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 169): 🎓 Deep Dive Analysis (Structured Scholar)
+    Changelog (Build 187): 🤝 Complete Collaboration System (Branch & Merge)
+    - NEW: 📥 ?branch= URL detection and parsing on page load
+    - NEW: 🤝 Branch editing mode with purple banner for collaborators
+    - NEW: 📤 "Share Back" button to send edits to original author
+    - NEW: 🔀 Merge modal for accepting incoming collaboration changes
+    - NEW: ✅ Accept & Merge replaces/updates nodes at original location
+    - NEW: 📊 Node preview and ancestry breadcrumb in merge modal
+    - NEW: ⚠️ Merge warning with undo support (Ctrl+Z)
+    - NEW: 🔔 Toast notifications for collaboration events
+    - FLOW: Share → Edit → Share Back → Merge (complete async workflow)
+
+    Previous (Build 186): 🤝 Share for Collaboration UI
+    - NEW: 🔑 getDeviceFingerprint() - Canvas-based device ID for contributor tracking
+    - NEW: 🗺️ getAncestryPath(nodeId) - Get breadcrumb path to any node
+    - NEW: 📦 extractSubtree(nodeIds, hyperedgeId) - Extract nodes for sharing
+    - NEW: 🔗 generateBranchURL(branch) - Create shareable ?branch= URL
+    - NEW: 📏 Size validation - Blocks sharing if subtree > 8KB URL limit
+    - FOUNDATION: isBranchMode() check, currentBranch state variable
+
+    Previous (Build 184): 🐛 Fix New Project Not Updating Canvas
+    - FIX: 🐛 "New Project" now calls renderCanvas() to update canvas view immediately
+    - Previously only tree view was updated, canvas stayed on old project
+
+    Previous (Build 183): 👁️ Hyperedge Hover Dims Unrelated Nodes
+    - NEW: 🔍 Hovering a hyperedge now dims all nodes NOT in that hyperedge (0.25 opacity)
+    - NEW: ✨ Member nodes get highlighted with purple glow on hover
+    - ENHANCED: Smooth 0.3s transition for opacity and glow effects
+    - FIX: 🐛 Fixed dataset.itemId lookup (was using wrong attribute name)
+
+    Previous (Build 181): 🔧 Fix Hyperedge/Connection Clipping on Zoom Out
+    - FIX: 🐛 Hyperedges and connections were clipped to small rectangle on zoom out
+    - FIX: canvas-connections SVG now uses 20000x20000px area (like dependency-svg)
+    - FIX: Added SVG_OFFSET (5000px) to all drawing coordinates
+    - IMPROVED: Hyperedges now render correctly at any zoom level (10%-500%)
+
+    Previous (Build 180): 🔗 Hyperedge Visibility Management
+    - NEW: 👁️ Hover dimming - other hyperedges fade when you hover one
+    - NEW: 🎯 Focus View button in hyperedge info modal to isolate view
+    - NEW: 🔗 "Edges" button in canvas toolbar to manage hyperedge visibility
+    - NEW: Visibility panel with checkboxes, Show All/Hide All, focus shortcuts
+    - ENHANCED: Each hyperedge wrapped in SVG group for better interaction
+
+    Previous (Build 179): 💊 Capsule Geometry for 2-Node Hyperedges
+    - NEW: 🎯 Deep Dive auto-focuses on hyperedge members
+    - NEW: Auto-arranges analyzed nodes in clean layout
+    - FIX: 🐛 Hyperedge now clickable
+
+    Previous (Build 176): 🧠 AI-Powered Relationship Analysis
+    - NEW: 🧠 AI analyzes selected nodes and DISCERNS the philosophical relationship
+    - NEW: AI generates: relationshipType, dialecticalRelation, argumentativeFlow, conceptualBridge
+    - NEW: AI identifies: philosophical tension and potential synthesis
+
+    Previous (Build 175): 🏛️ Descriptive Hyperedge Labels
+    - NEW: 🏛️ Hyperedge labels show dialectical relation type
+    - NEW: 👆 "click to explore relationship" hint below hyperedge label
+
+    Previous (Build 174): 🎨 Hyperedge Visual Enhancement
+    - NEW: 🎨 Hyperedge color permeates member nodes (tinted border + glow)
+    - NEW: 📦 Hyperedge hull includes both selected nodes AND generated subitems (Venn diagram)
+    - NEW: 🖱️ Clickable hyperedges - shows philosophy relationship info panel
+
+    Previous (Build 173): 🔗 Fix Hyperedge Visualization
+    - FIX: 🐛 Hyperedges not visible after Deep Dive Analysis
+    - FIX: Division by zero in padding calculation when nodes overlap
+    - FIX: NaN coordinates causing polygon to not render
+
+    Previous (Build 169): 🎓 Deep Dive Analysis (Structured Scholar)
     - NEW: Right-click → "Deep Dive Analysis" on any node(s)
     - NEW: Generates 2-4 subItems per node (objections, implications, hidden premises)
     - NEW: Auto-fills missing fields (speaker, keyTerms, textualReference)
@@ -1524,12 +1590,37 @@
 
     .canvas-connections {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: -5000px;
+        left: -5000px;
+        width: 20000px;
+        height: 20000px;
         pointer-events: none;
         z-index: 1;
+        overflow: visible;
+    }
+
+    /* Allow pointer events on hyperedge groups and their elements */
+    .canvas-connections .hyperedge-group {
+        pointer-events: all;
+        cursor: pointer;
+    }
+
+    .canvas-connections polygon,
+    .canvas-connections rect,
+    .canvas-connections path.hyperedge-capsule {
+        pointer-events: all;
+        cursor: pointer;
+    }
+
+    .canvas-connections text {
+        pointer-events: all;
+        cursor: pointer;
+    }
+
+    /* Disable on connection lines (but not capsule paths) */
+    .canvas-connections path:not(.hyperedge-capsule),
+    .canvas-connections line {
+        pointer-events: none;
     }
 
     .canvas-nodes-layer {
@@ -2066,8 +2157,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 172 | 2025-11-29">
-                    v2.11.0 • Build 172
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 187 | 2025-11-29">
+                    v2.11.0 • Build 187
                 </div>
             </div>
         </div>
@@ -2576,6 +2667,66 @@ The AI will analyze the structure and convert it to a tree."
         </div>
     </div>
 
+    <!-- Share Branch Modal (Collaboration) -->
+    <div class="modal" id="share-branch-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 750px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+                🤝 Share for Collaboration
+            </div>
+            <div class="modal-body" id="share-branch-body">
+                <!-- Populated dynamically by showShareBranchModal() -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="share-branch-close">Close</button>
+                <button class="btn" id="share-branch-copy" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                    📋 Copy URL
+                </button>
+                <button class="btn btn-primary" id="share-branch-email" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    📧 Open Email
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Merge Branch Modal (Collaboration - receiving edited branches) -->
+    <div class="modal" id="merge-branch-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f59e0b, #d97706); color: white;">
+                🔀 Merge Collaboration Changes
+            </div>
+            <div class="modal-body" id="merge-branch-body">
+                <!-- Populated dynamically by showMergeBranchModal() -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="merge-branch-cancel">Cancel</button>
+                <button class="btn btn-primary" id="merge-branch-accept" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    ✅ Accept & Merge Changes
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Branch Editing Banner (shown when editing a shared branch) -->
+    <div id="branch-edit-banner" style="display: none; position: fixed; top: 60px; left: 0; right: 0; z-index: 1000; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 12px 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.2);">
+        <div style="display: flex; align-items: center; justify-content: space-between; max-width: 1400px; margin: 0 auto;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <span style="font-size: 20px;">🤝</span>
+                <div>
+                    <div style="font-weight: 600; font-size: 14px;">Editing Shared Branch</div>
+                    <div id="branch-edit-info" style="font-size: 12px; opacity: 0.9;">From: Project Name</div>
+                </div>
+            </div>
+            <div style="display: flex; gap: 10px;">
+                <button id="branch-share-back-btn" class="btn" style="background: rgba(255,255,255,0.2); color: white; border: 1px solid rgba(255,255,255,0.3);">
+                    📤 Share Back
+                </button>
+                <button id="branch-exit-btn" class="btn" style="background: rgba(255,255,255,0.1); color: white; border: 1px solid rgba(255,255,255,0.2);">
+                    ✖ Exit
+                </button>
+            </div>
+        </div>
+    </div>
+
     <!-- Wizard Modal -->
     <div class="modal" id="wizard-modal" style="display: none; justify-content: flex-end; background: transparent; pointer-events: none;">
         <div class="modal-content" style="width: 550px; max-width: 90vw; height: 100vh; max-height: 100vh; margin: 0; border-radius: 0; animation: slideInRight 0.3s ease-out; pointer-events: auto; box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);">
@@ -2630,12 +2781,37 @@ The AI will analyze the structure and convert it to a tree."
 
     .canvas-connections {
         position: absolute;
-        top: 0;
-        left: 0;
-        width: 100%;
-        height: 100%;
+        top: -5000px;
+        left: -5000px;
+        width: 20000px;
+        height: 20000px;
         pointer-events: none;
         z-index: 1;
+        overflow: visible;
+    }
+
+    /* Allow pointer events on hyperedge groups and their elements */
+    .canvas-connections .hyperedge-group {
+        pointer-events: all;
+        cursor: pointer;
+    }
+
+    .canvas-connections polygon,
+    .canvas-connections rect,
+    .canvas-connections path.hyperedge-capsule {
+        pointer-events: all;
+        cursor: pointer;
+    }
+
+    .canvas-connections text {
+        pointer-events: all;
+        cursor: pointer;
+    }
+
+    /* Disable on connection lines (but not capsule paths) */
+    .canvas-connections path:not(.hyperedge-capsule),
+    .canvas-connections line {
+        pointer-events: none;
     }
 
     .canvas-nodes-layer {
@@ -5570,6 +5746,477 @@ Focus on logical structure and content organization best practices.`;
         let isDraggingSelection = false;
         let selectionDragStart = { x: 0, y: 0 };
 
+        /**
+         * Get hyperedge membership for a node ID
+         * Returns the hyperedge object if node is a member, null otherwise
+         */
+        function getNodeHyperedge(nodeId) {
+            const hyperedges = capexTree.hyperedges || [];
+            for (const he of hyperedges) {
+                if (he.nodeIds && he.nodeIds.includes(nodeId)) {
+                    return he;
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Generate a unique color for a Deep Dive hyperedge based on index
+         * Uses a palette of visually distinct, pleasant colors
+         */
+        const HYPEREDGE_COLOR_PALETTE = [
+            { h: 270, s: 70, l: 60 },  // Purple (default analysis)
+            { h: 200, s: 80, l: 55 },  // Blue
+            { h: 160, s: 70, l: 45 },  // Teal
+            { h: 340, s: 75, l: 60 },  // Pink
+            { h: 30, s: 85, l: 55 },   // Orange
+            { h: 280, s: 65, l: 65 },  // Violet
+            { h: 180, s: 60, l: 45 },  // Cyan
+            { h: 0, s: 70, l: 60 },    // Red
+            { h: 45, s: 80, l: 50 },   // Gold
+            { h: 220, s: 75, l: 60 },  // Royal Blue
+            { h: 300, s: 60, l: 55 },  // Magenta
+            { h: 140, s: 65, l: 45 },  // Green
+        ];
+
+        function generateHyperedgeColor(index) {
+            const palette = HYPEREDGE_COLOR_PALETTE;
+            const color = palette[index % palette.length];
+            const { h, s, l } = color;
+
+            return {
+                fill: `hsla(${h}, ${s}%, ${l}%, 0.25)`,
+                border: `hsla(${h}, ${s}%, ${l}%, 0.8)`,
+                glow: `hsla(${h}, ${s}%, ${l}%, 0.5)`,
+                solid: `hsl(${h}, ${s}%, ${l}%)`,
+                hsl: { h, s, l }
+            };
+        }
+
+        /**
+         * Get hyperedge color - uses custom color if set, else type-based or generated
+         */
+        function getHyperedgeColor(hyperedge) {
+            // If hyperedge has a custom color, use it
+            if (hyperedge?.metadata?.color) {
+                const c = hyperedge.metadata.color;
+                return {
+                    fill: c.fill || c,
+                    border: c.border || c,
+                    glow: c.glow || c,
+                    solid: c.solid || c.border || c
+                };
+            }
+
+            const typeColors = {
+                'montage': { fill: 'rgba(251, 146, 60, 0.25)', border: 'rgba(251, 146, 60, 0.8)', glow: 'rgba(251, 146, 60, 0.4)' },
+                'argument': { fill: 'rgba(59, 130, 246, 0.25)', border: 'rgba(59, 130, 246, 0.8)', glow: 'rgba(59, 130, 246, 0.4)' },
+                'theme': { fill: 'rgba(168, 85, 247, 0.25)', border: 'rgba(168, 85, 247, 0.8)', glow: 'rgba(168, 85, 247, 0.4)' },
+                'dependency-cluster': { fill: 'rgba(34, 197, 94, 0.25)', border: 'rgba(34, 197, 94, 0.8)', glow: 'rgba(34, 197, 94, 0.4)' },
+                'analysis': { fill: 'rgba(139, 92, 246, 0.25)', border: 'rgba(139, 92, 246, 0.8)', glow: 'rgba(139, 92, 246, 0.5)' },
+                'default': { fill: 'rgba(156, 163, 175, 0.25)', border: 'rgba(156, 163, 175, 0.8)', glow: 'rgba(156, 163, 175, 0.4)' }
+            };
+            return typeColors[hyperedge?.type] || typeColors.default;
+        }
+
+        // Track which hyperedge is being focused (null = show all)
+        let focusedHyperedgeId = null;
+
+        /**
+         * Focus canvas view on a specific hyperedge
+         * - Hides all nodes not in the hyperedge
+         * - Auto-arranges member nodes in a clean layout
+         * - Centers the view on the hyperedge
+         */
+        function focusOnHyperedge(hyperedgeId) {
+            const hyperedge = (capexTree.hyperedges || []).find(h => h.id === hyperedgeId);
+            if (!hyperedge) {
+                console.warn('Hyperedge not found:', hyperedgeId);
+                return;
+            }
+
+            console.log('🎯 Focusing on hyperedge:', hyperedge.label);
+            focusedHyperedgeId = hyperedgeId;
+
+            // Get all nodes that belong to this hyperedge
+            const memberIds = new Set(hyperedge.nodeIds || []);
+
+            // Find actual node objects and arrange them
+            const memberNodes = [];
+            function findNodes(node) {
+                if (memberIds.has(node.id)) {
+                    memberNodes.push(node);
+                }
+                // Check subitems
+                if (node.subItems) {
+                    node.subItems.forEach(sub => findNodes(sub));
+                }
+                if (node.children) {
+                    node.children.forEach(child => findNodes(child));
+                }
+            }
+
+            // Search through all phases
+            capexTree.children.forEach(phase => {
+                const nodeList = phase.items || phase.children || [];
+                nodeList.forEach(item => findNodes(item));
+            });
+
+            console.log(`🎯 Found ${memberNodes.length} member nodes`);
+
+            // Separate parent nodes from subitems
+            const parentNodes = memberNodes.filter(n => !n.id.startsWith('subitem-'));
+            const subitemNodes = memberNodes.filter(n => n.id.startsWith('subitem-'));
+
+            // Calculate layout dimensions
+            const canvasContainer = document.getElementById('canvas-container');
+            const containerWidth = canvasContainer?.offsetWidth || 1200;
+            const containerHeight = canvasContainer?.offsetHeight || 800;
+
+            // Layout parameters
+            const nodeWidth = 320;
+            const nodeHeight = 150;
+            const padding = 80;
+            const centerX = containerWidth / 2;
+            const centerY = containerHeight / 2;
+
+            // Arrange parent nodes in a row at the top
+            const parentStartX = centerX - ((parentNodes.length * (nodeWidth + padding)) / 2) + padding / 2;
+            parentNodes.forEach((node, idx) => {
+                node.canvasX = parentStartX + idx * (nodeWidth + padding);
+                node.canvasY = 100;
+                node.expanded = true; // Ensure expanded to show subitems
+            });
+
+            // Arrange subitems below their parents or in a grid
+            if (subitemNodes.length > 0) {
+                // Try to position subitems below their parent
+                subitemNodes.forEach((subitem, idx) => {
+                    // Find parent by checking which parent's subItems contains this subitem
+                    let parentNode = null;
+                    for (const parent of parentNodes) {
+                        if (parent.subItems && parent.subItems.some(s => s.id === subitem.id)) {
+                            parentNode = parent;
+                            break;
+                        }
+                    }
+
+                    if (parentNode) {
+                        // Position below parent
+                        const siblingIdx = parentNode.subItems.findIndex(s => s.id === subitem.id);
+                        subitem.canvasX = parentNode.canvasX + 50 + (siblingIdx % 2) * 180;
+                        subitem.canvasY = parentNode.canvasY + nodeHeight + 60 + Math.floor(siblingIdx / 2) * (nodeHeight + 40);
+                    } else {
+                        // No parent found, arrange in grid below
+                        const cols = Math.ceil(Math.sqrt(subitemNodes.length));
+                        const row = Math.floor(idx / cols);
+                        const col = idx % cols;
+                        subitem.canvasX = centerX - (cols * (nodeWidth + padding) / 2) + col * (nodeWidth + padding);
+                        subitem.canvasY = 350 + row * (nodeHeight + 60);
+                    }
+                });
+            }
+
+            // Re-render canvas with focus filter active
+            renderCanvasWithFocus(memberIds);
+
+            // Center the view
+            canvasPan = { x: 50, y: 50 };
+            canvasZoom = 0.9;
+            updateCanvasTransform();
+
+            // Show "exit focus" button
+            showFocusModeIndicator(hyperedge);
+        }
+
+        /**
+         * Exit focus mode and show all nodes
+         */
+        function exitFocusMode() {
+            console.log('🎯 Exiting focus mode');
+            focusedHyperedgeId = null;
+            hideFocusModeIndicator();
+            renderCanvas();
+        }
+
+        /**
+         * Render canvas showing only focused nodes (or all if no focus)
+         */
+        function renderCanvasWithFocus(memberIds) {
+            const canvas = document.getElementById('canvas');
+            const svg = document.getElementById('canvas-connections');
+
+            if (!canvas || !svg) {
+                console.error('Canvas elements not found');
+                return;
+            }
+
+            // Clear existing content
+            canvas.querySelectorAll('.canvas-node').forEach(n => n.remove());
+            svg.innerHTML = '';
+            canvasNodes = [];
+
+            // Render only member nodes
+            capexTree.children.forEach((phase, phaseIdx) => {
+                if (phase.showInCanvas === false) return;
+
+                const nodeList = phase.items || phase.children || [];
+                nodeList.forEach((item) => {
+                    renderFocusedNodeAndDescendants(item, phase, null, 0, memberIds);
+                });
+            });
+
+            // Draw connections and hyperedges
+            drawConnections();
+            updateCanvasTransform();
+        }
+
+        /**
+         * Recursively render nodes, but only if they're in the focus set
+         */
+        function renderFocusedNodeAndDescendants(node, phase, parentNode, nestingLevel, memberIds) {
+            // Only render if this node is in the focus set
+            if (!memberIds.has(node.id)) {
+                // But still check children in case they're members
+                const childList = node.subItems || node.children || [];
+                childList.forEach(child => {
+                    renderFocusedNodeAndDescendants(child, phase, node, nestingLevel + 1, memberIds);
+                });
+                return;
+            }
+
+            // Check if parent is collapsed
+            if (parentNode && parentNode.expanded === false) {
+                return;
+            }
+
+            // Render this node
+            renderCanvasNode(node, phase, parentNode, nestingLevel);
+
+            // Recursively render children that are also members
+            const childList = node.subItems || node.children || [];
+            if (childList.length > 0 && node.expanded !== false) {
+                childList.forEach((child, childIdx) => {
+                    renderFocusedNodeAndDescendants(child, phase, node, nestingLevel + 1, memberIds);
+                });
+            }
+        }
+
+        /**
+         * Show focus mode indicator with exit button
+         */
+        function showFocusModeIndicator(hyperedge) {
+            // Remove existing indicator
+            hideFocusModeIndicator();
+
+            const indicator = document.createElement('div');
+            indicator.id = 'focus-mode-indicator';
+            indicator.style.cssText = `
+                position: fixed;
+                top: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: rgba(139, 92, 246, 0.95);
+                color: white;
+                padding: 12px 24px;
+                border-radius: 30px;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                z-index: 1000;
+                box-shadow: 0 4px 20px rgba(139, 92, 246, 0.4);
+                font-size: 14px;
+            `;
+            indicator.innerHTML = `
+                <span>🎯 Focused: <strong>${hyperedge.label}</strong></span>
+                <button onclick="exitFocusMode()" style="
+                    background: rgba(255,255,255,0.2);
+                    border: 1px solid rgba(255,255,255,0.3);
+                    color: white;
+                    padding: 6px 12px;
+                    border-radius: 15px;
+                    cursor: pointer;
+                    font-size: 12px;
+                ">✕ Show All</button>
+            `;
+
+            document.body.appendChild(indicator);
+        }
+
+        /**
+         * Hide focus mode indicator
+         */
+        function hideFocusModeIndicator() {
+            const indicator = document.getElementById('focus-mode-indicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
+        // Track which hyperedges are hidden
+        let hiddenHyperedges = new Set();
+
+        /**
+         * Toggle hyperedge visibility panel
+         */
+        function toggleHyperedgePanel() {
+            const existing = document.getElementById('hyperedge-visibility-panel');
+            if (existing) {
+                existing.remove();
+                return;
+            }
+
+            const hyperedges = capexTree.hyperedges || [];
+            if (hyperedges.length === 0) {
+                showToast('No hyperedges to manage', 'info');
+                return;
+            }
+
+            const panel = document.createElement('div');
+            panel.id = 'hyperedge-visibility-panel';
+            panel.style.cssText = `
+                position: fixed;
+                top: 120px;
+                right: 20px;
+                width: 280px;
+                max-height: 400px;
+                background: var(--surface-elevated);
+                border: 1px solid var(--border-color);
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.3);
+                z-index: 999;
+                overflow: hidden;
+            `;
+
+            const header = document.createElement('div');
+            header.style.cssText = `
+                padding: 16px;
+                border-bottom: 1px solid var(--border-color);
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            `;
+            header.innerHTML = `
+                <span style="font-weight: 600; color: var(--text-primary);">🔗 Hyperedges (${hyperedges.length})</span>
+                <button onclick="document.getElementById('hyperedge-visibility-panel').remove()"
+                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;">✕</button>
+            `;
+
+            const list = document.createElement('div');
+            list.style.cssText = `
+                max-height: 320px;
+                overflow-y: auto;
+                padding: 8px;
+            `;
+
+            hyperedges.forEach(he => {
+                const colorObj = getHyperedgeColor(he);
+                const isHidden = hiddenHyperedges.has(he.id);
+
+                const item = document.createElement('div');
+                item.style.cssText = `
+                    padding: 10px 12px;
+                    margin-bottom: 6px;
+                    background: ${isHidden ? 'rgba(0,0,0,0.2)' : 'rgba(139, 92, 246, 0.1)'};
+                    border: 1px solid ${isHidden ? 'var(--border-color)' : colorObj.border};
+                    border-radius: 8px;
+                    display: flex;
+                    align-items: center;
+                    gap: 10px;
+                    cursor: pointer;
+                    transition: all 0.2s;
+                    opacity: ${isHidden ? '0.5' : '1'};
+                `;
+                item.innerHTML = `
+                    <input type="checkbox" ${isHidden ? '' : 'checked'}
+                        onchange="toggleHyperedgeVisibility('${he.id}')"
+                        style="width: 18px; height: 18px; cursor: pointer; accent-color: ${colorObj.solid || '#8B5CF6'};">
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${he.label}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">
+                            ${he.nodeIds?.length || 0} nodes
+                        </div>
+                    </div>
+                    <button onclick="event.stopPropagation(); focusOnHyperedge('${he.id}'); document.getElementById('hyperedge-visibility-panel').remove();"
+                        style="background: rgba(139, 92, 246, 0.2); border: none; padding: 4px 8px; border-radius: 4px; color: #8B5CF6; cursor: pointer; font-size: 11px;">
+                        🎯
+                    </button>
+                `;
+                list.appendChild(item);
+            });
+
+            const footer = document.createElement('div');
+            footer.style.cssText = `
+                padding: 12px 16px;
+                border-top: 1px solid var(--border-color);
+                display: flex;
+                gap: 8px;
+            `;
+            footer.innerHTML = `
+                <button onclick="showAllHyperedges()"
+                    style="flex: 1; padding: 8px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.3); border-radius: 6px; color: #22C55E; cursor: pointer; font-size: 12px;">
+                    Show All
+                </button>
+                <button onclick="hideAllHyperedges()"
+                    style="flex: 1; padding: 8px; background: rgba(239, 68, 68, 0.2); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; color: #EF4444; cursor: pointer; font-size: 12px;">
+                    Hide All
+                </button>
+            `;
+
+            panel.appendChild(header);
+            panel.appendChild(list);
+            panel.appendChild(footer);
+            document.body.appendChild(panel);
+        }
+
+        /**
+         * Toggle visibility of a specific hyperedge
+         */
+        function toggleHyperedgeVisibility(hyperedgeId) {
+            if (hiddenHyperedges.has(hyperedgeId)) {
+                hiddenHyperedges.delete(hyperedgeId);
+            } else {
+                hiddenHyperedges.add(hyperedgeId);
+            }
+            renderCanvas();
+            // Refresh the panel
+            const panel = document.getElementById('hyperedge-visibility-panel');
+            if (panel) {
+                panel.remove();
+                toggleHyperedgePanel();
+            }
+        }
+
+        /**
+         * Show all hyperedges
+         */
+        function showAllHyperedges() {
+            hiddenHyperedges.clear();
+            renderCanvas();
+            const panel = document.getElementById('hyperedge-visibility-panel');
+            if (panel) {
+                panel.remove();
+                toggleHyperedgePanel();
+            }
+        }
+
+        /**
+         * Hide all hyperedges
+         */
+        function hideAllHyperedges() {
+            (capexTree.hyperedges || []).forEach(he => {
+                hiddenHyperedges.add(he.id);
+            });
+            renderCanvas();
+            const panel = document.getElementById('hyperedge-visibility-panel');
+            if (panel) {
+                panel.remove();
+                toggleHyperedgePanel();
+            }
+        }
+
         function toggleViewMode() {
             viewMode = viewMode === 'tree' ? 'canvas' : 'tree';
 
@@ -5789,23 +6436,73 @@ Focus on logical structure and content organization best practices.`;
             return lower.concat(upper);
         }
 
+        /**
+         * Create a capsule/pill SVG path connecting two points
+         * Used for 2-node hyperedges where convex hull fails
+         */
+        function createCapsulePath(p1, p2, radius) {
+            const dx = p2.x - p1.x;
+            const dy = p2.y - p1.y;
+            const dist = Math.hypot(dx, dy);
+
+            // If points overlap, create a circle
+            if (dist < 1) {
+                return `M ${p1.x - radius} ${p1.y}
+                        a ${radius} ${radius} 0 1 0 ${radius * 2} 0
+                        a ${radius} ${radius} 0 1 0 ${-radius * 2} 0 Z`;
+            }
+
+            // Normalize direction vector
+            const nx = dx / dist;
+            const ny = dy / dist;
+
+            // Perpendicular vector scaled by radius
+            const px = -ny * radius;
+            const py = nx * radius;
+
+            // Four corners of the capsule body
+            const c1 = { x: p1.x + px, y: p1.y + py };
+            const c2 = { x: p1.x - px, y: p1.y - py };
+            const c3 = { x: p2.x - px, y: p2.y - py };
+            const c4 = { x: p2.x + px, y: p2.y + py };
+
+            // SVG path: straight sides + semicircle end caps
+            return `M ${c1.x} ${c1.y}
+                    L ${c4.x} ${c4.y}
+                    A ${radius} ${radius} 0 0 1 ${c3.x} ${c3.y}
+                    L ${c2.x} ${c2.y}
+                    A ${radius} ${radius} 0 0 1 ${c1.x} ${c1.y} Z`;
+        }
+
         // =============================================================================
         // HYPEREDGE VISUALIZATION
         // =============================================================================
 
+        // SVG offset to match the large canvas-connections area (top: -5000px, left: -5000px)
+        const SVG_OFFSET = 5000;
+
         /**
          * Draw all hyperedges as convex hull blobs
          * Performance optimized: Uses O(1) Map lookup instead of O(N) recursive getNodeById
+         * Enhanced: Groups each hyperedge for hover/focus interactions
          */
         function drawHyperedges() {
             const svg = document.getElementById('canvas-connections');
-            const hyperedges = getAllHyperedges();
+            const allHyperedges = getAllHyperedges();
 
-            console.log('🔗 drawHyperedges called, found', hyperedges?.length || 0, 'hyperedges');
+            // Filter out hidden hyperedges
+            const hyperedges = (allHyperedges || []).filter(he => !hiddenHyperedges.has(he.id));
+
+            console.log('🔗 drawHyperedges called, found', allHyperedges?.length || 0, 'hyperedges,', hyperedges.length, 'visible');
+            console.log('🔗 canvasNodes array has', canvasNodes.length, 'entries');
 
             if (!hyperedges || hyperedges.length === 0) {
+                console.log('🔗 No visible hyperedges to draw');
                 return;
             }
+
+            // Track all hyperedge groups for hover interactions
+            const hyperedgeGroups = [];
 
             // Build O(1) lookup map from canvasNodes to avoid O(N) getNodeById calls per node
             // This reduces complexity from O(H * N * TreeDepth) to O(H * N) where H = hyperedges, N = nodes per edge
@@ -5815,6 +6512,7 @@ Focus on logical structure and content organization best practices.`;
                     nodeLookup.set(n.data.id, n.data);
                 }
             });
+            console.log('🔗 nodeLookup built with', nodeLookup.size, 'nodes. Keys:', Array.from(nodeLookup.keys()).slice(0, 15));
 
             // Color palette for hyperedge types
             const typeColors = {
@@ -5822,75 +6520,468 @@ Focus on logical structure and content organization best practices.`;
                 'argument': 'rgba(59, 130, 246, 0.15)',      // Blue
                 'theme': 'rgba(168, 85, 247, 0.15)',         // Purple
                 'dependency-cluster': 'rgba(34, 197, 94, 0.15)', // Green
-                'analysis': 'rgba(139, 92, 246, 0.2)',       // Violet/Purple for Deep Dive
+                'analysis': 'rgba(139, 92, 246, 0.25)',      // Violet/Purple for Deep Dive (slightly more opaque)
                 'default': 'rgba(156, 163, 175, 0.15)'       // Gray
             };
 
-            hyperedges.forEach(hyperedge => {
+            hyperedges.forEach((hyperedge, idx) => {
+                console.log(`🔗 Processing hyperedge[${idx}]: "${hyperedge.label}" with nodeIds:`, hyperedge.nodeIds);
+
                 // Get all nodes in this hyperedge using O(1) lookup
-                const nodes = hyperedge.nodeIds.map(id => nodeLookup.get(id)).filter(n => n);
+                const nodes = hyperedge.nodeIds.map(id => {
+                    const found = nodeLookup.get(id);
+                    if (!found) {
+                        console.warn(`  ❌ Node ID "${id}" NOT found in canvasNodes`);
+                    } else {
+                        console.log(`  ✅ Node ID "${id}" found at (${found.canvasX}, ${found.canvasY})`);
+                    }
+                    return found;
+                }).filter(n => n);
 
                 console.log(`🔗 Hyperedge "${hyperedge.label}": ${hyperedge.nodeIds.length} nodeIds → ${nodes.length} found in canvasNodes`);
 
                 if (nodes.length < 2) {
-                    console.warn(`Hyperedge ${hyperedge.id} has < 2 valid nodes. NodeIds:`, hyperedge.nodeIds, 'canvasNodes has:', canvasNodes.length, 'nodes');
+                    console.warn(`❌ Hyperedge ${hyperedge.id} has < 2 valid nodes, skipping. NodeIds:`, hyperedge.nodeIds);
                     return;
                 }
 
-                // Get node positions (center of each node card)
-                const points = nodes.map(node => ({
-                    x: (node.canvasX || 0) + 160,  // Center X (320px width / 2)
-                    y: (node.canvasY || 0) + 60    // Center Y (120px height / 2)
-                }));
+                // Create SVG group for this hyperedge (enables hover/focus interactions)
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('class', 'hyperedge-group');
+                group.setAttribute('data-hyperedge-id', hyperedge.id);
+                group.style.transition = 'opacity 0.3s ease';
+                hyperedgeGroups.push({ group, hyperedge });
 
-                // Add padding around the hull
-                const padding = 40;
+                // Get node positions (center of each node card) + SVG offset
+                const points = nodes.map(node => ({
+                    x: (node.canvasX || 0) + 160 + SVG_OFFSET,  // Center X (320px width / 2) + offset
+                    y: (node.canvasY || 0) + 60 + SVG_OFFSET   // Center Y (120px height / 2) + offset
+                }));
+                console.log('🔗 Raw points (with SVG_OFFSET):', points);
+
+                // =====================================================================
+                // SPECIAL CASE: 2-node hyperedges use capsule/pill shape
+                // Convex hull fails for 2 points (collinear), so we draw a capsule
+                // =====================================================================
+                if (nodes.length === 2) {
+                    const p1 = points[0];
+                    const p2 = points[1];
+                    const capsuleRadius = 80;  // Generous radius for visibility
+
+                    const colorObj = getHyperedgeColor(hyperedge);
+                    const capsulePath = createCapsulePath(p1, p2, capsuleRadius);
+
+                    const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                    path.setAttribute('class', 'hyperedge-capsule');
+                    path.setAttribute('d', capsulePath);
+                    path.setAttribute('fill', colorObj.fill);
+                    path.setAttribute('stroke', colorObj.border);
+                    path.setAttribute('stroke-width', '2');
+                    path.setAttribute('stroke-dasharray', '8,4');
+                    path.style.cursor = 'pointer';
+                    path.style.transition = 'opacity 0.2s';
+                    path.addEventListener('mouseenter', () => path.style.opacity = '0.8');
+                    path.addEventListener('mouseleave', () => path.style.opacity = '1');
+                    path.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showHyperedgeInfo(hyperedge);
+                    });
+
+                    group.appendChild(path);
+                    console.log('🔗 Capsule path created for 2-node hyperedge');
+
+                    // Add label at midpoint
+                    const midX = (p1.x + p2.x) / 2;
+                    const midY = (p1.y + p2.y) / 2;
+
+                    const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    label.setAttribute('x', midX);
+                    label.setAttribute('y', midY - 35);
+                    label.setAttribute('text-anchor', 'middle');
+                    label.setAttribute('fill', colorObj.solid || colorObj.border);
+                    label.setAttribute('font-size', '14');
+                    label.setAttribute('font-weight', 'bold');
+                    label.style.cursor = 'pointer';
+                    label.style.textShadow = '0 0 6px rgba(0,0,0,0.8)';
+                    label.textContent = hyperedge.label;
+                    label.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showHyperedgeInfo(hyperedge);
+                    });
+                    group.appendChild(label);
+
+                    const hint = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    hint.setAttribute('x', midX);
+                    hint.setAttribute('y', midY - 18);
+                    hint.setAttribute('text-anchor', 'middle');
+                    hint.setAttribute('fill', 'rgba(255,255,255,0.6)');
+                    hint.setAttribute('font-size', '11');
+                    hint.style.cursor = 'pointer';
+                    hint.style.textShadow = '0 0 4px rgba(0,0,0,0.8)';
+                    hint.textContent = '▶ click to explore relationship';
+                    hint.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showHyperedgeInfo(hyperedge);
+                    });
+                    group.appendChild(hint);
+
+                    // Append group to SVG and return (skip hull processing)
+                    svg.appendChild(group);
+                    return;
+                }
+
+                // Add padding around the hull with SAFE division (avoid NaN from div-by-zero)
+                const padding = 60;  // Increased for better visibility
                 const centroid = {
                     x: points.reduce((sum, p) => sum + p.x, 0) / points.length,
                     y: points.reduce((sum, p) => sum + p.y, 0) / points.length
                 };
+                console.log('🔗 Centroid:', centroid);
 
-                const paddedPoints = points.map(p => ({
-                    x: p.x + (p.x - centroid.x) * (padding / Math.hypot(p.x - centroid.x, p.y - centroid.y)),
-                    y: p.y + (p.y - centroid.y) * (padding / Math.hypot(p.x - centroid.x, p.y - centroid.y))
-                }));
+                // Safe padding: avoid division by zero when point equals centroid
+                const paddedPoints = points.map(p => {
+                    const dx = p.x - centroid.x;
+                    const dy = p.y - centroid.y;
+                    const dist = Math.hypot(dx, dy);
 
-                // Compute convex hull
-                const hull = computeConvexHull(paddedPoints);
+                    // If point is at centroid (dist=0), expand outward in a default direction
+                    if (dist < 1) {
+                        // Use point index to spread overlapping points
+                        const angle = (points.indexOf(p) / points.length) * 2 * Math.PI;
+                        return {
+                            x: centroid.x + Math.cos(angle) * padding,
+                            y: centroid.y + Math.sin(angle) * padding
+                        };
+                    }
 
-                if (hull.length < 3) {
-                    console.warn(`Hyperedge ${hyperedge.id} hull has < 3 points`);
+                    return {
+                        x: p.x + dx * (padding / dist),
+                        y: p.y + dy * (padding / dist)
+                    };
+                });
+                console.log('🔗 Padded points:', paddedPoints);
+
+                // Check for NaN values
+                const hasNaN = paddedPoints.some(p => isNaN(p.x) || isNaN(p.y));
+                if (hasNaN) {
+                    console.error('❌ NaN detected in padded points! Skipping hyperedge.');
                     return;
                 }
 
-                // Create SVG polygon for the hull
-                const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
-                const pointsStr = hull.map(p => `${p.x},${p.y}`).join(' ');
-                polygon.setAttribute('points', pointsStr);
+                // Compute convex hull
+                const hull = computeConvexHull(paddedPoints);
+                console.log('🔗 Convex hull computed with', hull.length, 'points');
 
-                // Get color from metadata or type
-                const color = hyperedge.metadata?.color || typeColors[hyperedge.type] || typeColors.default;
-                polygon.setAttribute('fill', color);
-                polygon.setAttribute('stroke', color.replace('0.15', '0.4'));
-                polygon.setAttribute('stroke-width', '2');
-                polygon.setAttribute('stroke-dasharray', '5,5');
-                polygon.style.pointerEvents = 'none';
+                if (hull.length < 3) {
+                    // Fallback: if hull fails (collinear points), create a simple rounded rect around the centroid
+                    console.warn(`⚠️ Hyperedge ${hyperedge.id} hull has < 3 points, using fallback rectangle`);
 
-                svg.appendChild(polygon);
+                    // Calculate bounding box
+                    const minX = Math.min(...paddedPoints.map(p => p.x)) - 20;
+                    const maxX = Math.max(...paddedPoints.map(p => p.x)) + 20;
+                    const minY = Math.min(...paddedPoints.map(p => p.y)) - 20;
+                    const maxY = Math.max(...paddedPoints.map(p => p.y)) + 20;
 
-                // Add label at centroid
+                    const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                    rect.setAttribute('x', minX);
+                    rect.setAttribute('y', minY);
+                    rect.setAttribute('width', maxX - minX);
+                    rect.setAttribute('height', maxY - minY);
+                    rect.setAttribute('rx', '20');
+                    rect.setAttribute('ry', '20');
+
+                    // Get color object (custom from metadata, or type-based fallback)
+                    const colorObj = getHyperedgeColor(hyperedge);
+                    rect.setAttribute('fill', colorObj.fill);
+                    rect.setAttribute('stroke', colorObj.border);
+                    rect.setAttribute('stroke-width', '2');
+                    rect.setAttribute('stroke-dasharray', '8,4');
+                    rect.style.cursor = 'pointer';
+                    rect.style.transition = 'opacity 0.2s';
+                    rect.addEventListener('mouseenter', () => rect.style.opacity = '0.8');
+                    rect.addEventListener('mouseleave', () => rect.style.opacity = '1');
+                    rect.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showHyperedgeInfo(hyperedge);
+                    });
+
+                    group.appendChild(rect);
+                    console.log('🔗 Fallback rect created');
+                } else {
+                    // Create SVG polygon for the hull
+                    const polygon = document.createElementNS('http://www.w3.org/2000/svg', 'polygon');
+                    const pointsStr = hull.map(p => `${p.x},${p.y}`).join(' ');
+                    polygon.setAttribute('points', pointsStr);
+
+                    // Get color object (custom from metadata, or type-based fallback)
+                    const colorObj = getHyperedgeColor(hyperedge);
+                    polygon.setAttribute('fill', colorObj.fill);
+                    polygon.setAttribute('stroke', colorObj.border);
+                    polygon.setAttribute('stroke-width', '2');
+                    polygon.setAttribute('stroke-dasharray', '8,4');
+                    polygon.style.cursor = 'pointer';
+                    polygon.style.transition = 'opacity 0.2s';
+                    polygon.addEventListener('mouseenter', () => polygon.style.opacity = '0.8');
+                    polygon.addEventListener('mouseleave', () => polygon.style.opacity = '1');
+                    polygon.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        showHyperedgeInfo(hyperedge);
+                    });
+
+                    group.appendChild(polygon);
+                    console.log('🔗 Polygon appended to group');
+                }
+
+                // Add label at centroid (also clickable)
+                const labelColorObj = getHyperedgeColor(hyperedge);
+
+                // Main label
                 const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                 label.setAttribute('x', centroid.x);
-                label.setAttribute('y', centroid.y - 20);
+                label.setAttribute('y', centroid.y - 35);
                 label.setAttribute('text-anchor', 'middle');
-                label.setAttribute('fill', color.replace('0.15', '1'));
+                label.setAttribute('fill', labelColorObj.solid || labelColorObj.border);
                 label.setAttribute('font-size', '14');
                 label.setAttribute('font-weight', 'bold');
-                label.style.pointerEvents = 'none';
+                label.style.cursor = 'pointer';
+                label.style.textShadow = '0 0 6px rgba(0,0,0,0.8)';
                 label.textContent = hyperedge.label;
+                label.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showHyperedgeInfo(hyperedge);
+                });
+                group.appendChild(label);
 
-                svg.appendChild(label);
+                // Subtitle hint "click to explore"
+                const hint = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                hint.setAttribute('x', centroid.x);
+                hint.setAttribute('y', centroid.y - 18);
+                hint.setAttribute('text-anchor', 'middle');
+                hint.setAttribute('fill', 'rgba(255,255,255,0.6)');
+                hint.setAttribute('font-size', '11');
+                hint.style.cursor = 'pointer';
+                hint.style.textShadow = '0 0 4px rgba(0,0,0,0.8)';
+                hint.textContent = '▶ click to explore relationship';
+                hint.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showHyperedgeInfo(hyperedge);
+                });
+                group.appendChild(hint);
+
+                // Append group to SVG
+                svg.appendChild(group);
+                console.log('🔗 Group added to SVG');
             });
+
+            // =========================================================================
+            // HOVER INTERACTIONS: Dim other hyperedges AND unrelated nodes when hovering one
+            // =========================================================================
+            hyperedgeGroups.forEach(({ group, hyperedge }) => {
+                group.addEventListener('mouseenter', () => {
+                    // Dim all other hyperedge groups
+                    hyperedgeGroups.forEach(({ group: otherGroup, hyperedge: otherHyperedge }) => {
+                        if (otherHyperedge.id !== hyperedge.id) {
+                            otherGroup.style.opacity = '0.2';
+                        }
+                    });
+
+                    // Dim all canvas nodes NOT in this hyperedge
+                    const memberNodeIds = new Set(hyperedge.nodeIds || []);
+                    document.querySelectorAll('.canvas-node').forEach(nodeEl => {
+                        const nodeId = nodeEl.dataset.itemId;  // Canvas nodes use data-item-id
+                        if (!memberNodeIds.has(nodeId)) {
+                            nodeEl.style.opacity = '0.25';
+                            nodeEl.style.transition = 'opacity 0.3s ease';
+                        } else {
+                            // Highlight member nodes
+                            nodeEl.style.opacity = '1';
+                            nodeEl.style.boxShadow = '0 0 20px rgba(139, 92, 246, 0.6)';
+                            nodeEl.style.transition = 'opacity 0.3s ease, box-shadow 0.3s ease';
+                        }
+                    });
+                });
+
+                group.addEventListener('mouseleave', () => {
+                    // Restore all hyperedge groups
+                    hyperedgeGroups.forEach(({ group: otherGroup }) => {
+                        otherGroup.style.opacity = '1';
+                    });
+
+                    // Restore all canvas nodes
+                    document.querySelectorAll('.canvas-node').forEach(nodeEl => {
+                        nodeEl.style.opacity = '1';
+                        nodeEl.style.boxShadow = '';
+                    });
+                });
+            });
+
+            console.log('🔗 drawHyperedges complete with', hyperedgeGroups.length, 'groups');
+        }
+
+        /**
+         * Show hyperedge info panel with philosophy relationship fields
+         */
+        function showHyperedgeInfo(hyperedge) {
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+
+            const meta = hyperedge.metadata || {};
+            const philo = meta.philosophyFields || {};
+            const isPhilosophy = currentPattern === 'philosophy';
+
+            // Build analyzed nodes list
+            const analyzedNodesList = (meta.analyzedNodes || []).map(n =>
+                `<li style="margin-bottom: 8px;">
+                    <strong>${n.name}</strong>
+                    ${n.itemType ? `<span style="margin-left: 8px; padding: 2px 8px; background: rgba(99, 102, 241, 0.2); border-radius: 4px; font-size: 11px;">${n.itemType}</span>` : ''}
+                </li>`
+            ).join('');
+
+            // Philosophy-specific fields
+            let philosophySection = '';
+            if (isPhilosophy && Object.keys(philo).length > 0) {
+                philosophySection = `
+                    <div style="margin-top: 20px; padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px;">
+                        <h4 style="color: rgba(139, 92, 246, 1); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 20px;">🏛️</span> Philosophy Relationship Analysis
+                        </h4>
+
+                        <div style="display: grid; gap: 12px;">
+                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Dialectical Relation</div>
+                                <div style="font-size: 14px; color: var(--text-primary);">${philo.dialecticalRelation || 'Not determined'}</div>
+                            </div>
+
+                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Argumentative Flow</div>
+                                <div style="font-size: 14px; color: var(--text-primary);">${philo.argumentativeFlow || 'Not determined'}</div>
+                            </div>
+
+                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Conceptual Bridge</div>
+                                <div style="font-size: 14px; color: var(--text-primary);">${philo.conceptualBridge || 'Not determined'}</div>
+                            </div>
+
+                            ${philo.tension ? `
+                            <div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px;">
+                                <div style="font-size: 11px; color: rgba(239, 68, 68, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">⚡ Philosophical Tension</div>
+                                <div style="font-size: 14px; color: var(--text-primary);">${philo.tension}</div>
+                            </div>
+                            ` : ''}
+
+                            ${philo.synthesis ? `
+                            <div style="padding: 12px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 6px;">
+                                <div style="font-size: 11px; color: rgba(34, 197, 94, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">🔄 Synthesis</div>
+                                <div style="font-size: 14px; color: var(--text-primary);">${philo.synthesis}</div>
+                            </div>
+                            ` : ''}
+
+                            ${philo.speakers && philo.speakers.length > 0 ? `
+                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Speakers/Interlocutors</div>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
+                                    ${philo.speakers.map(s => `<span style="padding: 4px 10px; background: rgba(99, 102, 241, 0.2); border-radius: 12px; font-size: 12px;">${s}</span>`).join('')}
+                                </div>
+                            </div>
+                            ` : ''}
+
+                            ${philo.tradition ? `
+                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Philosophical Tradition</div>
+                                <div style="font-size: 14px; color: var(--text-primary);">${philo.tradition}</div>
+                            </div>
+                            ` : ''}
+                        </div>
+
+                        ${philo.aiGenerated ? `
+                        <div style="margin-top: 12px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border-radius: 4px; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 14px;">🧠</span>
+                            <span style="font-size: 11px; color: rgba(139, 92, 246, 0.8);">Analysis generated by AI based on node content</span>
+                        </div>
+                        ` : ''}
+                    </div>
+                `;
+            }
+
+            modalBody.innerHTML = `
+                <div style="padding: 30px; max-width: 600px;">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                        <div style="font-size: 48px;">🔗</div>
+                        <div>
+                            <h3 style="color: var(--treeplex-primary); margin-bottom: 4px;">${hyperedge.label}</h3>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                ${hyperedge.type} hyperedge • ${hyperedge.nodeIds?.length || 0} connected nodes
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">
+                            ${hyperedge.description || 'No description available.'}
+                        </p>
+                    </div>
+
+                    <div style="padding: 16px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; margin-bottom: 16px;">
+                        <h4 style="color: var(--treeplex-primary); margin-bottom: 12px;">📊 Analysis Summary</h4>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
+                            <div>
+                                <div style="color: var(--text-secondary);">Method</div>
+                                <div style="color: var(--text-primary); font-weight: 600;">${meta.analysisMethod || 'Manual'}</div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-secondary);">Pattern</div>
+                                <div style="color: var(--text-primary); font-weight: 600;">${meta.pattern || currentPattern}</div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-secondary);">SubItems Generated</div>
+                                <div style="color: var(--text-primary); font-weight: 600;">${meta.totalSubItemsGenerated || 0}</div>
+                            </div>
+                            <div>
+                                <div style="color: var(--text-secondary);">Created</div>
+                                <div style="color: var(--text-primary); font-weight: 600;">${hyperedge.createdAt ? new Date(hyperedge.createdAt).toLocaleDateString() : 'Unknown'}</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    ${analyzedNodesList ? `
+                    <div style="margin-bottom: 20px;">
+                        <h4 style="color: var(--text-primary); margin-bottom: 12px;">📍 Analyzed Nodes</h4>
+                        <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); line-height: 1.8;">
+                            ${analyzedNodesList}
+                        </ul>
+                    </div>
+                    ` : ''}
+
+                    ${philosophySection}
+
+                    <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+                        <button onclick="deleteHyperedgeWithConfirm('${hyperedge.id}')"
+                            style="padding: 10px 20px; background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            🗑️ Delete
+                        </button>
+                        <button onclick="document.getElementById('modal').style.display='none'; focusOnHyperedge('${hyperedge.id}')"
+                            style="padding: 10px 20px; background: rgba(139, 92, 246, 0.2); color: #8B5CF6; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            🎯 Focus View
+                        </button>
+                        <button onclick="document.getElementById('modal').style.display='none'"
+                            style="padding: 10px 20px; background: var(--treeplex-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * Delete hyperedge with confirmation
+         */
+        function deleteHyperedgeWithConfirm(hyperedgeId) {
+            if (confirm('Delete this hyperedge? Member nodes will remain but lose their visual grouping.')) {
+                window.deleteHyperedge(hyperedgeId);
+                document.getElementById('modal').style.display = 'none';
+            }
         }
 
         // =============================================================================
@@ -5963,6 +7054,12 @@ Focus on logical structure and content organization best practices.`;
 
         function drawConnection(x1, y1, x2, y2, color, style = 'solid') {
             const svg = document.getElementById('canvas-connections');
+
+            // Adjust coordinates for SVG offset
+            x1 += SVG_OFFSET;
+            y1 += SVG_OFFSET;
+            x2 += SVG_OFFSET;
+            y2 += SVG_OFFSET;
 
             // Create curved path (Bezier curve)
             const midX = (x1 + x2) / 2;
@@ -6356,6 +7453,20 @@ Focus on logical structure and content organization best practices.`;
                 }
             });
 
+            // Add "Share for Collaboration" option (works for 1+ nodes)
+            const shareNodes = selectedNodes.length > 0 ? selectedNodes : [item];
+            const shareLabel = shareNodes.length > 1
+                ? `📤 Share ${shareNodes.length} nodes for collaboration`
+                : '📤 Share for collaboration';
+
+            menuItems.push({
+                label: shareLabel,
+                action: () => {
+                    console.log('Share for collaboration clicked for:', shareNodes.map(n => n.name));
+                    showShareBranchModal(shareNodes.map(n => n.id));
+                }
+            });
+
             menuItems.forEach(menuItem => {
                 const btn = document.createElement('button');
                 btn.textContent = menuItem.label;
@@ -6424,6 +7535,10 @@ Focus on logical structure and content organization best practices.`;
             const node = document.createElement('div');
             node.className = 'canvas-node';
 
+            // Check if this node belongs to a hyperedge
+            const hyperedge = getNodeHyperedge(item.id);
+            const heColors = hyperedge ? getHyperedgeColor(hyperedge) : null;
+
             // Calculate hierarchical shadow based on nesting level
             // Level 0 (root items): High elevation (big shadow)
             // Level 1+ (subtasks): Lower elevation (smaller shadow)
@@ -6432,18 +7547,30 @@ Focus on logical structure and content organization best practices.`;
             const shadowSpread = shadowIntensity * 2;  // 0-10px spread
             const shadowOffset = 2 + (shadowIntensity * 2);  // 2-12px offset
 
-            node.style.boxShadow = `
-                0 ${shadowOffset}px ${shadowBlur}px rgba(0, 0, 0, 0.3),
-                0 ${shadowOffset / 2}px ${shadowBlur / 2}px rgba(99, 102, 241, ${0.1 + shadowIntensity * 0.05})
-            `;
-
-            // Add visual distinction for subtasks
-            if (parentItem || item.type === 'subtask') {
-                node.style.border = '2px dashed rgba(99, 102, 241, 0.4)';
-                node.style.opacity = '0.95';
+            // Apply hyperedge glow if member, otherwise default shadow
+            if (heColors) {
+                // Hyperedge member: tinted glow effect
+                node.style.boxShadow = `
+                    0 ${shadowOffset}px ${shadowBlur}px rgba(0, 0, 0, 0.3),
+                    0 0 20px ${heColors.glow},
+                    inset 0 0 30px ${heColors.fill}
+                `;
+                node.style.border = `3px solid ${heColors.border}`;
+                node.dataset.hyperedgeId = hyperedge.id;
             } else {
-                // Root items get solid border with glow
-                node.style.border = '2px solid rgba(99, 102, 241, 0.3)';
+                node.style.boxShadow = `
+                    0 ${shadowOffset}px ${shadowBlur}px rgba(0, 0, 0, 0.3),
+                    0 ${shadowOffset / 2}px ${shadowBlur / 2}px rgba(99, 102, 241, ${0.1 + shadowIntensity * 0.05})
+                `;
+
+                // Add visual distinction for subtasks
+                if (parentItem || item.type === 'subtask') {
+                    node.style.border = '2px dashed rgba(99, 102, 241, 0.4)';
+                    node.style.opacity = '0.95';
+                } else {
+                    // Root items get solid border with glow
+                    node.style.border = '2px solid rgba(99, 102, 241, 0.3)';
+                }
             }
 
             node.style.left = `${item.canvasX}px`;
@@ -13930,6 +15057,102 @@ Your response:`;
         // =============================================================================
         // DEEP DIVE ANALYSIS - Structured Scholar for Selected Nodes
         // =============================================================================
+        // PHILOSOPHY RELATIONSHIP INFERENCE HELPERS
+        // =============================================================================
+
+        /**
+         * Infer dialectical relation between nodes based on their types
+         */
+        function inferDialecticalRelation(nodes) {
+            const types = nodes.map(n => n.itemType).filter(Boolean);
+
+            // Check for thesis-antithesis patterns
+            if (types.includes('premise') && types.includes('objection')) {
+                return 'Thesis-Antithesis: A claim is challenged by a counter-argument';
+            }
+            if (types.includes('premise') && types.includes('refutation')) {
+                return 'Dialectical Exchange: Premises face critical refutation';
+            }
+            if (types.includes('conclusion') && types.includes('objection')) {
+                return 'Conclusion Under Scrutiny: Final claim faces objection';
+            }
+            if (types.includes('definition') && types.includes('distinction')) {
+                return 'Conceptual Clarification: Definitions refined through distinction';
+            }
+            if (types.includes('implicit-premise') && types.includes('premise')) {
+                return 'Hidden Foundations: Explicit claims rest on implicit assumptions';
+            }
+            if (types.every(t => t === 'premise')) {
+                return 'Cumulative Argument: Multiple premises building toward conclusion';
+            }
+            if (types.includes('thought-experiment')) {
+                return 'Exploratory Dialectic: Thought experiments probe conceptual boundaries';
+            }
+
+            return 'Conceptual Network: Interrelated philosophical claims';
+        }
+
+        /**
+         * Infer argumentative flow direction
+         */
+        function inferArgumentativeFlow(nodes) {
+            const types = nodes.map(n => n.itemType).filter(Boolean);
+
+            if (types.includes('premise') && types.includes('conclusion')) {
+                return 'Deductive: Premises → Conclusion';
+            }
+            if (types.includes('objection') && types.includes('refutation')) {
+                return 'Refutational: Objection → Counter-Response';
+            }
+            if (types.filter(t => t === 'premise').length >= 2) {
+                return 'Synthetic: Multiple premises converging';
+            }
+            if (types.includes('distinction')) {
+                return 'Analytical: Concepts being differentiated';
+            }
+            if (types.includes('definition')) {
+                return 'Foundational: Establishing base definitions';
+            }
+
+            return 'Exploratory: Mapping conceptual territory';
+        }
+
+        /**
+         * Infer the conceptual bridge connecting the nodes
+         */
+        function inferConceptualBridge(nodes) {
+            // Look for shared key terms or speakers
+            const allKeyTerms = nodes.flatMap(n => n.keyTerms || []);
+            const termCounts = {};
+            allKeyTerms.forEach(t => {
+                const term = typeof t === 'string' ? t : t.term;
+                if (term) termCounts[term] = (termCounts[term] || 0) + 1;
+            });
+
+            // Find terms appearing in multiple nodes
+            const sharedTerms = Object.entries(termCounts)
+                .filter(([_, count]) => count > 1)
+                .map(([term, _]) => term);
+
+            if (sharedTerms.length > 0) {
+                return `Shared Concepts: ${sharedTerms.slice(0, 3).join(', ')}`;
+            }
+
+            // Check speakers
+            const speakers = [...new Set(nodes.map(n => n.speaker).filter(Boolean))];
+            if (speakers.length === 1) {
+                return `Single Voice: All claims attributed to ${speakers[0]}`;
+            }
+            if (speakers.length > 1) {
+                return `Dialogue: Exchange between ${speakers.slice(0, 2).join(' and ')}`;
+            }
+
+            return 'Thematic Unity: Connected through subject matter';
+        }
+
+        // =============================================================================
+        // DEEP DIVE ANALYSIS (Structured Scholar)
+        // =============================================================================
         // Enriches selected nodes with:
         // - subItems (objections, counter-arguments, implications)
         // - Missing fields (speaker, keyTerms, textualReference)
@@ -14002,8 +15225,10 @@ Your response:`;
                 // Call AI
                 const response = await callDeepDiveAI(prompt, isPhilosophy);
 
-                // Parse and merge the enriched data
-                const enrichedNodes = parseDeepDiveResponse(response, nodes);
+                // Parse and merge the enriched data (new format returns { nodes, relationshipAnalysis })
+                const parseResult = parseDeepDiveResponse(response, nodes);
+                const enrichedNodes = parseResult.nodes || parseResult; // Handle both new and legacy format
+                const aiRelationshipAnalysis = parseResult.relationshipAnalysis || null;
 
                 if (enrichedNodes && enrichedNodes.length > 0) {
                     // Save state for undo
@@ -14041,21 +15266,93 @@ Your response:`;
                     });
 
                     // Create hyperedge if multiple nodes were analyzed
+                    // Include BOTH original nodes AND their newly generated subitems (Venn diagram effect)
                     let hyperedgeCreated = false;
                     if (nodes.length >= 2) {
-                        const nodeIds = nodes.map(n => n.id);
+                        // Collect all node IDs including subitems
+                        const allNodeIds = [];
+                        nodes.forEach(n => {
+                            allNodeIds.push(n.id);
+                            // Include subitems in the hyperedge
+                            if (n.subItems) {
+                                n.subItems.forEach(sub => allNodeIds.push(sub.id));
+                            }
+                        });
+                        const nodeIds = allNodeIds;
                         console.log('🔗 Creating Deep Dive hyperedge with nodeIds:', nodeIds);
+
+                        // Build analysis metadata - USE AI's relationship analysis if available
+                        const analysisMetadata = {
+                            analyzedNodes: nodes.map(n => ({ id: n.id, name: n.name, itemType: n.itemType })),
+                            totalSubItemsGenerated: totalSubItemsAdded,
+                            analysisMethod: 'Structured Scholar',
+                            pattern: currentPattern
+                        };
+
+                        // Use AI-generated relationship analysis if available, else fallback to inference
+                        if (aiRelationshipAnalysis) {
+                            // AI provided scholarly analysis of the relationship
+                            analysisMetadata.philosophyFields = {
+                                dialecticalRelation: aiRelationshipAnalysis.dialecticalRelation || '',
+                                argumentativeFlow: aiRelationshipAnalysis.argumentativeFlow || '',
+                                conceptualBridge: aiRelationshipAnalysis.conceptualBridge || '',
+                                tension: aiRelationshipAnalysis.tension || '',
+                                synthesis: aiRelationshipAnalysis.synthesis || '',
+                                relationshipType: aiRelationshipAnalysis.relationshipType || '',
+                                speakers: [...new Set(nodes.map(n => n.speaker).filter(Boolean))],
+                                itemTypes: [...new Set(nodes.map(n => n.itemType).filter(Boolean))],
+                                tradition: capexTree.metadata?.tradition || 'Unknown',
+                                aiGenerated: true  // Flag that this came from AI analysis
+                            };
+                            console.log('🧠 Using AI-generated relationship analysis:', aiRelationshipAnalysis);
+                        } else if (isPhilosophy) {
+                            // Fallback to rule-based inference
+                            const itemTypes = nodes.map(n => n.itemType).filter(Boolean);
+                            const speakers = nodes.map(n => n.speaker).filter(Boolean);
+
+                            analysisMetadata.philosophyFields = {
+                                dialecticalRelation: inferDialecticalRelation(nodes),
+                                argumentativeFlow: inferArgumentativeFlow(nodes),
+                                conceptualBridge: inferConceptualBridge(nodes),
+                                speakers: [...new Set(speakers)],
+                                itemTypes: [...new Set(itemTypes)],
+                                tradition: capexTree.metadata?.tradition || 'Unknown',
+                                aiGenerated: false
+                            };
+                        }
+
+                        // Generate label from AI's relationshipType or fallback
+                        let hyperedgeLabel = '🎓 Deep Dive Analysis';
+                        if (aiRelationshipAnalysis?.relationshipType) {
+                            // Use AI's concise relationship type as the label
+                            hyperedgeLabel = `🏛️ ${aiRelationshipAnalysis.relationshipType}`;
+                        } else if (isPhilosophy && analysisMetadata.philosophyFields) {
+                            // Fallback to inferred dialectical relation
+                            const dialectical = analysisMetadata.philosophyFields.dialecticalRelation || '';
+                            const labelType = dialectical.split(':')[0].trim();
+                            if (labelType && labelType !== 'Conceptual Network') {
+                                hyperedgeLabel = `🏛️ ${labelType}`;
+                            }
+                        }
+
+                        // Generate unique color based on number of existing analysis hyperedges
+                        if (!capexTree.hyperedges) capexTree.hyperedges = [];
+                        const existingAnalysisCount = capexTree.hyperedges.filter(h => h.type === 'analysis').length;
+                        const uniqueColor = generateHyperedgeColor(existingAnalysisCount);
+
+                        // Store the color in metadata
+                        analysisMetadata.color = uniqueColor;
 
                         const hyperedge = {
                             id: `hyperedge-deepdive-${Date.now()}`,
                             nodeIds: nodeIds,
-                            label: `🎓 Deep Dive Analysis`,
-                            description: `Structured Scholar analysis linking: ${nodes.map(n => n.name).join(', ')}`,
+                            label: hyperedgeLabel,
+                            description: aiRelationshipAnalysis?.dialecticalRelation || `Structured Scholar analysis linking: ${nodes.map(n => n.name).join(', ')}`,
                             createdAt: new Date().toISOString(),
-                            type: 'analysis'
+                            type: 'analysis',
+                            metadata: analysisMetadata
                         };
 
-                        if (!capexTree.hyperedges) capexTree.hyperedges = [];
                         capexTree.hyperedges.push(hyperedge);
                         hyperedgeCreated = true;
 
@@ -14068,7 +15365,14 @@ Your response:`;
                     // Check if canvas view is active by looking at container class
                     const canvasContainer = document.getElementById('canvas-container');
                     const isCanvasActive = canvasContainer && canvasContainer.classList.contains('active');
-                    if (isCanvasActive) {
+
+                    // If hyperedge was created, auto-focus on it for clean visualization
+                    if (hyperedgeCreated && isCanvasActive) {
+                        // Short delay to ensure modal is shown first
+                        setTimeout(() => {
+                            focusOnHyperedge(hyperedge.id);
+                        }, 100);
+                    } else if (isCanvasActive) {
                         renderCanvas();
                         drawHyperedges();
                     }
@@ -14136,15 +15440,16 @@ Your response:`;
         // Build the Structured Scholar deep dive prompt
         function buildDeepDivePrompt(nodesWithContext, treeContext, isPhilosophy) {
             const nodesJson = JSON.stringify(nodesWithContext, null, 2);
+            const multipleNodes = nodesWithContext.length >= 2;
 
             if (isPhilosophy) {
                 return {
                     system: `You are a philosophy professor using the "Structured Scholar" technique for deep textual analysis.
-Your expertise includes: identifying hidden premises, reconstructing arguments, citing secondary sources, and anticipating objections.
+Your expertise includes: identifying hidden premises, reconstructing arguments, citing secondary sources, anticipating objections, and ANALYZING RELATIONSHIPS between philosophical claims.
 
-You will receive JSON data for philosophical nodes to analyze. For EACH node, you must:
-1. Fill in missing fields (speaker, keyTerms, textualReference, argumentType)
-2. Generate 2-4 subItems that go deeper into the node's implications
+You will receive JSON data for philosophical nodes to analyze. Your tasks:
+1. For EACH node: Fill in missing fields and generate 2-4 subItems
+2. ${multipleNodes ? 'CRITICAL: Analyze the RELATIONSHIP between these nodes - what is their dialectical connection?' : ''}
 
 SubItem types to generate:
 - "implicit-premise" (🔮): Hidden assumptions the argument relies on
@@ -14153,7 +15458,7 @@ SubItem types to generate:
 - "implication" (💡): Philosophical consequences or downstream effects
 - "distinction" (⚖️): Important conceptual distinctions
 
-CRITICAL: Return ONLY valid JSON. No markdown, no explanations, just the JSON array.`,
+CRITICAL: Return ONLY valid JSON. No markdown, no explanations.`,
 
                     user: `Analyze these philosophical nodes and enrich them with deeper analysis.
 
@@ -14167,27 +15472,46 @@ ${treeContext.metadata?.secondarySources ? `- Secondary Sources Available: ${tre
 NODES TO ANALYZE:
 ${nodesJson}
 
-Return a JSON array with the SAME node IDs, enriched with:
-1. speaker (if missing): The philosopher making this claim
-2. keyTerms (if missing): Technical philosophical terms used
-3. textualReference (if missing): Specific text citations
-4. argumentType (if missing): deductive, inductive, transcendental, dialectical, etc.
-5. subItems: Array of 2-4 new items (objections, implications, hidden premises)
-
-Each subItem needs: id (generate unique), name, type: "subtask", itemType (from list above), speaker, description, icon
-
-Example subItem:
+Return a JSON object with this structure:
 {
-  "id": "sub-12345",
-  "name": "Carnap's Verificationist Objection",
-  "type": "subtask",
-  "itemType": "objection",
-  "speaker": "Rudolf Carnap",
-  "description": "Carnap argues in 'Elimination of Metaphysics' (1932) that...",
-  "icon": "⚔️"
+  "enrichedNodes": [
+    {
+      "id": "original-node-id",
+      "speaker": "Philosopher name",
+      "keyTerms": ["term1", "term2"],
+      "textualReference": "Specific citation",
+      "argumentType": "deductive|inductive|transcendental|dialectical",
+      "subItems": [
+        {
+          "id": "sub-unique-id",
+          "name": "Objection/Implication name",
+          "type": "subtask",
+          "itemType": "objection|implicit-premise|implication|distinction",
+          "speaker": "Critic name if applicable",
+          "description": "Detailed description with citations...",
+          "icon": "⚔️|🔮|💡|⚖️"
+        }
+      ]
+    }
+  ]${multipleNodes ? `,
+  "relationshipAnalysis": {
+    "relationshipType": "Short label (3-5 words) e.g., 'Thesis-Antithesis Dialectic', 'Premises Supporting Conclusion', 'Conceptual Dependency Chain'",
+    "dialecticalRelation": "One sentence describing how these claims relate dialectically",
+    "argumentativeFlow": "How arguments flow between these nodes (e.g., 'Node A provides grounds for Node B')",
+    "conceptualBridge": "The key concept or term that connects these nodes",
+    "tension": "Any philosophical tension or contradiction between the nodes",
+    "synthesis": "If applicable, what synthesis emerges from considering these nodes together"
+  }` : ''}
 }
 
-Return ONLY the JSON array, no other text.`
+${multipleNodes ? `IMPORTANT: The relationshipAnalysis must reflect YOUR scholarly analysis of how these specific philosophical claims relate to each other based on their CONTENT, not just their types. Consider:
+- Are they premises building toward a conclusion?
+- Is one an objection to another?
+- Do they represent different aspects of the same problem?
+- Is there a dialectical progression (thesis → antithesis → synthesis)?
+- Do they share conceptual dependencies?` : ''}
+
+Return ONLY the JSON object, no other text.`
                 };
             } else {
                 // Generic pattern - still useful for non-philosophy
@@ -14233,7 +15557,7 @@ Return ONLY the JSON array.`
             return await callClaudeAPI(prompt.user, prompt.system, maxTokens, useExtendedThinking);
         }
 
-        // Parse AI response and extract enriched nodes
+        // Parse AI response and extract enriched nodes + relationship analysis
         function parseDeepDiveResponse(response, originalNodes) {
             try {
                 // Try to extract JSON from response
@@ -14250,16 +15574,28 @@ Return ONLY the JSON array.`
                 jsonStr = jsonStr.trim();
 
                 // Parse JSON
-                const enrichedData = JSON.parse(jsonStr);
+                const parsedData = JSON.parse(jsonStr);
 
-                // Validate it's an array
-                if (!Array.isArray(enrichedData)) {
-                    console.warn('Deep Dive response is not an array, wrapping...');
-                    return [enrichedData];
+                // Handle new structure with enrichedNodes + relationshipAnalysis
+                let enrichedData;
+                let relationshipAnalysis = null;
+
+                if (parsedData.enrichedNodes) {
+                    // New format: { enrichedNodes: [...], relationshipAnalysis: {...} }
+                    enrichedData = parsedData.enrichedNodes;
+                    relationshipAnalysis = parsedData.relationshipAnalysis || null;
+                    console.log('🔗 AI Relationship Analysis:', relationshipAnalysis);
+                } else if (Array.isArray(parsedData)) {
+                    // Legacy format: just an array
+                    enrichedData = parsedData;
+                } else {
+                    // Single object, wrap it
+                    console.warn('Deep Dive response is not expected format, wrapping...');
+                    enrichedData = [parsedData];
                 }
 
                 // Map enriched data back to original node IDs
-                return enrichedData.map(enriched => {
+                const mappedNodes = enrichedData.map(enriched => {
                     // Try to match by ID or name
                     const matchingOriginal = originalNodes.find(
                         orig => orig.id === enriched.id || orig.name === enriched.name
@@ -14277,6 +15613,12 @@ Return ONLY the JSON array.`
                     }
                     return enriched;
                 });
+
+                // Return both enriched nodes and relationship analysis
+                return {
+                    nodes: mappedNodes,
+                    relationshipAnalysis: relationshipAnalysis
+                };
 
             } catch (parseError) {
                 console.error('Failed to parse Deep Dive response:', parseError);
@@ -14833,6 +16175,7 @@ Return ONLY the JSON array.`
                 };
 
                 render();
+                renderCanvas();  // Also update canvas view if visible
                 showToast(`✅ New ${pattern.name} project started!`);
                 console.log(`🆕 New ${pattern.name} project created`);
             }
@@ -16266,6 +17609,981 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
         // =============================================================================
         // END HYPEREDGE MANAGEMENT
+        // =============================================================================
+
+        // =============================================================================
+        // COLLABORATION: Branch & Merge (Email-based async collaboration)
+        // =============================================================================
+
+        // Collaboration state
+        let currentBranch = null;  // Set when editing a shared branch
+
+        /**
+         * Generate or retrieve a stable device fingerprint for contributor tracking
+         * Uses canvas fingerprinting + localStorage persistence
+         * @returns {string} Device fingerprint ID
+         */
+        function getDeviceFingerprint() {
+            let fp = localStorage.getItem('treelisty-device-id');
+            if (!fp) {
+                // Generate fingerprint from canvas rendering (browser-specific)
+                const canvas = document.createElement('canvas');
+                canvas.width = 200;
+                canvas.height = 50;
+                const ctx = canvas.getContext('2d');
+                ctx.textBaseline = 'top';
+                ctx.font = '14px Arial';
+                ctx.fillStyle = '#6366f1';
+                ctx.fillText('TreeListy-FP-2025', 10, 10);
+                ctx.fillStyle = '#8b5cf6';
+                ctx.fillRect(100, 20, 50, 20);
+
+                // Extract hash from canvas data
+                const dataURL = canvas.toDataURL();
+                const hash = dataURL.slice(-24).replace(/[^a-zA-Z0-9]/g, '');
+
+                fp = `device-${hash}-${Date.now().toString(36)}`;
+                localStorage.setItem('treelisty-device-id', fp);
+                console.log('🔑 Generated new device fingerprint:', fp);
+            }
+            return fp;
+        }
+
+        /**
+         * Get the ancestry path (breadcrumb) for a node
+         * @param {string} nodeId - The node to find ancestry for
+         * @returns {Array} Array of {id, name, type, icon} from root to parent
+         */
+        function getAncestryPath(nodeId) {
+            const ancestry = [];
+
+            function findPath(node, currentPath = []) {
+                // Add this node to path
+                const pathEntry = {
+                    id: node.id,
+                    name: node.name,
+                    type: node.type,
+                    icon: node.icon || '📄'
+                };
+                const newPath = [...currentPath, pathEntry];
+
+                // Check if this is the target
+                if (node.id === nodeId) {
+                    // Return path WITHOUT the target node (just ancestors)
+                    return currentPath;
+                }
+
+                // Search children (phases)
+                if (node.children) {
+                    for (const child of node.children) {
+                        const found = findPath(child, newPath);
+                        if (found) return found;
+                    }
+                }
+
+                // Search items
+                if (node.items) {
+                    for (const item of node.items) {
+                        const found = findPath(item, newPath);
+                        if (found) return found;
+                    }
+                }
+
+                // Search subItems
+                if (node.subItems) {
+                    for (const subItem of node.subItems) {
+                        const found = findPath(subItem, newPath);
+                        if (found) return found;
+                    }
+                }
+
+                return null;
+            }
+
+            return findPath(capexTree) || [{ id: capexTree.id, name: capexTree.name, type: 'root', icon: capexTree.icon }];
+        }
+
+        /**
+         * Count nodes in a subtree (for size estimation)
+         * @param {object} node - Node to count from
+         * @returns {number} Total node count including descendants
+         */
+        function countSubtreeNodes(node) {
+            let count = 1;
+            if (node.children) node.children.forEach(c => count += countSubtreeNodes(c));
+            if (node.items) node.items.forEach(i => count += countSubtreeNodes(i));
+            if (node.subItems) node.subItems.forEach(s => count += countSubtreeNodes(s));
+            return count;
+        }
+
+        /**
+         * Estimate compressed URL size for a branch
+         * @param {object} branch - Branch token object
+         * @returns {number} Estimated URL length in characters
+         */
+        function estimateBranchURLSize(branch) {
+            const json = JSON.stringify(branch);
+            // LZ-String typically achieves 30-50% compression
+            // Add base URL length (~50 chars) + parameter name (~10 chars)
+            const estimatedCompressed = Math.ceil(json.length * 0.6);
+            return estimatedCompressed + 60;
+        }
+
+        // Maximum recommended URL length (safe for email clients, browsers)
+        const MAX_BRANCH_URL_LENGTH = 8000;
+        const WARN_BRANCH_URL_LENGTH = 4000;
+
+        /**
+         * Extract a subtree for sharing as a collaboration branch
+         * @param {string[]} nodeIds - Array of node IDs to include
+         * @param {string|null} hyperedgeId - Optional hyperedge ID if sharing a hyperedge
+         * @returns {object} Branch token or error object
+         */
+        function extractSubtree(nodeIds, hyperedgeId = null) {
+            if (!nodeIds || nodeIds.length === 0) {
+                return { error: 'No nodes selected for sharing' };
+            }
+
+            // Get ancestry path from first node (they should share common ancestry)
+            const ancestry = getAncestryPath(nodeIds[0]);
+
+            // Deep clone selected nodes with all descendants
+            const nodes = [];
+            let totalNodeCount = 0;
+
+            for (const id of nodeIds) {
+                const node = getNodeById(id);
+                if (node) {
+                    const cloned = JSON.parse(JSON.stringify(node));
+                    nodes.push(cloned);
+                    totalNodeCount += countSubtreeNodes(cloned);
+                } else {
+                    console.warn(`⚠️ Node ${id} not found, skipping`);
+                }
+            }
+
+            if (nodes.length === 0) {
+                return { error: 'No valid nodes found to share' };
+            }
+
+            // Build branch token
+            const branch = {
+                branchId: `branch-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                sourceProjectId: capexTree.id,
+                sourceProjectName: capexTree.name,
+                sourcePattern: currentPattern,
+                createdAt: new Date().toISOString(),
+                createdBy: getDeviceFingerprint(),
+                ancestry,
+                hyperedgeId,
+                selectedNodeIds: nodeIds,
+                nodes,
+                schemaVersion: 2
+            };
+
+            // Size validation
+            const estimatedSize = estimateBranchURLSize(branch);
+            if (estimatedSize > MAX_BRANCH_URL_LENGTH) {
+                return {
+                    error: `Selection too large to share via URL (${totalNodeCount} nodes, ~${Math.round(estimatedSize/1000)}KB)`,
+                    nodeCount: totalNodeCount,
+                    estimatedSize,
+                    suggestion: 'Try selecting fewer nodes or a smaller subtree'
+                };
+            }
+
+            // Add size info for warnings
+            branch._meta = {
+                nodeCount: totalNodeCount,
+                estimatedURLSize: estimatedSize,
+                sizeWarning: estimatedSize > WARN_BRANCH_URL_LENGTH
+            };
+
+            console.log(`📦 Extracted branch: ${nodes.length} root nodes, ${totalNodeCount} total nodes, ~${estimatedSize} chars`);
+            return branch;
+        }
+
+        /**
+         * Generate a shareable URL for a branch
+         * @param {object} branch - Branch token from extractSubtree
+         * @returns {string} Shareable URL with ?branch= parameter
+         */
+        function generateBranchURL(branch) {
+            // Remove internal meta before encoding
+            const branchToEncode = { ...branch };
+            delete branchToEncode._meta;
+
+            const json = JSON.stringify(branchToEncode);
+            const compressed = LZString.compressToEncodedURIComponent(json);
+            const baseURL = window.location.origin + window.location.pathname;
+            return `${baseURL}?branch=${compressed}`;
+        }
+
+        /**
+         * Check if currently in branch editing mode
+         * @returns {boolean} True if editing a shared branch
+         */
+        function isBranchMode() {
+            return currentBranch !== null;
+        }
+
+        // Temporary storage for current branch being shared
+        let pendingShareBranch = null;
+
+        /**
+         * Show the Share Branch modal for collaboration
+         * @param {string[]} nodeIds - Array of node IDs to share
+         * @param {string|null} hyperedgeId - Optional hyperedge ID
+         */
+        function showShareBranchModal(nodeIds, hyperedgeId = null) {
+            const modal = document.getElementById('share-branch-modal');
+            const body = document.getElementById('share-branch-body');
+
+            // Extract subtree with size validation
+            const branch = extractSubtree(nodeIds, hyperedgeId);
+
+            // Check for errors
+            if (branch.error) {
+                body.innerHTML = `
+                    <div style="padding: 20px; text-align: center;">
+                        <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                        <h3 style="color: #f59e0b; margin-bottom: 12px;">Cannot Share Selection</h3>
+                        <p style="color: var(--text-secondary); margin-bottom: 16px;">${branch.error}</p>
+                        ${branch.suggestion ? `<p style="color: var(--text-secondary); font-size: 13px;">${branch.suggestion}</p>` : ''}
+                    </div>
+                `;
+                modal.style.display = 'flex';
+                return;
+            }
+
+            // Store for button handlers
+            pendingShareBranch = branch;
+
+            // Generate URL
+            const shareURL = generateBranchURL(branch);
+            const meta = branch._meta || {};
+
+            // Build ancestry breadcrumb
+            const breadcrumb = branch.ancestry.map(a =>
+                `<span style="display: inline-flex; align-items: center; gap: 4px;">${a.icon || '📄'} ${a.name}</span>`
+            ).join(' <span style="color: var(--text-secondary);">›</span> ');
+
+            // Build node list
+            const nodeList = branch.nodes.map(n => `
+                <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--card-bg); border-radius: 6px; margin-bottom: 6px;">
+                    <span>${n.icon || '📄'}</span>
+                    <span style="font-weight: 500;">${n.name}</span>
+                    ${n.subItems && n.subItems.length > 0 ? `<span style="font-size: 11px; color: var(--text-secondary);">(+${countSubtreeNodes(n) - 1} children)</span>` : ''}
+                </div>
+            `).join('');
+
+            body.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <p style="color: var(--text-secondary); margin-bottom: 12px; font-size: 14px;">
+                        Share these nodes for collaboration. The recipient can edit and send back their changes.
+                    </p>
+
+                    <!-- Ancestry Breadcrumb -->
+                    <div style="background: var(--card-bg-light); padding: 10px 14px; border-radius: 6px; margin-bottom: 16px; font-size: 13px; color: var(--text-secondary);">
+                        <span style="font-weight: 600; margin-right: 8px;">📍 Location:</span>
+                        ${breadcrumb}
+                    </div>
+
+                    <!-- Nodes being shared -->
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">
+                            📦 Sharing ${branch.nodes.length} node${branch.nodes.length > 1 ? 's' : ''} (${meta.nodeCount} total with children):
+                        </div>
+                        <div style="max-height: 150px; overflow-y: auto; padding-right: 8px;">
+                            ${nodeList}
+                        </div>
+                    </div>
+
+                    <!-- URL Input -->
+                    <div style="background: var(--card-bg-light); padding: 15px; border-radius: 8px; border: 2px solid var(--border); margin-bottom: 12px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="share-branch-url-input" readonly
+                                   style="flex: 1; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; user-select: all;"
+                                   value="${shareURL}">
+                        </div>
+                    </div>
+
+                    <!-- Stats -->
+                    <div style="display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
+                        <div>📊 ${meta.nodeCount} nodes</div>
+                        <div>📏 ${shareURL.length.toLocaleString()} characters</div>
+                        ${meta.sizeWarning ? '<div style="color: #f59e0b;">⚠️ Large selection - may not work in all email clients</div>' : ''}
+                    </div>
+
+                    <!-- Instructions -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #10b981;">
+                        <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #10b981;">
+                            <span>📋</span> How Collaboration Works
+                        </div>
+                        <ol style="margin-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                            <li>Send this link to your collaborator via email</li>
+                            <li>They can view and edit the shared nodes</li>
+                            <li>When done, they click "Share Back" and send you the new link</li>
+                            <li>You open that link to merge their changes into your project</li>
+                        </ol>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Select URL for easy copying
+            setTimeout(() => {
+                const urlInput = document.getElementById('share-branch-url-input');
+                if (urlInput) urlInput.select();
+            }, 100);
+        }
+
+        /**
+         * Generate mailto link for collaboration email
+         * @param {object} branch - Branch token
+         * @param {string} shareURL - Shareable URL
+         * @returns {string} mailto: link
+         */
+        function generateCollaborationEmail(branch, shareURL) {
+            const subject = encodeURIComponent(
+                `TreeListy Collaboration: ${branch.sourceProjectName}`
+            );
+            const body = encodeURIComponent(
+                `Hi,\n\n` +
+                `I'd like your input on part of my TreeListy project "${branch.sourceProjectName}".\n\n` +
+                `I'm sharing ${branch.nodes.length} node(s) for you to review and edit.\n\n` +
+                `Click this link to view and edit:\n${shareURL}\n\n` +
+                `When you're done making changes, click the "Share Back" button and send me the new link.\n\n` +
+                `Thanks!`
+            );
+            return `mailto:?subject=${subject}&body=${body}`;
+        }
+
+        // Initialize Share Branch modal event handlers
+        document.addEventListener('DOMContentLoaded', () => {
+            // Close button
+            document.getElementById('share-branch-close')?.addEventListener('click', () => {
+                document.getElementById('share-branch-modal').style.display = 'none';
+                pendingShareBranch = null;
+            });
+
+            // Copy URL button
+            document.getElementById('share-branch-copy')?.addEventListener('click', () => {
+                const urlInput = document.getElementById('share-branch-url-input');
+                if (urlInput) {
+                    urlInput.select();
+                    document.execCommand('copy');
+
+                    // Visual feedback
+                    const btn = document.getElementById('share-branch-copy');
+                    const originalText = btn.textContent;
+                    btn.textContent = '✅ Copied!';
+                    btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    setTimeout(() => {
+                        btn.textContent = originalText;
+                        btn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+                    }, 2000);
+                }
+            });
+
+            // Email button
+            document.getElementById('share-branch-email')?.addEventListener('click', () => {
+                if (pendingShareBranch) {
+                    const shareURL = document.getElementById('share-branch-url-input')?.value;
+                    const mailtoLink = generateCollaborationEmail(pendingShareBranch, shareURL);
+                    window.location.href = mailtoLink;
+                }
+            });
+
+            // Close on backdrop click
+            document.getElementById('share-branch-modal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'share-branch-modal') {
+                    document.getElementById('share-branch-modal').style.display = 'none';
+                    pendingShareBranch = null;
+                }
+            });
+
+            // =========== MERGE MODAL HANDLERS ===========
+
+            // Cancel merge
+            document.getElementById('merge-branch-cancel')?.addEventListener('click', () => {
+                document.getElementById('merge-branch-modal').style.display = 'none';
+                pendingMergeBranch = null;
+            });
+
+            // Accept merge
+            document.getElementById('merge-branch-accept')?.addEventListener('click', () => {
+                if (pendingMergeBranch) {
+                    performBranchMerge(pendingMergeBranch);
+                }
+            });
+
+            // Close on backdrop click
+            document.getElementById('merge-branch-modal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'merge-branch-modal') {
+                    document.getElementById('merge-branch-modal').style.display = 'none';
+                    pendingMergeBranch = null;
+                }
+            });
+
+            // =========== BRANCH EDIT BANNER HANDLERS ===========
+
+            // Share Back button
+            document.getElementById('branch-share-back-btn')?.addEventListener('click', () => {
+                shareBackBranch();
+            });
+
+            // Exit branch editing mode
+            document.getElementById('branch-exit-btn')?.addEventListener('click', () => {
+                exitBranchEditMode();
+            });
+        });
+
+        // Storage for pending merge operation
+        let pendingMergeBranch = null;
+
+        /**
+         * Parse a branch from URL parameter
+         * @param {string} compressedBranch - LZString compressed branch data
+         * @returns {object|null} Parsed branch or null on error
+         */
+        function parseBranchFromURL(compressedBranch) {
+            try {
+                const decompressed = LZString.decompressFromEncodedURIComponent(compressedBranch);
+                if (!decompressed) {
+                    console.error('❌ Failed to decompress branch data');
+                    return null;
+                }
+                const branch = JSON.parse(decompressed);
+                console.log('📦 Parsed branch:', {
+                    branchId: branch.branchId,
+                    sourceProject: branch.sourceProjectName,
+                    nodeCount: branch.nodes?.length,
+                    createdBy: branch.createdBy
+                });
+                return branch;
+            } catch (error) {
+                console.error('❌ Failed to parse branch:', error);
+                return null;
+            }
+        }
+
+        /**
+         * Check if the current device is the original branch creator
+         * @param {object} branch - Branch to check
+         * @returns {boolean} True if this device created the branch
+         */
+        function isOriginalBranchCreator(branch) {
+            const myFingerprint = getDeviceFingerprint();
+            return branch.createdBy === myFingerprint;
+        }
+
+        /**
+         * Enter branch editing mode (for collaborators)
+         * @param {object} branch - The branch being edited
+         */
+        function enterBranchEditMode(branch) {
+            currentBranch = branch;
+
+            // Create a temporary tree from the branch nodes
+            const tempTree = {
+                id: `branch-edit-${branch.branchId}`,
+                name: `Editing: ${branch.nodes[0]?.name || 'Shared Branch'}`,
+                type: 'root',
+                icon: '🤝',
+                description: `Shared from "${branch.sourceProjectName}" for collaboration`,
+                pattern: { key: branch.sourcePattern },
+                children: []
+            };
+
+            // If single node, wrap appropriately
+            if (branch.nodes.length === 1 && branch.nodes[0].type === 'phase') {
+                tempTree.children = branch.nodes;
+            } else {
+                // Create a container phase for the shared items
+                tempTree.children = [{
+                    id: 'shared-phase',
+                    name: 'Shared Content',
+                    type: 'phase',
+                    icon: '📦',
+                    phaseNumber: 0,
+                    expanded: true,
+                    items: branch.nodes.filter(n => n.type === 'item' || n.type === 'subtask'),
+                    showInCanvas: true
+                }];
+                // Also add any phases directly
+                const phases = branch.nodes.filter(n => n.type === 'phase');
+                if (phases.length > 0) {
+                    tempTree.children = phases;
+                }
+            }
+
+            // Set pattern
+            if (branch.sourcePattern && PATTERNS[branch.sourcePattern]) {
+                currentPattern = branch.sourcePattern;
+            }
+
+            // Load the branch as the current tree
+            capexTree = tempTree;
+
+            // Show the editing banner
+            const banner = document.getElementById('branch-edit-banner');
+            const info = document.getElementById('branch-edit-info');
+            if (banner && info) {
+                info.textContent = `From: ${branch.sourceProjectName} • ${branch.nodes.length} node(s)`;
+                banner.style.display = 'block';
+
+                // Adjust tree container to account for banner
+                const treeContainer = document.querySelector('.tree-view-container');
+                if (treeContainer) {
+                    treeContainer.style.marginTop = '50px';
+                }
+            }
+
+            // Render
+            render();
+            if (currentView === 'canvas') {
+                renderCanvas();
+            }
+
+            console.log('🤝 Entered branch editing mode:', branch.branchId);
+        }
+
+        /**
+         * Exit branch editing mode
+         */
+        function exitBranchEditMode() {
+            if (!currentBranch) return;
+
+            if (confirm('Exit editing mode? Any unsaved changes will be lost.\n\nTip: Use "Share Back" to send your changes before exiting.')) {
+                currentBranch = null;
+
+                // Hide banner
+                const banner = document.getElementById('branch-edit-banner');
+                if (banner) {
+                    banner.style.display = 'none';
+                }
+
+                // Reset tree container margin
+                const treeContainer = document.querySelector('.tree-view-container');
+                if (treeContainer) {
+                    treeContainer.style.marginTop = '0';
+                }
+
+                // Load default tree
+                capexTree = JSON.parse(JSON.stringify(defaultCapexTree));
+                render();
+                if (currentView === 'canvas') {
+                    renderCanvas();
+                }
+
+                // Clear URL parameter
+                window.history.replaceState({}, document.title, window.location.pathname);
+
+                console.log('👋 Exited branch editing mode');
+            }
+        }
+
+        /**
+         * Share back the edited branch to the original creator
+         */
+        function shareBackBranch() {
+            if (!currentBranch) {
+                console.error('❌ No branch to share back');
+                return;
+            }
+
+            // Extract the edited nodes from current tree
+            const editedNodes = [];
+
+            // Collect all items and subtasks from the current tree
+            function collectNodes(node) {
+                if (node.type === 'item' || node.type === 'subtask' || node.type === 'phase') {
+                    editedNodes.push(JSON.parse(JSON.stringify(node)));
+                }
+                if (node.children) node.children.forEach(collectNodes);
+                if (node.items) node.items.forEach(collectNodes);
+                if (node.subItems) node.subItems.forEach(collectNodes);
+            }
+
+            capexTree.children?.forEach(collectNodes);
+
+            // Create a response branch
+            const responseBranch = {
+                ...currentBranch,
+                branchId: `response-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+                editedBy: getDeviceFingerprint(),
+                editedAt: new Date().toISOString(),
+                originalBranchId: currentBranch.branchId,
+                nodes: editedNodes.length > 0 ? editedNodes : capexTree.children || [],
+                isResponse: true
+            };
+
+            // Generate URL
+            const shareURL = generateBranchURL(responseBranch);
+
+            // Show the share modal with response context
+            showShareBackModal(responseBranch, shareURL);
+        }
+
+        /**
+         * Show the Share Back modal
+         * @param {object} branch - Response branch
+         * @param {string} shareURL - Shareable URL
+         */
+        function showShareBackModal(branch, shareURL) {
+            const modal = document.getElementById('share-branch-modal');
+            const body = document.getElementById('share-branch-body');
+
+            // Count edited nodes
+            let totalNodes = 0;
+            function countNodes(n) {
+                totalNodes++;
+                if (n.items) n.items.forEach(countNodes);
+                if (n.subItems) n.subItems.forEach(countNodes);
+                if (n.children) n.children.forEach(countNodes);
+            }
+            branch.nodes.forEach(countNodes);
+
+            body.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #6366f1; margin-bottom: 20px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #6366f1;">
+                            <span>📤</span> Sending Back Your Edits
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 13px; margin: 0;">
+                            Send this link to the original author so they can merge your changes into their project.
+                        </p>
+                    </div>
+
+                    <!-- Stats -->
+                    <div style="display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); margin-bottom: 16px; padding: 12px; background: var(--card-bg); border-radius: 6px;">
+                        <div>📊 ${totalNodes} nodes</div>
+                        <div>📏 ${shareURL.length.toLocaleString()} characters</div>
+                        <div>🏠 Original: ${branch.sourceProjectName}</div>
+                    </div>
+
+                    <!-- URL Input -->
+                    <div style="background: var(--card-bg-light); padding: 15px; border-radius: 8px; border: 2px solid var(--border); margin-bottom: 12px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="share-branch-url-input" readonly
+                                   style="flex: 1; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; user-select: all;"
+                                   value="${shareURL}">
+                        </div>
+                    </div>
+
+                    <!-- Instructions -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #10b981;">
+                        <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #10b981;">
+                            <span>✅</span> Next Steps
+                        </div>
+                        <ol style="margin-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
+                            <li>Copy the URL or click "Open Email"</li>
+                            <li>Send to the original author</li>
+                            <li>They'll see your changes and can merge them</li>
+                        </ol>
+                    </div>
+                </div>
+            `;
+
+            // Store for email button
+            pendingShareBranch = branch;
+
+            modal.style.display = 'flex';
+
+            // Select URL
+            setTimeout(() => {
+                const urlInput = document.getElementById('share-branch-url-input');
+                if (urlInput) urlInput.select();
+            }, 100);
+        }
+
+        /**
+         * Show merge modal for incoming edited branch
+         * @param {object} branch - The edited branch to potentially merge
+         */
+        function showMergeBranchModal(branch) {
+            const modal = document.getElementById('merge-branch-modal');
+            const body = document.getElementById('merge-branch-body');
+
+            pendingMergeBranch = branch;
+
+            // Count nodes
+            let totalNodes = 0;
+            function countNodes(n) {
+                totalNodes++;
+                if (n.items) n.items.forEach(countNodes);
+                if (n.subItems) n.subItems.forEach(countNodes);
+                if (n.children) n.children.forEach(countNodes);
+            }
+            branch.nodes.forEach(countNodes);
+
+            // Build ancestry breadcrumb
+            const breadcrumb = branch.ancestry?.map(a =>
+                `<span style="display: inline-flex; align-items: center; gap: 4px;">${a.icon || '📄'} ${a.name}</span>`
+            ).join(' <span style="color: var(--text-secondary);">›</span> ') || 'Root';
+
+            // Build node preview
+            const nodePreview = branch.nodes.slice(0, 5).map(n => `
+                <div style="display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--card-bg); border-radius: 6px; margin-bottom: 6px;">
+                    <span>${n.icon || '📄'}</span>
+                    <span style="font-weight: 500;">${n.name}</span>
+                    <span style="font-size: 11px; color: var(--text-secondary);">(${n.type})</span>
+                </div>
+            `).join('');
+
+            body.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <div style="background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(217, 119, 6, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #f59e0b; margin-bottom: 20px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #f59e0b;">
+                            <span>🔀</span> Incoming Collaboration Changes
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 13px; margin: 0;">
+                            A collaborator has edited your shared branch and sent back changes for you to merge.
+                        </p>
+                    </div>
+
+                    <!-- Branch Info -->
+                    <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; margin-bottom: 16px;">
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 13px;">
+                            <span style="color: var(--text-secondary);">Original Location:</span>
+                            <span>${breadcrumb}</span>
+
+                            <span style="color: var(--text-secondary);">Edited by:</span>
+                            <span style="font-family: monospace; font-size: 11px;">${branch.editedBy || 'Unknown'}</span>
+
+                            <span style="color: var(--text-secondary);">Edited at:</span>
+                            <span>${branch.editedAt ? new Date(branch.editedAt).toLocaleString() : 'Unknown'}</span>
+
+                            <span style="color: var(--text-secondary);">Nodes:</span>
+                            <span>${totalNodes} total</span>
+                        </div>
+                    </div>
+
+                    <!-- Node Preview -->
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; font-size: 14px;">
+                            📦 Changed Nodes (preview):
+                        </div>
+                        <div style="max-height: 200px; overflow-y: auto; padding-right: 8px;">
+                            ${nodePreview}
+                            ${branch.nodes.length > 5 ? `<div style="color: var(--text-secondary); font-size: 12px; padding: 8px;">...and ${branch.nodes.length - 5} more</div>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Warning -->
+                    <div style="background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(220, 38, 38, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #ef4444;">
+                        <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #ef4444;">
+                            <span>⚠️</span> Merge Warning
+                        </div>
+                        <p style="color: var(--text-secondary); font-size: 13px; margin: 0;">
+                            Merging will <strong>replace</strong> the original nodes at the specified location with the edited versions.
+                            This action can be undone using Ctrl+Z.
+                        </p>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * Perform the actual merge of a branch into the tree
+         * @param {object} branch - The branch to merge
+         */
+        function performBranchMerge(branch) {
+            if (!branch || !branch.nodes || branch.nodes.length === 0) {
+                console.error('❌ Invalid branch for merge');
+                return;
+            }
+
+            // Save undo state
+            pushToUndoStack();
+
+            // Find the insertion point using ancestry
+            const ancestry = branch.ancestry || [];
+            let insertionParent = capexTree;
+
+            // Navigate to the parent location
+            for (const ancestor of ancestry) {
+                if (ancestor.id === capexTree.id) continue; // Skip root
+
+                const found = findNodeInTree(insertionParent, ancestor.id);
+                if (found) {
+                    insertionParent = found;
+                } else {
+                    console.warn(`⚠️ Could not find ancestor ${ancestor.id}, merging at current level`);
+                    break;
+                }
+            }
+
+            // For each node in the branch, find and replace or add
+            for (const incomingNode of branch.nodes) {
+                const existingNode = findNodeInTree(capexTree, incomingNode.id);
+
+                if (existingNode) {
+                    // Replace existing node's data (preserve position in tree)
+                    Object.assign(existingNode, incomingNode);
+                    console.log(`✅ Updated existing node: ${incomingNode.name}`);
+                } else {
+                    // Add as new node to insertion parent
+                    if (incomingNode.type === 'phase') {
+                        insertionParent.children = insertionParent.children || [];
+                        insertionParent.children.push(incomingNode);
+                    } else if (incomingNode.type === 'item') {
+                        // Find appropriate phase or add to first phase
+                        const targetPhase = insertionParent.children?.[0] || insertionParent;
+                        targetPhase.items = targetPhase.items || [];
+                        targetPhase.items.push(incomingNode);
+                    } else {
+                        // Subtask - find parent item
+                        const parentItem = findParentForSubtask(capexTree, branch.selectedNodeIds);
+                        if (parentItem) {
+                            parentItem.subItems = parentItem.subItems || [];
+                            parentItem.subItems.push(incomingNode);
+                        }
+                    }
+                    console.log(`➕ Added new node: ${incomingNode.name}`);
+                }
+            }
+
+            // Close modal
+            document.getElementById('merge-branch-modal').style.display = 'none';
+            pendingMergeBranch = null;
+
+            // Clear URL parameter
+            window.history.replaceState({}, document.title, window.location.pathname);
+
+            // Re-render
+            render();
+            if (currentView === 'canvas') {
+                renderCanvas();
+            }
+
+            // Show success toast
+            showToast('✅ Changes merged successfully!', 'success');
+
+            console.log('🔀 Branch merge completed:', branch.branchId);
+        }
+
+        /**
+         * Find a node in the tree by ID
+         * @param {object} node - Starting node
+         * @param {string} id - ID to find
+         * @returns {object|null} Found node or null
+         */
+        function findNodeInTree(node, id) {
+            if (node.id === id) return node;
+
+            if (node.children) {
+                for (const child of node.children) {
+                    const found = findNodeInTree(child, id);
+                    if (found) return found;
+                }
+            }
+            if (node.items) {
+                for (const item of node.items) {
+                    const found = findNodeInTree(item, id);
+                    if (found) return found;
+                }
+            }
+            if (node.subItems) {
+                for (const subItem of node.subItems) {
+                    const found = findNodeInTree(subItem, id);
+                    if (found) return found;
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Find parent item for a subtask
+         * @param {object} tree - Tree to search
+         * @param {string[]} nodeIds - Original node IDs
+         * @returns {object|null} Parent item or null
+         */
+        function findParentForSubtask(tree, nodeIds) {
+            // Try to find based on original selection
+            // For now, return first item in tree
+            if (tree.children?.[0]?.items?.[0]) {
+                return tree.children[0].items[0];
+            }
+            return null;
+        }
+
+        /**
+         * Show a toast notification
+         * @param {string} message - Message to show
+         * @param {string} type - 'success', 'error', 'warning'
+         */
+        function showToast(message, type = 'success') {
+            const colors = {
+                success: 'linear-gradient(135deg, #10b981, #059669)',
+                error: 'linear-gradient(135deg, #ef4444, #dc2626)',
+                warning: 'linear-gradient(135deg, #f59e0b, #d97706)'
+            };
+
+            const toast = document.createElement('div');
+            toast.textContent = message;
+            toast.style.cssText = `
+                position: fixed;
+                top: 80px;
+                right: 20px;
+                background: ${colors[type] || colors.success};
+                color: white;
+                padding: 15px 25px;
+                border-radius: 8px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+                z-index: 10001;
+                font-weight: 600;
+                animation: slideIn 0.3s ease-out;
+            `;
+            document.body.appendChild(toast);
+            setTimeout(() => {
+                toast.style.animation = 'fadeOut 0.3s ease-out';
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        /**
+         * Handle branch URL on page load
+         * Called from the main URL loading function
+         */
+        function handleBranchURL() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const branchParam = urlParams.get('branch');
+
+            if (!branchParam) return false;
+
+            console.log('🔗 Branch URL detected, parsing...');
+
+            const branch = parseBranchFromURL(branchParam);
+            if (!branch) {
+                showToast('❌ Invalid branch URL', 'error');
+                return false;
+            }
+
+            // Determine if this is a response (edited branch) or original share
+            if (branch.isResponse) {
+                // This is an edited branch being sent back - show merge dialog
+                console.log('📥 Received edited branch for merge');
+                showMergeBranchModal(branch);
+            } else if (isOriginalBranchCreator(branch)) {
+                // Creator opened their own branch link - just show info
+                showToast('ℹ️ This is your own shared branch', 'warning');
+            } else {
+                // Collaborator opening branch to edit
+                console.log('🤝 Collaborator opening branch for editing');
+                enterBranchEditMode(branch);
+            }
+
+            return true;
+        }
+
+        // =============================================================================
+        // END COLLABORATION
         // =============================================================================
 
         // Update tree preview - copy working tree to main tree and render in real-time
@@ -23865,6 +26183,17 @@ ${jsonText}`;
         // Load from shared URL if present
         (function loadFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
+
+            // Check for collaboration branch URL first
+            if (urlParams.has('branch')) {
+                console.log('🤝 Branch URL detected...');
+                // Defer to allow page to fully load
+                setTimeout(() => {
+                    handleBranchURL();
+                }, 100);
+                return; // Don't process other URL params
+            }
+
             const compressedData = urlParams.get('p');
 
             if (compressedData) {
@@ -24556,6 +26885,9 @@ ${jsonText}`;
             </button>
             <button id="fit-view" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;">
                 ⊡ Fit
+            </button>
+            <button id="hyperedge-panel-btn" onclick="toggleHyperedgePanel()" class="btn" style="padding: 8px 14px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 8px; color: #A78BFA; font-size: 13px; transition: all 0.2s;" title="Manage hyperedge visibility">
+                🔗 Edges
             </button>
             <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
             <div style="display: flex; align-items: center; gap: 6px;">
