@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 198 | 2025-11-29
+    TreeListy v2.11.0 | Build 199 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,8 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 198): 🔧 Fix Merge View Variable
-    - FIX: Changed currentView to viewMode (correct variable name)
+    Changelog (Build 199): 🔧 Fix Merge Deep Copy + Debug Logging
+    - FIX: Merge now does deep replacement of node properties (not shallow assign)
+    - DEBUG: Added extraction logging to verify node data is captured
+
+    Previous (Build 198): Fix view variable name
 
     Previous (Build 197): Fix undo function name
 
@@ -2182,8 +2185,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 198 | 2025-11-29">
-                    v2.11.0 • Build 198
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 199 | 2025-11-29">
+                    v2.11.0 • Build 199
                 </div>
             </div>
         </div>
@@ -17886,6 +17889,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             for (const id of nodeIds) {
                 const node = getNodeById(id);
                 if (node) {
+                    console.log(`📦 Extracting node ${id}:`, node.name, '| description:', node.description?.substring(0, 50));
                     const cloned = JSON.parse(JSON.stringify(node));
                     nodes.push(cloned);
                     totalNodeCount += countSubtreeNodes(cloned);
@@ -18793,8 +18797,16 @@ Thanks!`;
                 const existingNode = findNodeInTree(capexTree, incomingNode.id);
 
                 if (existingNode) {
-                    // Replace existing node's data (preserve position in tree)
-                    Object.assign(existingNode, incomingNode);
+                    // Deep merge: replace all properties from incoming node
+                    // This preserves the object reference but updates all content
+                    for (const key of Object.keys(existingNode)) {
+                        if (key !== 'id') { // Never change ID
+                            delete existingNode[key];
+                        }
+                    }
+                    for (const key of Object.keys(incomingNode)) {
+                        existingNode[key] = JSON.parse(JSON.stringify(incomingNode[key]));
+                    }
                     console.log(`✅ Updated existing node: ${incomingNode.name}`);
                 } else {
                     // Add as new node to insertion parent
