@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 193 | 2025-11-29
+    TreeListy v2.11.0 | Build 194 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,10 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 193): 🔧 Fix Merge Button Event Handler
+    Changelog (Build 194): 🔧 Fix Merge Button Variable Scope
+    - FIX: pendingMergeBranch declared before IIFE (was causing click to fail)
     - FIX: "Accept & Merge Changes" button now works correctly
-    - FIX: Collaboration handlers use IIFE with DOM ready check
-    - FIX: Handles case where DOMContentLoaded already fired
+
+    Previous (Build 193): 🔧 IIFE with DOM Ready Check
 
     Previous (Build 192): 💰 Hide $0 Cost in Canvas View
     - FIX: Cost badge only shows in canvas if pattern supports cost AND cost > 0
@@ -2174,8 +2175,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 193 | 2025-11-29">
-                    v2.11.0 • Build 193
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 194 | 2025-11-29">
+                    v2.11.0 • Build 194
                 </div>
             </div>
         </div>
@@ -18139,6 +18140,9 @@ Thanks!`;
             }
         }
 
+        // Storage for pending merge operation (must be declared before IIFE)
+        let pendingMergeBranch = null;
+
         // Initialize Share Branch modal event handlers
         // Use immediate execution with DOM check for reliability
         (function initCollaborationHandlers() {
@@ -18322,9 +18326,6 @@ Thanks!`;
 
             console.log('🤝 Collaboration event handlers initialized');
         })();
-
-        // Storage for pending merge operation
-        let pendingMergeBranch = null;
 
         /**
          * Parse a branch from URL parameter
