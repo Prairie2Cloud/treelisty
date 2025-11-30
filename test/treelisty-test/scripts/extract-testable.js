@@ -26,7 +26,7 @@ const FUNCTIONS_TO_EXTRACT = [
     // Migration system
     'normalizeNode',
     'migrateTree',
-    
+
     // Tree operations
     // 'getNodeById', // Extracted below as wrapper with tree parameter
     // 'getAllNodes', // Implemented as utility function in output
@@ -34,21 +34,25 @@ const FUNCTIONS_TO_EXTRACT = [
     // 'findParent', // Implemented as utility function in output
     'getItemMaxDepth',
     'getMaxDepth',
-    
+
     // Pattern system
     'getPatternLabels',
     'translateNode',
     'getPatternKey',
-    
+
     // AI Configuration
     'getAIConfig',
     'applyPersonaTuning',
-    
+
     // Serialization helpers
     'generateId',
-    
+
     // Provenance helpers (if they exist as standalone functions)
     'stampProvenance'
+
+    // Note: Collaboration functions (getDeviceFingerprint, extractSubtree, etc.)
+    // are implemented manually in the TEST UTILITIES section below
+    // because they need mock LZString and test-compatible implementations
 ];
 
 // Constants to extract
@@ -344,6 +348,204 @@ export function findParent(tree, nodeId) {
     }
 
     return search(tree);
+}
+
+// ============================================================================
+// COLLABORATION UTILITIES (Build 199+)
+// ============================================================================
+
+/**
+ * Mock LZString for testing (simplified - real impl uses library)
+ */
+const LZString = {
+    compressToEncodedURIComponent: (str) => {
+        // Simple base64 encoding for tests (real impl uses LZ compression)
+        return btoa(encodeURIComponent(str));
+    },
+    decompressFromEncodedURIComponent: (str) => {
+        try {
+            return decodeURIComponent(atob(str));
+        } catch (e) {
+            return null;
+        }
+    }
+};
+
+/**
+ * Get device fingerprint (test stub returns consistent value)
+ */
+export function getDeviceFingerprint() {
+    return 'device-test-fingerprint-12345';
+}
+
+/**
+ * Count nodes in a subtree
+ */
+export function countSubtreeNodes(node) {
+    if (!node) return 0;
+    let count = 1;
+    const items = node.items || [];
+    const subItems = node.subItems || [];
+    const children = node.children || [];
+    [...items, ...subItems, ...children].forEach(child => {
+        count += countSubtreeNodes(child);
+    });
+    return count;
+}
+
+/**
+ * Get ancestry path to a node
+ * @param {object} tree - Root tree
+ * @param {string} nodeId - Target node ID
+ * @returns {Array} Array of ancestor objects {id, name, icon}
+ */
+export function getAncestryPath(tree, nodeId) {
+    const path = [];
+
+    function search(node, ancestors) {
+        if (node.id === nodeId) {
+            path.push(...ancestors);
+            return true;
+        }
+
+        const currentAncestor = { id: node.id, name: node.name, icon: node.icon || '📄' };
+        const children = node.children || [];
+        const items = node.items || [];
+        const subItems = node.subItems || [];
+
+        for (const child of [...children, ...items, ...subItems]) {
+            if (search(child, [...ancestors, currentAncestor])) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    search(tree, []);
+    return path;
+}
+
+/**
+ * Extract subtree for collaboration sharing
+ * @param {object} tree - Source tree
+ * @param {string[]} nodeIds - IDs of nodes to extract
+ * @param {string|null} hyperedgeId - Optional hyperedge
+ * @returns {object} Branch token
+ */
+export function extractSubtree(tree, nodeIds, hyperedgeId = null) {
+    if (!nodeIds || nodeIds.length === 0) {
+        return { error: 'No nodes selected for sharing' };
+    }
+
+    const ancestry = getAncestryPath(tree, nodeIds[0]);
+    const nodes = [];
+    let totalNodeCount = 0;
+
+    for (const id of nodeIds) {
+        const node = getNodeById(tree, id);
+        if (node) {
+            const cloned = JSON.parse(JSON.stringify(node));
+            nodes.push(cloned);
+            totalNodeCount += countSubtreeNodes(cloned);
+        }
+    }
+
+    if (nodes.length === 0) {
+        return { error: 'No valid nodes found to share' };
+    }
+
+    return {
+        branchId: \`branch-\${Date.now()}-\${Math.random().toString(36).substr(2, 9)}\`,
+        sourceProjectId: tree.id,
+        sourceProjectName: tree.name,
+        sourcePattern: 'generic',
+        createdAt: new Date().toISOString(),
+        createdBy: getDeviceFingerprint(),
+        ancestry,
+        hyperedgeId,
+        selectedNodeIds: nodeIds,
+        nodes,
+        schemaVersion: 2,
+        _meta: {
+            nodeCount: totalNodeCount,
+            estimatedURLSize: JSON.stringify(nodes).length * 0.6
+        }
+    };
+}
+
+/**
+ * Generate shareable URL from branch
+ */
+export function generateBranchURL(branch) {
+    const branchToEncode = { ...branch };
+    delete branchToEncode._meta;
+    const json = JSON.stringify(branchToEncode);
+    const compressed = LZString.compressToEncodedURIComponent(json);
+    return \`https://treelisty.netlify.app/?branch=\${compressed}\`;
+}
+
+/**
+ * Parse branch from URL parameter
+ */
+export function parseBranchFromURL(compressedBranch) {
+    if (!compressedBranch) return null;
+    try {
+        const json = LZString.decompressFromEncodedURIComponent(compressedBranch);
+        if (!json) return null;
+        return JSON.parse(json);
+    } catch (e) {
+        return null;
+    }
+}
+
+/**
+ * Perform branch merge into tree
+ * @param {object} tree - Target tree (modified in place)
+ * @param {object} branch - Branch to merge
+ */
+export function performBranchMerge(tree, branch) {
+    if (!branch || !branch.nodes || branch.nodes.length === 0) {
+        return;
+    }
+
+    for (const incomingNode of branch.nodes) {
+        const existingNode = getNodeById(tree, incomingNode.id);
+
+        if (existingNode) {
+            // Deep merge: replace all properties
+            for (const key of Object.keys(existingNode)) {
+                if (key !== 'id') {
+                    delete existingNode[key];
+                }
+            }
+            for (const key of Object.keys(incomingNode)) {
+                existingNode[key] = JSON.parse(JSON.stringify(incomingNode[key]));
+            }
+        } else {
+            // Add as new node - find insertion point
+            const ancestry = branch.ancestry || [];
+            let parent = tree;
+            for (const ancestor of ancestry) {
+                const found = getNodeById(tree, ancestor.id);
+                if (found) parent = found;
+            }
+
+            if (incomingNode.type === 'phase') {
+                parent.children = parent.children || [];
+                parent.children.push(incomingNode);
+            } else if (incomingNode.type === 'item') {
+                const phase = parent.children?.[0] || parent;
+                phase.items = phase.items || [];
+                phase.items.push(incomingNode);
+            } else {
+                // Subtask
+                if (parent.items?.[0]) {
+                    parent.items[0].subItems = parent.items[0].subItems || [];
+                    parent.items[0].subItems.push(incomingNode);
+                }
+            }
+        }
+    }
 }
 `;
 

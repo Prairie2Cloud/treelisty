@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 199 | 2025-11-29
+    TreeListy v2.11.0 | Build 200 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,9 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 199): 🔧 Fix Merge Deep Copy + Debug Logging
-    - FIX: Merge now does deep replacement of node properties (not shallow assign)
-    - DEBUG: Added extraction logging to verify node data is captured
+    Changelog (Build 200): 🔍 Debug Merge Flow + Collaboration Tests
+    - DEBUG: Added detailed merge logging (before/after comparison)
+    - TEST: Created collaboration.test.js with 38 tests for fidelity verification
+
+    Previous (Build 199): Fix Merge Deep Copy
 
     Previous (Build 198): Fix view variable name
 
@@ -2185,8 +2187,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 199 | 2025-11-29">
-                    v2.11.0 • Build 199
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 200 | 2025-11-29">
+                    v2.11.0 • Build 200
                 </div>
             </div>
         </div>
@@ -18772,6 +18774,9 @@ Thanks!`;
                 return;
             }
 
+            console.log('🔀 Starting merge with branch:', branch.branchId);
+            console.log('🔀 Branch nodes:', branch.nodes.map(n => ({ id: n.id, name: n.name, desc: n.description?.substring(0, 30) })));
+
             // Save undo state
             saveState('Merge collaboration branch');
 
@@ -18795,8 +18800,12 @@ Thanks!`;
             // For each node in the branch, find and replace or add
             for (const incomingNode of branch.nodes) {
                 const existingNode = findNodeInTree(capexTree, incomingNode.id);
+                console.log('🔀 Processing:', incomingNode.id, '| existing:', !!existingNode);
 
                 if (existingNode) {
+                    console.log('🔀 Before merge - existing:', existingNode.name, '| desc:', existingNode.description?.substring(0, 30));
+                    console.log('🔀 Incoming:', incomingNode.name, '| desc:', incomingNode.description?.substring(0, 30));
+
                     // Deep merge: replace all properties from incoming node
                     // This preserves the object reference but updates all content
                     for (const key of Object.keys(existingNode)) {
@@ -18807,6 +18816,7 @@ Thanks!`;
                     for (const key of Object.keys(incomingNode)) {
                         existingNode[key] = JSON.parse(JSON.stringify(incomingNode[key]));
                     }
+                    console.log('🔀 After merge:', existingNode.name, '| desc:', existingNode.description?.substring(0, 30));
                     console.log(`✅ Updated existing node: ${incomingNode.name}`);
                 } else {
                     // Add as new node to insertion parent
