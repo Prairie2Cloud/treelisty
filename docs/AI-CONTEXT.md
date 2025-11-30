@@ -1,7 +1,7 @@
 # TreeListy AI Context Document
 
-**Current Version**: v2.11.0 (Build 187)
-**Last Updated**: 2025-11-29
+**Current Version**: v2.11.0 (Build 203)
+**Last Updated**: 2025-11-30
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -204,6 +204,7 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 | Build | Date | Key Feature |
 |-------|------|-------------|
+| 203 | 2025-11-30 | Collaboration privacy fix + UX improvements |
 | 187 | 2025-11-29 | Complete Collaboration System (Branch & Merge) |
 | 186 | 2025-11-29 | Share for Collaboration UI |
 | 185 | 2025-11-29 | Collaboration Foundation |
