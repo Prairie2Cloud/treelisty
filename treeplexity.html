@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 200 | 2025-11-29
+    TreeListy v2.11.0 | Build 203 | 2025-11-30
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,9 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 200): 🔍 Debug Merge Flow + Collaboration Tests
-    - DEBUG: Added detailed merge logging (before/after comparison)
-    - TEST: Created collaboration.test.js with 38 tests for fidelity verification
+    Changelog (Build 203): 📝 Multi-Collaborator Guidance
+    - UX: Added warning about multiple collaborators (merge one at a time, last wins)
+    - DOC: Clear guidance that later merges overwrite earlier ones
+
+    Previous (Build 202): 📧 Improved Collaboration UX
 
     Previous (Build 199): Fix Merge Deep Copy
 
@@ -29,10 +31,6 @@
     Previous (Build 197): Fix undo function name
 
     Previous (Build 196): Wrong function name (saveToHistory)
-
-    Previous (Build 195): 🔍 Debug Merge Button Click
-
-    Previous (Build 194): 🔧 Fix Merge Button Variable Scope
 
     Previous (Build 193): 🔧 IIFE with DOM Ready Check
 
@@ -9261,7 +9259,7 @@ Focus on logical structure and content organization best practices.`;
                 }
 
                 // Only work in Canvas View
-                if (currentView === 'canvas' && canvasNodes.length > 0) {
+                if (viewMode === 'canvas' && canvasNodes.length > 0) {
                     e.preventDefault();
                     console.log('⌨️ Ctrl+A pressed - selecting all visible nodes');
 
@@ -9287,7 +9285,7 @@ Focus on logical structure and content organization best practices.`;
             // Check for Escape - Clear selection in Canvas View
             if (e.key === 'Escape') {
                 // Only work in Canvas View
-                if (currentView === 'canvas' && selectedNodes.length > 0) {
+                if (viewMode === 'canvas' && selectedNodes.length > 0) {
                     console.log('⌨️ Escape pressed - clearing selection');
                     clearSelection();
                 }
@@ -11019,7 +11017,7 @@ function hidePatternDescription() {
                                 }
 
                                 // If in Canvas View, re-render canvas
-                                if (currentView === 'canvas') {
+                                if (viewMode === 'canvas') {
                                     renderCanvas();
                                 }
                             });
@@ -11181,7 +11179,7 @@ function hidePatternDescription() {
                             }
 
                             // If in Canvas View, re-render canvas
-                            if (currentView === 'canvas') {
+                            if (viewMode === 'canvas') {
                                 renderCanvas();
                             }
                         });
@@ -18037,33 +18035,54 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                         </div>
                     </div>
 
-                    <!-- URL Input -->
+                    <!-- Clickable Link Preview (hidden input for copying) -->
+                    <input type="hidden" id="share-branch-url-input" value="${shareURL}">
                     <div style="background: var(--card-bg-light); padding: 15px; border-radius: 8px; border: 2px solid var(--border); margin-bottom: 12px;">
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="text" id="share-branch-url-input" readonly
-                                   style="flex: 1; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; user-select: all;"
-                                   value="${shareURL}">
+                        <div style="display: flex; gap: 12px; align-items: center; justify-content: space-between;">
+                            <a href="${shareURL}" target="_blank" id="share-branch-link"
+                               style="display: inline-flex; align-items: center; gap: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; padding: 10px 16px; border-radius: 6px; text-decoration: none; font-weight: 600; font-size: 13px;">
+                                🔗 Click to Preview Shared Content
+                            </a>
+                            <span style="font-size: 12px; color: var(--text-secondary);">
+                                📊 ${meta.nodeCount} nodes • 📏 ${Math.round(shareURL.length/1000)}KB
+                                ${meta.sizeWarning ? ' • <span style="color: #f59e0b;">⚠️ Large</span>' : ''}
+                            </span>
                         </div>
                     </div>
 
-                    <!-- Stats -->
-                    <div style="display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary); margin-bottom: 16px;">
-                        <div>📊 ${meta.nodeCount} nodes</div>
-                        <div>📏 ${shareURL.length.toLocaleString()} characters</div>
-                        ${meta.sizeWarning ? '<div style="color: #f59e0b;">⚠️ Large selection - may not work in all email clients</div>' : ''}
+                    <!-- Workflow Instructions -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #10b981; margin-bottom: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 8px; color: #10b981;">
+                            <span>📋</span> Collaboration Workflow
+                        </div>
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
+                            <div style="background: var(--card-bg); padding: 12px; border-radius: 6px;">
+                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">👤 You (Sender):</div>
+                                <ol style="margin-left: 16px; color: var(--text-secondary); line-height: 1.6;">
+                                    <li>Click <strong>"Open Email App"</strong> or <strong>"Copy Email"</strong></li>
+                                    <li>Send the email to your collaborator</li>
+                                    <li>Wait for their response email</li>
+                                    <li>Use <strong>File → Merge Branch</strong> to paste their link</li>
+                                </ol>
+                            </div>
+                            <div style="background: var(--card-bg); padding: 12px; border-radius: 6px;">
+                                <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 6px;">👥 Collaborator (Recipient):</div>
+                                <ol style="margin-left: 16px; color: var(--text-secondary); line-height: 1.6;">
+                                    <li>Click the link in your email</li>
+                                    <li>Edit the shared nodes as needed</li>
+                                    <li>Click <strong>"Share Back"</strong> button</li>
+                                    <li>Send the new link back via email</li>
+                                </ol>
+                            </div>
+                        </div>
                     </div>
 
-                    <!-- Instructions -->
-                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 15px; border-radius: 8px; border-left: 3px solid #10b981;">
-                        <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #10b981;">
-                            <span>📋</span> How Collaboration Works
-                        </div>
-                        <ol style="margin-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
-                            <li>Send this link to your collaborator via email</li>
-                            <li>They can view and edit the shared nodes</li>
-                            <li>When done, they click "Share Back" and send you the new link</li>
-                            <li>You open that link to merge their changes into your project</li>
-                        </ol>
+                    <!-- Important Notes -->
+                    <div style="background: rgba(99, 102, 241, 0.1); padding: 12px 15px; border-radius: 6px; border-left: 3px solid #6366f1; font-size: 13px; color: var(--text-secondary); margin-bottom: 12px;">
+                        <strong style="color: #6366f1;">💡 Tip:</strong> When you receive changes back, go to <strong>File → Merge Branch</strong> and paste the URL from their email to integrate their edits into your project.
+                    </div>
+                    <div style="background: rgba(245, 158, 11, 0.1); padding: 12px 15px; border-radius: 6px; border-left: 3px solid #f59e0b; font-size: 13px; color: var(--text-secondary);">
+                        <strong style="color: #f59e0b;">⚠️ Multiple collaborators:</strong> If sharing with multiple people, merge their responses <strong>one at a time</strong>. Each merge replaces the shared nodes entirely — later merges will overwrite earlier ones.
                     </div>
                 </div>
             `;
@@ -18087,13 +18106,17 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             const subject = encodeURIComponent(
                 `TreeListy Collaboration: ${branch.sourceProjectName}`
             );
-            // Shorter email - just essentials with link at end
+            // Clear instructions with numbered steps
             const body = encodeURIComponent(
                 `Hi,\n\n` +
                 `I'd like your input on part of my TreeListy project "${branch.sourceProjectName}".\n\n` +
-                `Click below to view and edit (${branch.nodes.length} node${branch.nodes.length > 1 ? 's' : ''}):\n\n` +
-                `${shareURL}\n\n` +
-                `When done, click "Share Back" and send me the new link.\n\n` +
+                `WHAT TO DO:\n` +
+                `1. Click this link to open the shared content:\n` +
+                `   ${shareURL}\n\n` +
+                `2. Make your edits to the nodes\n` +
+                `3. Click the "Share Back" button (purple bar at top)\n` +
+                `4. Send me the new link from your email\n\n` +
+                `I'll merge your changes into my project.\n\n` +
                 `Thanks!`
             );
             return `mailto:?subject=${subject}&body=${body}`;
@@ -18114,17 +18137,29 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                         🤝 Click to View & Edit
                     </a>
                 </p>
-                <p style="font-size: 12px; color: #666;">When you're done making changes, click the "Share Back" button and send me the new link.</p>
-                <p>Thanks!</p>
+                <p><strong>What to do:</strong></p>
+                <ol style="color: #666; line-height: 1.6;">
+                    <li>Click the button above to open the shared content</li>
+                    <li>Make your edits to the nodes</li>
+                    <li>Click the <strong>"Share Back"</strong> button (purple bar at top)</li>
+                    <li>Send me the new link from your email</li>
+                </ol>
+                <p>I'll merge your changes into my project. Thanks!</p>
             `;
 
             const plainText = `Hi,
 
 I'd like your input on part of my TreeListy project "${branch.sourceProjectName}".
 
-Click to view and edit: ${shareURL}
+WHAT TO DO:
+1. Click this link to open the shared content:
+   ${shareURL}
 
-When done, click "Share Back" and send me the new link.
+2. Make your edits to the nodes
+3. Click the "Share Back" button (purple bar at top)
+4. Send me the new link from your email
+
+I'll merge your changes into my project.
 
 Thanks!`;
 
@@ -18172,21 +18207,24 @@ Thanks!`;
             });
 
             // Copy URL button
-            document.getElementById('share-branch-copy')?.addEventListener('click', () => {
+            document.getElementById('share-branch-copy')?.addEventListener('click', async () => {
                 const urlInput = document.getElementById('share-branch-url-input');
                 if (urlInput) {
-                    urlInput.select();
-                    document.execCommand('copy');
+                    try {
+                        await navigator.clipboard.writeText(urlInput.value);
 
-                    // Visual feedback
-                    const btn = document.getElementById('share-branch-copy');
-                    const originalText = btn.textContent;
-                    btn.textContent = '✅ Copied!';
-                    btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                    setTimeout(() => {
-                        btn.textContent = originalText;
-                        btn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
-                    }, 2000);
+                        // Visual feedback
+                        const btn = document.getElementById('share-branch-copy');
+                        const originalText = btn.textContent;
+                        btn.textContent = '✅ Copied!';
+                        btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                        setTimeout(() => {
+                            btn.textContent = originalText;
+                            btn.style.background = 'linear-gradient(135deg, #6366f1, #8b5cf6)';
+                        }, 2000);
+                    } catch (err) {
+                        console.error('Failed to copy URL:', err);
+                    }
                 }
             });
 
@@ -18449,7 +18487,7 @@ Thanks!`;
 
             // Render
             render();
-            if (currentView === 'canvas') {
+            if (viewMode === 'canvas') {
                 renderCanvas();
             }
 
@@ -18480,7 +18518,7 @@ Thanks!`;
                 // Load default tree
                 capexTree = JSON.parse(JSON.stringify(defaultCapexTree));
                 render();
-                if (currentView === 'canvas') {
+                if (viewMode === 'canvas') {
                     renderCanvas();
                 }
 
@@ -18652,7 +18690,7 @@ Thanks!`;
                             <ol style="margin-left: 20px; color: var(--text-secondary); font-size: 13px; line-height: 1.8;">
                                 <li>Close this modal</li>
                                 <li>Load the project <strong>"${branch.sourceProjectName}"</strong> (File → Open JSON)</li>
-                                <li>Open this URL again (or click the link in your email)</li>
+                                <li>Go to <strong>File → Merge Branch</strong> and paste the URL from your email</li>
                                 <li>The merge will proceed correctly</li>
                             </ol>
                         </div>
@@ -26572,18 +26610,19 @@ ${jsonText}`;
         treeContainer.addEventListener('scroll', drawDependencyLines);
         window.addEventListener('resize', drawDependencyLines);
 
-        // Load from shared URL if present
-        (function loadFromURL() {
+        // Load from shared URL if present - returns true if branch URL handled (skip initial render)
+        const branchURLHandled = (function loadFromURL() {
             const urlParams = new URLSearchParams(window.location.search);
 
-            // Check for collaboration branch URL first
+            // Check for collaboration branch URL first - handle SYNCHRONOUSLY to prevent flash of default tree
             if (urlParams.has('branch')) {
-                console.log('🤝 Branch URL detected...');
-                // Defer to allow page to fully load
-                setTimeout(() => {
-                    handleBranchURL();
-                }, 100);
-                return; // Don't process other URL params
+                console.log('🤝 Branch URL detected - handling synchronously...');
+                const success = handleBranchURL();
+                if (success) {
+                    console.log('✅ Branch URL processed successfully');
+                    return true; // Skip default render
+                }
+                // Fall through if branch handling failed
             }
 
             const compressedData = urlParams.get('p');
@@ -26643,6 +26682,7 @@ ${jsonText}`;
                     alert('Failed to load shared project. The URL may be corrupted or invalid.');
                 }
             }
+            return false;
         })();
 
         // =============================================================================
@@ -26836,8 +26876,10 @@ ${jsonText}`;
             console.log('ℹ️ File Handling API not supported in this browser');
         }
 
-        // Initial render
-        render();
+        // Initial render - skip if branch URL was handled (it already rendered)
+        if (!branchURLHandled) {
+            render();
+        }
 
         // Update AI button label for initial pattern
         updateAIButtonLabel();
@@ -26854,11 +26896,13 @@ ${jsonText}`;
                 if (currentPattern === 'custom' && capexTree.pattern.labels) {
                     customPatternNames = capexTree.pattern.labels;
                 }
-                // Apply pattern labels to existing nodes on load
-                const labels = currentPattern === 'custom' && customPatternNames ? customPatternNames : PATTERNS[currentPattern].levels;
-                renameNodesForPattern(capexTree, labels);
-                console.log('Initial nodes renamed to match saved pattern');
-                render(); // Re-render with renamed nodes
+                // Apply pattern labels to existing nodes on load - skip if branch mode
+                if (!branchURLHandled) {
+                    const labels = currentPattern === 'custom' && customPatternNames ? customPatternNames : PATTERNS[currentPattern].levels;
+                    renameNodesForPattern(capexTree, labels);
+                    console.log('Initial nodes renamed to match saved pattern');
+                    render(); // Re-render with renamed nodes
+                }
 
                 // Update sort dropdown for the loaded pattern
                 updateSortDropdown();
