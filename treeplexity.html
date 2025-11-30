@@ -6,10 +6,10 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 206 | 2025-11-30
+    TreeListy v2.11.0 | Build 207 | 2025-11-30
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
-    - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
+    - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
     - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
     - Pattern Translation Engine with shadow data preservation
     - Modern collapsible sidebar UI (icon-based navigation)
@@ -18,11 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 206): 🚀 Investor-Ready CFO Persona
-    - NEW: Optimized Generic Project AI persona for angel investor presentations
-    - TESTED: A/B tested 7 persona variants, optimized beat baseline 85% vs 65%
-    - FEATURES: Funding story, risk transparency, return narrative, competitive moat
-    - VALIDATED: Comparative ranking analysis with Gemini evaluator
+    Changelog (Build 207): 💰 New CAPEX / Angel Pitch Pattern
+    - NEW: Pattern #18 "CAPEX / Angel Pitch" for investor-ready capital expenditure trees
+    - STRUCTURE: Project → Funding Phase → Investment → Deliverable
+    - FIELDS: Cost, Risk, Mitigation, Valuation Impact, Lead Time
+    - PERSONA: Expert financial strategist with angel investor focus
+    - DETECTION: Auto-detect during import (seed round, series A/B, CAPEX, investors, etc.)
+    - REVERTED: Generic Project persona back to simple PM for import fallback
+
+    Previous (Build 206): 🚀 Investor-Ready CFO Persona
 
     Previous (Build 205): 💰 Fix $0 Display on Non-Cost Nodes
 
@@ -2125,6 +2129,7 @@
                     <option value="dialogue" data-desc="Rhetoric: Conversation → Speaker → Statement → Point">💬 Dialogue & Rhetoric</option>
                     <option value="gmail" data-desc="Email: Inbox/Campaign → Label/Stage → Thread → Message">📧 Email Workflow</option>
                     <option value="filesystem" data-desc="File System: Drive → Folder → File/Folder (Unlimited Depth)">💾 File System</option>
+                    <option value="capex" data-desc="Investor: Project → Funding Phase → Investment → Deliverable">💰 CAPEX / Angel Pitch</option>
                     <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
                 </select>
             </div>
@@ -2187,8 +2192,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 206 | 2025-11-30">
-                    v2.11.0 • Build 206
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 207 | 2025-11-30">
+                    v2.11.0 • Build 207
                 </div>
             </div>
         </div>
@@ -2321,6 +2326,8 @@
                         <option value="prompting" style="background: #1a1a2e; color: #ffffff;">🧠 Prompt Engineering - AI prompts</option>
                         <option value="familytree" style="background: #1a1a2e; color: #ffffff;">👨‍👩‍👧‍👦 Family Tree - Genealogy</option>
                         <option value="dialogue" style="background: #1a1a2e; color: #ffffff;">💬 Dialogue & Rhetoric - Debate analysis</option>
+                        <option value="capex" style="background: #1a1a2e; color: #ffffff;">💰 CAPEX / Angel Pitch - Investor-ready</option>
+                        <option value="filesystem" style="background: #1a1a2e; color: #ffffff;">💾 File System - File organization</option>
                     </select>
                     <div style="margin-top: 8px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
                         <strong style="color: var(--text-primary);">💡 Tip:</strong> Auto-detect lets AI analyze your text and recommend the best pattern. Or choose a specific pattern if you know what structure you want.
@@ -4082,7 +4089,8 @@ Do not ask permission—just provide the critique, then help.
                             familytree: 'Family Tree',
                             philosophy: 'Philosophy Dialogue',
                             rhetoric: 'Rhetoric Analysis',
-                            filesystem: 'Filesystem'
+                            filesystem: 'Filesystem',
+                            capex: 'CAPEX / Angel Pitch'
                         };
 
                         const confirmTranslation = confirm(
@@ -10234,6 +10242,44 @@ const PATTERNS = {
             includeTracking: true
         }
     },
+    capex: {
+        name: 'CAPEX / Angel Pitch',
+        icon: '💰',
+        levels: {
+            root: 'Project',
+            phase: 'Funding Phase',
+            item: 'Investment',
+            subtask: 'Deliverable'
+        },
+        phaseSubtitles: ['Seed', 'Series A', 'Series B'],
+        types: [
+            { value: 'equipment', label: 'Equipment' },
+            { value: 'infrastructure', label: 'Infrastructure' },
+            { value: 'validation', label: 'Validation' },
+            { value: 'development', label: 'Development' },
+            { value: 'milestone', label: 'Milestone' },
+            { value: 'risk-mitigation', label: 'Risk Mitigation' },
+            { value: 'working-capital', label: 'Working Capital' },
+            { value: 'personnel', label: 'Personnel' }
+        ],
+        description: 'Investor-ready capital expenditure structure for fundraising',
+        sortOptions: [
+            { value: 'cost-high', label: '💰 Cost (Highest First)', field: 'cost', order: 'desc', type: 'number' },
+            { value: 'cost-low', label: '💰 Cost (Lowest First)', field: 'cost', order: 'asc', type: 'number' },
+            { value: 'name-az', label: '🔤 Name (A-Z)', field: 'name', order: 'asc', type: 'text' },
+            { value: 'name-za', label: '🔤 Name (Z-A)', field: 'name', order: 'desc', type: 'text' }
+        ],
+        fields: {
+            cost: { label: 'Cost ($)', type: 'number', step: 1000, helpText: '💰 Capital expenditure for this item' },
+            risk: { label: 'Key Risk', type: 'text', placeholder: 'Primary risk associated with this item...', helpText: '⚠️ Main risk investors should know about' },
+            mitigation: { label: 'Mitigation', type: 'text', placeholder: 'How we address this risk...', helpText: '🛡️ Specific strategy to mitigate the risk' },
+            valuationImpact: { label: 'Valuation Impact', type: 'text', placeholder: 'e.g., Enables 2x ARR, De-risks Series A...', helpText: '📈 How this investment affects company valuation' },
+            leadTime: { label: 'Lead Time', type: 'text', placeholder: 'e.g., 12 weeks, 6 months...', helpText: '⏱️ Time to complete or procure' },
+            includeDependencies: true,
+            includeTracking: true,
+            trackingFor: ['subtask']
+        }
+    },
     custom: {
         name: 'Custom Names',
         icon: '✏️',
@@ -13490,7 +13536,8 @@ function hidePatternDescription() {
                 familytree: 'You are a professional genealogist and family historian specializing in genealogical research and family tree documentation.',
                 dialogue: 'You are a rhetoric and argumentation expert specializing in debate analysis, persuasive communication, and identifying logical fallacies.',
                 gmail: 'You are an expert email analyst and communication strategist. You analyze email threads for tone, intent, rhetoric, and relationship dynamics. You provide context-aware suggestions for responses based on the full conversation history.',
-                generic: 'You are an expert financial strategist and CFO crafting investor-ready CAPEX structures. Your approach: (1) FUNDING STORY - structure phases as stepping stones to funding milestones with clear de-risking; (2) RISK TRANSPARENCY - for each item, identify risks and concrete mitigations (sophisticated investors will find them anyway); (3) RETURN NARRATIVE - connect phases to valuation drivers and path to returns; (4) COMPETITIVE MOAT - highlight cost advantages and sustainable competitive edges. Demonstrate capital efficiency and make the path to value creation explicit.'
+                capex: 'You are an expert financial strategist and CFO crafting investor-ready CAPEX structures for angel investor presentations. Your approach: (1) FUNDING STORY - structure phases as stepping stones to funding milestones with clear de-risking; (2) RISK TRANSPARENCY - for each item, identify risks and concrete mitigations (sophisticated investors will find them anyway); (3) RETURN NARRATIVE - connect phases to valuation drivers and path to returns; (4) COMPETITIVE MOAT - highlight cost advantages and sustainable competitive edges. Demonstrate capital efficiency and make the path to value creation explicit.',
+                generic: 'You are an experienced Project Manager with expertise in breaking down complex projects into manageable phases and tasks. Focus on clear structure, logical dependencies, and realistic planning.'
             };
 
             prompt += expertPersonas[pattern] || expertPersonas.generic;
@@ -22439,6 +22486,8 @@ AVAILABLE PATTERNS:
 14. Prompt Engineering - AI prompts and testing (Library → Category → Prompt → Test Case)
 15. Family Tree - Genealogical documentation (Family → Generation → Person → Event)
 16. Dialogue & Rhetoric - Analyze debates, conversations, and arguments (Conversation → Speaker → Statement → Point)
+17. CAPEX / Angel Pitch - Investor-ready capital expenditure for startups (Project → Funding Phase → Investment → Deliverable)
+18. File System - File and folder organization (Root → Directory → Subdirectory → File)
 
 TEXT TO ANALYZE:
 ${text.substring(0, 5000)}${text.length > 5000 ? '\n\n[... truncated for analysis ...]' : ''}
@@ -22450,6 +22499,9 @@ DETECTION HINTS:
 - If text contains debate/dialogue terms like "speaker", "argument", "rhetoric", "fallacy", "premise", "counterargument", "rebuttal", "debate", "conversation" → Dialogue & Rhetoric
 - If text is a transcript of a conversation, political debate, or online discussion → Dialogue & Rhetoric
 - If text analyzes persuasion, argumentation, or rhetorical techniques → Dialogue & Rhetoric
+- If text contains startup/investment terms like "seed round", "series A/B", "CAPEX", "funding", "investors", "valuation", "angel", "VC", "runway", "burn rate", "ROI", "IRR" → CAPEX / Angel Pitch
+- If text describes capital expenditure, startup fundraising, or investor pitch materials → CAPEX / Angel Pitch
+- If text is about file/folder organization, directory structure, or filesystem hierarchy → File System
 
 Respond with ONLY a valid JSON object in this exact format:
 {
@@ -22463,7 +22515,7 @@ Respond with ONLY a valid JSON object in this exact format:
   ]
 }
 
-Provide exactly 3 recommendations, ranked by confidence (1-10). Use these pattern keys: generic, sales, thesis, roadmap, book, event, fitness, strategy, course, film, philosophy, prompting, familytree, dialogue`;
+Provide exactly 3 recommendations, ranked by confidence (1-10). Use these pattern keys: generic, sales, thesis, roadmap, book, event, fitness, strategy, course, film, philosophy, prompting, familytree, dialogue, capex, filesystem`;
 
             const response = await callClaudeAPI(prompt);
 
@@ -24651,7 +24703,7 @@ ${jsonText}`;
                         <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">📋 Generic Project, 💼 Sales Pipeline, 🎓 Academic Writing, 🚀 Product Roadmap</p>
                         <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">📚 Book Writing, 🧠 AI Prompt Design, 🏛️ Philosophy, 💡 Strategic Planning</p>
                         <p style="font-size: 12px; margin-bottom: 4px; padding-left: 16px;">🎬 Film Production, 📧 Email Workflow <em>(NEW!)</em>, 💾 File System</p>
-                        <p style="font-size: 12px; margin-bottom: 12px; padding-left: 16px;">...and more! (17 specialized patterns total)</p>
+                        <p style="font-size: 12px; margin-bottom: 12px; padding-left: 16px;">...and more! (18 specialized patterns total)</p>
 
                         <p style="font-size: 14px; margin-bottom: 12px;"><strong>2. Build Your Tree (3 Ways)</strong></p>
 
@@ -24855,7 +24907,7 @@ ${jsonText}`;
 
                     <h3 style="color: var(--phase-4); margin-bottom: 16px; font-size: 20px;">🔧 Advanced Features</h3>
                     <div style="background: var(--bg); padding: 16px; border-radius: 8px; border-left: 3px solid var(--phase-4);">
-                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🎭 Pattern System (17 Built-in + Custom)</p>
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🎭 Pattern System (18 Built-in + Custom)</p>
                         <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Generic Project</strong> - Universal template for any project</p>
                         <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Sales Pipeline</strong> - Deals, contacts, follow-ups, close dates</p>
                         <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Academic Writing</strong> - Thesis, arguments, citations, evidence</p>
