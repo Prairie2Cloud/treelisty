@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 208 | 2025-11-30
+    TreeListy v2.11.0 | Build 207 | 2025-11-30
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 208): 📷 Canvas Export to Image
-    - NEW: Export button in canvas toolbar with dropdown menu
-    - PNG: Download canvas as high-res PNG (2x scale) using html2canvas
-    - SVG: Download as scalable vector graphic (native generation)
-    - CLIPBOARD: Copy canvas directly to clipboard for easy pasting
-    - AUTO-FIT: Automatically calculates bounding box for clean export
-    - FILENAMES: Smart naming with project name and date
-
-    Previous (Build 207): 💰 New CAPEX / Angel Pitch Pattern
+    Changelog (Build 207): 💰 New CAPEX / Angel Pitch Pattern
+    - NEW: Pattern #18 "CAPEX / Angel Pitch" for investor-ready capital expenditure trees
+    - STRUCTURE: Project → Funding Phase → Investment → Deliverable
+    - FIELDS: Cost, Risk, Mitigation, Valuation Impact, Lead Time
+    - PERSONA: Expert financial strategist with angel investor focus
+    - DETECTION: Auto-detect during import (seed round, series A/B, CAPEX, investors, etc.)
+    - REVERTED: Generic Project persona back to simple PM for import fallback
 
     Previous (Build 206): 🚀 Investor-Ready CFO Persona
 
@@ -2048,8 +2046,6 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- LZ-String library for URL compression -->
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-    <!-- html2canvas for Canvas Export to PNG -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <!-- Google API Client Library for OAuth and Drive API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -2196,8 +2192,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 208 | 2025-11-30">
-                    v2.11.0 • Build 208
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 207 | 2025-11-30">
+                    v2.11.0 • Build 207
                 </div>
             </div>
         </div>
@@ -7942,329 +7938,6 @@ Focus on logical structure and content organization best practices.`;
             const zoomLevel = document.getElementById('zoom-level');
             if (zoomLevel) {
                 zoomLevel.textContent = Math.round(canvasZoom * 100) + '%';
-            }
-        }
-
-        // =============================================================================
-        // CANVAS EXPORT FUNCTIONS
-        // =============================================================================
-
-        /**
-         * Toggle the export dropdown menu
-         */
-        function toggleExportMenu() {
-            const menu = document.getElementById('canvas-export-menu');
-            if (menu) {
-                const isVisible = menu.style.display === 'block';
-                menu.style.display = isVisible ? 'none' : 'block';
-
-                // Close menu when clicking outside
-                if (!isVisible) {
-                    setTimeout(() => {
-                        document.addEventListener('click', closeExportMenuOnClickOutside, { once: true });
-                    }, 10);
-                }
-            }
-        }
-
-        function closeExportMenuOnClickOutside(e) {
-            const menu = document.getElementById('canvas-export-menu');
-            const btn = document.getElementById('canvas-export-btn');
-            if (menu && !menu.contains(e.target) && !btn.contains(e.target)) {
-                menu.style.display = 'none';
-            }
-        }
-
-        /**
-         * Calculate the bounding box of all canvas nodes
-         * @returns {Object} {minX, minY, maxX, maxY, width, height}
-         */
-        function getCanvasBoundingBox() {
-            if (canvasNodes.length === 0) {
-                return { minX: 0, minY: 0, maxX: 800, maxY: 600, width: 800, height: 600 };
-            }
-
-            let minX = Infinity, minY = Infinity;
-            let maxX = -Infinity, maxY = -Infinity;
-
-            canvasNodes.forEach(({ data }) => {
-                minX = Math.min(minX, data.canvasX);
-                minY = Math.min(minY, data.canvasY);
-                maxX = Math.max(maxX, data.canvasX + 320);  // node width
-                maxY = Math.max(maxY, data.canvasY + 140);  // node height approx
-            });
-
-            // Add padding
-            const padding = 60;
-            minX -= padding;
-            minY -= padding;
-            maxX += padding;
-            maxY += padding;
-
-            return {
-                minX, minY, maxX, maxY,
-                width: maxX - minX,
-                height: maxY - minY
-            };
-        }
-
-        /**
-         * Export canvas view as PNG using html2canvas
-         */
-        async function exportCanvasAsPNG() {
-            const menu = document.getElementById('canvas-export-menu');
-            if (menu) menu.style.display = 'none';
-
-            // Show loading indicator
-            showToast('📷 Preparing export...', 'info');
-
-            try {
-                const canvas = document.getElementById('canvas');
-                const bbox = getCanvasBoundingBox();
-
-                // Store original transform
-                const originalTransform = canvas.style.transform;
-                const originalPan = { ...canvasPan };
-                const originalZoom = canvasZoom;
-
-                // Reset to 1:1 scale and position for clean capture
-                canvasZoom = 1;
-                canvasPan = { x: -bbox.minX + 60, y: -bbox.minY + 60 };
-                updateCanvasTransform();
-
-                // Wait for transform to apply
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Use html2canvas to capture
-                const captureCanvas = await html2canvas(canvas, {
-                    backgroundColor: '#0f172a',  // Match app background
-                    scale: 2,  // 2x resolution for crisp export
-                    width: bbox.width + 120,
-                    height: bbox.height + 120,
-                    x: 0,
-                    y: 0,
-                    scrollX: 0,
-                    scrollY: 0,
-                    useCORS: true,
-                    logging: false
-                });
-
-                // Restore original transform
-                canvasPan = originalPan;
-                canvasZoom = originalZoom;
-                updateCanvasTransform();
-
-                // Generate filename
-                const projectName = capexTree.name || 'treelisty-canvas';
-                const safeName = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 40);
-                const timestamp = new Date().toISOString().slice(0, 10);
-                const filename = `${safeName}-canvas-${timestamp}.png`;
-
-                // Download
-                const link = document.createElement('a');
-                link.download = filename;
-                link.href = captureCanvas.toDataURL('image/png');
-                link.click();
-
-                showToast(`✅ Exported: ${filename}`, 'success');
-
-            } catch (error) {
-                console.error('PNG export error:', error);
-                showToast('❌ Export failed: ' + error.message, 'error');
-            }
-        }
-
-        /**
-         * Export canvas as SVG (native export without library)
-         */
-        function exportCanvasAsSVG() {
-            const menu = document.getElementById('canvas-export-menu');
-            if (menu) menu.style.display = 'none';
-
-            showToast('📐 Generating SVG...', 'info');
-
-            try {
-                const bbox = getCanvasBoundingBox();
-                const svgNS = 'http://www.w3.org/2000/svg';
-
-                // Create SVG element
-                const svg = document.createElementNS(svgNS, 'svg');
-                svg.setAttribute('xmlns', svgNS);
-                svg.setAttribute('width', bbox.width);
-                svg.setAttribute('height', bbox.height);
-                svg.setAttribute('viewBox', `${bbox.minX} ${bbox.minY} ${bbox.width} ${bbox.height}`);
-                svg.style.backgroundColor = '#0f172a';
-
-                // Add background rect
-                const bgRect = document.createElementNS(svgNS, 'rect');
-                bgRect.setAttribute('x', bbox.minX);
-                bgRect.setAttribute('y', bbox.minY);
-                bgRect.setAttribute('width', bbox.width);
-                bgRect.setAttribute('height', bbox.height);
-                bgRect.setAttribute('fill', '#0f172a');
-                svg.appendChild(bgRect);
-
-                // Clone existing SVG connections
-                const connectionsSvg = document.getElementById('canvas-connections');
-                if (connectionsSvg) {
-                    const clonedPaths = connectionsSvg.cloneNode(true);
-                    // Adjust for SVG offset
-                    Array.from(clonedPaths.children).forEach(child => {
-                        svg.appendChild(child.cloneNode(true));
-                    });
-                }
-
-                // Add nodes as SVG rectangles with text
-                canvasNodes.forEach(({ data }) => {
-                    const nodeGroup = document.createElementNS(svgNS, 'g');
-                    nodeGroup.setAttribute('transform', `translate(${data.canvasX}, ${data.canvasY})`);
-
-                    // Node background
-                    const rect = document.createElementNS(svgNS, 'rect');
-                    rect.setAttribute('width', '300');
-                    rect.setAttribute('height', '120');
-                    rect.setAttribute('rx', '12');
-                    rect.setAttribute('fill', 'rgba(30, 41, 59, 0.95)');
-                    rect.setAttribute('stroke', 'rgba(99, 102, 241, 0.3)');
-                    rect.setAttribute('stroke-width', '2');
-                    nodeGroup.appendChild(rect);
-
-                    // Node icon
-                    const icon = document.createElementNS(svgNS, 'text');
-                    icon.setAttribute('x', '16');
-                    icon.setAttribute('y', '35');
-                    icon.setAttribute('font-size', '24');
-                    icon.textContent = data.icon || '📦';
-                    nodeGroup.appendChild(icon);
-
-                    // Node title
-                    const title = document.createElementNS(svgNS, 'text');
-                    title.setAttribute('x', '52');
-                    title.setAttribute('y', '32');
-                    title.setAttribute('font-size', '14');
-                    title.setAttribute('font-weight', '600');
-                    title.setAttribute('fill', '#e2e8f0');
-                    title.textContent = (data.name || 'Untitled').substring(0, 35);
-                    nodeGroup.appendChild(title);
-
-                    // Node description
-                    const desc = document.createElementNS(svgNS, 'text');
-                    desc.setAttribute('x', '52');
-                    desc.setAttribute('y', '52');
-                    desc.setAttribute('font-size', '11');
-                    desc.setAttribute('fill', '#94a3b8');
-                    desc.textContent = (data.description || '').substring(0, 45) + (data.description?.length > 45 ? '...' : '');
-                    nodeGroup.appendChild(desc);
-
-                    // Cost badge if applicable
-                    if (data.cost && data.cost > 0) {
-                        const costStr = data.cost >= 1000000 ? `$${(data.cost/1000000).toFixed(1)}M` :
-                                       data.cost >= 1000 ? `$${(data.cost/1000).toFixed(0)}K` :
-                                       `$${data.cost}`;
-                        const costBadge = document.createElementNS(svgNS, 'text');
-                        costBadge.setAttribute('x', '16');
-                        costBadge.setAttribute('y', '100');
-                        costBadge.setAttribute('font-size', '12');
-                        costBadge.setAttribute('font-weight', '600');
-                        costBadge.setAttribute('fill', '#22c55e');
-                        costBadge.textContent = costStr;
-                        nodeGroup.appendChild(costBadge);
-                    }
-
-                    svg.appendChild(nodeGroup);
-                });
-
-                // Add watermark
-                const watermark = document.createElementNS(svgNS, 'text');
-                watermark.setAttribute('x', bbox.maxX - 20);
-                watermark.setAttribute('y', bbox.maxY - 15);
-                watermark.setAttribute('font-size', '10');
-                watermark.setAttribute('fill', 'rgba(99, 102, 241, 0.4)');
-                watermark.setAttribute('text-anchor', 'end');
-                watermark.textContent = 'TreeListy';
-                svg.appendChild(watermark);
-
-                // Serialize and download
-                const serializer = new XMLSerializer();
-                const svgString = serializer.serializeToString(svg);
-                const blob = new Blob([svgString], { type: 'image/svg+xml' });
-                const url = URL.createObjectURL(blob);
-
-                // Generate filename
-                const projectName = capexTree.name || 'treelisty-canvas';
-                const safeName = projectName.toLowerCase().replace(/[^a-z0-9]+/g, '-').substring(0, 40);
-                const timestamp = new Date().toISOString().slice(0, 10);
-                const filename = `${safeName}-canvas-${timestamp}.svg`;
-
-                const link = document.createElement('a');
-                link.download = filename;
-                link.href = url;
-                link.click();
-
-                URL.revokeObjectURL(url);
-                showToast(`✅ Exported: ${filename}`, 'success');
-
-            } catch (error) {
-                console.error('SVG export error:', error);
-                showToast('❌ SVG export failed: ' + error.message, 'error');
-            }
-        }
-
-        /**
-         * Copy canvas as PNG image to clipboard
-         */
-        async function copyCanvasToClipboard() {
-            const menu = document.getElementById('canvas-export-menu');
-            if (menu) menu.style.display = 'none';
-
-            showToast('📋 Copying to clipboard...', 'info');
-
-            try {
-                const canvas = document.getElementById('canvas');
-                const bbox = getCanvasBoundingBox();
-
-                // Store original transform
-                const originalPan = { ...canvasPan };
-                const originalZoom = canvasZoom;
-
-                // Reset to 1:1 scale for clean capture
-                canvasZoom = 1;
-                canvasPan = { x: -bbox.minX + 60, y: -bbox.minY + 60 };
-                updateCanvasTransform();
-
-                await new Promise(resolve => setTimeout(resolve, 100));
-
-                // Capture with html2canvas
-                const captureCanvas = await html2canvas(canvas, {
-                    backgroundColor: '#0f172a',
-                    scale: 2,
-                    width: bbox.width + 120,
-                    height: bbox.height + 120,
-                    useCORS: true,
-                    logging: false
-                });
-
-                // Restore original transform
-                canvasPan = originalPan;
-                canvasZoom = originalZoom;
-                updateCanvasTransform();
-
-                // Convert to blob and copy to clipboard
-                captureCanvas.toBlob(async (blob) => {
-                    try {
-                        await navigator.clipboard.write([
-                            new ClipboardItem({ 'image/png': blob })
-                        ]);
-                        showToast('✅ Copied to clipboard!', 'success');
-                    } catch (clipErr) {
-                        console.error('Clipboard write error:', clipErr);
-                        showToast('❌ Clipboard access denied', 'error');
-                    }
-                }, 'image/png');
-
-            } catch (error) {
-                console.error('Clipboard copy error:', error);
-                showToast('❌ Copy failed: ' + error.message, 'error');
             }
         }
 
@@ -27713,23 +27386,6 @@ ${jsonText}`;
             <button id="hyperedge-panel-btn" onclick="toggleHyperedgePanel()" class="btn" style="padding: 8px 14px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 8px; color: #A78BFA; font-size: 13px; transition: all 0.2s;" title="Manage hyperedge visibility">
                 🔗 Edges
             </button>
-            <div style="position: relative; display: inline-block;">
-                <button id="canvas-export-btn" onclick="toggleExportMenu()" class="btn" style="padding: 8px 14px; background: rgba(34, 197, 94, 0.15); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 8px; color: #22C55E; font-size: 13px; transition: all 0.2s;" title="Export canvas as image">
-                    📷 Export
-                </button>
-                <div id="canvas-export-menu" style="display: none; position: absolute; top: 100%; left: 0; margin-top: 8px; background: rgba(20, 20, 30, 0.98); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 8px; padding: 8px 0; min-width: 180px; z-index: 300; box-shadow: 0 8px 24px rgba(0,0,0,0.4);">
-                    <button onclick="exportCanvasAsPNG()" style="display: block; width: 100%; padding: 10px 16px; background: none; border: none; color: #e2e8f0; font-size: 13px; text-align: left; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(34, 197, 94, 0.2)'" onmouseout="this.style.background='none'">
-                        🖼️ Download PNG
-                    </button>
-                    <button onclick="exportCanvasAsSVG()" style="display: block; width: 100%; padding: 10px 16px; background: none; border: none; color: #e2e8f0; font-size: 13px; text-align: left; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(34, 197, 94, 0.2)'" onmouseout="this.style.background='none'">
-                        📐 Download SVG
-                    </button>
-                    <div style="height: 1px; background: rgba(255,255,255,0.1); margin: 6px 0;"></div>
-                    <button onclick="copyCanvasToClipboard()" style="display: block; width: 100%; padding: 10px 16px; background: none; border: none; color: #e2e8f0; font-size: 13px; text-align: left; cursor: pointer; transition: background 0.2s;" onmouseover="this.style.background='rgba(34, 197, 94, 0.2)'" onmouseout="this.style.background='none'">
-                        📋 Copy to Clipboard
-                    </button>
-                </div>
-            </div>
             <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
             <div style="display: flex; align-items: center; gap: 6px;">
                 <button id="zoom-out" class="btn" style="padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: var(--text-primary); font-weight: 600; transition: all 0.2s;">−</button>
