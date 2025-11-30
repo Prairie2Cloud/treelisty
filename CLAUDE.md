@@ -54,9 +54,16 @@ When making changes:
 
 2. **Update changelog** in header (lines ~21-26)
 
-3. **Commit with build number** in message
+3. **Update UI version display** (line ~2188-2189):
+   ```html
+   <div ... title="TreeListy v2.11.0 | Build XXX | YYYY-MM-DD">
+       v2.11.0 • Build XXX
+   </div>
+   ```
 
-4. **Update `docs/AI-CONTEXT.md`** build history table
+4. **Commit with build number** in message
+
+5. **Update `docs/AI-CONTEXT.md`** build history table
 
 ---
 
