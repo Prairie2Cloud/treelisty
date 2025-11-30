@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 194 | 2025-11-29
+    TreeListy v2.11.0 | Build 195 | 2025-11-29
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 17 specialized patterns (Generic, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,9 +18,10 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 194): 🔧 Fix Merge Button Variable Scope
-    - FIX: pendingMergeBranch declared before IIFE (was causing click to fail)
-    - FIX: "Accept & Merge Changes" button now works correctly
+    Changelog (Build 195): 🔍 Debug Merge Button Click
+    - DEBUG: Added console logging to track merge button initialization and clicks
+
+    Previous (Build 194): 🔧 Fix Merge Button Variable Scope
 
     Previous (Build 193): 🔧 IIFE with DOM Ready Check
 
@@ -2175,8 +2176,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 194 | 2025-11-29">
-                    v2.11.0 • Build 194
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.11.0 | Build 195 | 2025-11-29">
+                    v2.11.0 • Build 195
                 </div>
             </div>
         </div>
@@ -18227,11 +18228,20 @@ Thanks!`;
             });
 
             // Accept merge
-            document.getElementById('merge-branch-accept')?.addEventListener('click', () => {
-                if (pendingMergeBranch) {
-                    performBranchMerge(pendingMergeBranch);
-                }
-            });
+            const acceptBtn = document.getElementById('merge-branch-accept');
+            console.log('🔀 merge-branch-accept button found:', !!acceptBtn);
+            if (acceptBtn) {
+                acceptBtn.addEventListener('click', () => {
+                    console.log('🔀 Accept merge clicked, pendingMergeBranch:', !!pendingMergeBranch);
+                    if (pendingMergeBranch) {
+                        performBranchMerge(pendingMergeBranch);
+                    } else {
+                        console.error('🔀 No pendingMergeBranch set!');
+                    }
+                });
+            } else {
+                console.error('🔀 merge-branch-accept button NOT FOUND in DOM!');
+            }
 
             // Close on backdrop click
             document.getElementById('merge-branch-modal')?.addEventListener('click', (e) => {
