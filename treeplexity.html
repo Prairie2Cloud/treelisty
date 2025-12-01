@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.12.0 | Build 217 | 2025-12-01
+    TreeListy v2.13.0 | Build 218 | 2025-12-01
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 217): 🌟 Added Claude Opus 4.5 Model Option
+    Changelog (Build 218): 🎨 Imagen 4 Image Generation + Model Updates
+    - NEW: Generate images from selected nodes using Google Imagen 4
+    - NEW: Right-click → "Generate Image" in Canvas view
+    - NEW: Choose aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
+    - NEW: Imagen 4 Standard, Fast, and Ultra models
+    - NEW: Attach generated images to nodes
+    - UPDATED: Gemini models to 2.5-pro and 2.5-flash (stable)
+    - UPDATED: OpenAI models: GPT-5, GPT-5-mini, o3, o4-mini
+    - UPDATED: Claude Opus 4.5 (claude-opus-4-5-20251101)
+    Previous (Build 217): 🌟 Added Claude Opus 4.5 Model Option
     Previous (Build 216): 👥 Collaboration Section Moved to Prominent Position
     - MOVED: Collaboration section now appears right after Name/Description/Icon
     - UI: New highlighted card design with purple gradient background
@@ -2237,13 +2246,15 @@
                             <option value="user-opus45" title="Frontier - Claude Opus 4.5">🌟 Opus 4.5</option>
                         </optgroup>
                         <optgroup label="🔷 Gemini (Your Key)">
-                            <option value="user-gemini-flash" title="Fast - Gemini 2.0 Flash">⚡ Flash 2.0</option>
-                            <option value="user-gemini-pro" title="Most capable - Gemini 2.5 Pro Preview">🧠 Pro 2.5</option>
+                            <option value="user-gemini-flash" title="Fast - Gemini 2.5 Flash (Stable)">⚡ Flash 2.5</option>
+                            <option value="user-gemini-pro" title="Best reasoning - Gemini 2.5 Pro (Stable)">🧠 Pro 2.5</option>
                         </optgroup>
-                        <optgroup label="💬 ChatGPT (Your Key)">
-                            <option value="user-gpt4o-mini" title="Fast & cheap - GPT-4o Mini">⚡ 4o-mini</option>
-                            <option value="user-gpt4o" title="Flagship - GPT-4o">🧠 GPT-4o</option>
-                            <option value="user-o1" title="Reasoning - o1">🔮 o1</option>
+                        <optgroup label="💬 OpenAI (Your Key)">
+                            <option value="user-gpt5-mini" title="Fast - GPT-5 Mini">⚡ GPT-5 mini</option>
+                            <option value="user-gpt5" title="Flagship - GPT-5">🌟 GPT-5</option>
+                            <option value="user-o4-mini" title="Fast reasoning - o4-mini">🔮 o4-mini</option>
+                            <option value="user-o3" title="Best reasoning - o3">🔮 o3</option>
+                            <option value="user-gpt4o" title="Legacy - GPT-4o">🧠 GPT-4o</option>
                         </optgroup>
                         <optgroup label="Disable">
                             <option value="off">❌ Off</option>
@@ -2266,8 +2277,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.12.0 | Build 217 | 2025-12-01">
-                    v2.12.0 • Build 217
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.13.0 | Build 218 | 2025-12-01">
+                    v2.13.0 • Build 218
                 </div>
             </div>
         </div>
@@ -4561,54 +4572,82 @@ Do not ask permission—just provide the critique, then help.
                 'user-gemini-flash': {
                     provider: 'gemini',
                     model: 'gemini-flash',
-                    modelId: 'gemini-2.0-flash',
+                    modelId: 'gemini-2.5-flash',
                     useServerKey: false,
-                    description: 'Fast - Gemini 2.0 Flash (Free tier available)'
+                    description: 'Fast - Gemini 2.5 Flash (Stable)'
                 },
                 'user-gemini-pro': {
                     provider: 'gemini',
                     model: 'gemini-pro',
-                    modelId: 'gemini-2.5-pro-preview-05-06',
+                    modelId: 'gemini-2.5-pro',
                     useServerKey: false,
-                    description: 'Most capable - Gemini 2.5 Pro Preview'
+                    description: 'Best reasoning - Gemini 2.5 Pro (Stable)'
                 },
                 // Legacy: user-gemini maps to flash
                 'user-gemini': {
                     provider: 'gemini',
                     model: 'gemini-flash',
-                    modelId: 'gemini-2.0-flash',
+                    modelId: 'gemini-2.5-flash',
                     useServerKey: false,
-                    description: 'Gemini 2.0 Flash'
+                    description: 'Gemini 2.5 Flash'
                 },
-                // ChatGPT models (always user key, direct API = no timeout!)
-                'user-gpt4o-mini': {
+                // OpenAI models (always user key, direct API = no timeout!)
+                'user-gpt5': {
                     provider: 'openai',
-                    model: 'gpt-4o-mini',
-                    modelId: 'gpt-4o-mini',
+                    model: 'gpt-5',
+                    modelId: 'gpt-5',
                     useServerKey: false,
-                    description: 'Fast & cheap - GPT-4o Mini (~$0.15/1M in, $0.60/1M out)'
+                    description: 'Flagship - GPT-5 (Aug 2025)'
+                },
+                'user-gpt5-mini': {
+                    provider: 'openai',
+                    model: 'gpt-5-mini',
+                    modelId: 'gpt-5-mini',
+                    useServerKey: false,
+                    description: 'Fast - GPT-5 Mini'
+                },
+                'user-o3': {
+                    provider: 'openai',
+                    model: 'o3',
+                    modelId: 'o3',
+                    useServerKey: false,
+                    description: 'Best reasoning - o3'
+                },
+                'user-o4-mini': {
+                    provider: 'openai',
+                    model: 'o4-mini',
+                    modelId: 'o4-mini',
+                    useServerKey: false,
+                    description: 'Fast reasoning - o4-mini'
                 },
                 'user-gpt4o': {
                     provider: 'openai',
                     model: 'gpt-4o',
                     modelId: 'gpt-4o',
                     useServerKey: false,
-                    description: 'Flagship - GPT-4o (~$2.50/1M in, $10/1M out)'
+                    description: 'Legacy - GPT-4o'
+                },
+                // Legacy mappings
+                'user-gpt4o-mini': {
+                    provider: 'openai',
+                    model: 'gpt-5-mini',
+                    modelId: 'gpt-5-mini',
+                    useServerKey: false,
+                    description: 'Redirects to GPT-5 Mini'
                 },
                 'user-o1': {
                     provider: 'openai',
-                    model: 'o1',
-                    modelId: 'o1',
+                    model: 'o3',
+                    modelId: 'o3',
                     useServerKey: false,
-                    description: 'Reasoning model - o1 (~$15/1M in, $60/1M out)'
+                    description: 'Redirects to o3'
                 },
-                // Legacy: user-chatgpt maps to gpt-4o
                 'user-chatgpt': {
                     provider: 'openai',
-                    model: 'gpt-4o',
-                    modelId: 'gpt-4o',
+                    model: 'gpt-5',
+                    modelId: 'gpt-5',
                     useServerKey: false,
-                    description: 'GPT-4o'
+                    description: 'GPT-5'
                 }
             };
 
@@ -8077,6 +8116,20 @@ Focus on logical structure and content organization best practices.`;
                 action: () => {
                     console.log('Share for collaboration clicked for:', shareNodes.map(n => n.name));
                     showShareBranchModal(shareNodes.map(n => n.id));
+                }
+            });
+
+            // Add "Generate Image" option (Imagen 4)
+            const imageNodes = selectedNodes.length > 0 ? selectedNodes : [item];
+            const imageLabel = imageNodes.length > 1
+                ? `🎨 Generate Image (${imageNodes.length} nodes)`
+                : '🎨 Generate Image';
+
+            menuItems.push({
+                label: imageLabel,
+                action: () => {
+                    console.log('Generate Image clicked for:', imageNodes.map(n => n.name));
+                    showImagenModal(imageNodes);
                 }
             });
 
@@ -19487,6 +19540,294 @@ Thanks!`;
                 const urlInput = document.getElementById('share-branch-url-input');
                 if (urlInput) urlInput.select();
             }, 100);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // IMAGEN 4 - AI IMAGE GENERATION (Build 218)
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /**
+         * Show Imagen 4 modal for generating images from selected nodes
+         * @param {Array} nodes - Array of nodes to generate image from
+         */
+        function showImagenModal(nodes) {
+            // Check for Gemini API key
+            const geminiKey = localStorage.getItem('gemini_api_key');
+            if (!geminiKey) {
+                alert('🔑 Gemini API key required for image generation.\n\nGo to Settings (🔑 button) and add your Gemini API key.');
+                return;
+            }
+
+            // Generate prompt from nodes
+            const nodeContext = nodes.map(n => {
+                let text = `${n.icon || '📄'} ${n.name}`;
+                if (n.description) text += `\n   ${n.description}`;
+                return text;
+            }).join('\n');
+
+            const defaultPrompt = nodes.length === 1
+                ? `Create a visual representation of: ${nodes[0].name}${nodes[0].description ? '. ' + nodes[0].description : ''}`
+                : `Create an image showing the relationship between: ${nodes.map(n => n.name).join(', ')}`;
+
+            // Remove existing modal
+            const existing = document.getElementById('imagen-modal');
+            if (existing) existing.remove();
+
+            // Create modal
+            const modal = document.createElement('div');
+            modal.id = 'imagen-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.8);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                z-index: 10000;
+            `;
+
+            modal.innerHTML = `
+                <div style="background: var(--card-bg); border-radius: 16px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; border: 2px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <div style="padding: 24px; border-bottom: 1px solid var(--border);">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 10px;">
+                                🎨 Generate Image with Imagen 4
+                            </h2>
+                            <button id="imagen-close" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
+                        </div>
+                    </div>
+
+                    <div style="padding: 24px;">
+                        <!-- Node Context -->
+                        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 16px; border-radius: 12px; margin-bottom: 20px; border-left: 3px solid #6366f1;">
+                            <div style="font-weight: 600; margin-bottom: 8px; color: #6366f1; font-size: 13px;">Selected Nodes (${nodes.length})</div>
+                            <div style="font-size: 13px; color: var(--text-secondary); white-space: pre-line; max-height: 100px; overflow-y: auto;">${nodeContext}</div>
+                        </div>
+
+                        <!-- Prompt Input -->
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px;">Image Prompt</label>
+                            <textarea id="imagen-prompt" style="width: 100%; min-height: 100px; padding: 12px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary); font-size: 14px; resize: vertical;">${defaultPrompt}</textarea>
+                        </div>
+
+                        <!-- Options -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px;">Aspect Ratio</label>
+                                <select id="imagen-aspect" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
+                                    <option value="1:1">1:1 (Square)</option>
+                                    <option value="16:9">16:9 (Widescreen)</option>
+                                    <option value="9:16">9:16 (Portrait)</option>
+                                    <option value="4:3">4:3 (Standard)</option>
+                                    <option value="3:4">3:4 (Portrait)</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px;">Model</label>
+                                <select id="imagen-model" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
+                                    <option value="imagen-4.0-generate-001">Imagen 4 (Standard)</option>
+                                    <option value="imagen-4.0-fast-generate-001">Imagen 4 Fast</option>
+                                    <option value="imagen-4.0-ultra-generate-001">Imagen 4 Ultra</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <!-- Generate Button -->
+                        <button id="imagen-generate" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            🎨 Generate Image
+                        </button>
+
+                        <!-- Results Container -->
+                        <div id="imagen-results" style="margin-top: 20px; display: none;">
+                            <div style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">Generated Images</div>
+                            <div id="imagen-images" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;"></div>
+                        </div>
+
+                        <!-- Error Container -->
+                        <div id="imagen-error" style="margin-top: 20px; display: none; background: rgba(239, 68, 68, 0.1); padding: 16px; border-radius: 8px; border-left: 3px solid #ef4444; color: #ef4444;"></div>
+                    </div>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Store selected nodes for later attachment
+            modal.dataset.nodeIds = JSON.stringify(nodes.map(n => n.id));
+
+            // Event handlers
+            document.getElementById('imagen-close').onclick = () => modal.remove();
+            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+
+            document.getElementById('imagen-generate').onclick = () => generateImagenImage(nodes);
+        }
+
+        /**
+         * Call Imagen 4 API to generate an image
+         * @param {Array} nodes - Nodes to potentially attach the image to
+         */
+        async function generateImagenImage(nodes) {
+            const prompt = document.getElementById('imagen-prompt').value.trim();
+            const aspectRatio = document.getElementById('imagen-aspect').value;
+            const modelId = document.getElementById('imagen-model').value;
+            const geminiKey = localStorage.getItem('gemini_api_key');
+
+            if (!prompt) {
+                alert('Please enter an image prompt');
+                return;
+            }
+
+            const generateBtn = document.getElementById('imagen-generate');
+            const resultsDiv = document.getElementById('imagen-results');
+            const imagesDiv = document.getElementById('imagen-images');
+            const errorDiv = document.getElementById('imagen-error');
+
+            // Show loading state
+            generateBtn.disabled = true;
+            generateBtn.innerHTML = '<span class="spinner" style="border: 2px solid transparent; border-top: 2px solid white; border-radius: 50%; width: 20px; height: 20px; animation: spin 1s linear infinite; display: inline-block;"></span> Generating...';
+            resultsDiv.style.display = 'none';
+            errorDiv.style.display = 'none';
+
+            try {
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:predict?key=${geminiKey}`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        instances: [{ prompt: prompt }],
+                        parameters: {
+                            sampleCount: 4,
+                            aspectRatio: aspectRatio,
+                            personGeneration: 'allow_adult'
+                        }
+                    })
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    throw new Error(data.error?.message || `API error: ${response.status}`);
+                }
+
+                // Check for predictions
+                if (!data.predictions || data.predictions.length === 0) {
+                    throw new Error('No images generated. Try a different prompt.');
+                }
+
+                // Display images
+                imagesDiv.innerHTML = '';
+                data.predictions.forEach((pred, idx) => {
+                    if (pred.bytesBase64Encoded) {
+                        const imgContainer = document.createElement('div');
+                        imgContainer.style.cssText = 'position: relative; border-radius: 12px; overflow: hidden; border: 2px solid var(--border);';
+
+                        const img = document.createElement('img');
+                        img.src = `data:image/png;base64,${pred.bytesBase64Encoded}`;
+                        img.style.cssText = 'width: 100%; height: auto; display: block;';
+                        img.alt = `Generated image ${idx + 1}`;
+
+                        // Add "Attach to Node" button
+                        const attachBtn = document.createElement('button');
+                        attachBtn.textContent = '📎 Attach to Node';
+                        attachBtn.style.cssText = `
+                            position: absolute;
+                            bottom: 8px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: rgba(0,0,0,0.8);
+                            color: white;
+                            border: none;
+                            padding: 8px 16px;
+                            border-radius: 20px;
+                            font-size: 12px;
+                            cursor: pointer;
+                            opacity: 0;
+                            transition: opacity 0.2s;
+                        `;
+                        imgContainer.onmouseenter = () => attachBtn.style.opacity = '1';
+                        imgContainer.onmouseleave = () => attachBtn.style.opacity = '0';
+
+                        attachBtn.onclick = () => {
+                            attachImageToNode(nodes[0], pred.bytesBase64Encoded, prompt);
+                            const modal = document.getElementById('imagen-modal');
+                            if (modal) modal.remove();
+                        };
+
+                        imgContainer.appendChild(img);
+                        imgContainer.appendChild(attachBtn);
+                        imagesDiv.appendChild(imgContainer);
+                    }
+                });
+
+                resultsDiv.style.display = 'block';
+
+            } catch (error) {
+                console.error('Imagen error:', error);
+                errorDiv.textContent = `Error: ${error.message}`;
+                errorDiv.style.display = 'block';
+            } finally {
+                generateBtn.disabled = false;
+                generateBtn.innerHTML = '🎨 Generate Image';
+            }
+        }
+
+        /**
+         * Attach generated image to a node
+         * @param {object} node - The node to attach image to
+         * @param {string} base64 - Base64 encoded image data
+         * @param {string} prompt - The prompt used to generate the image
+         */
+        function attachImageToNode(node, base64, prompt) {
+            // Store image data in node
+            node.generatedImage = {
+                data: base64,
+                prompt: prompt,
+                model: 'Imagen 4',
+                generatedAt: new Date().toISOString()
+            };
+
+            // Save state for undo
+            if (typeof saveState === 'function') {
+                saveState('Attach generated image');
+            }
+
+            // Re-render to show image
+            if (typeof renderCanvas === 'function') {
+                renderCanvas();
+            }
+            if (typeof renderTree === 'function') {
+                renderTree();
+            }
+
+            // Show confirmation
+            showToast(`🎨 Image attached to "${node.name}"`);
+        }
+
+        /**
+         * Show a toast notification
+         * @param {string} message - Message to display
+         */
+        function showToast(message) {
+            const toast = document.createElement('div');
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: #10b981;
+                color: white;
+                padding: 12px 24px;
+                border-radius: 8px;
+                font-size: 14px;
+                z-index: 10001;
+                animation: fadeInUp 0.3s ease;
+            `;
+            toast.textContent = message;
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 3000);
         }
 
         /**
