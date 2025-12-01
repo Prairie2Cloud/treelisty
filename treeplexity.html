@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.12.0 | Build 215 | 2025-12-01
+    TreeListy v2.12.0 | Build 216 | 2025-12-01
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 215): 🎯 User-Refined Canvas Layout for Welcome Tree
+    Changelog (Build 216): 👥 Collaboration Section Moved to Prominent Position
+    - MOVED: Collaboration section now appears right after Name/Description/Icon
+    - UI: New highlighted card design with purple gradient background
+    - UI: More compact layout - Contributor field with Dad/Owen buttons inline
+    - UI: Comments textarea in same card for quick access
+    - UX: No more scrolling to find collaboration features
+
+    Previous (Build 215): 🎯 User-Refined Canvas Layout for Welcome Tree
     - Applied user's hand-positioned node coordinates
     - More spread-out layout with better visual balance
     - Items positioned to showcase hyperedge connections
@@ -15150,7 +15157,26 @@ Your response:`;
                     </div>
                 `;
 
-                // 3. Pattern-Specific Custom Fields (dynamic)
+                // 3. Collaboration Section (universal - prominent placement)
+                fieldsHTML += `
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 16px; margin: 16px 0;">
+                        <h3 style="font-size: 14px; font-weight: 600; margin: 0 0 12px 0; color: var(--treeplex-primary);">👥 Collaboration</h3>
+                        <div class="form-group" style="margin-bottom: 12px;">
+                            <label style="font-size: 12px;">👤 Contributor</label>
+                            <div style="display: flex; gap: 8px; align-items: center;">
+                                <input type="text" id="edit-contributor" style="flex: 1; padding: 8px 12px;" placeholder="Your name" value="${activeNode.contributor || ''}" />
+                                <button type="button" onclick="document.getElementById('edit-contributor').value='Dad'" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text-primary);">Dad</button>
+                                <button type="button" onclick="document.getElementById('edit-contributor').value='Owen'" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 12px; color: var(--text-primary);">Owen</button>
+                            </div>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0;">
+                            <label style="font-size: 12px;">💬 Comments for Collaborators</label>
+                            <textarea id="edit-collab-comments" style="min-height: 60px; padding: 8px 12px;" placeholder="Leave notes, questions, or feedback for collaborators...">${activeNode.collabComments || ''}</textarea>
+                        </div>
+                    </div>
+                `;
+
+                // 4. Pattern-Specific Custom Fields (dynamic)
                 Object.keys(fields).forEach(fieldKey => {
                     // Skip configuration keys
                     if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
@@ -15160,32 +15186,11 @@ Your response:`;
                     fieldsHTML += generateFieldHTML(fieldKey, fieldConfig, activeNode);
                 });
 
-                // 4. Notes (universal)
+                // 5. Notes (universal)
                 fieldsHTML += `
                     <div class="form-group">
                         <label>Notes <span style="font-size: 10px; color: var(--text-secondary); font-weight: normal; margin-left: 4px;">(right-click 💡)</span></label>
                         <textarea id="edit-notes" style="min-height: 100px;" placeholder="Additional notes...">${activeNode.notes || ''}</textarea>
-                    </div>
-                `;
-
-                // 5. Collaboration Section (universal)
-                fieldsHTML += `
-                    <h3 style="font-size: 16px; font-weight: 600; margin: 24px 0 16px 0; color: var(--treeplex-primary); border-top: 1px solid var(--border); padding-top: 20px;">👥 Collaboration</h3>
-                    <div class="form-group">
-                        <label>💬 Comments for Collaborators</label>
-                        <textarea id="edit-collab-comments" style="min-height: 80px;" placeholder="Leave notes for collaborators (e.g., 'Owen - what do you think about this counterargument?', 'Dad - need your input on the historical context here')...">${activeNode.collabComments || ''}</textarea>
-                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; font-style: italic;">💡 Use this for async collaboration - leave questions, suggestions, or discussion points for your collaborators</p>
-                    </div>
-                    <div class="form-group">
-                        <label>👤 Contributor</label>
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="text" id="edit-contributor" style="flex: 1;" placeholder="Your name (e.g., Dad, Owen, Alex)" value="${activeNode.contributor || ''}" />
-                            <div style="display: flex; gap: 6px;">
-                                <button type="button" onclick="document.getElementById('edit-contributor').value='Dad'" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary);">Dad</button>
-                                <button type="button" onclick="document.getElementById('edit-contributor').value='Owen'" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary);">Owen</button>
-                            </div>
-                        </div>
-                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; font-style: italic;">🏷️ Tag your edits so collaborators know who contributed what</p>
                     </div>
                 `;
 
