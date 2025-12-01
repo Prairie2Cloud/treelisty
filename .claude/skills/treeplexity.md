@@ -1,8 +1,39 @@
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.9.4 (Build 156)
+**Version**: 2.12.0 (Build 211)
 **Author**: TreeListy Team
 **Description**: Work with TreeListy hierarchical project trees using natural language and AI
+
+## What's New in v2.12.0 (Build 210-211)
+
+**👥 Collaboration Features ("Chess by Mail")**:
+- **Collaboration Comments**: Leave notes for collaborators on any node
+- **Contributor Tags**: Tag who made edits (e.g., "Dad", "Owen") with timestamps
+- **Visual Badges**: 👤 contributor badge and 💬 comment indicator on nodes
+- **Watch Mode**: Poll shared files for real-time sync (5s/10s/30s/1min intervals)
+- **Google Drive Links**: `?gdrive=FILE_ID` URL parameter loads trees from Google Drive
+- **Watch Mode Links**: `?watch=URL` auto-opens Watch Mode for live collaboration
+
+**How Collaboration Works**:
+1. Save tree to shared folder (OneDrive, Google Drive, Dropbox)
+2. Email collaborator: `https://treelisty.netlify.app?gdrive=YOUR_FILE_ID`
+3. They edit, set their contributor name, save
+4. You reload → see their 👤 badges and 💬 comments
+5. Or use Watch Mode for live sync during a call
+
+**Watch Mode Features**:
+- Polls shared file at configurable intervals
+- Auto-detects changes from other contributors
+- Skips reloading your own saves
+- Visual sync indicator with pulse animation
+- Shows last check time and changes count
+
+**New Fields**:
+- `collabComments` (textarea): Notes for collaborators
+- `contributor` (text): Who made this edit
+- `contributorTimestamp` (date): When edit was made
+
+---
 
 ## What's New in v2.9.4 (Build 156)
 
@@ -428,6 +459,11 @@ TreeListy includes a rich web interface (treeplexity.html) with:
 - **Google Drive Import**: OAuth-based import of full folder hierarchies
 - **Pattern detection**: Auto-detects pattern when importing Excel/JSON
 - **Append mode**: Merge multiple Excel files into one tree
+- **Collaboration Comments**: Leave notes for collaborators (💬 indicator)
+- **Contributor Tags**: Track who made edits (👤 badges)
+- **Watch Mode**: Real-time sync via shared files (polling)
+- **Google Drive Links**: `?gdrive=FILE_ID` URL loads from Drive
+- **Watch Mode Links**: `?watch=URL` auto-starts live sync
 
 ### PWA Features
 - **Installable**: Add to home screen on desktop/mobile
@@ -923,6 +959,30 @@ These workflows combine AI features with programmatic manipulation:
 
 ---
 
+#### Workflow F: Collaborative Editing ("Chess by Mail")
+**User**: "My son Owen and I want to collaborate on a philosophy debate tree"
+
+**Actions**:
+1. Create tree with Philosophy pattern (AI Wizard or manual)
+2. Save to shared location (Google Drive, OneDrive, Dropbox)
+3. Get shareable link: Right-click file → Share → Anyone with link
+4. Email Owen: `https://treelisty.netlify.app?gdrive=YOUR_FILE_ID`
+5. Owen opens link → tree loads automatically
+6. Owen edits, sets Contributor to "Owen", adds collaboration comments
+7. Owen saves to same shared file
+8. You reload or use Watch Mode to see Owen's changes
+9. See 👤 Owen badges and 💬 indicators on modified nodes
+10. Respond, set Contributor to "Dad", continue the debate!
+
+**Watch Mode (Live Sync)**:
+- Both open Watch Mode → Same file → 5 second poll interval
+- See each other's edits in near-real-time during a call
+- Auto-detects changes, skips your own saves
+
+**Why this approach**: Async/sync collaboration without complex infrastructure
+
+---
+
 ### Traditional Programmatic Workflows
 
 #### Workflow 1: Meeting Notes → Project Tree
@@ -1279,6 +1339,12 @@ When user says... | Action
 "Suggest content for this field" | Use Smart Suggest (AI or Quick mode)
 "Generate prompt from my tree" | Export tree as AI-ready prompt (pattern-aware)
 "Improve this basic prompt: [text]" | Use AI Prompt pattern + Analyze Text workflow
+**Collaboration Commands** |
+"Collaborate with Owen on tree" | Use Watch Mode + shared file workflow
+"Share tree via Google Drive" | Save to Drive, email `?gdrive=FILE_ID` link
+"Start Watch Mode" | Click Watch Mode button, select file, set name
+"See who edited what" | Look for 👤 contributor badges on nodes
+"Leave note for collaborator" | Edit node → Collaboration section → Comments field
 **Traditional Commands** |
 "Load/Show my [name] tree" | Read JSON, display visual tree
 "What's blocking me?" | Find critical path, report blockers
@@ -1473,7 +1539,7 @@ Activate TreeListy skill when user:
 
 ---
 
-**End of TreeListy Skill Documentation v2.0**
+**End of TreeListy Skill Documentation v2.12.0**
 
 You are now ready to work with TreeListy trees using both AI-powered features and traditional programmatic manipulation!
 
@@ -1486,11 +1552,16 @@ You are now ready to work with TreeListy trees using both AI-powered features an
 - User wants **to export as AI prompt** → Generate Prompt
 - User wants **basic → comprehensive prompt** → AI Prompt pattern + Analyze Text
 - User needs **programmatic manipulation** → Use JSON/JavaScript workflows
+- User wants **to collaborate** → Watch Mode + shared file or `?gdrive=` links
+- User wants **async collaboration** → "Chess by Mail" workflow with contributor tags
+- User wants **live sync** → Watch Mode with 5-second poll interval
 
 **Remember**:
 - AI features and programmatic manipulation work together beautifully
 - Smart Merge protects user data - always safe to use AI features
 - Pattern-specific intelligence makes AI suggestions domain-appropriate
 - Extended Thinking (Sonnet Deep Mode) delivers highest quality for critical work
+- Collaboration features enable async/sync teamwork without complex infrastructure
+- Contributor badges (👤) and collab indicators (💬) show who did what
 
 When the user references TreeListy or tree files, use these instructions to help them manage, analyze, transform, and generate from their hierarchical project data with the perfect blend of AI assistance and programmatic control.

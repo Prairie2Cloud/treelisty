@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.11.0 | Build 209 | 2025-12-01
+    TreeListy v2.12.0 | Build 212 | 2025-12-01
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,20 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 209): 🐛 Fix Canvas Node Selection Persistence
-    - FIX: Selected nodes now stay selected after expand/collapse re-render
-    - FIX: Selection state preserved when renderCanvas() is called
-    - NEW: E2E test suite for collaboration workflow (25 tests)
-    - TESTS: Canvas selection, dragging, hyperedge creation, share/merge workflow
+    Changelog (Build 211): 👁️ Watch Mode + Google Drive Links ("Chess by Mail")
+    - NEW: Watch Mode - poll shared files for real-time sync
+    - NEW: ?gdrive=FILE_ID URL parameter - email links that load trees!
+    - NEW: ?watch=URL parameter - auto-opens Watch Mode for live sync
+    - NEW: File System Access API support for local shared files
+    - NEW: Configurable poll intervals (5s/10s/30s/1min)
+    - NEW: Auto-detect contributor changes, skip self-saves
+    - NEW: Visual sync indicator with pulse animation
+    - UI: Watch Mode modal with status panel
+    - WORKFLOW: Email Google Drive links to collaborators for async editing
+
+    Previous (Build 210): 👥 Collaboration Comments & Contributor Tags
+
+    Previous (Build 209): 🐛 Fix Canvas Node Selection Persistence
 
     Previous (Build 207): 💰 New CAPEX / Angel Pitch Pattern
 
@@ -1198,6 +1207,43 @@
             border-color: #C65050;
         }
 
+        /* Contributor badge for collaboration */
+        .contributor-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            font-size: 11px;
+            font-weight: 600;
+            background: linear-gradient(135deg, rgba(99, 102, 241, 0.3), rgba(99, 102, 241, 0.15));
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 12px;
+            margin-left: 6px;
+            cursor: help;
+        }
+
+        /* Collab comment indicator */
+        .collab-indicator {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 22px;
+            height: 22px;
+            font-size: 12px;
+            background: linear-gradient(135deg, rgba(251, 191, 36, 0.3), rgba(251, 191, 36, 0.15));
+            border: 1px solid rgba(251, 191, 36, 0.4);
+            border-radius: 50%;
+            margin-left: 4px;
+            cursor: help;
+            animation: collab-pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes collab-pulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(251, 191, 36, 0.4); }
+            50% { box-shadow: 0 0 0 4px rgba(251, 191, 36, 0); }
+        }
+
         .item-cost {
             font-size: 15px;
             font-weight: 700;
@@ -2228,6 +2274,7 @@
     <div id="ai-tools-panel">
         <button class="btn" data-icon="📥" id="analyze-text-btn" title="Convert text/files into tree structure"><span>Import Text</span></button>
         <button class="btn" data-icon="🔀" id="merge-branch-btn" title="Paste a collaboration URL to merge changes"><span>Merge Branch</span></button>
+        <button class="btn" data-icon="👁️" id="watch-mode-btn" title="Watch a shared file for live sync with collaborators"><span>Watch Mode</span></button>
         <button class="btn" data-icon="💬" id="wizard-btn" title="Build and edit tree via chat"><span>Chat Builder</span></button>
         <button class="btn" data-icon="🩺" id="ai-review-btn" title="Check for logic gaps and missing fields"><span>Check Quality</span></button>
         <button class="btn" data-icon="✨" id="auto-enhance-btn" title="Auto-fill details and add subtasks"><span>Smart Expand</span></button>
@@ -2794,6 +2841,91 @@ The AI will analyze the structure and convert it to a tree."
                 <button class="btn" id="paste-branch-cancel">Cancel</button>
                 <button class="btn btn-primary" id="paste-branch-merge" style="background: linear-gradient(135deg, #10b981, #059669);">
                     🔀 Parse & Merge
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Watch Mode Modal -->
+    <div class="modal" id="watch-mode-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
+                👁️ Watch Mode - Live Collaboration
+            </div>
+            <div class="modal-body" id="watch-mode-body">
+                <p style="color: var(--text-secondary); margin-bottom: 16px;">
+                    Watch a shared JSON file for real-time collaboration. When your collaborator saves changes, you'll see them automatically.
+                </p>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">👤 Your Name:</label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="watch-collaborator-name" placeholder="Enter your name"
+                               style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px;" />
+                        <button type="button" onclick="document.getElementById('watch-collaborator-name').value='Dad'"
+                                style="padding: 10px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">Dad</button>
+                        <button type="button" onclick="document.getElementById('watch-collaborator-name').value='Owen'"
+                                style="padding: 10px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">Owen</button>
+                    </div>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📁 Shared File Path or URL:</label>
+                    <input type="text" id="watch-file-path" placeholder="e.g., C:\Shared\hegel-debate.json or Google Drive file ID"
+                           style="width: 100%; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px;" />
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">
+                        💡 Use a shared folder (OneDrive, Google Drive, Dropbox) that both collaborators can access
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">⏱️ Poll Interval:</label>
+                    <select id="watch-interval" style="width: 100%; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px;">
+                        <option value="5000">Every 5 seconds (fast sync)</option>
+                        <option value="10000" selected>Every 10 seconds (balanced)</option>
+                        <option value="30000">Every 30 seconds (low bandwidth)</option>
+                        <option value="60000">Every 1 minute (manual-ish)</option>
+                    </select>
+                </div>
+
+                <!-- Status display (shown when watching) -->
+                <div id="watch-status-panel" style="display: none; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 16px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 16px;">
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+                        <div id="watch-pulse" style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
+                        <span style="font-weight: 600; color: #10b981;">Watching for changes...</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        <div>📄 File: <span id="watch-current-file" style="font-family: monospace;">--</span></div>
+                        <div>🕐 Last check: <span id="watch-last-check">--</span></div>
+                        <div>👥 Collaborator: <span id="watch-collaborator-display">--</span></div>
+                        <div id="watch-changes-count" style="margin-top: 8px; color: #10b981; font-weight: 600;"></div>
+                    </div>
+                </div>
+
+                <style>
+                    @keyframes watchPulse {
+                        0%, 100% { transform: scale(1); opacity: 1; }
+                        50% { transform: scale(1.3); opacity: 0.7; }
+                    }
+                </style>
+
+                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 12px; border-radius: 6px; border-left: 3px solid #6366f1;">
+                    <p style="color: var(--text-secondary); font-size: 12px; margin: 0;">
+                        <strong>How it works:</strong><br>
+                        1. Both collaborators open the same tree<br>
+                        2. Save your tree to a shared location (File → Save As JSON)<br>
+                        3. Start Watch Mode with the same file path<br>
+                        4. Edits are auto-detected and merged!
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="watch-mode-close">Close</button>
+                <button class="btn" id="watch-mode-stop" style="display: none; background: linear-gradient(135deg, #ef4444, #dc2626);">
+                    ⏹️ Stop Watching
+                </button>
+                <button class="btn btn-primary" id="watch-mode-start" style="background: linear-gradient(135deg, #10b981, #059669);">
+                    👁️ Start Watching
                 </button>
             </div>
         </div>
@@ -5917,24 +6049,40 @@ Focus on logical structure and content organization best practices.`;
          * Get hyperedge color - uses custom color if set, else type-based or generated
          */
         function getHyperedgeColor(hyperedge) {
-            // If hyperedge has a custom color, use it
-            if (hyperedge?.metadata?.color) {
-                const c = hyperedge.metadata.color;
-                return {
-                    fill: c.fill || c,
-                    border: c.border || c,
-                    glow: c.glow || c,
-                    solid: c.solid || c.border || c
-                };
+            // If hyperedge has a custom color (check multiple locations)
+            const customColor = hyperedge?.metadata?.color || hyperedge?.color;
+            if (customColor) {
+                // Handle both object format {fill, border, glow} and string format "#rrggbb"
+                if (typeof customColor === 'string') {
+                    // Convert hex color to RGBA variants
+                    const hex = customColor.replace('#', '');
+                    const r = parseInt(hex.substr(0, 2), 16);
+                    const g = parseInt(hex.substr(2, 2), 16);
+                    const b = parseInt(hex.substr(4, 2), 16);
+                    return {
+                        fill: `rgba(${r}, ${g}, ${b}, 0.25)`,
+                        border: `rgba(${r}, ${g}, ${b}, 0.9)`,
+                        glow: `rgba(${r}, ${g}, ${b}, 0.5)`,
+                        solid: customColor
+                    };
+                } else {
+                    // Object format
+                    return {
+                        fill: customColor.fill || customColor,
+                        border: customColor.border || customColor,
+                        glow: customColor.glow || customColor,
+                        solid: customColor.solid || customColor.border || customColor
+                    };
+                }
             }
 
             const typeColors = {
-                'montage': { fill: 'rgba(251, 146, 60, 0.25)', border: 'rgba(251, 146, 60, 0.8)', glow: 'rgba(251, 146, 60, 0.4)' },
-                'argument': { fill: 'rgba(59, 130, 246, 0.25)', border: 'rgba(59, 130, 246, 0.8)', glow: 'rgba(59, 130, 246, 0.4)' },
-                'theme': { fill: 'rgba(168, 85, 247, 0.25)', border: 'rgba(168, 85, 247, 0.8)', glow: 'rgba(168, 85, 247, 0.4)' },
-                'dependency-cluster': { fill: 'rgba(34, 197, 94, 0.25)', border: 'rgba(34, 197, 94, 0.8)', glow: 'rgba(34, 197, 94, 0.4)' },
-                'analysis': { fill: 'rgba(139, 92, 246, 0.25)', border: 'rgba(139, 92, 246, 0.8)', glow: 'rgba(139, 92, 246, 0.5)' },
-                'default': { fill: 'rgba(156, 163, 175, 0.25)', border: 'rgba(156, 163, 175, 0.8)', glow: 'rgba(156, 163, 175, 0.4)' }
+                'montage': { fill: 'rgba(251, 146, 60, 0.25)', border: 'rgba(251, 146, 60, 0.8)', glow: 'rgba(251, 146, 60, 0.4)', solid: '#fb923c' },
+                'argument': { fill: 'rgba(59, 130, 246, 0.25)', border: 'rgba(59, 130, 246, 0.8)', glow: 'rgba(59, 130, 246, 0.4)', solid: '#3b82f6' },
+                'theme': { fill: 'rgba(168, 85, 247, 0.25)', border: 'rgba(168, 85, 247, 0.8)', glow: 'rgba(168, 85, 247, 0.4)', solid: '#a855f7' },
+                'dependency-cluster': { fill: 'rgba(34, 197, 94, 0.25)', border: 'rgba(34, 197, 94, 0.8)', glow: 'rgba(34, 197, 94, 0.4)', solid: '#22c55e' },
+                'analysis': { fill: 'rgba(139, 92, 246, 0.25)', border: 'rgba(139, 92, 246, 0.8)', glow: 'rgba(139, 92, 246, 0.5)', solid: '#8b5cf6' },
+                'default': { fill: 'rgba(156, 163, 175, 0.25)', border: 'rgba(156, 163, 175, 0.8)', glow: 'rgba(156, 163, 175, 0.4)', solid: '#9ca3af' }
             };
             return typeColors[hyperedge?.type] || typeColors.default;
         }
@@ -7758,13 +7906,25 @@ Focus on logical structure and content organization best practices.`;
                 </div>`;
             }
 
+            // Contributor badge for canvas
+            let canvasContributorHtml = '';
+            if (item.contributor) {
+                canvasContributorHtml = `<span class="contributor-badge" title="Last edited by ${item.contributor}${item.contributorTimestamp ? ' on ' + new Date(item.contributorTimestamp).toLocaleDateString() : ''}">👤 ${item.contributor}</span>`;
+            }
+
+            // Collab comments indicator for canvas
+            let canvasCollabHtml = '';
+            if (item.collabComments) {
+                canvasCollabHtml = `<span class="collab-indicator" title="${item.collabComments.substring(0, 100)}${item.collabComments.length > 100 ? '...' : ''}">💬</span>`;
+            }
+
             node.innerHTML = `
                 ${expandIndicator}
                 <div style="display: flex; gap: 12px; margin-bottom: 12px;">
                     <div style="font-size: 24px;">${item.icon || '📦'}</div>
                     <div style="flex: 1;">
                         <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">
-                            ${item.name}${ragHtml}
+                            ${item.name}${ragHtml}${canvasCollabHtml}
                         </div>
                         <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
                             ${(item.description || 'No description').substring(0, 100)}${item.description?.length > 100 ? '...' : ''}
@@ -7775,6 +7935,7 @@ Focus on logical structure and content organization best practices.`;
                     ${typeHtml}
                     ${costHtml}
                     ${item.pmOwnerEmail ? `<span style="padding: 4px 8px; border-radius: 4px; font-size: 11px; background: rgba(255,255,255,0.1);">👤 ${item.pmOwnerEmail.split('@')[0]}</span>` : ''}
+                    ${canvasContributorHtml}
                 </div>
                 ${progressHtml}
             `;
@@ -11034,12 +11195,18 @@ function hidePatternDescription() {
                     } else {
                         // Item/Subtask - file or folder
                         const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0);
+                        // Build contributor badge HTML if contributor exists
+                        const fsContributorBadge = node.contributor ? `<span class="contributor-badge" title="Last edited by ${node.contributor}${node.contributorTimestamp ? ' on ' + new Date(node.contributorTimestamp).toLocaleDateString() : ''}">👤 ${node.contributor}</span>` : '';
+                        const fsCollabIndicator = node.collabComments ? `<span class="collab-indicator" title="${node.collabComments.substring(0, 100)}${node.collabComments.length > 100 ? '...' : ''}">💬</span>` : '';
+
                         nodeDiv.innerHTML = `
                             <div class="node-header">
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
                                 <span class="node-icon">${node.icon || '📄'}</span>
                                 <div class="node-content">
                                     <span class="item-name">${node.name}</span>
+                                    ${fsContributorBadge}
+                                    ${fsCollabIndicator}
                                 </div>
                             </div>
                         `;
@@ -11192,6 +11359,10 @@ function hidePatternDescription() {
                         </div>
                     `;
                 } else {
+                    // Build contributor badge HTML if contributor exists
+                    const contributorBadge = node.contributor ? `<span class="contributor-badge" title="Last edited by ${node.contributor}${node.contributorTimestamp ? ' on ' + new Date(node.contributorTimestamp).toLocaleDateString() : ''}">👤 ${node.contributor}</span>` : '';
+                    const collabIndicator = node.collabComments ? `<span class="collab-indicator" title="${node.collabComments.substring(0, 100)}${node.collabComments.length > 100 ? '...' : ''}">💬</span>` : '';
+
                     nodeDiv.innerHTML = `
                         <div class="node-header">
                             <span class="node-icon">${node.icon || '📄'}</span>
@@ -11201,6 +11372,8 @@ function hidePatternDescription() {
                                 <div class="item-meta">
                                     ${node.itemType ? `<span class="badge badge-${node.itemType}">${node.itemType}</span>` : ''}
                                     ${PATTERNS[currentPattern].fields && PATTERNS[currentPattern].fields.cost && node.cost > 0 ? `<span class="item-cost">${formatCost(node.cost)}</span>` : ''}
+                                    ${contributorBadge}
+                                    ${collabIndicator}
                                 </div>
                             </div>
                         </div>
@@ -14672,7 +14845,28 @@ Your response:`;
                     </div>
                 `;
 
-                // 5. Dependencies (conditional)
+                // 5. Collaboration Section (universal)
+                fieldsHTML += `
+                    <h3 style="font-size: 16px; font-weight: 600; margin: 24px 0 16px 0; color: var(--treeplex-primary); border-top: 1px solid var(--border); padding-top: 20px;">👥 Collaboration</h3>
+                    <div class="form-group">
+                        <label>💬 Comments for Collaborators</label>
+                        <textarea id="edit-collab-comments" style="min-height: 80px;" placeholder="Leave notes for collaborators (e.g., 'Owen - what do you think about this counterargument?', 'Dad - need your input on the historical context here')...">${activeNode.collabComments || ''}</textarea>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; font-style: italic;">💡 Use this for async collaboration - leave questions, suggestions, or discussion points for your collaborators</p>
+                    </div>
+                    <div class="form-group">
+                        <label>👤 Contributor</label>
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="edit-contributor" style="flex: 1;" placeholder="Your name (e.g., Dad, Owen, Alex)" value="${activeNode.contributor || ''}" />
+                            <div style="display: flex; gap: 6px;">
+                                <button type="button" onclick="document.getElementById('edit-contributor').value='Dad'" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary);">Dad</button>
+                                <button type="button" onclick="document.getElementById('edit-contributor').value='Owen'" style="padding: 6px 12px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; font-size: 13px; color: var(--text-primary);">Owen</button>
+                            </div>
+                        </div>
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; font-style: italic;">🏷️ Tag your edits so collaborators know who contributed what</p>
+                    </div>
+                `;
+
+                // 6. Dependencies (conditional)
                 if (fields.includeDependencies) {
                     fieldsHTML += `
                         <div class="form-group">
@@ -15828,6 +16022,15 @@ Return ONLY the JSON array.`
                 activeNode.icon = document.getElementById('edit-icon').value;
                 activeNode.itemType = document.getElementById('edit-type').value;
                 activeNode.notes = document.getElementById('edit-notes').value;
+
+                // Save collaboration fields
+                const collabComments = document.getElementById('edit-collab-comments');
+                const contributor = document.getElementById('edit-contributor');
+                if (collabComments) activeNode.collabComments = collabComments.value;
+                if (contributor && contributor.value) {
+                    activeNode.contributor = contributor.value;
+                    activeNode.contributorTimestamp = new Date().toISOString();
+                }
 
                 // Save pattern-specific fields dynamically
                 const pattern = PATTERNS[currentPattern];
@@ -18439,6 +18642,258 @@ Thanks!`;
             });
 
             console.log('🤝 Collaboration event handlers initialized');
+        })();
+
+        // =====================================================
+        // WATCH MODE - Live Collaboration Sync
+        // =====================================================
+        (function initWatchMode() {
+            let watchInterval = null;
+            let lastFileHash = null;
+            let changesDetected = 0;
+            let watchCollaboratorName = '';
+            let watchFilePath = '';
+
+            // Calculate simple hash of tree for change detection
+            function getTreeHash(tree) {
+                const str = JSON.stringify(tree);
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return hash.toString(16);
+            }
+
+            // Show toast notification for watch mode events
+            function watchToast(message, type = 'info') {
+                showToast(message, type);
+            }
+
+            // Update the status panel
+            function updateWatchStatus() {
+                const lastCheckEl = document.getElementById('watch-last-check');
+                const currentFileEl = document.getElementById('watch-current-file');
+                const collaboratorEl = document.getElementById('watch-collaborator-display');
+                const changesEl = document.getElementById('watch-changes-count');
+
+                if (lastCheckEl) lastCheckEl.textContent = new Date().toLocaleTimeString();
+                if (currentFileEl) currentFileEl.textContent = watchFilePath.length > 40 ? '...' + watchFilePath.slice(-40) : watchFilePath;
+                if (collaboratorEl) collaboratorEl.textContent = watchCollaboratorName || 'Not set';
+                if (changesEl) changesEl.textContent = changesDetected > 0 ? `✅ ${changesDetected} change(s) synced` : '';
+            }
+
+            // Fetch and check for updates from the watched file
+            async function checkForUpdates() {
+                if (!watchFilePath) return;
+
+                try {
+                    // For local files, we need to use the File System Access API
+                    // For URLs, we can fetch directly
+                    let newTree = null;
+
+                    if (watchFilePath.startsWith('http')) {
+                        // URL-based file (e.g., raw GitHub, public JSON endpoint)
+                        const response = await fetch(watchFilePath + '?t=' + Date.now(), {
+                            cache: 'no-store'
+                        });
+                        if (!response.ok) throw new Error('Failed to fetch');
+                        newTree = await response.json();
+                    } else {
+                        // Local file - try to read using stored file handle
+                        if (window.watchFileHandle) {
+                            const file = await window.watchFileHandle.getFile();
+                            const text = await file.text();
+                            newTree = JSON.parse(text);
+                        } else {
+                            // No file handle stored - need to re-select
+                            console.log('⚠️ No file handle - need to re-select file');
+                            return;
+                        }
+                    }
+
+                    // Calculate hash of new tree
+                    const newHash = getTreeHash(newTree);
+
+                    // Check if tree changed
+                    if (lastFileHash && newHash !== lastFileHash) {
+                        console.log('👁️ Change detected! Old hash:', lastFileHash, 'New hash:', newHash);
+                        changesDetected++;
+
+                        // Find who made the change
+                        const lastContributor = findLastContributor(newTree);
+
+                        // Only apply if someone else made the change
+                        if (lastContributor && lastContributor !== watchCollaboratorName) {
+                            // Apply the update
+                            capexTree = newTree;
+                            render();
+                            if (viewMode === 'canvas') renderCanvas();
+
+                            watchToast(`👥 ${lastContributor} made changes - synced!`, 'success');
+
+                            // Flash the watch button to indicate sync
+                            const btn = document.getElementById('watch-mode-btn');
+                            if (btn) {
+                                btn.style.animation = 'none';
+                                btn.offsetHeight; // Trigger reflow
+                                btn.style.animation = 'watchSync 0.5s ease-in-out 3';
+                            }
+                        } else {
+                            // Our own save - just update hash
+                            console.log('👁️ Self-save detected, skipping reload');
+                        }
+                    }
+
+                    lastFileHash = newHash;
+                    updateWatchStatus();
+
+                } catch (error) {
+                    console.error('👁️ Watch mode error:', error);
+                    // Don't spam toasts, just log
+                }
+            }
+
+            // Find the most recent contributor in the tree
+            function findLastContributor(tree) {
+                let latestContributor = null;
+                let latestTime = 0;
+
+                function scanNode(node) {
+                    if (node.contributorTimestamp) {
+                        const time = new Date(node.contributorTimestamp).getTime();
+                        if (time > latestTime) {
+                            latestTime = time;
+                            latestContributor = node.contributor;
+                        }
+                    }
+                    if (node.children) node.children.forEach(scanNode);
+                    if (node.items) node.items.forEach(scanNode);
+                    if (node.subItems) node.subItems.forEach(scanNode);
+                }
+
+                scanNode(tree);
+                return latestContributor;
+            }
+
+            // Start watching
+            async function startWatching() {
+                const nameInput = document.getElementById('watch-collaborator-name');
+                const pathInput = document.getElementById('watch-file-path');
+                const intervalSelect = document.getElementById('watch-interval');
+
+                watchCollaboratorName = nameInput?.value?.trim() || 'Anonymous';
+                watchFilePath = pathInput?.value?.trim() || '';
+                const interval = parseInt(intervalSelect?.value) || 10000;
+
+                if (!watchFilePath) {
+                    // No path entered - open file picker for local file
+                    try {
+                        const [fileHandle] = await window.showOpenFilePicker({
+                            types: [{
+                                description: 'JSON Files',
+                                accept: { 'application/json': ['.json'] }
+                            }]
+                        });
+                        window.watchFileHandle = fileHandle;
+                        watchFilePath = fileHandle.name;
+                        pathInput.value = fileHandle.name;
+                    } catch (err) {
+                        if (err.name !== 'AbortError') {
+                            watchToast('❌ Could not open file picker', 'error');
+                        }
+                        return;
+                    }
+                }
+
+                // Initialize hash from current tree
+                lastFileHash = getTreeHash(capexTree);
+                changesDetected = 0;
+
+                // Start polling
+                watchInterval = setInterval(checkForUpdates, interval);
+
+                // Update UI
+                document.getElementById('watch-status-panel').style.display = 'block';
+                document.getElementById('watch-mode-start').style.display = 'none';
+                document.getElementById('watch-mode-stop').style.display = 'inline-flex';
+
+                // Update button appearance
+                const btn = document.getElementById('watch-mode-btn');
+                if (btn) {
+                    btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    btn.dataset.icon = '👁️';
+                }
+
+                updateWatchStatus();
+                watchToast(`👁️ Watching as "${watchCollaboratorName}"`, 'success');
+
+                console.log('👁️ Watch Mode started:', { collaborator: watchCollaboratorName, file: watchFilePath, interval });
+            }
+
+            // Stop watching
+            function stopWatching() {
+                if (watchInterval) {
+                    clearInterval(watchInterval);
+                    watchInterval = null;
+                }
+
+                window.watchFileHandle = null;
+                lastFileHash = null;
+
+                // Update UI
+                document.getElementById('watch-status-panel').style.display = 'none';
+                document.getElementById('watch-mode-start').style.display = 'inline-flex';
+                document.getElementById('watch-mode-stop').style.display = 'none';
+
+                // Reset button appearance
+                const btn = document.getElementById('watch-mode-btn');
+                if (btn) {
+                    btn.style.background = '';
+                }
+
+                watchToast('⏹️ Watch Mode stopped', 'info');
+                console.log('👁️ Watch Mode stopped');
+            }
+
+            // Event listeners
+            document.getElementById('watch-mode-btn')?.addEventListener('click', () => {
+                document.getElementById('watch-mode-modal').style.display = 'flex';
+            });
+
+            document.getElementById('watch-mode-close')?.addEventListener('click', () => {
+                document.getElementById('watch-mode-modal').style.display = 'none';
+            });
+
+            document.getElementById('watch-mode-start')?.addEventListener('click', startWatching);
+            document.getElementById('watch-mode-stop')?.addEventListener('click', stopWatching);
+
+            // Close on backdrop click
+            document.getElementById('watch-mode-modal')?.addEventListener('click', (e) => {
+                if (e.target.id === 'watch-mode-modal') {
+                    document.getElementById('watch-mode-modal').style.display = 'none';
+                }
+            });
+
+            // Add sync animation keyframes
+            const style = document.createElement('style');
+            style.textContent = `
+                @keyframes watchSync {
+                    0%, 100% { transform: scale(1); }
+                    50% { transform: scale(1.1); box-shadow: 0 0 20px rgba(16, 185, 129, 0.5); }
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Expose for auto-save integration
+            window.watchModeActive = () => watchInterval !== null;
+            window.notifyWatchSave = () => {
+                // Update hash after local save so we don't trigger self-reload
+                lastFileHash = getTreeHash(capexTree);
+            };
+
+            console.log('👁️ Watch Mode initialized');
         })();
 
         /**
@@ -24884,6 +25339,55 @@ ${jsonText}`;
                         </p>
                     </div>
 
+                    <h3 style="color: #10b981; margin-bottom: 16px; font-size: 20px;">👥 Collaboration ("Chess by Mail")</h3>
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid #10b981;">
+                        <p style="font-size: 14px; margin-bottom: 12px;">
+                            <strong>Collaborate with others asynchronously or in real-time!</strong> Perfect for team projects, debates, or teaching.
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">💬 Collaboration Comments</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • Edit any node → Find "Collaboration" section<br>
+                            • Leave notes for collaborators (e.g., "Owen - what do you think?")<br>
+                            • 💬 icon appears on nodes with comments<br>
+                            • Hover to preview the comment
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">👤 Contributor Tags</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • Tag who made each edit (Dad, Owen, or custom name)<br>
+                            • Quick-select buttons for common collaborators<br>
+                            • 👤 badge shows on nodes in Tree and Canvas views<br>
+                            • Timestamps automatically tracked
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">👁️ Watch Mode (Live Sync)</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • Click "👁️ Watch Mode" in sidebar<br>
+                            • Enter your name and select a shared file<br>
+                            • Choose poll interval (5s for active collab, 30s for async)<br>
+                            • See changes from collaborators automatically!<br>
+                            • Your saves are detected and won't reload
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">☁️ Google Drive Links</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • Save tree to Google Drive → Get shareable link<br>
+                            • Email: <code>https://treelisty.netlify.app?gdrive=FILE_ID</code><br>
+                            • Recipient clicks → TreeListy opens with your tree!<br>
+                            • Use <code>?watch=URL</code> to auto-open Watch Mode
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🔄 Async Workflow</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            1. Save to shared folder (OneDrive, Google Drive, Dropbox)<br>
+                            2. Email the link to your collaborator<br>
+                            3. They edit, set their contributor name, save<br>
+                            4. You reload → see their badges and comments<br>
+                            5. Like chess by mail, but for ideas!
+                        </p>
+                    </div>
+
                     <h3 style="color: var(--treeplex-primary); margin-bottom: 16px; font-size: 20px;">⌨️ Keyboard Shortcuts & Tips</h3>
                     <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid var(--treeplex-primary);">
                         <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">Keyboard Shortcuts</p>
@@ -26748,6 +27252,80 @@ ${jsonText}`;
                     alert('Failed to load shared project. The URL may be corrupted or invalid.');
                 }
             }
+
+            // Check for Google Drive file ID (?gdrive=FILE_ID or ?gdrive=SHARING_URL)
+            // Also supports ?watch=URL for Watch Mode auto-start
+            const gdriveParam = urlParams.get('gdrive');
+            const watchParam = urlParams.get('watch');
+
+            if (gdriveParam || watchParam) {
+                const fileSource = gdriveParam || watchParam;
+                console.log('☁️ Google Drive/Watch URL detected:', fileSource);
+
+                // Extract file ID from various Google Drive URL formats
+                let gdriveUrl = '';
+
+                if (fileSource.includes('drive.google.com')) {
+                    // Full Google Drive URL - extract file ID
+                    const match = fileSource.match(/\/d\/([a-zA-Z0-9_-]+)/);
+                    if (match) {
+                        const fileId = match[1];
+                        gdriveUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
+                    } else {
+                        gdriveUrl = fileSource;
+                    }
+                } else if (fileSource.match(/^[a-zA-Z0-9_-]{20,}$/)) {
+                    // Just a file ID
+                    gdriveUrl = `https://drive.google.com/uc?export=download&id=${fileSource}`;
+                } else if (fileSource.startsWith('http')) {
+                    // Direct URL
+                    gdriveUrl = fileSource;
+                }
+
+                if (gdriveUrl) {
+                    // Fetch and load the file
+                    setTimeout(async () => {
+                        try {
+                            showToast('☁️ Loading from Google Drive...', 'info');
+
+                            const response = await fetch(gdriveUrl);
+                            if (!response.ok) throw new Error('Failed to fetch');
+
+                            const treeData = await response.json();
+                            capexTree = treeData;
+
+                            // Update pattern if present
+                            if (treeData.pattern) {
+                                const patternKey = getPatternKey(treeData.pattern);
+                                if (patternKey) currentPattern = patternKey;
+                            }
+
+                            render();
+                            if (viewMode === 'canvas') renderCanvas();
+
+                            showToast('✅ Loaded from Google Drive!', 'success');
+
+                            // If this was a ?watch= parameter, auto-start Watch Mode
+                            if (watchParam) {
+                                // Pre-fill watch mode with this URL
+                                const pathInput = document.getElementById('watch-file-path');
+                                if (pathInput) pathInput.value = gdriveUrl;
+
+                                // Show Watch Mode modal for user to enter name and start
+                                setTimeout(() => {
+                                    document.getElementById('watch-mode-modal').style.display = 'flex';
+                                    showToast('👁️ Enter your name and click Start to sync!', 'info');
+                                }, 1000);
+                            }
+
+                        } catch (error) {
+                            console.error('❌ Failed to load from Google Drive:', error);
+                            showToast('❌ Failed to load from Google Drive. Check the file is publicly shared.', 'error');
+                        }
+                    }, 100);
+                }
+            }
+
             return false;
         })();
 
