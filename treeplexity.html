@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.13.0 | Build 221 | 2025-12-01
+    TreeListy v2.14.9 | Build 231 | 2025-12-01
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,74 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 221): 🍌 Nano Banana Pro - Google's Best Image Model
-    - NEW: Nano Banana Pro (gemini-3-pro-image-preview) - state-of-the-art
-    - NEW: Nano Banana (gemini-2.5-flash-preview-image) - fast option
-    - NEW: Resolution picker: 1K, 2K, 4K (Nano Banana only)
-    - Best text rendering, 14 objects, 5 consistent faces
+    Changelog (Build 231): 🔥 Firebase Live Sync POC
+    - NEW: 🔥 Firebase integration for real-time collaboration
+    - NEW: Anonymous auth (no sign-in required)
+    - NEW: "🔄 Live Sync" button in toolbar
+    - NEW: Start/Join live sync session with shareable room ID
+    - NEW: Real-time tree updates across browsers
+    - NEW: Sync status indicator (connected/syncing/offline)
+    - NEW: Auto-merge changes from all collaborators
+    - POC: Preserves Google Drive async workflow alongside live sync
+
+    Previous (Build 230): ☁️ Load from Google Drive Button + Recent Files
+    - NEW: ☁️ button in toolbar opens "Load from Google Drive" modal
+    - NEW: Paste any Google Drive share link or file ID
+    - NEW: Recent Shared Trees list (last 8 files, stored locally)
+    - NEW: Click any recent file to instantly reload it
+    - NEW: Pattern-specific icons in recent files list
+    - NEW: Clear button to remove recent files history
+    - FIX: Files loaded via ?gdrive= URL also saved to recent list
+
+    Previous (Build 229): 🔗 Auto-Sync Sort & Cluster Controls
+    - NEW: Sort and Cluster dropdowns now auto-sync by default
+    - NEW: Changing Sort automatically updates Canvas Cluster to match
+    - NEW: Changing Cluster automatically updates Tree Sort to match
+    - NEW: 🔗/🔓 toggle button to link/unlink the controls
+    - UX: Renamed "Default Order" to "Sort By" for clarity
+    - UX: Toast notifications show sync status
+
+    Previous (Build 228): 🖱️ View Controls Guide in Help
+    - NEW: Comprehensive "View Controls (Tree vs Canvas)" section in Help modal
+    - NEW: Clear mouse control differences between Tree and Canvas views
+    - NEW: Middle mouse panning highlighted for Canvas users
+    - NEW: Tips for users without middle mouse button
+    - NEW: Canvas navigation tips (Fit button, hyperedges, box select)
+
+    Previous (Build 227): 🔧 Fix Pattern Detection from Google Drive Links
+    - FIX: Pattern selector now properly updates when loading from ?gdrive= URLs
+    - FIX: Philosophy, CAPEX, and other patterns correctly detected and displayed
+    - FIX: Custom pattern labels preserved from shared files
+    - FIX: Sort dropdown and AI button update to match loaded pattern
+
+    Previous (Build 226): ☁️ Google Drive Proxy for CORS-Free Loading
+    - NEW: Netlify function gdrive-proxy fetches Google Drive files server-side
+    - FIX: ?gdrive=FILE_ID URLs now load reliably (no CORS errors)
+    - FIX: Host import from Google Drive uses proxy
+    - FIX: Handles Google's virus scan confirmation page automatically
+    - Works for both hosts and collaborators clicking email links
+
+    Previous (Build 225): 🖱️ Mouse-Driven Chat Builder with Clickable Choices
+    - AI questions now include clickable choice buttons
+    - [CHOICE:label] markers auto-convert to purple pill buttons
+    - Click to answer - no typing required for most questions
+
+    Previous (Build 224): 📧 Separate Async vs Live Collaboration
+    - "Async Share (Chess by Mail)" - share Google Drive link, collaborators use own keys
+    - "Live Session (Share API Keys)" - share your keys for 4 hours
+
+    Previous (Build 223): 📧 Collab Wizard - Host Import & Email Invitations
+    - Hosts can import trees from Google Drive, Dropbox, or direct JSON URLs
+    - Email invitation workflow with Send, Copy Text, and Mail App buttons
+
+    Previous (Build 222): 🔑 Live Collab Sessions - Share API Keys with Collaborators
+    - Host shares encrypted API keys with collaborators during live sessions
+    - Guests use host's keys automatically - never see the actual keys
+    - 4-hour session limit with auto-cleanup
+    - Session status tracking (guest count, expiration)
+    - Uses Netlify Blobs for secure server-side storage
+
+    Previous (Build 221): 🍌 Nano Banana Pro - Google's Best Image Model
     - Uses Gemini's reasoning for smarter image composition
     - Falls back to Imagen 4 if preferred
     Previous (Build 220): ✨ AI-Powered Imagen Prompt Crafting
@@ -2152,6 +2215,42 @@
     <!-- Google API Client Library for OAuth and Drive API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
+    <!-- Firebase SDK (modular CDN) -->
+    <script type="module">
+        import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
+        import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
+        import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+
+        // Firebase configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyBU_n37rTiae2oM95ZS3Ojkg7UvhZmkCRo",
+            authDomain: "treelisty.firebaseapp.com",
+            projectId: "treelisty",
+            storageBucket: "treelisty.firebasestorage.app",
+            messagingSenderId: "281763482612",
+            appId: "1:281763482612:web:72de0c4f347fe48fc147a1"
+        };
+
+        // Initialize Firebase
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+
+        // Expose to global scope for use in main script
+        window.firebaseApp = app;
+        window.firebaseAuth = auth;
+        window.firebaseDb = db;
+        window.firebaseSignInAnonymously = signInAnonymously;
+        window.firebaseOnAuthStateChanged = onAuthStateChanged;
+        window.firebaseDoc = doc;
+        window.firebaseSetDoc = setDoc;
+        window.firebaseOnSnapshot = onSnapshot;
+        window.firebaseServerTimestamp = serverTimestamp;
+        window.firebaseGetDoc = getDoc;
+        window.firebaseReady = true;
+
+        console.log('🔥 Firebase initialized');
+    </script>
 </head>
 <body>
     <!-- TreeListy by geej Splash Screen -->
@@ -2194,8 +2293,10 @@
             <div class="control-section" style="margin-right: 4px;">
                 <button class="btn" id="new-project-btn" style="background: linear-gradient(135deg, #059669, #10b981); padding: 6px 10px; font-size: 13px;" title="Start a new project">🆕</button>
                 <button class="btn" id="save-json-btn" title="Save project as JSON" style="padding: 6px 10px; font-size: 13px;">💾</button>
-                <button class="btn" id="load-json-btn" title="Load project from JSON" style="padding: 6px 10px; font-size: 13px;">📂</button>
+                <button class="btn" id="load-json-btn" title="Load project from JSON file" style="padding: 6px 10px; font-size: 13px;">📂</button>
+                <button class="btn" id="load-gdrive-btn" style="background: linear-gradient(135deg, #4285f4, #34a853); padding: 6px 10px; font-size: 13px;" title="Load from Google Drive URL">☁️</button>
                 <button class="btn" id="share-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 6px 10px; font-size: 13px;" title="Generate shareable URL">📤</button>
+                <button class="btn" id="live-sync-btn" style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 6px 10px; font-size: 13px;" title="🔥 Firebase Live Sync">🔄</button>
             </div>
 
             <div class="control-section" style="margin-right: 4px;">
@@ -2239,16 +2340,16 @@
 
             <div class="control-section" id="sort-section" style="display: none; margin-right: 4px;">
                 <label for="pattern-sort-select" style="display: flex; align-items: center; gap: 4px; font-size: 12px; color: var(--text-secondary);">
-                    <span>🔄</span>
-                    <select id="pattern-sort-select" class="btn" style="padding: 6px 8px; cursor: pointer; font-weight: 600; min-width: 120px; font-size: 12px;" title="Sort tree items by specific metrics">
-                        <option value="">Default Order</option>
+                    <span>📋</span>
+                    <select id="pattern-sort-select" class="btn" style="padding: 6px 8px; cursor: pointer; font-weight: 600; min-width: 120px; font-size: 12px;" title="Sort tree items by specific metrics. When linked (🔗), also clusters Canvas view.">
+                        <option value="">Sort By</option>
                     </select>
                 </label>
+                <button class="btn" id="sort-cluster-link-btn" style="padding: 4px 8px; font-size: 12px; opacity: 0.8;" title="Click to unlink Sort from Canvas Cluster. When linked, changing Sort also changes Canvas clustering.">🔗</button>
                 <button class="btn" id="reset-sort-btn" style="display: none; padding: 4px 8px; font-size: 12px;" title="Reset to default order">↺</button>
             </div>
 
             <div class="control-section" style="margin-right: 4px;">
-                <button class="btn" id="toggle-ai-tools" style="background: linear-gradient(135deg, #a855f7, #ec4899); color: white; font-weight: 600; padding: 6px 10px; font-size: 13px;" title="Toggle AI Tools Panel">🤖</button>
                 <button class="btn" id="api-key-btn" title="Configure your Anthropic API key" style="padding: 6px 10px; font-size: 13px;">🔑</button>
             </div>
 
@@ -2298,8 +2399,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.13.0 | Build 221 | 2025-12-01">
-                    v2.13.0 • Build 221
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.14.9 | Build 231 | 2025-12-01">
+                    v2.14.9 • Build 231
                 </div>
             </div>
         </div>
@@ -2357,7 +2458,7 @@
     <!-- Modal -->
     <div class="modal" id="modal">
         <div class="modal-content">
-            <div class="modal-header" id="modal-title">AI Analysis</div>
+            <div class="modal-header" id="modal-title">Quick Insight</div>
             <div class="modal-body" id="modal-body">
                 <div class="spinner"></div>
             </div>
@@ -2978,6 +3079,129 @@ The AI will analyze the structure and convert it to a tree."
                         4. Edits are auto-detected and merged!
                     </p>
                 </div>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- ASYNC SHARE - Share Google Drive link (no API keys needed) -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <div id="async-share-section" style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1)); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">📧</span>
+                        <span style="font-weight: 600; color: #3b82f6;">Async Share (Chess by Mail)</span>
+                    </div>
+                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">
+                        Share a Google Drive link. Collaborators use their own API keys.
+                    </p>
+
+                    <!-- Google Drive URL input -->
+                    <div style="margin-bottom: 12px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">
+                            ☁️ Google Drive Link:
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="async-gdrive-url" placeholder="Paste your Google Drive share link..."
+                                   style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-size: 12px;" />
+                            <button type="button" onclick="generateAsyncShareLink()"
+                                    style="padding: 8px 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
+                                🔗
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Generated TreeListy link -->
+                    <div id="async-share-result" style="display: none;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">🔗 TreeListy Link:</label>
+                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                            <input type="text" id="async-share-link" readonly
+                                   style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-family: monospace; font-size: 10px;" />
+                            <button type="button" onclick="copyAsyncShareLink()"
+                                    style="padding: 8px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">📋</button>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button type="button" onclick="sendAsyncInviteEmail()"
+                                    style="flex: 1; padding: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600;">
+                                📧 Email This Link
+                            </button>
+                            <button type="button" onclick="copyAsyncInviteEmail()"
+                                    style="flex: 1; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary); font-size: 11px;">
+                                📋 Copy Email Text
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <!-- LIVE SESSION - Share API keys with collaborators -->
+                <!-- ═══════════════════════════════════════════════════════════════ -->
+                <div id="host-session-section" style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1)); border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">🔑</span>
+                        <span style="font-weight: 600; color: #f59e0b;">Live Session (Share API Keys)</span>
+                    </div>
+
+                    <!-- Not hosting yet -->
+                    <div id="host-session-start" style="display: block;">
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">
+                            Let collaborators use YOUR API keys for 4 hours. They don't need their own keys.
+                        </p>
+
+                        <button type="button" id="start-host-session-btn" onclick="startHostSession()"
+                                style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            🔑 Start Live Session (4 hours)
+                        </button>
+                    </div>
+
+                    <!-- Currently hosting -->
+                    <div id="host-session-active" style="display: none;">
+                        <div style="background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <div style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
+                                <span style="font-weight: 600; color: #10b981;">Session Active</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                <div>🕐 Expires: <span id="session-expires-at">--</span></div>
+                                <div>👥 Guests joined: <span id="session-guest-count">0</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Direct link -->
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">🔗 Session Link:</label>
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                <input type="text" id="session-share-link" readonly
+                                       style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-family: monospace; font-size: 10px;" />
+                                <button type="button" onclick="copySessionLink()"
+                                        style="padding: 8px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">📋</button>
+                            </div>
+                            <div style="display: flex; gap: 8px;">
+                                <button type="button" onclick="sendSessionInvite()"
+                                        style="flex: 1; padding: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600;">
+                                    📧 Email This Link
+                                </button>
+                                <button type="button" onclick="copySessionInviteEmail()"
+                                        style="flex: 1; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary); font-size: 11px;">
+                                    📋 Copy Email Text
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="button" id="end-host-session-btn" onclick="endHostSession()"
+                                style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            ⏹️ End Session
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Guest Session Section -->
+                <div id="guest-session-section" style="margin-top: 12px; padding: 16px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.3); display: none;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 18px;">🎟️</span>
+                        <span style="font-weight: 600; color: #6366f1;">Using Host's API Keys</span>
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary);">
+                        <div>👤 Host: <span id="guest-session-host">--</span></div>
+                        <div>🕐 Session expires: <span id="guest-session-expires">--</span></div>
+                    </div>
+                </div>
             </div>
             <div class="modal-footer">
                 <button class="btn" id="watch-mode-close">Close</button>
@@ -3499,6 +3723,151 @@ The AI will analyze the structure and convert it to a tree."
                     <div style="margin-top: 8px; font-size: 11px; color: var(--text-secondary);">
                         You can always install later from the Help menu
                     </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Load from Google Drive Modal -->
+    <div class="modal" id="load-gdrive-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #4285f4, #34a853);">
+                <span>☁️ Load from Google Drive</span>
+                <button class="modal-close" id="load-gdrive-close">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- URL Input Section -->
+                <div style="margin-bottom: 24px;">
+                    <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
+                        Paste Google Drive Share Link
+                    </label>
+                    <div style="display: flex; gap: 8px;">
+                        <input type="text" id="gdrive-url-input" placeholder="https://drive.google.com/file/d/..."
+                            style="flex: 1; padding: 12px 16px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px;">
+                        <button class="btn" id="gdrive-load-btn" style="background: linear-gradient(135deg, #4285f4, #34a853); padding: 12px 20px; font-weight: 600;">
+                            Load
+                        </button>
+                    </div>
+                    <p style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                        Supports: drive.google.com share links or file IDs
+                    </p>
+                </div>
+
+                <!-- Recent Files Section -->
+                <div id="recent-gdrive-section" style="display: none;">
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px;">
+                        <label style="font-size: 14px; font-weight: 600; color: var(--text-primary);">
+                            📋 Recent Shared Trees
+                        </label>
+                        <button class="btn" id="clear-recent-gdrive" style="padding: 4px 10px; font-size: 11px; background: var(--card-bg);">
+                            Clear
+                        </button>
+                    </div>
+                    <div id="recent-gdrive-list" style="max-height: 200px; overflow-y: auto;">
+                        <!-- Populated by JS -->
+                    </div>
+                </div>
+
+                <!-- Help text -->
+                <div style="margin-top: 20px; padding: 16px; background: rgba(66, 133, 244, 0.1); border-radius: 8px; border-left: 3px solid #4285f4;">
+                    <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text-primary);">💡 How to share a TreeListy file:</p>
+                    <ol style="margin: 0; padding-left: 20px; font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                        <li>Save your project as JSON (💾 button)</li>
+                        <li>Upload to Google Drive</li>
+                        <li>Right-click → Share → "Anyone with the link"</li>
+                        <li>Copy link and paste here!</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Firebase Live Sync Modal -->
+    <div class="modal" id="live-sync-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #f97316, #ea580c);">
+                <span>🔄 Firebase Live Sync</span>
+                <button class="modal-close" id="live-sync-close">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- Connection Status -->
+                <div id="sync-status-section" style="margin-bottom: 20px; padding: 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg);">
+                    <div style="display: flex; align-items: center; gap: 10px;">
+                        <div id="sync-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background: #6b7280;"></div>
+                        <span id="sync-status-text" style="font-weight: 600;">Not Connected</span>
+                    </div>
+                    <div id="sync-user-id" style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; display: none;">
+                        User ID: <span id="sync-user-id-value">--</span>
+                    </div>
+                </div>
+
+                <!-- Not syncing yet -->
+                <div id="sync-start-section">
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+                            🆕 Start New Session
+                        </label>
+                        <button class="btn" id="create-sync-room-btn" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #10b981, #059669); font-weight: 600; font-size: 14px;">
+                            🔥 Create Live Sync Room
+                        </button>
+                        <p style="margin-top: 8px; font-size: 12px; color: var(--text-secondary); text-align: center;">
+                            Creates a room and uploads your current tree
+                        </p>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 12px; margin: 20px 0;">
+                        <div style="flex: 1; height: 1px; background: var(--border);"></div>
+                        <span style="font-size: 12px; color: var(--text-secondary);">OR</span>
+                        <div style="flex: 1; height: 1px; background: var(--border);"></div>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
+                            🔗 Join Existing Session
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="join-room-id" placeholder="Enter Room ID..."
+                                style="flex: 1; padding: 12px 16px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-family: monospace;">
+                            <button class="btn" id="join-sync-room-btn" style="padding: 12px 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); font-weight: 600;">
+                                Join
+                            </button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Currently syncing -->
+                <div id="sync-active-section" style="display: none;">
+                    <div style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                            <div style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
+                            <span style="font-weight: 600; color: #10b981;">Live Syncing</span>
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            <div style="margin-bottom: 4px;">🔗 Room ID:</div>
+                            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                                <input type="text" id="active-room-id" readonly
+                                    style="flex: 1; padding: 10px; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 14px; color: var(--text-primary);">
+                                <button class="btn" id="copy-room-id-btn" style="padding: 10px 16px;" title="Copy Room ID">📋</button>
+                            </div>
+                            <div>👥 Users in room: <span id="sync-user-count">1</span></div>
+                            <div>📝 Last update: <span id="sync-last-update">--</span></div>
+                        </div>
+                    </div>
+
+                    <button class="btn" id="leave-sync-room-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); font-weight: 600;">
+                        ⏹️ Leave Room
+                    </button>
+                </div>
+
+                <!-- Help -->
+                <div style="margin-top: 20px; padding: 16px; background: rgba(249, 115, 22, 0.1); border-radius: 8px; border-left: 3px solid #f97316;">
+                    <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text-primary);">🔥 Firebase Live Sync</p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
+                        <li>Real-time collaboration - changes sync instantly</li>
+                        <li>No sign-in required (anonymous auth)</li>
+                        <li>Share Room ID with collaborators</li>
+                        <li>All edits merge automatically</li>
+                    </ul>
                 </div>
             </div>
         </div>
@@ -5070,11 +5439,22 @@ Do not ask permission—just provide the critique, then help.
                 }
                 console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
 
+                // Check if we're a guest using host's session keys
+                const sessionToken = window.getCollabSessionToken?.() || null;
+
                 const netlifyRequestBody = {
                     ...requestData,
                     // Include local API key if available (Netlify function will use it)
-                    userApiKey: localApiKey || undefined
+                    userApiKey: localApiKey || undefined,
+                    // Include session token for live collaboration (host's keys)
+                    sessionToken: sessionToken || undefined
                 };
+
+                // Log session usage
+                if (sessionToken) {
+                    const hostName = window.getCollabHostName?.() || 'Host';
+                    console.log(`🎟️ Using ${hostName}'s API keys via live session`);
+                }
 
                 // Add timeout to prevent hanging on Netlify's 10s function limit
                 // Increased to 25s to give Netlify full time (Sonnet can be slow)
@@ -6388,6 +6768,7 @@ Focus on logical structure and content organization best practices.`;
         let gridEnabled = false;
         const gridSize = 40;  // Grid snap size
         let clusterByField = '';  // Track which metadata field to cluster by (itemType, owner, etc.)
+        let sortClusterLinked = true;  // Auto-sync Sort and Cluster dropdowns
 
         // Multi-selection state
         let isSelecting = false;
@@ -6929,6 +7310,14 @@ Focus on logical structure and content organization best practices.`;
                 renderCanvas();
                 updateZoomDisplay();
                 console.log('✅ Canvas View ready');
+
+                // Show one-time canvas tips for new users
+                if (!localStorage.getItem('treelisty-canvas-tips-seen')) {
+                    localStorage.setItem('treelisty-canvas-tips-seen', 'true');
+                    setTimeout(() => {
+                        showToast('🖱️ Canvas Tips: Wheel to zoom, Middle-click+drag to pan, Left-drag nodes to move. Click ❓ for more!', 'info', 8000);
+                    }, 500);
+                }
             } else {
                 console.log('📊 Switching to Tree View');
                 document.getElementById('view-mode-icon').textContent = '🎨';
@@ -8064,13 +8453,10 @@ Focus on logical structure and content organization best practices.`;
                         }, 100);
                     }
                 }},
-                { label: '💡 Smart Suggest', action: () => {
+                { label: '🔍 Quick Insight', action: () => {
+                    console.log('Quick Insight clicked for:', item.name);
                     activeNode = item;
-                    alert('Smart Suggest: Use the Edit dialog to access AI-powered field suggestions');
-                }},
-                { label: '🤖 AI Analysis', action: () => {
-                    activeNode = item;
-                    alert('AI Analysis: This feature analyzes the item with AI. Access via Edit dialog AI buttons.');
+                    handleAI();
                 }},
                 { label: '📊 Show Info Panel', action: () => {
                     console.log('Show Info Panel clicked for:', item.name);
@@ -8116,7 +8502,7 @@ Focus on logical structure and content organization best practices.`;
             const nodesToAnalyze = selectedNodes.length > 0 ? selectedNodes : [item];
             const analyzeLabel = nodesToAnalyze.length > 1
                 ? `🎓 Deep Dive (${nodesToAnalyze.length} nodes)`
-                : '🎓 Deep Dive Analysis';
+                : '🎓 Deep Dive';
 
             menuItems.push({
                 label: analyzeLabel,
@@ -11271,7 +11657,7 @@ function updateSortDropdown() {
 
         // Clear existing options
         const previousCount = sortSelect.options.length;
-        sortSelect.innerHTML = '<option value="">Default Order</option>';
+        sortSelect.innerHTML = '<option value="">Sort By</option>';
 
         // Add pattern-specific sort options
         pattern.sortOptions.forEach(option => {
@@ -13937,8 +14323,8 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-add-subtask">➕ Add ${labels.subtask}</div>
                     <div class="context-item" id="ctx-delete">🗑️ Delete ${labels.item}</div>
                     <div class="context-divider"></div>
-                    <div class="context-item" id="ctx-ai">🤖 AI Analysis</div>
-                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive Analysis</div>
+                    <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
+                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
                 `;
             } else if (activeNode.type === 'subtask') {
                 // Subtask context menu (can now have nested subtasks)
@@ -13948,8 +14334,8 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-add-subtask">➕ Add Nested ${labels.subtask}</div>
                     <div class="context-item" id="ctx-delete">🗑️ Delete ${labels.subtask}</div>
                     <div class="context-divider"></div>
-                    <div class="context-item" id="ctx-ai">🤖 AI Analysis</div>
-                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive Analysis</div>
+                    <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
+                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
                 `;
             } else if (activeNode.type === 'phase') {
                 // Phase context menu
@@ -13958,7 +14344,7 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-edit">✏️ Edit ${labels.phase}</div>
                     <div class="context-item" id="ctx-create">➕ Add ${labels.item} to ${activeNode.name}</div>
                     <div class="context-divider"></div>
-                    <div class="context-item" id="ctx-ai">🤖 AI Analysis</div>
+                    <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-download">💾 Download JSON</div>
                     <div class="context-item" id="ctx-upload">📂 Upload JSON</div>
@@ -13972,7 +14358,7 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-expand">📂 Expand All</div>
                     <div class="context-item" id="ctx-collapse">📁 Collapse All</div>
                     <div class="context-divider"></div>
-                    <div class="context-item" id="ctx-ai">🤖 ${labels.root} AI Analysis</div>
+                    <div class="context-item" id="ctx-ai">🔍 ${labels.root} Quick Insight</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-download">💾 Download JSON</div>
                     <div class="context-item" id="ctx-upload">📂 Upload JSON</div>
@@ -17232,8 +17618,8 @@ Return ONLY the JSON array.`
             await wizardAsk();
         }
 
-        // Add message to chat
-        function addWizardMessage(role, content) {
+        // Add message to chat with optional clickable choices
+        function addWizardMessage(role, content, choices = null) {
             const chatHistory = document.getElementById('wizard-chat-history');
             const messageDiv = document.createElement('div');
 
@@ -17252,7 +17638,64 @@ Return ONLY the JSON array.`
                     border: 1px solid #3A3F4D;
                     font-size: 14px;
                 `;
-                messageDiv.innerHTML = content.replace(/\n/g, '<br>');
+
+                // Parse content for [CHOICE:label] markers and convert to buttons
+                let displayContent = content;
+                const choiceMatches = content.match(/\[CHOICE:([^\]]+)\]/g);
+
+                if (choiceMatches) {
+                    // Remove choice markers from display text
+                    displayContent = content.replace(/\[CHOICE:[^\]]+\]/g, '').trim();
+                    messageDiv.innerHTML = displayContent.replace(/\n/g, '<br>');
+
+                    // Create clickable choice buttons
+                    const choicesDiv = document.createElement('div');
+                    choicesDiv.style.cssText = `
+                        display: flex;
+                        flex-wrap: wrap;
+                        gap: 8px;
+                        margin-top: 12px;
+                        padding-top: 12px;
+                        border-top: 1px solid #3A3F4D;
+                    `;
+
+                    choiceMatches.forEach(match => {
+                        const label = match.replace('[CHOICE:', '').replace(']', '');
+                        const btn = document.createElement('button');
+                        btn.textContent = label;
+                        btn.style.cssText = `
+                            padding: 8px 16px;
+                            background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                            color: white;
+                            border: none;
+                            border-radius: 20px;
+                            cursor: pointer;
+                            font-size: 13px;
+                            font-weight: 500;
+                            transition: all 0.2s ease;
+                            box-shadow: 0 2px 8px rgba(99, 102, 241, 0.3);
+                        `;
+                        btn.onmouseover = () => btn.style.transform = 'scale(1.05)';
+                        btn.onmouseout = () => btn.style.transform = 'scale(1)';
+                        btn.onclick = () => {
+                            // Disable all choice buttons after selection
+                            choicesDiv.querySelectorAll('button').forEach(b => {
+                                b.disabled = true;
+                                b.style.opacity = '0.5';
+                                b.style.cursor = 'default';
+                            });
+                            btn.style.opacity = '1';
+                            btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                            // Send the choice as user input
+                            handleWizardChoice(label);
+                        };
+                        choicesDiv.appendChild(btn);
+                    });
+
+                    messageDiv.appendChild(choicesDiv);
+                } else {
+                    messageDiv.innerHTML = displayContent.replace(/\n/g, '<br>');
+                }
             } else {
                 // Vibrant Primary for User
                 messageDiv.style.cssText = `
@@ -17272,6 +17715,18 @@ Return ONLY the JSON array.`
 
             chatHistory.appendChild(messageDiv);
             chatHistory.scrollTop = chatHistory.scrollHeight;
+        }
+
+        // Handle wizard choice button click
+        function handleWizardChoice(choice) {
+            // Add user's choice as a message
+            addWizardMessage('user', choice);
+
+            // Add to conversation history
+            wizardState.conversation.push({ role: 'user', content: choice });
+
+            // Trigger next AI response
+            wizardAsk();
         }
 
         // Ask AI for next question
@@ -17696,6 +18151,35 @@ CURRENT STATE:
 - Tree: ${treeSummary} (${phaseCount} phases, ${itemCount} items)${existingStructure}
 
 🎯 CORE MISSION: Extract 100% of required information in ≤5 strategic questions
+
+🖱️ MOUSE-DRIVEN UI - CLICKABLE CHOICES (CRITICAL):
+Every question MUST include 2-4 clickable options using [CHOICE:label] markers.
+The user clicks to answer - no typing required!
+
+Format your message like this:
+"What type of project is this?
+[CHOICE:📊 Business/Strategy][CHOICE:🎨 Creative/Design][CHOICE:📚 Educational][CHOICE:🔧 Technical]"
+
+CHOICE GUIDELINES:
+- Use emoji + short label (max 20 chars)
+- Offer 2-4 meaningful options that cover common cases
+- Include a catch-all like "Something else" or "Custom"
+- ALWAYS provide choices - never ask open-ended questions without options
+- Choices should help BUILD the tree, not just categorize
+
+EXAMPLE MESSAGES WITH CHOICES:
+
+Turn 1 (Goal):
+"What's the main purpose of this ${wizardState.patternKey}?
+[CHOICE:📋 Planning/Organizing][CHOICE:📝 Documenting][CHOICE:🎯 Decision-making][CHOICE:💡 Brainstorming]"
+
+Turn 2 (Scope):
+"How many main phases should this have?
+[CHOICE:3 phases (simple)][CHOICE:4-5 phases (standard)][CHOICE:6+ phases (complex)][CHOICE:Let me describe]"
+
+Turn 3 (Details):
+"I've built the structure. What should I focus on next?
+[CHOICE:➕ Add more items][CHOICE:📝 More detail][CHOICE:✅ Looks good][CHOICE:🔄 Restructure]"
 
 📊 STRATEGIC QUESTIONING FRAMEWORK:
 
@@ -19305,6 +19789,1008 @@ Thanks!`;
             };
 
             console.log('👁️ Watch Mode initialized');
+        })();
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // LIVE COLLABORATION SESSION MANAGEMENT (Build 222)
+        // Host can share API keys with collaborators securely
+        // ═══════════════════════════════════════════════════════════════════════════
+        (function initLiveCollabSessions() {
+            // Session state
+            let activeHostSession = null; // { token, expiresAt }
+            let activeGuestSession = null; // { token, hostName, expiresAt }
+            let hostImportedGdriveId = null; // Google Drive file ID if host imported from there
+            let sessionStatusInterval = null;
+
+            // Expose session token for AI calls
+            window.getCollabSessionToken = () => activeGuestSession?.token || null;
+            window.getCollabHostName = () => activeGuestSession?.hostName || null;
+            window.isCollabGuest = () => activeGuestSession !== null;
+
+            // Start a host session
+            window.startHostSession = async function() {
+                const btn = document.getElementById('start-host-session-btn');
+                const originalText = btn.innerHTML;
+                btn.innerHTML = '⏳ Creating session...';
+                btn.disabled = true;
+
+                try {
+                    // Get current API keys from storage
+                    const apiKeys = {};
+
+                    const anthropicKey = localStorage.getItem('anthropicApiKey');
+                    const geminiKey = localStorage.getItem('geminiApiKey');
+                    const openaiKey = localStorage.getItem('openaiApiKey');
+
+                    if (anthropicKey) apiKeys.anthropic = anthropicKey;
+                    if (geminiKey) apiKeys.gemini = geminiKey;
+                    if (openaiKey) apiKeys.openai = openaiKey;
+
+                    if (Object.keys(apiKeys).length === 0) {
+                        watchToast('❌ No API keys configured. Set up your keys first (🔑 button).', 'error');
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        return;
+                    }
+
+                    // Get host name
+                    const collaboratorName = document.getElementById('watch-collaborator-name')?.value?.trim() || 'Host';
+
+                    // Create session on server
+                    const response = await fetch('/.netlify/functions/collab-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'create',
+                            hostName: collaboratorName,
+                            apiKeys: apiKeys
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Failed to create session');
+                    }
+
+                    // Store session
+                    activeHostSession = {
+                        token: result.sessionToken,
+                        expiresAt: result.expiresAt
+                    };
+
+                    // Generate shareable link with Google Drive reference (if available)
+                    let shareLink = `${window.location.origin}${window.location.pathname}?session=${result.sessionToken}`;
+
+                    // If host imported from Google Drive, include that in the URL
+                    if (hostImportedGdriveId) {
+                        shareLink += `&gdrive=${hostImportedGdriveId}`;
+                        console.log('📎 Google Drive file ID included in session link:', hostImportedGdriveId);
+                    }
+
+                    document.getElementById('session-share-link').value = shareLink;
+
+                    // Update UI
+                    document.getElementById('host-session-start').style.display = 'none';
+                    document.getElementById('host-session-active').style.display = 'block';
+
+                    // Update tree name display
+                    const treeNameDisplay = document.getElementById('session-tree-name');
+                    if (treeNameDisplay && capexTree) {
+                        treeNameDisplay.textContent = capexTree.name || 'Current project';
+                    }
+
+                    updateSessionStatus();
+
+                    // Start status polling
+                    sessionStatusInterval = setInterval(updateSessionStatus, 30000);
+
+                    watchToast(`🔑 Session active! Share the link with collaborators.`, 'success');
+                    console.log('🔑 Host session created:', result.sessionToken.substring(0, 8) + '...');
+
+                } catch (error) {
+                    console.error('Failed to create session:', error);
+                    watchToast(`❌ ${error.message}`, 'error');
+                } finally {
+                    btn.innerHTML = originalText;
+                    btn.disabled = false;
+                }
+            };
+
+            // End host session
+            window.endHostSession = async function() {
+                if (!activeHostSession) return;
+
+                try {
+                    await fetch('/.netlify/functions/collab-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'revoke',
+                            sessionToken: activeHostSession.token
+                        })
+                    });
+                } catch (error) {
+                    console.error('Failed to revoke session:', error);
+                }
+
+                // Clear session
+                if (sessionStatusInterval) {
+                    clearInterval(sessionStatusInterval);
+                    sessionStatusInterval = null;
+                }
+
+                activeHostSession = null;
+
+                // Update UI
+                document.getElementById('host-session-start').style.display = 'block';
+                document.getElementById('host-session-active').style.display = 'none';
+
+                watchToast('⏹️ Session ended', 'info');
+                console.log('🔑 Host session ended');
+            };
+
+            // Update session status display
+            async function updateSessionStatus() {
+                if (!activeHostSession) return;
+
+                try {
+                    const response = await fetch('/.netlify/functions/collab-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'status',
+                            sessionToken: activeHostSession.token
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!result.active) {
+                        // Session expired
+                        endHostSession();
+                        watchToast('⏰ Session expired', 'info');
+                        return;
+                    }
+
+                    // Update display
+                    const expiresAt = new Date(result.expiresAt);
+                    document.getElementById('session-expires-at').textContent = expiresAt.toLocaleTimeString();
+                    document.getElementById('session-guest-count').textContent = result.guestCount || 0;
+
+                } catch (error) {
+                    console.error('Failed to get session status:', error);
+                }
+            }
+
+            // Copy session link
+            window.copySessionLink = function() {
+                const linkInput = document.getElementById('session-share-link');
+                linkInput.select();
+                document.execCommand('copy');
+                watchToast('📋 Session link copied!', 'success');
+            };
+
+            // Join as guest (called from URL parameter)
+            window.joinCollabSession = async function(sessionToken) {
+                try {
+                    const response = await fetch('/.netlify/functions/collab-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'validate',
+                            sessionToken: sessionToken
+                        })
+                    });
+
+                    const result = await response.json();
+
+                    if (!response.ok) {
+                        throw new Error(result.error || 'Invalid session');
+                    }
+
+                    // Store guest session
+                    activeGuestSession = {
+                        token: sessionToken,
+                        hostName: result.hostName,
+                        expiresAt: result.expiresAt
+                    };
+
+                    // Update UI
+                    document.getElementById('host-session-section').style.display = 'none';
+                    document.getElementById('guest-session-section').style.display = 'block';
+                    document.getElementById('guest-session-host').textContent = result.hostName;
+                    document.getElementById('guest-session-expires').textContent = new Date(result.expiresAt).toLocaleTimeString();
+
+                    // Show indicator in main UI
+                    showGuestSessionIndicator(result.hostName);
+
+                    watchToast(`🎟️ Using ${result.hostName}'s API keys!`, 'success');
+                    console.log('🎟️ Joined session as guest, host:', result.hostName);
+
+                    return true;
+
+                } catch (error) {
+                    console.error('Failed to join session:', error);
+                    watchToast(`❌ ${error.message}`, 'error');
+                    return false;
+                }
+            };
+
+            // Show guest indicator in main UI
+            function showGuestSessionIndicator(hostName) {
+                // Add indicator near API key button
+                let indicator = document.getElementById('guest-session-indicator');
+                if (!indicator) {
+                    indicator = document.createElement('div');
+                    indicator.id = 'guest-session-indicator';
+                    indicator.style.cssText = `
+                        position: fixed;
+                        top: 12px;
+                        right: 200px;
+                        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+                        color: white;
+                        padding: 6px 12px;
+                        border-radius: 20px;
+                        font-size: 12px;
+                        font-weight: 600;
+                        display: flex;
+                        align-items: center;
+                        gap: 6px;
+                        z-index: 1000;
+                        box-shadow: 0 2px 10px rgba(99, 102, 241, 0.3);
+                    `;
+                    document.body.appendChild(indicator);
+                }
+                indicator.innerHTML = `🎟️ Using ${hostName}'s keys`;
+                indicator.style.display = 'flex';
+            }
+
+            // Check for session parameter on load
+            const urlParams = new URLSearchParams(window.location.search);
+            const sessionParam = urlParams.get('session');
+
+            if (sessionParam) {
+                // Join session after app is ready
+                // Note: gdrive parameter is handled separately by existing Google Drive loader
+                // which runs at the same time - no need to duplicate tree loading here
+                setTimeout(() => {
+                    joinCollabSession(sessionParam);
+                }, 1500); // Slightly delayed to let gdrive load first
+            }
+
+            // Clean up on page unload
+            window.addEventListener('beforeunload', () => {
+                if (activeHostSession) {
+                    // Note: This is best-effort, may not complete
+                    navigator.sendBeacon('/.netlify/functions/collab-session', JSON.stringify({
+                        action: 'revoke',
+                        sessionToken: activeHostSession.token
+                    }));
+                }
+            });
+
+            // ═══════════════════════════════════════════════════════════════════
+            // HOST IMPORT FROM URL - Load tree from Google Drive or any JSON URL
+            // ═══════════════════════════════════════════════════════════════════
+            window.hostImportFromURL = async function() {
+                const urlInput = document.getElementById('host-import-url');
+                let url = urlInput?.value?.trim();
+
+                if (!url) {
+                    watchToast('📥 Please paste a Google Drive or JSON URL', 'info');
+                    return;
+                }
+
+                // Check if it's a Google Drive link
+                let isGoogleDrive = false;
+                let gdriveFileId = null;
+
+                if (url.includes('drive.google.com')) {
+                    isGoogleDrive = true;
+
+                    // Format: /file/d/FILE_ID/view
+                    const fileMatch = url.match(/\/file\/d\/([^\/]+)/);
+                    if (fileMatch) gdriveFileId = fileMatch[1];
+
+                    // Format: id=FILE_ID
+                    const idMatch = url.match(/id=([^&]+)/);
+                    if (idMatch) gdriveFileId = idMatch[1];
+
+                    // Format: /open?id=FILE_ID
+                    const openMatch = url.match(/open\?id=([^&]+)/);
+                    if (openMatch) gdriveFileId = openMatch[1];
+
+                    if (gdriveFileId) {
+                        hostImportedGdriveId = gdriveFileId;
+                        console.log('📥 Google Drive file ID:', gdriveFileId);
+                    }
+                }
+
+                // Convert Dropbox share links to direct download
+                if (url.includes('dropbox.com')) {
+                    url = url.replace('www.dropbox.com', 'dl.dropboxusercontent.com')
+                             .replace('?dl=0', '').replace('?dl=1', '');
+                    console.log('📥 Converted Dropbox URL');
+                }
+
+                watchToast('📥 Loading tree from URL...', 'info');
+
+                try {
+                    let treeData;
+
+                    if (isGoogleDrive && gdriveFileId) {
+                        // Use our proxy for Google Drive to avoid CORS
+                        const proxyUrl = `/.netlify/functions/gdrive-proxy?id=${gdriveFileId}`;
+                        const response = await fetch(proxyUrl);
+                        const result = await response.json();
+
+                        if (!response.ok || result.error) {
+                            throw new Error(result.error || 'Failed to fetch from Google Drive');
+                        }
+                        treeData = result;
+                    } else {
+                        // Direct fetch for other URLs
+                        const response = await fetch(url);
+                        if (!response.ok) {
+                            throw new Error(`Failed to fetch: ${response.status} ${response.statusText}`);
+                        }
+
+                        const text = await response.text();
+                        try {
+                            treeData = JSON.parse(text);
+                        } catch (parseError) {
+                            throw new Error('Invalid JSON file. Please check the URL points to a valid TreeListy JSON.');
+                        }
+                    }
+
+                    // Load the tree into TreeListy
+                    if (typeof loadTree === 'function') {
+                        loadTree(treeData);
+                        watchToast(`✅ Loaded: ${treeData.name || 'Imported tree'}`, 'success');
+                        console.log('📥 Tree loaded from URL:', treeData.name);
+
+                        // Update the tree name display
+                        const treeNameDisplay = document.getElementById('session-tree-name');
+                        if (treeNameDisplay) {
+                            treeNameDisplay.textContent = treeData.name || 'Imported tree';
+                        }
+                    } else {
+                        // Fallback - set capexTree directly
+                        capexTree = treeData;
+                        renderTree();
+                        watchToast(`✅ Loaded: ${treeData.name || 'Imported tree'}`, 'success');
+                    }
+
+                    // Clear the input
+                    urlInput.value = '';
+
+                } catch (error) {
+                    console.error('Failed to import from URL:', error);
+                    watchToast(`❌ Import failed: ${error.message}`, 'error');
+                }
+            };
+
+            // ═══════════════════════════════════════════════════════════════════
+            // EMAIL INVITATION FUNCTIONS
+            // ═══════════════════════════════════════════════════════════════════
+
+            // Generate invitation email content
+            function generateInviteEmail() {
+                const hostName = document.getElementById('watch-collaborator-name')?.value?.trim() || 'Your collaborator';
+                const sessionLink = document.getElementById('session-share-link')?.value || '';
+                const treeName = capexTree?.name || 'a TreeListy project';
+                const expiresAt = document.getElementById('session-expires-at')?.textContent || '4 hours';
+                const hasGdrive = hostImportedGdriveId !== null;
+
+                const subject = `🌳 Join my TreeListy collaboration session - ${treeName}`;
+
+                let body = `Hi!
+
+${hostName} has invited you to collaborate on "${treeName}" in TreeListy.
+
+🔗 Click here to join:
+${sessionLink}
+
+✨ What you get:
+• Full access to AI features (using ${hostName}'s API keys)
+• The project "${treeName}" will load automatically
+• No API key setup required on your end
+
+⏰ Session expires at: ${expiresAt}
+
+Just click the link above to join instantly!`;
+
+                if (!hasGdrive) {
+                    body += `
+
+📝 Note: If the project doesn't load, ask ${hostName} to share the Google Drive link separately.`;
+                }
+
+                body += `
+
+---
+TreeListy - Universal Project Decomposition
+https://treelisty.netlify.app`;
+
+                return { subject, body };
+            }
+
+            // Copy email text to clipboard
+            window.copySessionInviteEmail = function() {
+                const { subject, body } = generateInviteEmail();
+                const fullText = `Subject: ${subject}\n\n${body}`;
+
+                navigator.clipboard.writeText(fullText).then(() => {
+                    watchToast('📋 Email text copied!', 'success');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    watchToast('❌ Failed to copy', 'error');
+                });
+            };
+
+            // Open mailto link
+            window.openMailtoInvite = function() {
+                const { subject, body } = generateInviteEmail();
+                const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.open(mailto, '_blank');
+            };
+
+            // Send invite via email input
+            window.sendSessionInvite = function() {
+                const emailInput = document.getElementById('invite-email-input');
+                const email = emailInput?.value?.trim();
+
+                if (!email || !email.includes('@')) {
+                    watchToast('📧 Please enter a valid email address', 'error');
+                    return;
+                }
+
+                const { subject, body } = generateInviteEmail();
+                const mailto = `mailto:${email}?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.open(mailto, '_blank');
+
+                // Clear input and show success
+                emailInput.value = '';
+                watchToast(`📧 Opening email to ${email}...`, 'success');
+            };
+
+            // ═══════════════════════════════════════════════════════════════════
+            // ASYNC SHARE FUNCTIONS - Share Google Drive link (no API keys)
+            // ═══════════════════════════════════════════════════════════════════
+
+            let asyncGdriveFileId = null;
+
+            // Generate TreeListy link from Google Drive URL
+            window.generateAsyncShareLink = function() {
+                const urlInput = document.getElementById('async-gdrive-url');
+                const url = urlInput?.value?.trim();
+
+                if (!url) {
+                    watchToast('☁️ Please paste a Google Drive share link', 'info');
+                    return;
+                }
+
+                // Extract file ID from Google Drive URL
+                let fileId = null;
+
+                // Format: /file/d/FILE_ID/view
+                const fileMatch = url.match(/\/file\/d\/([^\/]+)/);
+                if (fileMatch) fileId = fileMatch[1];
+
+                // Format: id=FILE_ID
+                const idMatch = url.match(/id=([^&]+)/);
+                if (idMatch) fileId = idMatch[1];
+
+                // Format: /open?id=FILE_ID
+                const openMatch = url.match(/open\?id=([^&]+)/);
+                if (openMatch) fileId = openMatch[1];
+
+                if (!fileId) {
+                    watchToast('❌ Could not find file ID in URL. Please use a Google Drive share link.', 'error');
+                    return;
+                }
+
+                asyncGdriveFileId = fileId;
+
+                // Generate TreeListy link
+                const shareLink = `${window.location.origin}${window.location.pathname}?gdrive=${fileId}`;
+                document.getElementById('async-share-link').value = shareLink;
+                document.getElementById('async-share-result').style.display = 'block';
+
+                watchToast('🔗 TreeListy link generated!', 'success');
+                console.log('📧 Async share link created for file:', fileId);
+            };
+
+            // Copy async share link
+            window.copyAsyncShareLink = function() {
+                const link = document.getElementById('async-share-link')?.value;
+                if (link) {
+                    navigator.clipboard.writeText(link).then(() => {
+                        watchToast('📋 Link copied!', 'success');
+                    });
+                }
+            };
+
+            // Generate async invite email content
+            function generateAsyncInviteEmail() {
+                const hostName = document.getElementById('watch-collaborator-name')?.value?.trim() || 'Your collaborator';
+                const shareLink = document.getElementById('async-share-link')?.value || '';
+                const treeName = capexTree?.name || 'a TreeListy project';
+
+                const subject = `🌳 Collaborate on "${treeName}" in TreeListy`;
+
+                const body = `Hi!
+
+${hostName} has shared "${treeName}" with you in TreeListy.
+
+🔗 Click here to open it:
+${shareLink}
+
+📝 How async collaboration works:
+1. Click the link above to open the tree in TreeListy
+2. Make your edits and save to your own Google Drive
+3. Share your updated link back when ready
+
+💡 You'll need your own API key for AI features, or ask ${hostName} to start a Live Session if they want to share their keys.
+
+---
+TreeListy - Universal Project Decomposition
+https://treelisty.netlify.app`;
+
+                return { subject, body };
+            }
+
+            // Send async invite email
+            window.sendAsyncInviteEmail = function() {
+                const { subject, body } = generateAsyncInviteEmail();
+                const mailto = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+                window.open(mailto, '_blank');
+            };
+
+            // Copy async invite email text
+            window.copyAsyncInviteEmail = function() {
+                const { subject, body } = generateAsyncInviteEmail();
+                const fullText = `Subject: ${subject}\n\n${body}`;
+
+                navigator.clipboard.writeText(fullText).then(() => {
+                    watchToast('📋 Email text copied!', 'success');
+                }).catch(err => {
+                    console.error('Failed to copy:', err);
+                    watchToast('❌ Failed to copy', 'error');
+                });
+            };
+
+            console.log('🔑 Live Collab Sessions initialized');
+            console.log('📧 Async Share initialized');
+        })();
+
+        // =============================================================================
+        // FIREBASE LIVE SYNC (Build 231)
+        // =============================================================================
+        (function() {
+            'use strict';
+
+            // Firebase sync state
+            let firebaseSyncState = {
+                isConnected: false,
+                roomId: null,
+                userId: null,
+                unsubscribe: null,
+                lastSyncTimestamp: null,
+                isSyncing: false,
+                ignoreNextUpdate: false  // Prevent echo when we push our own changes
+            };
+
+            // Generate a random room ID
+            function generateRoomId() {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No confusing chars (0/O, 1/I/L)
+                let id = '';
+                for (let i = 0; i < 6; i++) {
+                    id += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return id;
+            }
+
+            // Update UI based on sync state
+            function updateSyncUI() {
+                const statusIndicator = document.getElementById('sync-status-indicator');
+                const statusText = document.getElementById('sync-status-text');
+                const userIdSection = document.getElementById('sync-user-id');
+                const userIdValue = document.getElementById('sync-user-id-value');
+                const startSection = document.getElementById('sync-start-section');
+                const activeSection = document.getElementById('sync-active-section');
+                const syncBtn = document.getElementById('live-sync-btn');
+
+                if (firebaseSyncState.isConnected && firebaseSyncState.roomId) {
+                    // Connected to a room
+                    statusIndicator.style.background = '#10b981';
+                    statusText.textContent = 'Connected';
+                    statusText.style.color = '#10b981';
+                    userIdSection.style.display = 'block';
+                    userIdValue.textContent = firebaseSyncState.userId?.substring(0, 8) + '...';
+                    startSection.style.display = 'none';
+                    activeSection.style.display = 'block';
+                    document.getElementById('active-room-id').value = firebaseSyncState.roomId;
+                    syncBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    syncBtn.title = '🔥 Live Sync Active - ' + firebaseSyncState.roomId;
+                } else if (firebaseSyncState.userId) {
+                    // Authenticated but not in a room
+                    statusIndicator.style.background = '#f59e0b';
+                    statusText.textContent = 'Ready';
+                    statusText.style.color = '#f59e0b';
+                    userIdSection.style.display = 'block';
+                    userIdValue.textContent = firebaseSyncState.userId?.substring(0, 8) + '...';
+                    startSection.style.display = 'block';
+                    activeSection.style.display = 'none';
+                    syncBtn.style.background = 'linear-gradient(135deg, #f97316, #ea580c)';
+                    syncBtn.title = '🔥 Firebase Live Sync';
+                } else {
+                    // Not connected
+                    statusIndicator.style.background = '#6b7280';
+                    statusText.textContent = 'Not Connected';
+                    statusText.style.color = 'var(--text-secondary)';
+                    userIdSection.style.display = 'none';
+                    startSection.style.display = 'block';
+                    activeSection.style.display = 'none';
+                    syncBtn.style.background = 'linear-gradient(135deg, #f97316, #ea580c)';
+                    syncBtn.title = '🔥 Firebase Live Sync';
+                }
+            }
+
+            // Initialize Firebase auth
+            async function initFirebaseAuth() {
+                // Wait for Firebase to be ready
+                let attempts = 0;
+                while (!window.firebaseReady && attempts < 50) {
+                    await new Promise(r => setTimeout(r, 100));
+                    attempts++;
+                }
+
+                if (!window.firebaseReady) {
+                    console.error('🔥 Firebase not ready after 5 seconds');
+                    return false;
+                }
+
+                try {
+                    // Sign in anonymously
+                    const result = await window.firebaseSignInAnonymously(window.firebaseAuth);
+                    firebaseSyncState.userId = result.user.uid;
+                    console.log('🔥 Firebase anonymous auth successful:', firebaseSyncState.userId);
+                    updateSyncUI();
+                    return true;
+                } catch (error) {
+                    console.error('🔥 Firebase auth error:', error);
+                    watchToast('❌ Firebase auth failed: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            // Create a new sync room
+            async function createSyncRoom() {
+                if (!firebaseSyncState.userId) {
+                    const authed = await initFirebaseAuth();
+                    if (!authed) return;
+                }
+
+                const roomId = generateRoomId();
+                firebaseSyncState.roomId = roomId;
+
+                try {
+                    // Create the room document with current tree data
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', roomId);
+                    await window.firebaseSetDoc(roomRef, {
+                        createdBy: firebaseSyncState.userId,
+                        createdAt: window.firebaseServerTimestamp(),
+                        lastUpdatedBy: firebaseSyncState.userId,
+                        lastUpdatedAt: window.firebaseServerTimestamp(),
+                        treeData: JSON.stringify(capexTree),
+                        pattern: currentPattern,
+                        projectName: capexTree?.name || 'Untitled'
+                    });
+
+                    console.log('🔥 Room created:', roomId);
+                    watchToast('🔥 Room created: ' + roomId, 'success');
+
+                    // Subscribe to changes
+                    subscribeToRoom(roomId);
+                    firebaseSyncState.isConnected = true;
+                    updateSyncUI();
+
+                } catch (error) {
+                    console.error('🔥 Failed to create room:', error);
+                    watchToast('❌ Failed to create room: ' + error.message, 'error');
+                    firebaseSyncState.roomId = null;
+                }
+            }
+
+            // Join an existing room
+            async function joinSyncRoom(roomId) {
+                if (!firebaseSyncState.userId) {
+                    const authed = await initFirebaseAuth();
+                    if (!authed) return;
+                }
+
+                roomId = roomId.toUpperCase().trim();
+                if (!roomId || roomId.length < 4) {
+                    watchToast('❌ Invalid room ID', 'error');
+                    return;
+                }
+
+                try {
+                    // Check if room exists
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', roomId);
+                    const roomSnap = await window.firebaseGetDoc(roomRef);
+
+                    if (!roomSnap.exists()) {
+                        watchToast('❌ Room not found: ' + roomId, 'error');
+                        return;
+                    }
+
+                    const roomData = roomSnap.data();
+                    console.log('🔥 Joining room:', roomId, roomData);
+
+                    // Load the tree data from the room
+                    if (roomData.treeData) {
+                        const treeData = JSON.parse(roomData.treeData);
+                        capexTree = treeData;
+
+                        // Update pattern if present
+                        if (roomData.pattern && PATTERNS[roomData.pattern]) {
+                            currentPattern = roomData.pattern;
+                            const patternSelect = document.getElementById('pattern-select');
+                            if (patternSelect) patternSelect.value = currentPattern;
+                        }
+
+                        // Re-render
+                        renderTree();
+                        if (currentView === 'canvas') {
+                            renderCanvas();
+                        }
+                    }
+
+                    firebaseSyncState.roomId = roomId;
+                    firebaseSyncState.isConnected = true;
+
+                    // Subscribe to changes
+                    subscribeToRoom(roomId);
+                    updateSyncUI();
+
+                    watchToast('🔥 Joined room: ' + roomId, 'success');
+
+                } catch (error) {
+                    console.error('🔥 Failed to join room:', error);
+                    watchToast('❌ Failed to join room: ' + error.message, 'error');
+                }
+            }
+
+            // Subscribe to real-time updates from a room
+            function subscribeToRoom(roomId) {
+                if (firebaseSyncState.unsubscribe) {
+                    firebaseSyncState.unsubscribe();
+                }
+
+                const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', roomId);
+
+                firebaseSyncState.unsubscribe = window.firebaseOnSnapshot(roomRef, (doc) => {
+                    if (!doc.exists()) {
+                        console.log('🔥 Room deleted');
+                        leaveSyncRoom();
+                        watchToast('⚠️ Room was deleted', 'warning');
+                        return;
+                    }
+
+                    const data = doc.data();
+
+                    // Skip if we just pushed this update
+                    if (firebaseSyncState.ignoreNextUpdate) {
+                        firebaseSyncState.ignoreNextUpdate = false;
+                        console.log('🔥 Ignoring our own update');
+                        return;
+                    }
+
+                    // Skip if it's our own update
+                    if (data.lastUpdatedBy === firebaseSyncState.userId) {
+                        console.log('🔥 Skipping own update');
+                        return;
+                    }
+
+                    // Update tree from remote
+                    if (data.treeData) {
+                        try {
+                            const newTree = JSON.parse(data.treeData);
+                            console.log('🔥 Received tree update from', data.lastUpdatedBy?.substring(0, 8));
+
+                            // Update local tree
+                            capexTree = newTree;
+
+                            // Update pattern if changed
+                            if (data.pattern && data.pattern !== currentPattern && PATTERNS[data.pattern]) {
+                                currentPattern = data.pattern;
+                                const patternSelect = document.getElementById('pattern-select');
+                                if (patternSelect) patternSelect.value = currentPattern;
+                            }
+
+                            // Re-render
+                            renderTree();
+                            if (currentView === 'canvas') {
+                                renderCanvas();
+                            }
+
+                            // Update last sync time
+                            firebaseSyncState.lastSyncTimestamp = Date.now();
+                            document.getElementById('sync-last-update').textContent = new Date().toLocaleTimeString();
+
+                            watchToast('🔄 Tree synced from collaborator', 'info');
+
+                        } catch (e) {
+                            console.error('🔥 Failed to parse tree update:', e);
+                        }
+                    }
+                }, (error) => {
+                    console.error('🔥 Snapshot error:', error);
+                    watchToast('❌ Sync error: ' + error.message, 'error');
+                });
+
+                console.log('🔥 Subscribed to room:', roomId);
+            }
+
+            // Push local changes to the room
+            async function pushTreeToRoom() {
+                if (!firebaseSyncState.isConnected || !firebaseSyncState.roomId) {
+                    return;
+                }
+
+                if (firebaseSyncState.isSyncing) {
+                    console.log('🔥 Already syncing, skipping');
+                    return;
+                }
+
+                firebaseSyncState.isSyncing = true;
+                firebaseSyncState.ignoreNextUpdate = true;
+
+                try {
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', firebaseSyncState.roomId);
+                    await window.firebaseSetDoc(roomRef, {
+                        lastUpdatedBy: firebaseSyncState.userId,
+                        lastUpdatedAt: window.firebaseServerTimestamp(),
+                        treeData: JSON.stringify(capexTree),
+                        pattern: currentPattern,
+                        projectName: capexTree?.name || 'Untitled'
+                    }, { merge: true });
+
+                    console.log('🔥 Pushed tree update');
+                    document.getElementById('sync-last-update').textContent = new Date().toLocaleTimeString();
+
+                } catch (error) {
+                    console.error('🔥 Failed to push tree:', error);
+                    firebaseSyncState.ignoreNextUpdate = false;
+                } finally {
+                    firebaseSyncState.isSyncing = false;
+                }
+            }
+
+            // Leave the current room
+            function leaveSyncRoom() {
+                if (firebaseSyncState.unsubscribe) {
+                    firebaseSyncState.unsubscribe();
+                    firebaseSyncState.unsubscribe = null;
+                }
+
+                firebaseSyncState.isConnected = false;
+                firebaseSyncState.roomId = null;
+                updateSyncUI();
+
+                watchToast('👋 Left sync room', 'info');
+            }
+
+            // Copy room ID to clipboard
+            function copyRoomId() {
+                const roomId = firebaseSyncState.roomId;
+                if (roomId) {
+                    navigator.clipboard.writeText(roomId).then(() => {
+                        watchToast('📋 Room ID copied: ' + roomId, 'success');
+                    });
+                }
+            }
+
+            // Expose functions globally
+            window.firebaseSyncState = firebaseSyncState;
+            window.createFirebaseSyncRoom = createSyncRoom;
+            window.joinFirebaseSyncRoom = joinSyncRoom;
+            window.leaveFirebaseSyncRoom = leaveSyncRoom;
+            window.pushTreeToFirebase = pushTreeToRoom;
+            window.copyFirebaseRoomId = copyRoomId;
+
+            // Initialize on DOM ready
+            document.addEventListener('DOMContentLoaded', () => {
+                // Live Sync button
+                document.getElementById('live-sync-btn')?.addEventListener('click', () => {
+                    document.getElementById('live-sync-modal').style.display = 'flex';
+                    // Auto-init auth when modal opens
+                    if (!firebaseSyncState.userId) {
+                        initFirebaseAuth();
+                    }
+                });
+
+                // Close button
+                document.getElementById('live-sync-close')?.addEventListener('click', () => {
+                    document.getElementById('live-sync-modal').style.display = 'none';
+                });
+
+                // Create room button
+                document.getElementById('create-sync-room-btn')?.addEventListener('click', createSyncRoom);
+
+                // Join room button
+                document.getElementById('join-sync-room-btn')?.addEventListener('click', () => {
+                    const roomId = document.getElementById('join-room-id')?.value;
+                    joinSyncRoom(roomId);
+                });
+
+                // Leave room button
+                document.getElementById('leave-sync-room-btn')?.addEventListener('click', leaveSyncRoom);
+
+                // Copy room ID button
+                document.getElementById('copy-room-id-btn')?.addEventListener('click', copyRoomId);
+
+                // Close modal on outside click
+                document.getElementById('live-sync-modal')?.addEventListener('click', (e) => {
+                    if (e.target.id === 'live-sync-modal') {
+                        document.getElementById('live-sync-modal').style.display = 'none';
+                    }
+                });
+
+                // Check for ?room= URL parameter
+                const urlParams = new URLSearchParams(window.location.search);
+                const roomParam = urlParams.get('room');
+                if (roomParam) {
+                    console.log('🔥 Room ID in URL:', roomParam);
+                    // Auto-join room after a short delay to let app initialize
+                    setTimeout(() => {
+                        initFirebaseAuth().then(() => {
+                            joinSyncRoom(roomParam);
+                        });
+                    }, 1000);
+                }
+
+                console.log('🔥 Firebase Live Sync initialized');
+            });
+
+            // Hook into tree changes to auto-sync
+            // We'll create a debounced sync function that watches the save indicator
+            let syncDebounceTimer = null;
+            let lastTreeHash = null;
+
+            // Simple hash function for tree comparison
+            function simpleHash(str) {
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash |= 0;
+                }
+                return hash;
+            }
+
+            // Check for tree changes periodically
+            setInterval(() => {
+                if (!firebaseSyncState.isConnected || !window.capexTree) return;
+
+                const treeStr = JSON.stringify(window.capexTree);
+                const currentHash = simpleHash(treeStr);
+
+                if (lastTreeHash !== null && currentHash !== lastTreeHash) {
+                    // Tree changed, debounce sync
+                    clearTimeout(syncDebounceTimer);
+                    syncDebounceTimer = setTimeout(() => {
+                        console.log('🔥 Tree change detected, syncing...');
+                        pushTreeToRoom();
+                    }, 500);
+                }
+
+                lastTreeHash = currentHash;
+            }, 2000); // Check every 2 seconds
+
         })();
 
         /**
@@ -23297,13 +24783,54 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
                     clusterByField = e.target.value;
                     if (clusterByField) {
                         console.log(`Clustering enabled by: ${clusterByField}`);
+
+                        // Auto-sync: update sort to match cluster field if linked
+                        if (sortClusterLinked) {
+                            const sortSelect = document.getElementById('pattern-sort-select');
+                            if (sortSelect) {
+                                // Try to find matching sort option by field
+                                const matchingOption = Array.from(sortSelect.options).find(
+                                    opt => opt.dataset && opt.dataset.field === clusterByField
+                                );
+                                if (matchingOption) {
+                                    sortSelect.value = matchingOption.value;
+                                    // Trigger sort
+                                    const sortConfig = {
+                                        value: matchingOption.value,
+                                        field: matchingOption.dataset.field,
+                                        order: matchingOption.dataset.order,
+                                        type: matchingOption.dataset.type
+                                    };
+                                    sortTree(sortConfig);
+                                    const resetSortBtn = document.getElementById('reset-sort-btn');
+                                    if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
+                                    console.log(`🔗 Auto-synced Sort to: ${clusterByField}`);
+                                }
+                            }
+                        }
+
                         // Re-apply force-directed layout if currently in canvas mode
                         if (viewMode === 'canvas') {
                             applyForceDirectedLayout();
                             renderCanvas();
                         }
+
+                        const linkedMsg = sortClusterLinked ? ' (Tree synced)' : '';
+                        showToast(`Clustered by: ${e.target.options[e.target.selectedIndex].textContent}${linkedMsg}`, 'success', 2000);
                     } else {
                         console.log('Clustering disabled');
+
+                        // Auto-sync: reset sort too if linked
+                        if (sortClusterLinked) {
+                            const sortSelect = document.getElementById('pattern-sort-select');
+                            const resetSortBtn = document.getElementById('reset-sort-btn');
+                            if (sortSelect) {
+                                sortSelect.value = '';
+                                currentSortConfig = null;
+                                sortTree(null);
+                                if (resetSortBtn) resetSortBtn.style.display = 'none';
+                            }
+                        }
                     }
                 });
             }
@@ -26512,6 +28039,46 @@ ${jsonText}`;
                         </p>
                     </div>
 
+                    <h3 style="color: #f59e0b; margin-bottom: 16px; font-size: 20px;">🖱️ View Controls (Tree vs Canvas)</h3>
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid #f59e0b;">
+                        <p style="font-size: 14px; margin-bottom: 12px;">
+                            <strong>TreeListy has two views:</strong> Tree View (hierarchical list) and Canvas View (node diagram). Each has different mouse controls!
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🌲 Tree View (Default)</p>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Left Click</strong> - Expand/collapse node, or select to view details</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Right Click</strong> - Context menu (Add, Edit, Delete, AI options)</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Mouse Wheel</strong> - Scroll up/down through the tree</p>
+                            <p style="font-size: 13px; margin-bottom: 0;">• <strong>Drag & Drop</strong> - Not supported (use Edit to move items)</p>
+                        </div>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🎨 Canvas View (Diagram)</p>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Left Click</strong> - Select node (shows details in right panel)</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Left Drag on Node</strong> - Move the node around the canvas</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Right Click</strong> - Context menu (Edit, Share Branch, AI Analysis)</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Mouse Wheel</strong> - Zoom in/out</p>
+                            <p style="font-size: 13px; margin-bottom: 4px; color: #f59e0b;"><strong>⭐ Middle Mouse (Wheel Click) + Drag</strong> - Pan the entire canvas</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Ctrl + Click</strong> - Multi-select nodes</p>
+                            <p style="font-size: 13px; margin-bottom: 0;">• <strong>Left Drag on Empty Space</strong> - Box select multiple nodes</p>
+                        </div>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🔄 Switching Views</p>
+                        <p style="font-size: 13px; margin-bottom: 12px;">
+                            • Click the <strong>🌲/🎨 toggle button</strong> in the toolbar to switch<br>
+                            • Canvas is better for large trees and seeing relationships<br>
+                            • Tree is better for detailed editing and reading
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">💡 Canvas Tips</p>
+                        <p style="font-size: 13px; margin-bottom: 0; font-style: italic; color: #f59e0b;">
+                            • <strong>No middle mouse?</strong> Use the zoom/pan controls in toolbar, or try touchpad pinch-to-zoom<br>
+                            • <strong>Lost on a big canvas?</strong> Click "Fit" button to see all nodes<br>
+                            • <strong>Create hyperedges:</strong> Select multiple nodes → Click "Edges" → Name your connection
+                        </p>
+                    </div>
+
                     <h3 style="color: var(--phase-4); margin-bottom: 16px; font-size: 20px;">🔧 Advanced Features</h3>
                     <div style="background: var(--bg); padding: 16px; border-radius: 8px; border-left: 3px solid var(--phase-4);">
                         <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🎭 Pattern System (18 Built-in + Custom)</p>
@@ -28134,6 +29701,216 @@ ${jsonText}`;
             document.getElementById('excel-upload-input').click();
         });
 
+        // ============================================
+        // LOAD FROM GOOGLE DRIVE MODAL
+        // ============================================
+
+        const RECENT_GDRIVE_KEY = 'treelisty-recent-gdrive';
+        const MAX_RECENT_FILES = 8;
+
+        // Get recent Google Drive files from localStorage
+        function getRecentGdriveFiles() {
+            try {
+                return JSON.parse(localStorage.getItem(RECENT_GDRIVE_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        // Add a file to recent list
+        function addToRecentGdrive(fileId, projectName, pattern) {
+            const recent = getRecentGdriveFiles();
+            // Remove if already exists
+            const filtered = recent.filter(f => f.fileId !== fileId);
+            // Add to front
+            filtered.unshift({
+                fileId,
+                projectName: projectName || 'Untitled Project',
+                pattern: pattern || 'generic',
+                loadedAt: new Date().toISOString()
+            });
+            // Keep only max
+            const trimmed = filtered.slice(0, MAX_RECENT_FILES);
+            localStorage.setItem(RECENT_GDRIVE_KEY, JSON.stringify(trimmed));
+            return trimmed;
+        }
+
+        // Render recent files list
+        function renderRecentGdriveList() {
+            const section = document.getElementById('recent-gdrive-section');
+            const list = document.getElementById('recent-gdrive-list');
+            const recent = getRecentGdriveFiles();
+
+            if (recent.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+
+            section.style.display = 'block';
+            list.innerHTML = recent.map((file, idx) => {
+                const date = new Date(file.loadedAt);
+                const dateStr = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                const patternEmoji = {
+                    philosophy: '🏛️', sales: '💼', film: '🎬', capex: '💰',
+                    generic: '📋', academic: '🎓', product: '🚀', book: '📚'
+                }[file.pattern] || '📄';
+
+                return `
+                    <div class="recent-gdrive-item" data-file-id="${file.fileId}"
+                        style="display: flex; align-items: center; gap: 12px; padding: 12px; background: var(--card-bg); border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s; border: 1px solid var(--border);"
+                        onmouseover="this.style.borderColor='#4285f4'; this.style.transform='translateX(4px)'"
+                        onmouseout="this.style.borderColor='var(--border)'; this.style.transform='none'">
+                        <div style="font-size: 24px;">${patternEmoji}</div>
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-weight: 600; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                ${file.projectName}
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary);">
+                                ${dateStr}
+                            </div>
+                        </div>
+                        <div style="font-size: 16px; color: var(--text-secondary);">→</div>
+                    </div>
+                `;
+            }).join('');
+
+            // Add click handlers
+            list.querySelectorAll('.recent-gdrive-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const fileId = item.dataset.fileId;
+                    loadFromGoogleDrive(fileId);
+                });
+            });
+        }
+
+        // Load tree from Google Drive file ID
+        async function loadFromGoogleDrive(fileId) {
+            const modal = document.getElementById('load-gdrive-modal');
+            const loadBtn = document.getElementById('gdrive-load-btn');
+            const originalText = loadBtn.textContent;
+
+            try {
+                loadBtn.textContent = '⏳ Loading...';
+                loadBtn.disabled = true;
+
+                showToast('☁️ Loading from Google Drive...', 'info');
+
+                const proxyUrl = `/.netlify/functions/gdrive-proxy?id=${fileId}`;
+                const response = await fetch(proxyUrl);
+                const result = await response.json();
+
+                if (!response.ok || result.error) {
+                    throw new Error(result.error || 'Failed to fetch from Google Drive');
+                }
+
+                // Load the tree data
+                capexTree = result;
+
+                // Update pattern if present
+                if (result.pattern) {
+                    const patternKey = getPatternKey(result.pattern);
+                    if (patternKey) {
+                        currentPattern = patternKey;
+                        const patternSelect = document.getElementById('pattern-select');
+                        if (patternSelect) patternSelect.value = currentPattern;
+                        if (currentPattern === 'custom' && result.pattern.labels) {
+                            customPatternNames = result.pattern.labels;
+                        }
+                        if (typeof updateSortDropdown === 'function') updateSortDropdown();
+                        if (typeof updateAIButtonLabel === 'function') updateAIButtonLabel();
+                    }
+                }
+
+                // Add to recent files
+                addToRecentGdrive(fileId, result.name || result.projectName || 'Untitled', currentPattern);
+
+                // Close modal
+                modal.style.display = 'none';
+
+                // Render
+                render();
+                if (viewMode === 'canvas') renderCanvas();
+
+                showToast('✅ Loaded from Google Drive!', 'success');
+                console.log('☁️ Loaded from Google Drive:', fileId);
+
+            } catch (error) {
+                console.error('❌ Failed to load from Google Drive:', error);
+                showToast('❌ ' + (error.message || 'Failed to load. Check the link is publicly shared.'), 'error');
+            } finally {
+                loadBtn.textContent = originalText;
+                loadBtn.disabled = false;
+            }
+        }
+
+        // Extract file ID from various Google Drive URL formats
+        function extractGdriveFileId(input) {
+            if (!input) return null;
+
+            // Already just an ID
+            if (/^[a-zA-Z0-9_-]{20,}$/.test(input.trim())) {
+                return input.trim();
+            }
+
+            // /d/FILE_ID format
+            const dMatch = input.match(/\/d\/([a-zA-Z0-9_-]+)/);
+            if (dMatch) return dMatch[1];
+
+            // ?id=FILE_ID format
+            const idMatch = input.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+            if (idMatch) return idMatch[1];
+
+            // /open?id=FILE_ID format
+            const openMatch = input.match(/\/open\?id=([a-zA-Z0-9_-]+)/);
+            if (openMatch) return openMatch[1];
+
+            return null;
+        }
+
+        // Initialize Load from Google Drive modal
+        document.getElementById('load-gdrive-btn').addEventListener('click', () => {
+            const modal = document.getElementById('load-gdrive-modal');
+            modal.style.display = 'flex';
+            document.getElementById('gdrive-url-input').value = '';
+            document.getElementById('gdrive-url-input').focus();
+            renderRecentGdriveList();
+        });
+
+        document.getElementById('load-gdrive-close').addEventListener('click', () => {
+            document.getElementById('load-gdrive-modal').style.display = 'none';
+        });
+
+        document.getElementById('gdrive-load-btn').addEventListener('click', () => {
+            const input = document.getElementById('gdrive-url-input').value.trim();
+            const fileId = extractGdriveFileId(input);
+            if (fileId) {
+                loadFromGoogleDrive(fileId);
+            } else {
+                showToast('❌ Could not parse Google Drive URL. Try pasting the share link.', 'error');
+            }
+        });
+
+        // Allow Enter key to submit
+        document.getElementById('gdrive-url-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('gdrive-load-btn').click();
+            }
+        });
+
+        // Clear recent files
+        document.getElementById('clear-recent-gdrive').addEventListener('click', () => {
+            localStorage.removeItem(RECENT_GDRIVE_KEY);
+            renderRecentGdriveList();
+            showToast('Recent files cleared', 'info');
+        });
+
+        // Close modal on backdrop click
+        document.getElementById('load-gdrive-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'load-gdrive-modal') {
+                e.target.style.display = 'none';
+            }
+        });
+
         // Google Drive Refresh button handler
         document.getElementById('refresh-drive-btn').addEventListener('click', async () => {
             const btn = document.getElementById('refresh-drive-btn');
@@ -28361,41 +30138,67 @@ ${jsonText}`;
                 console.log('☁️ Google Drive/Watch URL detected:', fileSource);
 
                 // Extract file ID from various Google Drive URL formats
-                let gdriveUrl = '';
+                let fileId = null;
 
                 if (fileSource.includes('drive.google.com')) {
                     // Full Google Drive URL - extract file ID
                     const match = fileSource.match(/\/d\/([a-zA-Z0-9_-]+)/);
                     if (match) {
-                        const fileId = match[1];
-                        gdriveUrl = `https://drive.google.com/uc?export=download&id=${fileId}`;
-                    } else {
-                        gdriveUrl = fileSource;
+                        fileId = match[1];
+                    }
+                    // Also try ?id= format
+                    const idMatch = fileSource.match(/[?&]id=([a-zA-Z0-9_-]+)/);
+                    if (idMatch) {
+                        fileId = idMatch[1];
                     }
                 } else if (fileSource.match(/^[a-zA-Z0-9_-]{20,}$/)) {
                     // Just a file ID
-                    gdriveUrl = `https://drive.google.com/uc?export=download&id=${fileSource}`;
-                } else if (fileSource.startsWith('http')) {
-                    // Direct URL
-                    gdriveUrl = fileSource;
+                    fileId = fileSource;
                 }
 
-                if (gdriveUrl) {
+                if (fileId) {
+                    // Use our proxy to avoid CORS issues
+                    const proxyUrl = `/.netlify/functions/gdrive-proxy?id=${fileId}`;
+
                     // Fetch and load the file
                     setTimeout(async () => {
                         try {
                             showToast('☁️ Loading from Google Drive...', 'info');
 
-                            const response = await fetch(gdriveUrl);
-                            if (!response.ok) throw new Error('Failed to fetch');
+                            const response = await fetch(proxyUrl);
+                            const result = await response.json();
 
-                            const treeData = await response.json();
+                            if (!response.ok || result.error) {
+                                throw new Error(result.error || 'Failed to fetch');
+                            }
+
+                            const treeData = result;
                             capexTree = treeData;
 
-                            // Update pattern if present
+                            // Update pattern if present in loaded data
                             if (treeData.pattern) {
                                 const patternKey = getPatternKey(treeData.pattern);
-                                if (patternKey) currentPattern = patternKey;
+                                if (patternKey) {
+                                    currentPattern = patternKey;
+                                    // Update pattern selector UI
+                                    const patternSelect = document.getElementById('pattern-select');
+                                    if (patternSelect) {
+                                        patternSelect.value = currentPattern;
+                                    }
+                                    // Handle custom pattern labels
+                                    if (currentPattern === 'custom' && treeData.pattern.labels) {
+                                        customPatternNames = treeData.pattern.labels;
+                                    }
+                                    // Update related UI elements
+                                    if (typeof updateSortDropdown === 'function') updateSortDropdown();
+                                    if (typeof updateAIButtonLabel === 'function') updateAIButtonLabel();
+                                    console.log('☁️ Pattern detected from Google Drive:', currentPattern);
+                                }
+                            }
+
+                            // Add to recent files list
+                            if (typeof addToRecentGdrive === 'function') {
+                                addToRecentGdrive(fileId, treeData.name || treeData.projectName || 'Shared Project', currentPattern);
                             }
 
                             render();
@@ -28897,6 +30700,19 @@ ${jsonText}`;
                     sortTree(null);
                     if (resetSortBtn) resetSortBtn.style.display = 'none';
                     console.log('Sort reset to default order');
+
+                    // Auto-sync: reset cluster too if linked
+                    if (sortClusterLinked) {
+                        const clusterSelect = document.getElementById('cluster-by-select');
+                        if (clusterSelect) {
+                            clusterSelect.value = '';
+                            clusterByField = '';
+                            if (viewMode === 'canvas') {
+                                runForceDirectedLayout();
+                                renderCanvas();
+                            }
+                        }
+                    }
                 } else {
                     // Apply sort
                     const sortConfig = {
@@ -28909,25 +30725,29 @@ ${jsonText}`;
                     sortTree(sortConfig);
                     if (resetSortBtn) resetSortBtn.style.display = 'inline-block';
 
+                    // Auto-sync: update cluster to match sort field if linked
+                    if (sortClusterLinked && sortConfig.field) {
+                        const clusterSelect = document.getElementById('cluster-by-select');
+                        if (clusterSelect) {
+                            // Try to find matching cluster option
+                            const matchingOption = Array.from(clusterSelect.options).find(
+                                opt => opt.value === sortConfig.field
+                            );
+                            if (matchingOption) {
+                                clusterSelect.value = sortConfig.field;
+                                clusterByField = sortConfig.field;
+                                if (viewMode === 'canvas') {
+                                    runForceDirectedLayout();
+                                    renderCanvas();
+                                }
+                                console.log(`🔗 Auto-synced Cluster to: ${sortConfig.field}`);
+                            }
+                        }
+                    }
+
                     // Show toast notification
-                    const toast = document.createElement('div');
-                    toast.textContent = `Sorted: ${selectedOption.textContent}`;
-                    toast.style.cssText = `
-                        position: fixed;
-                        bottom: 80px;
-                        right: 20px;
-                        padding: 12px 24px;
-                        background: var(--card-bg);
-                        border: 2px solid var(--border);
-                        border-radius: 12px;
-                        color: var(--text-primary);
-                        font-weight: 600;
-                        font-size: 14px;
-                        z-index: 10000;
-                        box-shadow: var(--shadow-lg);
-                    `;
-                    document.body.appendChild(toast);
-                    setTimeout(() => toast.remove(), 2000);
+                    const linkedMsg = sortClusterLinked ? ' (Canvas synced)' : '';
+                    showToast(`Sorted: ${selectedOption.textContent}${linkedMsg}`, 'success', 2000);
                 }
             });
 
@@ -28966,42 +30786,29 @@ ${jsonText}`;
         // Update sort dropdown on initial load
         updateSortDropdown();
 
+        // Sort-Cluster link toggle button
+        const linkBtn = document.getElementById('sort-cluster-link-btn');
+        if (linkBtn) {
+            linkBtn.addEventListener('click', function() {
+                sortClusterLinked = !sortClusterLinked;
+                this.textContent = sortClusterLinked ? '🔗' : '🔓';
+                this.title = sortClusterLinked
+                    ? 'Click to unlink Sort from Canvas Cluster. When linked, changing Sort also changes Canvas clustering.'
+                    : 'Click to link Sort with Canvas Cluster. Currently independent.';
+                this.style.opacity = sortClusterLinked ? '0.8' : '0.5';
+                showToast(sortClusterLinked ? '🔗 Sort & Cluster linked' : '🔓 Sort & Cluster independent', 'info', 2000);
+            });
+        }
+
         console.log('Sorting system initialized');
 
         // ============================================
-        // AI TOOLS FLOATING PANEL
+        // AI TOOLS SIDEBAR SYNC
         // ============================================
+        // Note: AI Tools sidebar is always visible and auto-expands on hover (no toggle needed)
 
-        const aiToolsPanel = document.getElementById('ai-tools-panel');
-        const toggleAiToolsBtn = document.getElementById('toggle-ai-tools');
-        const closeAiToolsBtn = document.getElementById('close-ai-tools');
         const aiModeSelectHeader = document.getElementById('unified-ai-mode-select');
         const aiModeSelectPanel = document.getElementById('unified-ai-mode-select-panel');
-
-        // Toggle AI Tools Panel
-        if (toggleAiToolsBtn && aiToolsPanel) {
-            toggleAiToolsBtn.addEventListener('click', function() {
-                const isVisible = aiToolsPanel.style.display === 'flex';
-                aiToolsPanel.style.display = isVisible ? 'none' : 'flex';
-                console.log('AI Tools panel toggled:', !isVisible);
-            });
-        }
-
-        // Close AI Tools Panel
-        if (closeAiToolsBtn && aiToolsPanel) {
-            closeAiToolsBtn.addEventListener('click', function() {
-                aiToolsPanel.style.display = 'none';
-                console.log('AI Tools panel closed');
-            });
-
-            // Hover effect for close button
-            closeAiToolsBtn.addEventListener('mouseenter', function() {
-                this.style.background = 'rgba(255, 255, 255, 0.1)';
-            });
-            closeAiToolsBtn.addEventListener('mouseleave', function() {
-                this.style.background = 'transparent';
-            });
-        }
 
         // Sync AI Model selectors (header <-> panel)
         if (aiModeSelectHeader && aiModeSelectPanel) {
