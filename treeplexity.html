@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.13.0 | Build 218 | 2025-12-01
+    TreeListy v2.13.0 | Build 219 | 2025-12-01
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 218): 🎨 Imagen 4 Image Generation + Model Updates
+    Changelog (Build 219): 🔍 Image Preview Lightbox for Imagen 4
+    - Click any generated image to view full-size in lightbox
+    - Examine details before choosing which image to attach
+    - Download button to save images locally
+    - Attach to Node button from preview view
+    - Escape key or click outside to close
+    - Shows prompt used for each image
+    Previous (Build 218): 🎨 Imagen 4 Image Generation + Model Updates
     - NEW: Generate images from selected nodes using Google Imagen 4
     - NEW: Right-click → "Generate Image" in Canvas view
     - NEW: Choose aspect ratio (1:1, 16:9, 9:16, 4:3, 3:4)
@@ -2277,8 +2284,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.13.0 | Build 218 | 2025-12-01">
-                    v2.13.0 • Build 218
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.13.0 | Build 219 | 2025-12-01">
+                    v2.13.0 • Build 219
                 </div>
             </div>
         </div>
@@ -19722,16 +19729,40 @@ Thanks!`;
                 data.predictions.forEach((pred, idx) => {
                     if (pred.bytesBase64Encoded) {
                         const imgContainer = document.createElement('div');
-                        imgContainer.style.cssText = 'position: relative; border-radius: 12px; overflow: hidden; border: 2px solid var(--border);';
+                        imgContainer.style.cssText = 'position: relative; border-radius: 12px; overflow: hidden; border: 2px solid var(--border); cursor: pointer;';
 
                         const img = document.createElement('img');
                         img.src = `data:image/png;base64,${pred.bytesBase64Encoded}`;
                         img.style.cssText = 'width: 100%; height: auto; display: block;';
                         img.alt = `Generated image ${idx + 1}`;
 
+                        // Click image to view full-size
+                        img.onclick = (e) => {
+                            e.stopPropagation();
+                            showImagePreview(pred.bytesBase64Encoded, prompt, nodes, idx + 1);
+                        };
+
+                        // Hover hint
+                        const viewHint = document.createElement('div');
+                        viewHint.textContent = '🔍 Click to view full size';
+                        viewHint.style.cssText = `
+                            position: absolute;
+                            top: 8px;
+                            left: 50%;
+                            transform: translateX(-50%);
+                            background: rgba(0,0,0,0.7);
+                            color: white;
+                            padding: 4px 12px;
+                            border-radius: 12px;
+                            font-size: 11px;
+                            opacity: 0;
+                            transition: opacity 0.2s;
+                            pointer-events: none;
+                        `;
+
                         // Add "Attach to Node" button
                         const attachBtn = document.createElement('button');
-                        attachBtn.textContent = '📎 Attach to Node';
+                        attachBtn.textContent = '📎 Attach';
                         attachBtn.style.cssText = `
                             position: absolute;
                             bottom: 8px;
@@ -19740,23 +19771,31 @@ Thanks!`;
                             background: rgba(0,0,0,0.8);
                             color: white;
                             border: none;
-                            padding: 8px 16px;
+                            padding: 6px 14px;
                             border-radius: 20px;
-                            font-size: 12px;
+                            font-size: 11px;
                             cursor: pointer;
                             opacity: 0;
                             transition: opacity 0.2s;
                         `;
-                        imgContainer.onmouseenter = () => attachBtn.style.opacity = '1';
-                        imgContainer.onmouseleave = () => attachBtn.style.opacity = '0';
+                        imgContainer.onmouseenter = () => {
+                            attachBtn.style.opacity = '1';
+                            viewHint.style.opacity = '1';
+                        };
+                        imgContainer.onmouseleave = () => {
+                            attachBtn.style.opacity = '0';
+                            viewHint.style.opacity = '0';
+                        };
 
-                        attachBtn.onclick = () => {
+                        attachBtn.onclick = (e) => {
+                            e.stopPropagation();
                             attachImageToNode(nodes[0], pred.bytesBase64Encoded, prompt);
                             const modal = document.getElementById('imagen-modal');
                             if (modal) modal.remove();
                         };
 
                         imgContainer.appendChild(img);
+                        imgContainer.appendChild(viewHint);
                         imgContainer.appendChild(attachBtn);
                         imagesDiv.appendChild(imgContainer);
                     }
@@ -19804,6 +19843,90 @@ Thanks!`;
 
             // Show confirmation
             showToast(`🎨 Image attached to "${node.name}"`);
+        }
+
+        /**
+         * Show full-size image preview with options to attach or download
+         * @param {string} base64 - Base64 encoded image data
+         * @param {string} prompt - The prompt used to generate the image
+         * @param {Array} nodes - Nodes to potentially attach to
+         * @param {number} imageNum - Image number (1-4)
+         */
+        function showImagePreview(base64, prompt, nodes, imageNum) {
+            // Remove existing preview
+            const existing = document.getElementById('imagen-preview');
+            if (existing) existing.remove();
+
+            const preview = document.createElement('div');
+            preview.id = 'imagen-preview';
+            preview.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 100%;
+                background: rgba(0,0,0,0.95);
+                display: flex;
+                flex-direction: column;
+                align-items: center;
+                justify-content: center;
+                z-index: 10002;
+                padding: 20px;
+                box-sizing: border-box;
+            `;
+
+            preview.innerHTML = `
+                <div style="position: absolute; top: 20px; right: 20px; display: flex; gap: 12px;">
+                    <button id="preview-download" style="background: #3b82f6; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        💾 Download
+                    </button>
+                    <button id="preview-attach" style="background: #10b981; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        📎 Attach to Node
+                    </button>
+                    <button id="preview-close" style="background: #6b7280; color: white; border: none; padding: 10px 20px; border-radius: 8px; font-size: 14px; cursor: pointer;">
+                        ✕ Close
+                    </button>
+                </div>
+
+                <div style="flex: 1; display: flex; align-items: center; justify-content: center; max-height: calc(100vh - 180px); width: 100%;">
+                    <img src="data:image/png;base64,${base64}" style="max-width: 100%; max-height: 100%; object-fit: contain; border-radius: 8px; box-shadow: 0 25px 50px rgba(0,0,0,0.5);" alt="Generated image ${imageNum}">
+                </div>
+
+                <div style="position: absolute; bottom: 20px; left: 20px; right: 20px; background: rgba(0,0,0,0.8); padding: 16px 20px; border-radius: 12px; max-width: 800px; margin: 0 auto;">
+                    <div style="font-size: 12px; color: #9ca3af; margin-bottom: 4px;">Image ${imageNum} • Imagen 4 • Prompt:</div>
+                    <div style="font-size: 13px; color: white; line-height: 1.5; max-height: 60px; overflow-y: auto;">${prompt}</div>
+                </div>
+            `;
+
+            document.body.appendChild(preview);
+
+            // Event handlers
+            document.getElementById('preview-close').onclick = () => preview.remove();
+            preview.onclick = (e) => { if (e.target === preview) preview.remove(); };
+
+            document.getElementById('preview-download').onclick = () => {
+                const link = document.createElement('a');
+                link.href = `data:image/png;base64,${base64}`;
+                link.download = `treelisty-imagen-${Date.now()}.png`;
+                link.click();
+                showToast('💾 Image downloaded');
+            };
+
+            document.getElementById('preview-attach').onclick = () => {
+                attachImageToNode(nodes[0], base64, prompt);
+                preview.remove();
+                const modal = document.getElementById('imagen-modal');
+                if (modal) modal.remove();
+            };
+
+            // Keyboard shortcuts
+            const handleKeydown = (e) => {
+                if (e.key === 'Escape') {
+                    preview.remove();
+                    document.removeEventListener('keydown', handleKeydown);
+                }
+            };
+            document.addEventListener('keydown', handleKeydown);
         }
 
         /**
