@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.13.0 | Build 219 | 2025-12-01
+    TreeListy v2.13.0 | Build 220 | 2025-12-01
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 219): 🔍 Image Preview Lightbox for Imagen 4
+    Changelog (Build 220): ✨ AI-Powered Imagen Prompt Crafting
+    - 8 visual style presets: Whiteboard, Infographic, Cartoon, Tech, Nature, Minimal, Isometric, Academic
+    - "AI Craft Prompt" button uses Gemini to write optimized Imagen 4 prompts
+    - Pattern-aware: Uses your tree's context (Philosophy, Sales, etc.) for better prompts
+    - Word count indicator (15-25 words = green = ideal length)
+    - Follows Imagen 4 best practices: subject first, style keywords, lighting
+    - Fun, educational, whiteboard-style default for approachable visuals
+    Previous (Build 219): 🔍 Image Preview Lightbox for Imagen 4
     - Click any generated image to view full-size in lightbox
     - Examine details before choosing which image to attach
     - Download button to save images locally
@@ -2284,8 +2291,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.13.0 | Build 219 | 2025-12-01">
-                    v2.13.0 • Build 219
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.13.0 | Build 220 | 2025-12-01">
+                    v2.13.0 • Build 220
                 </div>
             </div>
         </div>
@@ -19553,6 +19560,50 @@ Thanks!`;
         // IMAGEN 4 - AI IMAGE GENERATION (Build 218)
         // ═══════════════════════════════════════════════════════════════════════════
 
+        // Image style presets for Imagen 4
+        const IMAGEN_STYLES = {
+            whiteboard: {
+                name: '📝 Whiteboard Sketch',
+                prompt: 'Clean whiteboard illustration style, hand-drawn marker aesthetic, simple shapes, educational diagram, white background with colorful markers, fun and approachable, minimal detail, clear labels',
+                description: 'Fun educational whiteboard style'
+            },
+            infographic: {
+                name: '📊 Infographic',
+                prompt: 'Modern infographic style, flat design, bold colors, clean vector graphics, data visualization aesthetic, professional business illustration, white background, geometric shapes',
+                description: 'Professional data visualization'
+            },
+            cartoon: {
+                name: '🎨 Friendly Cartoon',
+                prompt: 'Friendly cartoon illustration, soft pastel colors, rounded shapes, cute characters, warm and inviting, children book illustration style, playful atmosphere',
+                description: 'Approachable cartoon style'
+            },
+            tech: {
+                name: '💻 Tech/Digital',
+                prompt: 'Modern tech aesthetic, dark gradient background, glowing neon accents, futuristic digital art, clean UI elements, cyberpunk inspired, high contrast',
+                description: 'Futuristic technology theme'
+            },
+            nature: {
+                name: '🌿 Nature/Organic',
+                prompt: 'Organic watercolor style, natural earth tones, flowing organic shapes, botanical illustration influence, soft lighting, peaceful atmosphere, hand-painted texture',
+                description: 'Natural organic aesthetic'
+            },
+            minimal: {
+                name: '⬜ Minimalist',
+                prompt: 'Ultra minimalist design, single accent color on white, extreme simplicity, negative space, geometric abstraction, clean lines, zen aesthetic',
+                description: 'Clean minimal design'
+            },
+            isometric: {
+                name: '🏗️ Isometric 3D',
+                prompt: 'Isometric 3D illustration, colorful blocks and shapes, architectural diagram style, clean perspective, game-like aesthetic, organized layout',
+                description: '3D isometric view'
+            },
+            academic: {
+                name: '📚 Academic/Scholarly',
+                prompt: 'Classic academic illustration, sepia tones, engraving style, scholarly diagram, vintage textbook aesthetic, detailed cross-hatching, educational',
+                description: 'Traditional scholarly look'
+            }
+        };
+
         /**
          * Show Imagen 4 modal for generating images from selected nodes
          * @param {Array} nodes - Array of nodes to generate image from
@@ -19565,16 +19616,21 @@ Thanks!`;
                 return;
             }
 
-            // Generate prompt from nodes
+            // Get current pattern context
+            const pattern = PATTERNS[currentPattern] || PATTERNS.generic;
+            const patternName = pattern.name;
+
+            // Generate rich context from nodes
             const nodeContext = nodes.map(n => {
                 let text = `${n.icon || '📄'} ${n.name}`;
-                if (n.description) text += `\n   ${n.description}`;
+                if (n.description) text += `: ${n.description}`;
                 return text;
             }).join('\n');
 
-            const defaultPrompt = nodes.length === 1
-                ? `Create a visual representation of: ${nodes[0].name}${nodes[0].description ? '. ' + nodes[0].description : ''}`
-                : `Create an image showing the relationship between: ${nodes.map(n => n.name).join(', ')}`;
+            // Build style selector HTML
+            const styleOptions = Object.entries(IMAGEN_STYLES).map(([key, style]) =>
+                `<button type="button" class="imagen-style-btn" data-style="${key}" title="${style.description}" style="padding: 8px 12px; border: 2px solid var(--border); border-radius: 8px; background: var(--card-bg); color: var(--text-primary); cursor: pointer; font-size: 12px; transition: all 0.2s;">${style.name}</button>`
+            ).join('');
 
             // Remove existing modal
             const existing = document.getElementById('imagen-modal');
@@ -19597,60 +19653,79 @@ Thanks!`;
             `;
 
             modal.innerHTML = `
-                <div style="background: var(--card-bg); border-radius: 16px; max-width: 700px; width: 90%; max-height: 90vh; overflow-y: auto; border: 2px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
-                    <div style="padding: 24px; border-bottom: 1px solid var(--border);">
+                <div style="background: var(--card-bg); border-radius: 16px; max-width: 750px; width: 95%; max-height: 90vh; overflow-y: auto; border: 2px solid var(--border); box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5);">
+                    <div style="padding: 20px 24px; border-bottom: 1px solid var(--border);">
                         <div style="display: flex; justify-content: space-between; align-items: center;">
-                            <h2 style="margin: 0; font-size: 20px; display: flex; align-items: center; gap: 10px;">
+                            <h2 style="margin: 0; font-size: 18px; display: flex; align-items: center; gap: 10px;">
                                 🎨 Generate Image with Imagen 4
                             </h2>
                             <button id="imagen-close" style="background: transparent; border: none; color: var(--text-secondary); font-size: 24px; cursor: pointer; padding: 4px 8px;">&times;</button>
                         </div>
                     </div>
 
-                    <div style="padding: 24px;">
+                    <div style="padding: 20px 24px;">
                         <!-- Node Context -->
-                        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 16px; border-radius: 12px; margin-bottom: 20px; border-left: 3px solid #6366f1;">
-                            <div style="font-weight: 600; margin-bottom: 8px; color: #6366f1; font-size: 13px;">Selected Nodes (${nodes.length})</div>
-                            <div style="font-size: 13px; color: var(--text-secondary); white-space: pre-line; max-height: 100px; overflow-y: auto;">${nodeContext}</div>
+                        <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.08), rgba(139, 92, 246, 0.08)); padding: 14px; border-radius: 10px; margin-bottom: 16px; border-left: 3px solid #6366f1;">
+                            <div style="font-weight: 600; margin-bottom: 6px; color: #6366f1; font-size: 12px;">${pattern.icon} ${patternName} • ${nodes.length} node${nodes.length > 1 ? 's' : ''}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); white-space: pre-line; max-height: 80px; overflow-y: auto; line-height: 1.5;">${nodeContext}</div>
+                        </div>
+
+                        <!-- Style Presets -->
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 10px; font-size: 13px;">🎭 Visual Style</label>
+                            <div id="imagen-styles" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${styleOptions}
+                            </div>
+                        </div>
+
+                        <!-- AI Enhance Button -->
+                        <div style="margin-bottom: 16px;">
+                            <button id="imagen-ai-enhance" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 10px; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                                ✨ AI Craft Prompt (uses your selected style + node context)
+                            </button>
                         </div>
 
                         <!-- Prompt Input -->
-                        <div style="margin-bottom: 20px;">
-                            <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 14px;">Image Prompt</label>
-                            <textarea id="imagen-prompt" style="width: 100%; min-height: 100px; padding: 12px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary); font-size: 14px; resize: vertical;">${defaultPrompt}</textarea>
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px;">Image Prompt <span style="font-weight: normal; color: var(--text-secondary);">(15-25 words ideal)</span></label>
+                            <textarea id="imagen-prompt" placeholder="Select a style and click 'AI Craft Prompt' for best results..." style="width: 100%; min-height: 80px; padding: 12px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary); font-size: 13px; resize: vertical; line-height: 1.5;"></textarea>
+                            <div style="display: flex; justify-content: space-between; margin-top: 6px; font-size: 11px; color: var(--text-secondary);">
+                                <span id="imagen-word-count">0 words</span>
+                                <span>💡 Tip: Subject first, then style, then lighting</span>
+                            </div>
                         </div>
 
-                        <!-- Options -->
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                        <!-- Options Row -->
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
                             <div>
-                                <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px;">Aspect Ratio</label>
-                                <select id="imagen-aspect" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
+                                <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 12px;">📐 Aspect Ratio</label>
+                                <select id="imagen-aspect" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary); font-size: 13px;">
+                                    <option value="16:9" selected>16:9 (Widescreen)</option>
                                     <option value="1:1">1:1 (Square)</option>
-                                    <option value="16:9">16:9 (Widescreen)</option>
-                                    <option value="9:16">9:16 (Portrait)</option>
                                     <option value="4:3">4:3 (Standard)</option>
                                     <option value="3:4">3:4 (Portrait)</option>
+                                    <option value="9:16">9:16 (Tall)</option>
                                 </select>
                             </div>
                             <div>
-                                <label style="display: block; font-weight: 600; margin-bottom: 8px; font-size: 13px;">Model</label>
-                                <select id="imagen-model" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary);">
-                                    <option value="imagen-4.0-generate-001">Imagen 4 (Standard)</option>
-                                    <option value="imagen-4.0-fast-generate-001">Imagen 4 Fast</option>
-                                    <option value="imagen-4.0-ultra-generate-001">Imagen 4 Ultra</option>
+                                <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 12px;">🖼️ Model</label>
+                                <select id="imagen-model" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary); font-size: 13px;">
+                                    <option value="imagen-4.0-generate-001">Standard</option>
+                                    <option value="imagen-4.0-fast-generate-001">Fast</option>
+                                    <option value="imagen-4.0-ultra-generate-001">Ultra</option>
                                 </select>
                             </div>
                         </div>
 
                         <!-- Generate Button -->
-                        <button id="imagen-generate" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            🎨 Generate Image
+                        <button id="imagen-generate" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            🎨 Generate 4 Images
                         </button>
 
                         <!-- Results Container -->
                         <div id="imagen-results" style="margin-top: 20px; display: none;">
-                            <div style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">Generated Images</div>
-                            <div id="imagen-images" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 12px;"></div>
+                            <div style="font-weight: 600; margin-bottom: 12px; font-size: 14px;">Generated Images <span style="font-weight: normal; color: var(--text-secondary);">(click to preview)</span></div>
+                            <div id="imagen-images" style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px;"></div>
                         </div>
 
                         <!-- Error Container -->
@@ -19661,14 +19736,131 @@ Thanks!`;
 
             document.body.appendChild(modal);
 
-            // Store selected nodes for later attachment
+            // Store selected nodes and style for AI enhance
             modal.dataset.nodeIds = JSON.stringify(nodes.map(n => n.id));
+            modal.dataset.selectedStyle = 'whiteboard'; // default
 
-            // Event handlers
+            // Style button click handlers
+            const styleButtons = modal.querySelectorAll('.imagen-style-btn');
+            styleButtons.forEach(btn => {
+                btn.onclick = () => {
+                    // Remove selection from all
+                    styleButtons.forEach(b => {
+                        b.style.background = 'var(--card-bg)';
+                        b.style.borderColor = 'var(--border)';
+                    });
+                    // Select this one
+                    btn.style.background = 'linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.2))';
+                    btn.style.borderColor = '#6366f1';
+                    modal.dataset.selectedStyle = btn.dataset.style;
+                };
+            });
+
+            // Select first style by default
+            if (styleButtons.length > 0) {
+                styleButtons[0].click();
+            }
+
+            // Word count updater
+            const promptTextarea = document.getElementById('imagen-prompt');
+            const wordCountSpan = document.getElementById('imagen-word-count');
+            promptTextarea.oninput = () => {
+                const words = promptTextarea.value.trim().split(/\s+/).filter(w => w.length > 0).length;
+                wordCountSpan.textContent = `${words} words`;
+                wordCountSpan.style.color = words >= 15 && words <= 25 ? '#10b981' : 'var(--text-secondary)';
+            };
+
+            // AI Enhance button handler
+            document.getElementById('imagen-ai-enhance').onclick = () => aiCraftImagenPrompt(nodes, modal.dataset.selectedStyle);
+
+            // Close handlers
             document.getElementById('imagen-close').onclick = () => modal.remove();
             modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
 
+            // Generate handler
             document.getElementById('imagen-generate').onclick = () => generateImagenImage(nodes);
+        }
+
+        /**
+         * Use AI to craft an optimized Imagen 4 prompt
+         * @param {Array} nodes - Selected nodes
+         * @param {string} styleKey - Selected style key
+         */
+        async function aiCraftImagenPrompt(nodes, styleKey) {
+            const style = IMAGEN_STYLES[styleKey] || IMAGEN_STYLES.whiteboard;
+            const pattern = PATTERNS[currentPattern] || PATTERNS.generic;
+            const enhanceBtn = document.getElementById('imagen-ai-enhance');
+            const promptTextarea = document.getElementById('imagen-prompt');
+
+            // Build node context
+            const nodeContext = nodes.map(n => {
+                let text = n.name;
+                if (n.description) text += ` - ${n.description}`;
+                if (n.itemType) text += ` (${n.itemType})`;
+                return text;
+            }).join('; ');
+
+            // Show loading
+            enhanceBtn.disabled = true;
+            enhanceBtn.innerHTML = '✨ Crafting prompt...';
+
+            try {
+                // Use Gemini to craft the prompt
+                const geminiKey = localStorage.getItem('gemini_api_key');
+                const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiKey}`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        contents: [{
+                            parts: [{
+                                text: `You are an expert at writing prompts for Google's Imagen 4 image generation model.
+
+Create a single, optimized image prompt (15-25 words) for visualizing this concept:
+
+CONTEXT:
+- Pattern: ${pattern.name} (${pattern.description || ''})
+- Nodes: ${nodeContext}
+- Visual Style: ${style.name} - ${style.prompt}
+
+IMAGEN 4 BEST PRACTICES:
+- Put the main subject FIRST
+- Use specific visual descriptors (lighting, composition, mood)
+- Include the style keywords naturally
+- Keep it 15-25 words for best results
+- Make it fun, approachable, and educational
+
+Return ONLY the prompt text, nothing else. No quotes, no explanation.`
+                            }]
+                        }],
+                        generationConfig: {
+                            temperature: 0.8,
+                            maxOutputTokens: 100
+                        }
+                    })
+                });
+
+                const data = await response.json();
+                const craftedPrompt = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+
+                if (craftedPrompt) {
+                    promptTextarea.value = craftedPrompt;
+                    promptTextarea.dispatchEvent(new Event('input')); // Update word count
+                    showToast('✨ AI crafted your prompt!');
+                } else {
+                    throw new Error('No prompt generated');
+                }
+
+            } catch (error) {
+                console.error('AI prompt craft error:', error);
+                // Fallback to a template-based prompt
+                const subjects = nodes.map(n => n.name).join(' and ');
+                promptTextarea.value = `${subjects} visualized as ${style.name.replace(/[📝📊🎨💻🌿⬜🏗️📚]/g, '').trim()}, ${style.prompt.split(',').slice(0, 3).join(', ')}`;
+                promptTextarea.dispatchEvent(new Event('input'));
+                showToast('Used template prompt (AI unavailable)');
+            } finally {
+                enhanceBtn.disabled = false;
+                enhanceBtn.innerHTML = '✨ AI Craft Prompt (uses your selected style + node context)';
+            }
         }
 
         /**
