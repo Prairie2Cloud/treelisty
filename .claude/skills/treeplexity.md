@@ -1,10 +1,42 @@
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.12.0 (Build 211)
+**Version**: 2.12.0 (Build 212)
 **Author**: TreeListy Team
 **Description**: Work with TreeListy hierarchical project trees using natural language and AI
 
-## What's New in v2.12.0 (Build 210-211)
+---
+
+## ⚠️ CRITICAL: Deployment Workflow
+
+**NEVER deploy directly to Netlify.** TreeListy uses GitHub → Netlify auto-deploy.
+
+### Correct Workflow:
+1. Make changes to `treeplexity.html`
+2. `git add treeplexity.html [other files]`
+3. `git commit -m "Build XXX: Description"`
+4. `git push origin main`
+5. Netlify auto-deploys from GitHub (no manual deploy needed!)
+
+### WRONG (Never Do This):
+```bash
+# ❌ WRONG - bypasses git history
+netlify deploy --prod
+```
+
+### RIGHT:
+```bash
+# ✅ CORRECT - commit first, auto-deploy follows
+git add treeplexity.html
+git commit -m "Build 213: Feature description"
+git push origin main
+# Netlify auto-deploys from GitHub
+```
+
+**Why this matters**: Direct Netlify deploys bypass version control, making it impossible to track changes, rollback, or collaborate.
+
+---
+
+## What's New in v2.12.0 (Build 210-212)
 
 **👥 Collaboration Features ("Chess by Mail")**:
 - **Collaboration Comments**: Leave notes for collaborators on any node
