@@ -7383,6 +7383,15 @@ Focus on logical structure and content organization best practices.`;
             }
         }
 
+        // Listen for Firebase sync updates
+        window.addEventListener('treelisty-sync-update', (e) => {
+            console.log('🔥 Received sync update event, re-rendering...');
+            if (currentView === 'canvas') {
+                renderCanvas();
+            }
+            // For tree view, the DOM auto-updates when capexTree changes (it's reactive via the existing code)
+        });
+
         function renderCanvas() {
             const canvas = document.getElementById('canvas');
             const svg = document.getElementById('canvas-connections');
@@ -20558,20 +20567,17 @@ https://treelisty.netlify.app`;
                     // Load the tree data from the room
                     if (roomData.treeData) {
                         const treeData = JSON.parse(roomData.treeData);
-                        capexTree = treeData;
 
-                        // Update pattern if present
-                        if (roomData.pattern && PATTERNS[roomData.pattern]) {
-                            currentPattern = roomData.pattern;
-                            const patternSelect = document.getElementById('pattern-select');
-                            if (patternSelect) patternSelect.value = currentPattern;
+                        // Store room ID before reload
+                        localStorage.setItem('firebase-pending-room', roomId);
+                        localStorage.setItem('firebase-pending-tree', roomData.treeData);
+                        if (roomData.pattern) {
+                            localStorage.setItem('firebase-pending-pattern', roomData.pattern);
                         }
 
-                        // Re-render
-                        renderTree();
-                        if (currentView === 'canvas') {
-                            renderCanvas();
-                        }
+                        // Reload to apply tree (simplest way to re-render)
+                        window.location.href = window.location.pathname + '?room=' + roomId;
+                        return;
                     }
 
                     firebaseSyncState.roomId = roomId;
@@ -20626,25 +20632,31 @@ https://treelisty.netlify.app`;
                             const newTree = JSON.parse(data.treeData);
                             console.log('🔥 Received tree update from', data.lastUpdatedBy?.substring(0, 8));
 
-                            // Update local tree
-                            capexTree = newTree;
+                            // Update global tree
+                            window.capexTree = newTree;
 
                             // Update pattern if changed
-                            if (data.pattern && data.pattern !== currentPattern && PATTERNS[data.pattern]) {
-                                currentPattern = data.pattern;
+                            if (data.pattern && window.PATTERNS && window.PATTERNS[data.pattern]) {
+                                window.currentPattern = data.pattern;
                                 const patternSelect = document.getElementById('pattern-select');
-                                if (patternSelect) patternSelect.value = currentPattern;
+                                if (patternSelect) patternSelect.value = data.pattern;
                             }
 
-                            // Re-render
-                            renderTree();
-                            if (currentView === 'canvas') {
-                                renderCanvas();
+                            // Update tree name display
+                            const treeNameDisplay = document.getElementById('tree-name-display');
+                            if (treeNameDisplay) {
+                                treeNameDisplay.textContent = newTree.name || 'Synced Tree';
                             }
+
+                            // Trigger tree container re-render via custom event
+                            window.dispatchEvent(new CustomEvent('treelisty-sync-update', { detail: newTree }));
 
                             // Update last sync time
                             firebaseSyncState.lastSyncTimestamp = Date.now();
-                            document.getElementById('sync-last-update').textContent = new Date().toLocaleTimeString();
+                            const syncLastUpdate = document.getElementById('sync-last-update');
+                            if (syncLastUpdate) {
+                                syncLastUpdate.textContent = new Date().toLocaleTimeString();
+                            }
 
                             showToast('🔄 Tree synced from collaborator', 'info');
 
@@ -20775,12 +20787,60 @@ https://treelisty.netlify.app`;
                 const roomParam = urlParams.get('room');
                 if (roomParam) {
                     console.log('🔥 Room ID in URL:', roomParam);
-                    // Auto-join room after a short delay to let app initialize
-                    setTimeout(() => {
-                        initFirebaseAuth().then(() => {
-                            joinSyncRoom(roomParam);
-                        });
-                    }, 1000);
+
+                    // Check if we have pending tree data from a join
+                    const pendingRoom = localStorage.getItem('firebase-pending-room');
+                    const pendingTree = localStorage.getItem('firebase-pending-tree');
+
+                    if (pendingRoom === roomParam && pendingTree) {
+                        console.log('🔥 Loading pending tree data...');
+                        // Clear pending data
+                        localStorage.removeItem('firebase-pending-room');
+                        localStorage.removeItem('firebase-pending-tree');
+                        const pendingPattern = localStorage.getItem('firebase-pending-pattern');
+                        localStorage.removeItem('firebase-pending-pattern');
+
+                        // Apply tree data to global capexTree (wait for app to initialize)
+                        setTimeout(() => {
+                            try {
+                                const treeData = JSON.parse(pendingTree);
+                                window.capexTree = treeData;
+
+                                // Update pattern if present
+                                if (pendingPattern && window.PATTERNS && window.PATTERNS[pendingPattern]) {
+                                    window.currentPattern = pendingPattern;
+                                    const patternSelect = document.getElementById('pattern-select');
+                                    if (patternSelect) patternSelect.value = pendingPattern;
+                                }
+
+                                // Update tree name display
+                                const treeNameDisplay = document.getElementById('tree-name-display');
+                                if (treeNameDisplay) {
+                                    treeNameDisplay.textContent = treeData.name || 'Synced Tree';
+                                }
+
+                                console.log('🔥 Tree data applied, now subscribing...');
+                                showToast('🔥 Joined room: ' + roomParam, 'success');
+                            } catch (e) {
+                                console.error('🔥 Failed to apply pending tree:', e);
+                            }
+
+                            // Now authenticate and subscribe
+                            initFirebaseAuth().then(() => {
+                                firebaseSyncState.roomId = roomParam;
+                                firebaseSyncState.isConnected = true;
+                                subscribeToRoom(roomParam);
+                                updateSyncUI();
+                            });
+                        }, 500);
+                    } else {
+                        // No pending data, do a fresh join
+                        setTimeout(() => {
+                            initFirebaseAuth().then(() => {
+                                joinSyncRoom(roomParam);
+                            });
+                        }, 1000);
+                    }
                 }
 
                 console.log('🔥 Firebase Live Sync initialized');
