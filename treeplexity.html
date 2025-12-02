@@ -20440,17 +20440,27 @@ https://treelisty.netlify.app`;
 
             // Initialize Firebase auth
             async function initFirebaseAuth() {
+                console.log('🔥 initFirebaseAuth called, firebaseReady:', window.firebaseReady);
+
                 // Wait for Firebase to be ready
                 let attempts = 0;
                 while (!window.firebaseReady && attempts < 50) {
                     await new Promise(r => setTimeout(r, 100));
                     attempts++;
+                    if (attempts % 10 === 0) {
+                        console.log('🔥 Waiting for Firebase...', attempts);
+                    }
                 }
 
                 if (!window.firebaseReady) {
                     console.error('🔥 Firebase not ready after 5 seconds');
+                    watchToast('❌ Firebase failed to load. Check console.', 'error');
                     return false;
                 }
+
+                console.log('🔥 Firebase ready, signing in anonymously...');
+                console.log('🔥 firebaseAuth:', window.firebaseAuth);
+                console.log('🔥 firebaseSignInAnonymously:', typeof window.firebaseSignInAnonymously);
 
                 try {
                     // Sign in anonymously
@@ -20468,17 +20478,32 @@ https://treelisty.netlify.app`;
 
             // Create a new sync room
             async function createSyncRoom() {
+                console.log('🔥 createSyncRoom called');
+
+                // Check if Firebase is ready
+                if (!window.firebaseReady) {
+                    console.error('🔥 Firebase not ready yet');
+                    watchToast('⏳ Firebase loading, please try again...', 'warning');
+                    return;
+                }
+
                 if (!firebaseSyncState.userId) {
+                    console.log('🔥 No user ID, authenticating...');
                     const authed = await initFirebaseAuth();
-                    if (!authed) return;
+                    if (!authed) {
+                        console.error('🔥 Auth failed');
+                        return;
+                    }
                 }
 
                 const roomId = generateRoomId();
                 firebaseSyncState.roomId = roomId;
+                console.log('🔥 Creating room:', roomId);
 
                 try {
                     // Create the room document with current tree data
                     const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', roomId);
+                    console.log('🔥 Got room ref, setting doc...');
                     await window.firebaseSetDoc(roomRef, {
                         createdBy: firebaseSyncState.userId,
                         createdAt: window.firebaseServerTimestamp(),
