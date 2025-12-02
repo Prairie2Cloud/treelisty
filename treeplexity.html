@@ -2296,7 +2296,7 @@
                 <button class="btn" id="load-json-btn" title="Load project from JSON file" style="padding: 6px 10px; font-size: 13px;">📂</button>
                 <button class="btn" id="load-gdrive-btn" style="background: linear-gradient(135deg, #4285f4, #34a853); padding: 6px 10px; font-size: 13px;" title="Load from Google Drive URL">☁️</button>
                 <button class="btn" id="share-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 6px 10px; font-size: 13px;" title="Generate shareable URL">📤</button>
-                <button class="btn" id="live-sync-btn" style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 6px 10px; font-size: 13px;" title="🔥 Firebase Live Sync">🔄</button>
+                <button class="btn" id="live-sync-btn" onclick="document.getElementById('live-sync-modal').style.display='flex'; window.initFirebaseAuthIfNeeded && window.initFirebaseAuthIfNeeded();" style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 6px 10px; font-size: 13px;" title="🔥 Firebase Live Sync">🔄</button>
             </div>
 
             <div class="control-section" style="margin-right: 4px;">
@@ -3787,7 +3787,7 @@ The AI will analyze the structure and convert it to a tree."
         <div class="modal-content" style="max-width: 500px;">
             <div class="modal-header" style="background: linear-gradient(135deg, #f97316, #ea580c);">
                 <span>🔄 Firebase Live Sync</span>
-                <button class="modal-close" id="live-sync-close">&times;</button>
+                <button class="modal-close" id="live-sync-close" onclick="document.getElementById('live-sync-modal').style.display='none'">&times;</button>
             </div>
             <div class="modal-body" style="padding: 24px;">
                 <!-- Connection Status -->
@@ -3807,7 +3807,7 @@ The AI will analyze the structure and convert it to a tree."
                         <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
                             🆕 Start New Session
                         </label>
-                        <button class="btn" id="create-sync-room-btn" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #10b981, #059669); font-weight: 600; font-size: 14px;">
+                        <button class="btn" id="create-sync-room-btn" onclick="window.createFirebaseSyncRoom()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #10b981, #059669); font-weight: 600; font-size: 14px;">
                             🔥 Create Live Sync Room
                         </button>
                         <p style="margin-top: 8px; font-size: 12px; color: var(--text-secondary); text-align: center;">
@@ -3828,7 +3828,7 @@ The AI will analyze the structure and convert it to a tree."
                         <div style="display: flex; gap: 8px;">
                             <input type="text" id="join-room-id" placeholder="Enter Room ID..."
                                 style="flex: 1; padding: 12px 16px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-family: monospace;">
-                            <button class="btn" id="join-sync-room-btn" style="padding: 12px 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); font-weight: 600;">
+                            <button class="btn" id="join-sync-room-btn" onclick="window.joinFirebaseSyncRoom(document.getElementById('join-room-id').value)" style="padding: 12px 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); font-weight: 600;">
                                 Join
                             </button>
                         </div>
@@ -3847,14 +3847,14 @@ The AI will analyze the structure and convert it to a tree."
                             <div style="display: flex; gap: 8px; margin-bottom: 12px;">
                                 <input type="text" id="active-room-id" readonly
                                     style="flex: 1; padding: 10px; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 14px; color: var(--text-primary);">
-                                <button class="btn" id="copy-room-id-btn" style="padding: 10px 16px;" title="Copy Room ID">📋</button>
+                                <button class="btn" id="copy-room-id-btn" onclick="window.copyFirebaseRoomId()" style="padding: 10px 16px;" title="Copy Room ID">📋</button>
                             </div>
                             <div>👥 Users in room: <span id="sync-user-count">1</span></div>
                             <div>📝 Last update: <span id="sync-last-update">--</span></div>
                         </div>
                     </div>
 
-                    <button class="btn" id="leave-sync-room-btn" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); font-weight: 600;">
+                    <button class="btn" id="leave-sync-room-btn" onclick="window.leaveFirebaseSyncRoom()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); font-weight: 600;">
                         ⏹️ Leave Room
                     </button>
                 </div>
@@ -20701,6 +20701,11 @@ https://treelisty.netlify.app`;
             window.leaveFirebaseSyncRoom = leaveSyncRoom;
             window.pushTreeToFirebase = pushTreeToRoom;
             window.copyFirebaseRoomId = copyRoomId;
+            window.initFirebaseAuthIfNeeded = async function() {
+                if (!firebaseSyncState.userId) {
+                    await initFirebaseAuth();
+                }
+            };
 
             // Initialize on DOM ready
             document.addEventListener('DOMContentLoaded', () => {
