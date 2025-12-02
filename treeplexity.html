@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.14.9 | Build 231 | 2025-12-01
+    TreeListy v2.15.0 | Build 237 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,26 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 231): 🔥 Firebase Live Sync POC
+    Changelog (Build 237): 🧠 Super Hybrid Prompt Engineering Meta-Prompt
+    - ENHANCED: Prompt AI uses "Super Hybrid" meta-prompt (A/B tested, 80.2%+ score)
+    - NEW: 3-phase approach: Draft → Self-Critique → Refined Output
+    - NEW: Expert panel synthesis (Anthropic/OpenAI/Production perspectives)
+    - NEW: Specific persona requirement ("senior engineer at Stripe with 8 years" not "expert")
+    - NEW: Agent orchestration contracts for multi-agent workflows
+    - NEW: Concrete examples required (not placeholders)
+    - IMPROVED: Prompt outputs now directly usable (no meta-commentary)
+
+    Previous (Build 236): 🗑️ Fix delete sync + nested subtask deletion
+    - FIX: Delete operations now immediately sync to Firebase collaborators
+    - FIX: Nested subtasks (subtasks within subtasks) can now be deleted
+    - FIX: Delete triggers auto-save to localStorage
+    - FIX: No longer requires 2-second poll interval to detect deletions
+
+    Previous (Build 235): 🔥 Firebase sync triggers auto-save to localStorage
     - NEW: 🔥 Firebase integration for real-time collaboration
     - NEW: Anonymous auth (no sign-in required)
     - NEW: "🔄 Live Sync" button in toolbar
     - NEW: Start/Join live sync session with shareable room ID
-    - NEW: Real-time tree updates across browsers
-    - NEW: Sync status indicator (connected/syncing/offline)
-    - NEW: Auto-merge changes from all collaborators
-    - POC: Preserves Google Drive async workflow alongside live sync
 
     Previous (Build 230): ☁️ Load from Google Drive Button + Recent Files
     - NEW: ☁️ button in toolbar opens "Load from Google Drive" modal
@@ -2399,8 +2410,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.14.9 | Build 231 | 2025-12-01">
-                    v2.14.9 • Build 231
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.14.9 | Build 235 | 2025-12-01">
+                    v2.14.9 • Build 235
                 </div>
             </div>
         </div>
@@ -3867,6 +3878,9 @@ The AI will analyze the structure and convert it to a tree."
                         <li>No sign-in required (anonymous auth)</li>
                         <li>Share Room ID with collaborators</li>
                         <li>All edits merge automatically</li>
+                        <li>Delete operations sync immediately (Build 236)</li>
+                        <li>Nested subtasks fully supported</li>
+                        <li>Auto-saves to localStorage after sync</li>
                     </ul>
                 </div>
             </div>
@@ -6778,6 +6792,18 @@ Focus on logical structure and content organization best practices.`;
         let isDraggingSelection = false;
         let selectionDragStart = { x: 0, y: 0 };
 
+        // Expose capexTree to window for Firebase sync (IIFE scope bridge)
+        Object.defineProperty(window, 'capexTree', {
+            get: function() { return capexTree; },
+            set: function(value) { capexTree = value; },
+            configurable: true
+        });
+
+        // Expose render functions to window for Firebase sync
+        // These will be defined later, so we use a lazy getter pattern
+        window.getTreeRenderer = function() { return typeof render === 'function' ? render : null; };
+        window.getCanvasRenderer = function() { return typeof renderCanvas === 'function' ? renderCanvas : null; };
+
         /**
          * Get hyperedge membership for a node ID
          * Returns the hyperedge object if node is a member, null otherwise
@@ -7386,12 +7412,18 @@ Focus on logical structure and content organization best practices.`;
         // Listen for Firebase sync updates
         window.addEventListener('treelisty-sync-update', (e) => {
             console.log('🔥 Received sync update event, re-rendering...');
-            // Check if canvas view is active by looking at the container class
+            // Always re-render tree view
+            render();
+            // Check if canvas view is active and render it too
             const canvasContainer = document.getElementById('canvas-container');
             if (canvasContainer && canvasContainer.classList.contains('active')) {
                 renderCanvas();
             }
-            // For tree view, the DOM auto-updates when capexTree changes (it's reactive via the existing code)
+            // Mark as changed so auto-save will persist the synced data
+            if (typeof treeManager !== 'undefined' && treeManager.markAsChanged) {
+                treeManager.markAsChanged();
+                console.log('🔥 Marked tree as changed for auto-save');
+            }
         });
 
         function renderCanvas() {
@@ -7598,7 +7630,13 @@ Focus on logical structure and content organization best practices.`;
             };
 
             hyperedges.forEach((hyperedge, idx) => {
-                console.log(`🔗 Processing hyperedge[${idx}]: "${hyperedge.label}" with nodeIds:`, hyperedge.nodeIds);
+                // Guard against malformed hyperedges
+                if (!hyperedge || !hyperedge.nodeIds || !Array.isArray(hyperedge.nodeIds)) {
+                    console.warn(`⚠️ Skipping malformed hyperedge[${idx}]:`, hyperedge);
+                    return;
+                }
+
+                console.log(`🔗 Processing hyperedge[${idx}]: "${hyperedge.label || hyperedge.name}" with nodeIds:`, hyperedge.nodeIds);
 
                 // Get all nodes in this hyperedge using O(1) lookup
                 const nodes = hyperedge.nodeIds.map(id => {
@@ -15824,8 +15862,9 @@ Your response:`;
                     // Save state for undo
                     saveState(`Delete ${itemType}: ${activeNode.name}`);
                     if (activeNode.type === 'subtask') {
-                        // Remove subtask from its parent item
-                        function removeSubtask(subtaskId, node = capexTree) {
+                        // Remove subtask from its parent item (supports nested subtasks)
+                        function removeSubtaskRecursive(subtaskId, node = capexTree) {
+                            // Check items in this node
                             if (node.items) {
                                 for (let item of node.items) {
                                     if (item.subItems) {
@@ -15834,17 +15873,37 @@ Your response:`;
                                             item.subItems.splice(index, 1);
                                             return true;
                                         }
+                                        // Check nested subtasks within subtasks
+                                        for (let subtask of item.subItems) {
+                                            if (removeFromSubItems(subtaskId, subtask)) return true;
+                                        }
                                     }
                                 }
                             }
+                            // Check child phases
                             if (node.children) {
                                 for (let child of node.children) {
-                                    if (removeSubtask(subtaskId, child)) return true;
+                                    if (removeSubtaskRecursive(subtaskId, child)) return true;
                                 }
                             }
                             return false;
                         }
-                        removeSubtask(activeNode.id);
+                        // Helper to remove from nested subItems
+                        function removeFromSubItems(subtaskId, parent) {
+                            if (parent.subItems) {
+                                const index = parent.subItems.findIndex(s => s.id === subtaskId);
+                                if (index !== -1) {
+                                    parent.subItems.splice(index, 1);
+                                    return true;
+                                }
+                                // Recursively check deeper nesting
+                                for (let subtask of parent.subItems) {
+                                    if (removeFromSubItems(subtaskId, subtask)) return true;
+                                }
+                            }
+                            return false;
+                        }
+                        removeSubtaskRecursive(activeNode.id);
                     } else {
                         // Find and remove the item from its parent phase
                         function removeItem(itemId, node = capexTree) {
@@ -15865,6 +15924,17 @@ Your response:`;
                         removeItem(activeNode.id);
                     }
                     render();
+
+                    // Trigger Firebase sync immediately after delete
+                    if (window.pushTreeToFirebase) {
+                        console.log('🔥 Triggering Firebase sync after delete');
+                        window.pushTreeToFirebase();
+                    }
+
+                    // Mark as changed for auto-save
+                    if (window.treeManager && window.treeManager.markAsChanged) {
+                        window.treeManager.markAsChanged();
+                    }
                 }
             }
         }
@@ -16103,6 +16173,8 @@ Your response:`;
         }
 
         const treeManager = new TreeManager();
+        // Expose treeManager to window for Firebase sync
+        window.treeManager = treeManager;
         window.addEventListener('DOMContentLoaded', () => {
             treeManager.initialize();
         });
@@ -20821,7 +20893,24 @@ https://treelisty.netlify.app`;
                                     treeNameDisplay.textContent = treeData.name || 'Synced Tree';
                                 }
 
-                                console.log('🔥 Tree data applied, now subscribing...');
+                                // Re-render the tree views using exposed getters
+                                const treeRenderer = window.getTreeRenderer && window.getTreeRenderer();
+                                const canvasRenderer = window.getCanvasRenderer && window.getCanvasRenderer();
+                                if (treeRenderer) treeRenderer();
+                                const canvasContainer = document.getElementById('canvas-container');
+                                if (canvasContainer && canvasContainer.classList.contains('active') && canvasRenderer) {
+                                    canvasRenderer();
+                                }
+
+                                // Mark as changed so it gets saved to localStorage
+                                if (window.treeManager && window.treeManager.markAsChanged) {
+                                    window.treeManager.markAsChanged();
+                                    // Also do an immediate save
+                                    window.treeManager.save(window.capexTree, { silent: true });
+                                    console.log('🔥 Synced tree saved to localStorage');
+                                }
+
+                                console.log('🔥 Tree data applied and rendered, now subscribing...');
                                 showToast('🔥 Joined room: ' + roomParam, 'success');
                             } catch (e) {
                                 console.error('🔥 Failed to apply pending tree:', e);
@@ -25750,111 +25839,85 @@ Provide exactly 3 recommendations, ranked by confidence (1-10). Use these patter
         async function improvePromptWithAI(basicPrompt, mode = 'quick') {
             console.log(`🧠 Improving prompt using ${mode} mode...`);
 
-            const systemPrompt = `You are an expert prompt engineer who specializes in improving prompts using OpenAI and Anthropic best practices.
+            // BUILD 173: "Super Hybrid" meta-prompt combining best traits from A/B winners
+            // - Iterative Refinement (80.2%): Self-critique loop, "junior engineer test"
+            // - Hybrid V2 (78.4%): Expert panel synthesis, agent contracts
+            // - Direct+Concrete (74.2%): Maximum specificity, concrete personas
+            const systemPrompt = `You are a world-class prompt engineer. Generate, critique, and refine a production-ready prompt.
 
-🚨 CRITICAL UNDERSTANDING: You are NOT answering questions. You are NOT providing information. You are CREATING PROMPTS.
+## Phase 1: Draft Generation
+Create an initial prompt. Apply expert perspectives:
+- Anthropic: XML tags, explicit constraints, safety considerations
+- OpenAI: JSON mode, function calling patterns, system message optimization
+- Production: Token efficiency, error handling, latency considerations
 
-Your ONLY task: Take a basic topic/idea/draft and CREATE a comprehensive prompt that another AI would use to help with that topic.
+## Phase 2: Self-Critique (Internal - Don't output this)
+Score your draft against these criteria:
+□ Would a junior engineer understand exactly what to do?
+□ Are there ANY ambiguous instructions?
+□ Would this produce correct output on the FIRST try?
+□ Is the persona SPECIFIC (not "expert" but "senior engineer at Stripe with 8 years in payment systems")?
+□ Are examples CONCRETE with actual input→output pairs?
+□ For multi-agent: Are contracts between agents crystal clear with exact JSON schemas?
 
-Example workflow:
-- Input: "early signs of parkinsons" → CREATE a prompt for an AI to help identify early Parkinson's signs
-- Input: "analyze sentiment" → CREATE a sentiment analysis prompt
-- Input: "plan a vacation" → CREATE a vacation planning prompt
+## Phase 3: Refined Output
+Apply your critique. Fix every issue. Output the IMPROVED prompt.
 
-You are a PROMPT BUILDER, not a question answerer.
+## Output Requirements
+Your generated prompt MUST include:
+- <system> with SPECIFIC persona (domain, years experience, company context)
+- <task> with precise instructions and success criteria
+- <format> with exact output structure (JSON schema if structured)
+- <examples> with 2+ CONCRETE input→output examples
+- <constraints> with boundaries and error handling
+- For workflows: <agent_contracts> with INPUT/OUTPUT contracts per agent
 
-BEST PRACTICES TO APPLY:
-1. **System Prompt**: Clear role definition, context, constraints, tone
-2. **User Prompt Template**: Structured with {{variables}}, clear instructions, step-by-step guidance
-3. **Few-Shot Examples**: 2-3 high-quality input→output examples showing desired behavior
-4. **Chain-of-Thought**: Instructions for showing reasoning process (if applicable)
-5. **Output Format**: Exact structure specification (JSON schema, markdown template, etc.)
-6. **Edge Cases**: Handle ambiguity, missing data, errors
-7. **Variables**: Identify dynamic parts as {{variable_name}}
-8. **Prefill** (Claude): Suggested response starter for tone/format control
+CRITICAL: Return ONLY valid JSON. No explanations. No meta-commentary.`;
 
-CRITICAL: Return ONLY valid JSON. No explanations, no markdown, no text before or after.`;
+            const userPrompt = `Transform this input into a production-ready prompt:
 
-            const userPrompt = `Your task: CREATE a production-ready prompt about the following topic/concept/use-case:
+INPUT: "${basicPrompt}"
 
-TOPIC: "${basicPrompt}"
+You are a PROMPT ARCHITECT. Your output is a prompt that CONFIGURES another AI.
+- If input is a topic → CREATE a prompt for an AI to handle that topic
+- If input is a draft prompt → IMPROVE it to production quality
 
-Your job is to DESIGN A PROMPT that another AI could use to help with this topic. You are NOT answering this as a question. You are CREATING a ready-to-use prompt.
-
-🎯 What you MUST do:
-- Take the topic "${basicPrompt}" and design a comprehensive prompt FOR an AI to handle this topic
-- Example: If topic is "early signs of parkinsons" → CREATE a prompt FOR an AI to help identify/discuss Parkinson's signs
-- Example: If topic is "skin care" → CREATE a prompt FOR an AI to provide skin care guidance
-- Example: If topic is a draft prompt → IMPROVE it into a production version
-
-🚫 What you must NOT do:
-- DO NOT answer "${basicPrompt}" as if it's a question posed to you
-- DO NOT try to provide information about the topic
-- DO NOT give medical advice, recommendations, or analysis
-- You are a PROMPT ARCHITECT building a tool, not a subject matter expert answering queries
-
-🎨 CRITICAL: Create COMPREHENSIVE, INSTRUCTION-RICH prompts that guide AI behavior:
-- Generate prompts that INSTRUCT and CONFIGURE the AI, not simple questions that get answered
-- Combine system prompt + user prompt into one comprehensive instruction block
-- Include: role definition, process steps, output format, examples, constraints
-- The user will paste this entire block into ChatGPT/Claude to configure it
-
-BAD (gets answered immediately): "Help me create a skin care routine"
-GOOD (instructs the AI): "You are an expert dermatologist. When helping with skin care: 1) Ask about skin type and concerns 2) Provide structured routine with product recommendations 3) Return as JSON with ingredients, frequency, and reasoning for each step. Now help me create a comprehensive skin care routine."
-
-Now create a SINGLE comprehensive prompt that combines:
-1. Role definition and expertise (system-level instructions)
-2. Process steps and methodology (how the AI should think)
-3. Output format specification (structured data format)
-4. Few-shot examples (if helpful)
-5. Constraints and edge cases (what to avoid)
-6. The actual user request (at the end)
-
-This single prompt will be in the userPromptTemplate field.
+CRITICAL: Your output must INSTRUCT the AI, not answer a question.
+BAD: "Help me with skin care"
+GOOD: "You are a dermatologist with 15 years experience at Mayo Clinic. When providing skin care: 1) Ask about skin type 2) Provide routine with ingredients 3) Return as JSON. Help me create a routine."
 
 Return ONLY this JSON structure:
 {
-  "projectName": "Descriptive name for this prompt (e.g., 'Skin Care Routine Assistant')",
-  "description": "Brief 1-sentence description of what this prompt does",
-  "phases": [
-    {
-      "name": "Production Prompt",
-      "subtitle": "Ready to use with Claude/GPT-4",
-      "items": [
-        {
-          "name": "Improved: [Brief name based on use case]",
-          "description": "Production-ready prompt that works immediately",
-          "itemType": "task-instruction",
-          "systemPrompt": "You are an expert [domain]. [Context]. [Constraints]. [Tone].",
-          "userPromptTemplate": "Comprehensive instruction-rich prompt combining: role definition + process steps + output format + constraints + user request. This entire text is what the user pastes into the AI.",
-          "fewShotExamples": "<example>\\nUser: [example input 1]\\nAssistant: [example output 1]\\n</example>\\n\\n<example>\\nUser: [example input 2]\\nAssistant: [example output 2]\\n</example>",
-          "chainOfThought": "Think step by step: 1) [step], 2) [step], 3) [step]. Show your reasoning.",
-          "outputFormat": "Return JSON: {\\"field1\\": \\"description\\", \\"field2\\": \\"description\\"}",
-          "structuralTags": "<thinking>\\nReasoning process\\n</thinking>\\n<answer>\\nFinal response\\n</answer>",
-          "assistantPrefill": "Here is my analysis:",
-          "modelTarget": "Claude 3.5 Sonnet",
-          "temperature": 0.7,
-          "maxTokens": 2000
-        }
-      ]
-    }
-  ]
+  "projectName": "Descriptive name",
+  "description": "1-sentence description",
+  "phases": [{
+    "name": "Production Prompt",
+    "subtitle": "Ready to use",
+    "items": [{
+      "name": "Refined: [Use Case Name]",
+      "description": "Production-ready prompt",
+      "itemType": "task-instruction",
+      "systemPrompt": "<system>\\nYou are a [SPECIFIC ROLE: e.g., senior ML engineer at Google with 10 years in NLP].\\n[Context]\\n[Constraints]\\n</system>",
+      "userPromptTemplate": "<task>\\n[Precise instructions with success criteria]\\n</task>\\n<format>\\n[Exact output structure/JSON schema]\\n</format>\\n<constraints>\\n[What NOT to do, error handling]\\n</constraints>",
+      "fewShotExamples": "<examples>\\n<example>\\nInput: [concrete input 1]\\nOutput: [concrete output 1]\\n</example>\\n<example>\\nInput: [concrete input 2]\\nOutput: [concrete output 2]\\n</example>\\n</examples>",
+      "chainOfThought": "Think step by step: 1) [step], 2) [step], 3) [step]",
+      "outputFormat": "Return JSON: {\\"field1\\": \\"type\\", \\"field2\\": \\"type\\"}",
+      "structuralTags": "<thinking>\\nReasoning\\n</thinking>\\n<answer>\\nFinal response\\n</answer>",
+      "assistantPrefill": "Here is my analysis:",
+      "modelTarget": "Claude Sonnet 4",
+      "temperature": 0.7,
+      "maxTokens": 2000
+    }]
+  }]
 }
 
 RULES:
-- Infer use case from basic prompt (chatbot? search? analysis? recommendation?)
-- Create realistic, helpful few-shot examples
-- userPromptTemplate must be COMPREHENSIVE and INSTRUCTION-RICH (not a simple question)
-- Combine role + process + format + request into single prompt that configures AI behavior
-- NO {{variables}} or placeholders - make it work immediately when pasted
-- Chain-of-thought only if task requires reasoning
-- Output format should match the use case (JSON for APIs, markdown for reports, etc.)
-- System prompt should be professional and comprehensive
+- systemPrompt: SPECIFIC persona (role + years + company context), not generic "expert"
+- userPromptTemplate: Must INSTRUCT the AI, not ask a question
+- fewShotExamples: CONCRETE input→output pairs, not placeholders
+- NO {{variables}} - make it work immediately when pasted
 - NO trailing commas in JSON
-
-EXAMPLE of a GOOD userPromptTemplate:
-"You are an expert skin care advisor with dermatology knowledge. When providing skin care guidance: 1) First, ask clarifying questions about skin type, concerns, and sensitivities 2) Then provide a comprehensive routine with specific product recommendations 3) Include ingredients, application frequency, and scientific reasoning 4) Return your recommendation as JSON with 'routine' array and 'additional_tips' array. Now, help me create a personalized skin care routine."
-- Escape quotes inside strings with backslash`;
+- Escape quotes inside strings`;
 
             // Deep mode uses extended thinking (budget_tokens = 5000)
             // So maxTokens must be > 5000. Using 8000 to give 3000 tokens for actual response.
@@ -28168,6 +28231,34 @@ ${jsonText}`;
                             • <strong>No middle mouse?</strong> Use the zoom/pan controls in toolbar, or try touchpad pinch-to-zoom<br>
                             • <strong>Lost on a big canvas?</strong> Click "Fit" button to see all nodes<br>
                             • <strong>Create hyperedges:</strong> Select multiple nodes → Click "Edges" → Name your connection
+                        </p>
+                    </div>
+
+                    <h3 style="color: #f97316; margin-bottom: 16px; font-size: 20px;">🔥 Firebase Live Sync (Build 236)</h3>
+                    <div style="background: var(--bg); padding: 16px; border-radius: 8px; margin-bottom: 20px; border-left: 3px solid #f97316;">
+                        <p style="font-size: 14px; margin-bottom: 12px;">
+                            <strong>Real-time collaboration</strong> - Multiple users can edit the same tree simultaneously!
+                        </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🚀 How to Start</p>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                            <p style="font-size: 13px; margin-bottom: 4px;">1. Click the <strong>🔄 Live Sync</strong> button (orange, in toolbar)</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">2. Click <strong>"Create Live Sync Room"</strong> to start a session</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">3. Share the <strong>6-character Room ID</strong> with collaborators</p>
+                            <p style="font-size: 13px; margin-bottom: 0;">4. They enter the Room ID and click <strong>"Join"</strong></p>
+                        </div>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">✨ Features</p>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 12px;">
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>No sign-in required</strong> - Anonymous authentication</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Instant sync</strong> - All changes sync immediately</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Delete sync</strong> - Deletions sync to all collaborators instantly</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Nested subtasks</strong> - Full support for deeply nested structures</p>
+                            <p style="font-size: 13px; margin-bottom: 0;">• <strong>Auto-save</strong> - Synced changes are saved to localStorage</p>
+                        </div>
+
+                        <p style="font-size: 13px; font-style: italic; color: #f97316;">
+                            💡 Tip: Works alongside Google Drive sharing for async collaboration!
                         </p>
                     </div>
 
