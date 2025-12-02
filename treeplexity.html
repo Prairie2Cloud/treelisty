@@ -19562,7 +19562,7 @@ Thanks!`;
             }
 
             // Show toast notification for watch mode events
-            function watchToast(message, type = 'info') {
+            function showToast(message, type = 'info') {
                 showToast(message, type);
             }
 
@@ -19626,7 +19626,7 @@ Thanks!`;
                             render();
                             if (viewMode === 'canvas') renderCanvas();
 
-                            watchToast(`👥 ${lastContributor} made changes - synced!`, 'success');
+                            showToast(`👥 ${lastContributor} made changes - synced!`, 'success');
 
                             // Flash the watch button to indicate sync
                             const btn = document.getElementById('watch-mode-btn');
@@ -19696,7 +19696,7 @@ Thanks!`;
                         pathInput.value = fileHandle.name;
                     } catch (err) {
                         if (err.name !== 'AbortError') {
-                            watchToast('❌ Could not open file picker', 'error');
+                            showToast('❌ Could not open file picker', 'error');
                         }
                         return;
                     }
@@ -19722,7 +19722,7 @@ Thanks!`;
                 }
 
                 updateWatchStatus();
-                watchToast(`👁️ Watching as "${watchCollaboratorName}"`, 'success');
+                showToast(`👁️ Watching as "${watchCollaboratorName}"`, 'success');
 
                 console.log('👁️ Watch Mode started:', { collaborator: watchCollaboratorName, file: watchFilePath, interval });
             }
@@ -19748,7 +19748,7 @@ Thanks!`;
                     btn.style.background = '';
                 }
 
-                watchToast('⏹️ Watch Mode stopped', 'info');
+                showToast('⏹️ Watch Mode stopped', 'info');
                 console.log('👁️ Watch Mode stopped');
             }
 
@@ -19827,7 +19827,7 @@ Thanks!`;
                     if (openaiKey) apiKeys.openai = openaiKey;
 
                     if (Object.keys(apiKeys).length === 0) {
-                        watchToast('❌ No API keys configured. Set up your keys first (🔑 button).', 'error');
+                        showToast('❌ No API keys configured. Set up your keys first (🔑 button).', 'error');
                         btn.innerHTML = originalText;
                         btn.disabled = false;
                         return;
@@ -19885,12 +19885,12 @@ Thanks!`;
                     // Start status polling
                     sessionStatusInterval = setInterval(updateSessionStatus, 30000);
 
-                    watchToast(`🔑 Session active! Share the link with collaborators.`, 'success');
+                    showToast(`🔑 Session active! Share the link with collaborators.`, 'success');
                     console.log('🔑 Host session created:', result.sessionToken.substring(0, 8) + '...');
 
                 } catch (error) {
                     console.error('Failed to create session:', error);
-                    watchToast(`❌ ${error.message}`, 'error');
+                    showToast(`❌ ${error.message}`, 'error');
                 } finally {
                     btn.innerHTML = originalText;
                     btn.disabled = false;
@@ -19926,7 +19926,7 @@ Thanks!`;
                 document.getElementById('host-session-start').style.display = 'block';
                 document.getElementById('host-session-active').style.display = 'none';
 
-                watchToast('⏹️ Session ended', 'info');
+                showToast('⏹️ Session ended', 'info');
                 console.log('🔑 Host session ended');
             };
 
@@ -19949,7 +19949,7 @@ Thanks!`;
                     if (!result.active) {
                         // Session expired
                         endHostSession();
-                        watchToast('⏰ Session expired', 'info');
+                        showToast('⏰ Session expired', 'info');
                         return;
                     }
 
@@ -19968,7 +19968,7 @@ Thanks!`;
                 const linkInput = document.getElementById('session-share-link');
                 linkInput.select();
                 document.execCommand('copy');
-                watchToast('📋 Session link copied!', 'success');
+                showToast('📋 Session link copied!', 'success');
             };
 
             // Join as guest (called from URL parameter)
@@ -20005,14 +20005,14 @@ Thanks!`;
                     // Show indicator in main UI
                     showGuestSessionIndicator(result.hostName);
 
-                    watchToast(`🎟️ Using ${result.hostName}'s API keys!`, 'success');
+                    showToast(`🎟️ Using ${result.hostName}'s API keys!`, 'success');
                     console.log('🎟️ Joined session as guest, host:', result.hostName);
 
                     return true;
 
                 } catch (error) {
                     console.error('Failed to join session:', error);
-                    watchToast(`❌ ${error.message}`, 'error');
+                    showToast(`❌ ${error.message}`, 'error');
                     return false;
                 }
             };
@@ -20078,7 +20078,7 @@ Thanks!`;
                 let url = urlInput?.value?.trim();
 
                 if (!url) {
-                    watchToast('📥 Please paste a Google Drive or JSON URL', 'info');
+                    showToast('📥 Please paste a Google Drive or JSON URL', 'info');
                     return;
                 }
 
@@ -20114,7 +20114,7 @@ Thanks!`;
                     console.log('📥 Converted Dropbox URL');
                 }
 
-                watchToast('📥 Loading tree from URL...', 'info');
+                showToast('📥 Loading tree from URL...', 'info');
 
                 try {
                     let treeData;
@@ -20147,7 +20147,7 @@ Thanks!`;
                     // Load the tree into TreeListy
                     if (typeof loadTree === 'function') {
                         loadTree(treeData);
-                        watchToast(`✅ Loaded: ${treeData.name || 'Imported tree'}`, 'success');
+                        showToast(`✅ Loaded: ${treeData.name || 'Imported tree'}`, 'success');
                         console.log('📥 Tree loaded from URL:', treeData.name);
 
                         // Update the tree name display
@@ -20159,7 +20159,7 @@ Thanks!`;
                         // Fallback - set capexTree directly
                         capexTree = treeData;
                         renderTree();
-                        watchToast(`✅ Loaded: ${treeData.name || 'Imported tree'}`, 'success');
+                        showToast(`✅ Loaded: ${treeData.name || 'Imported tree'}`, 'success');
                     }
 
                     // Clear the input
@@ -20167,7 +20167,7 @@ Thanks!`;
 
                 } catch (error) {
                     console.error('Failed to import from URL:', error);
-                    watchToast(`❌ Import failed: ${error.message}`, 'error');
+                    showToast(`❌ Import failed: ${error.message}`, 'error');
                 }
             };
 
@@ -20222,10 +20222,10 @@ https://treelisty.netlify.app`;
                 const fullText = `Subject: ${subject}\n\n${body}`;
 
                 navigator.clipboard.writeText(fullText).then(() => {
-                    watchToast('📋 Email text copied!', 'success');
+                    showToast('📋 Email text copied!', 'success');
                 }).catch(err => {
                     console.error('Failed to copy:', err);
-                    watchToast('❌ Failed to copy', 'error');
+                    showToast('❌ Failed to copy', 'error');
                 });
             };
 
@@ -20242,7 +20242,7 @@ https://treelisty.netlify.app`;
                 const email = emailInput?.value?.trim();
 
                 if (!email || !email.includes('@')) {
-                    watchToast('📧 Please enter a valid email address', 'error');
+                    showToast('📧 Please enter a valid email address', 'error');
                     return;
                 }
 
@@ -20252,7 +20252,7 @@ https://treelisty.netlify.app`;
 
                 // Clear input and show success
                 emailInput.value = '';
-                watchToast(`📧 Opening email to ${email}...`, 'success');
+                showToast(`📧 Opening email to ${email}...`, 'success');
             };
 
             // ═══════════════════════════════════════════════════════════════════
@@ -20267,7 +20267,7 @@ https://treelisty.netlify.app`;
                 const url = urlInput?.value?.trim();
 
                 if (!url) {
-                    watchToast('☁️ Please paste a Google Drive share link', 'info');
+                    showToast('☁️ Please paste a Google Drive share link', 'info');
                     return;
                 }
 
@@ -20287,7 +20287,7 @@ https://treelisty.netlify.app`;
                 if (openMatch) fileId = openMatch[1];
 
                 if (!fileId) {
-                    watchToast('❌ Could not find file ID in URL. Please use a Google Drive share link.', 'error');
+                    showToast('❌ Could not find file ID in URL. Please use a Google Drive share link.', 'error');
                     return;
                 }
 
@@ -20298,7 +20298,7 @@ https://treelisty.netlify.app`;
                 document.getElementById('async-share-link').value = shareLink;
                 document.getElementById('async-share-result').style.display = 'block';
 
-                watchToast('🔗 TreeListy link generated!', 'success');
+                showToast('🔗 TreeListy link generated!', 'success');
                 console.log('📧 Async share link created for file:', fileId);
             };
 
@@ -20307,7 +20307,7 @@ https://treelisty.netlify.app`;
                 const link = document.getElementById('async-share-link')?.value;
                 if (link) {
                     navigator.clipboard.writeText(link).then(() => {
-                        watchToast('📋 Link copied!', 'success');
+                        showToast('📋 Link copied!', 'success');
                     });
                 }
             };
@@ -20354,10 +20354,10 @@ https://treelisty.netlify.app`;
                 const fullText = `Subject: ${subject}\n\n${body}`;
 
                 navigator.clipboard.writeText(fullText).then(() => {
-                    watchToast('📋 Email text copied!', 'success');
+                    showToast('📋 Email text copied!', 'success');
                 }).catch(err => {
                     console.error('Failed to copy:', err);
-                    watchToast('❌ Failed to copy', 'error');
+                    showToast('❌ Failed to copy', 'error');
                 });
             };
 
@@ -20454,7 +20454,7 @@ https://treelisty.netlify.app`;
 
                 if (!window.firebaseReady) {
                     console.error('🔥 Firebase not ready after 5 seconds');
-                    watchToast('❌ Firebase failed to load. Check console.', 'error');
+                    showToast('❌ Firebase failed to load. Check console.', 'error');
                     return false;
                 }
 
@@ -20471,7 +20471,7 @@ https://treelisty.netlify.app`;
                     return true;
                 } catch (error) {
                     console.error('🔥 Firebase auth error:', error);
-                    watchToast('❌ Firebase auth failed: ' + error.message, 'error');
+                    showToast('❌ Firebase auth failed: ' + error.message, 'error');
                     return false;
                 }
             }
@@ -20483,7 +20483,7 @@ https://treelisty.netlify.app`;
                 // Check if Firebase is ready
                 if (!window.firebaseReady) {
                     console.error('🔥 Firebase not ready yet');
-                    watchToast('⏳ Firebase loading, please try again...', 'warning');
+                    showToast('⏳ Firebase loading, please try again...', 'warning');
                     return;
                 }
 
@@ -20515,7 +20515,7 @@ https://treelisty.netlify.app`;
                     });
 
                     console.log('🔥 Room created:', roomId);
-                    watchToast('🔥 Room created: ' + roomId, 'success');
+                    showToast('🔥 Room created: ' + roomId, 'success');
 
                     // Subscribe to changes
                     subscribeToRoom(roomId);
@@ -20524,7 +20524,7 @@ https://treelisty.netlify.app`;
 
                 } catch (error) {
                     console.error('🔥 Failed to create room:', error);
-                    watchToast('❌ Failed to create room: ' + error.message, 'error');
+                    showToast('❌ Failed to create room: ' + error.message, 'error');
                     firebaseSyncState.roomId = null;
                 }
             }
@@ -20538,7 +20538,7 @@ https://treelisty.netlify.app`;
 
                 roomId = roomId.toUpperCase().trim();
                 if (!roomId || roomId.length < 4) {
-                    watchToast('❌ Invalid room ID', 'error');
+                    showToast('❌ Invalid room ID', 'error');
                     return;
                 }
 
@@ -20548,7 +20548,7 @@ https://treelisty.netlify.app`;
                     const roomSnap = await window.firebaseGetDoc(roomRef);
 
                     if (!roomSnap.exists()) {
-                        watchToast('❌ Room not found: ' + roomId, 'error');
+                        showToast('❌ Room not found: ' + roomId, 'error');
                         return;
                     }
 
@@ -20581,11 +20581,11 @@ https://treelisty.netlify.app`;
                     subscribeToRoom(roomId);
                     updateSyncUI();
 
-                    watchToast('🔥 Joined room: ' + roomId, 'success');
+                    showToast('🔥 Joined room: ' + roomId, 'success');
 
                 } catch (error) {
                     console.error('🔥 Failed to join room:', error);
-                    watchToast('❌ Failed to join room: ' + error.message, 'error');
+                    showToast('❌ Failed to join room: ' + error.message, 'error');
                 }
             }
 
@@ -20601,7 +20601,7 @@ https://treelisty.netlify.app`;
                     if (!doc.exists()) {
                         console.log('🔥 Room deleted');
                         leaveSyncRoom();
-                        watchToast('⚠️ Room was deleted', 'warning');
+                        showToast('⚠️ Room was deleted', 'warning');
                         return;
                     }
 
@@ -20646,7 +20646,7 @@ https://treelisty.netlify.app`;
                             firebaseSyncState.lastSyncTimestamp = Date.now();
                             document.getElementById('sync-last-update').textContent = new Date().toLocaleTimeString();
 
-                            watchToast('🔄 Tree synced from collaborator', 'info');
+                            showToast('🔄 Tree synced from collaborator', 'info');
 
                         } catch (e) {
                             console.error('🔥 Failed to parse tree update:', e);
@@ -20654,7 +20654,7 @@ https://treelisty.netlify.app`;
                     }
                 }, (error) => {
                     console.error('🔥 Snapshot error:', error);
-                    watchToast('❌ Sync error: ' + error.message, 'error');
+                    showToast('❌ Sync error: ' + error.message, 'error');
                 });
 
                 console.log('🔥 Subscribed to room:', roomId);
@@ -20706,7 +20706,7 @@ https://treelisty.netlify.app`;
                 firebaseSyncState.roomId = null;
                 updateSyncUI();
 
-                watchToast('👋 Left sync room', 'info');
+                showToast('👋 Left sync room', 'info');
             }
 
             // Copy room ID to clipboard
@@ -20714,7 +20714,7 @@ https://treelisty.netlify.app`;
                 const roomId = firebaseSyncState.roomId;
                 if (roomId) {
                     navigator.clipboard.writeText(roomId).then(() => {
-                        watchToast('📋 Room ID copied: ' + roomId, 'success');
+                        showToast('📋 Room ID copied: ' + roomId, 'success');
                     });
                 }
             }
