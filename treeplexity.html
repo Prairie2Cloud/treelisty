@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.15.0 | Build 237 | 2025-12-02
+    TreeListy v2.15.0 | Build 238 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 237): 🧠 Super Hybrid Prompt Engineering Meta-Prompt
+    Changelog (Build 238): 📥 Import Text UX Elevation
+    - NEW: 📥 Import button in header toolbar (prominent placement)
+    - NEW: Empty state CTA with "Import Text" and "Chat Builder" buttons
+    - IMPROVED: Import Text now discoverable as primary workflow entry point
+    - IMPROVED: Empty state guides new users to main input methods
+
+    Previous (Build 237): 🧠 Super Hybrid Prompt Engineering Meta-Prompt
     - ENHANCED: Prompt AI uses "Super Hybrid" meta-prompt (A/B tested, 80.2%+ score)
     - NEW: 3-phase approach: Draft → Self-Critique → Refined Output
     - NEW: Expert panel synthesis (Anthropic/OpenAI/Production perspectives)
@@ -2303,6 +2309,7 @@
 
             <div class="control-section" style="margin-right: 4px;">
                 <button class="btn" id="new-project-btn" style="background: linear-gradient(135deg, #059669, #10b981); padding: 6px 10px; font-size: 13px;" title="Start a new project">🆕</button>
+                <button class="btn" id="import-text-header-btn" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); padding: 6px 10px; font-size: 13px;" title="Import text/document for AI analysis">📥 Import</button>
                 <button class="btn" id="save-json-btn" title="Save project as JSON" style="padding: 6px 10px; font-size: 13px;">💾</button>
                 <button class="btn" id="load-json-btn" title="Load project from JSON file" style="padding: 6px 10px; font-size: 13px;">📂</button>
                 <button class="btn" id="load-gdrive-btn" style="background: linear-gradient(135deg, #4285f4, #34a853); padding: 6px 10px; font-size: 13px;" title="Load from Google Drive URL">☁️</button>
@@ -2410,8 +2417,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.14.9 | Build 235 | 2025-12-01">
-                    v2.14.9 • Build 235
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.15.0 | Build 238 | 2025-12-02">
+                    v2.15.0 • Build 238
                 </div>
             </div>
         </div>
@@ -2419,6 +2426,26 @@
 
     <!-- Tree View Container -->
     <div class="tree-view-container">
+
+    <!-- Empty State CTA (shown when tree is default/empty) -->
+    <div id="empty-state-cta" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10; padding: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 2px solid rgba(99, 102, 241, 0.3); border-radius: 16px; max-width: 500px;">
+        <div style="font-size: 48px; margin-bottom: 16px;">🚀</div>
+        <h2 style="font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Get Started</h2>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
+            Paste any text, document, or prompt and AI will structure it into a tree for you.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn" id="empty-state-import-btn" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); padding: 12px 24px; font-size: 15px; font-weight: 600; color: white; border-radius: 8px;">
+                📥 Import Text
+            </button>
+            <button class="btn" id="empty-state-chat-btn" style="background: linear-gradient(135deg, #10b981, #059669); padding: 12px 24px; font-size: 15px; font-weight: 600; color: white; border-radius: 8px;">
+                💬 Chat Builder
+            </button>
+        </div>
+        <p style="font-size: 12px; color: var(--text-secondary); margin-top: 16px; opacity: 0.7;">
+            Or use the sidebar tools on the left →
+        </p>
+    </div>
 
     <!-- Tree -->
     <div class="tree-container" id="tree-container">
@@ -11993,6 +12020,13 @@ function hidePatternDescription() {
         function render() {
             const container = document.getElementById('tree-root');
             container.innerHTML = '';
+
+            // Show/hide empty state CTA based on tree content
+            const emptyStateCta = document.getElementById('empty-state-cta');
+            if (emptyStateCta && typeof hasExistingContent === 'function') {
+                const showEmptyState = !hasExistingContent();
+                emptyStateCta.style.display = showEmptyState ? 'block' : 'none';
+            }
 
             const tableEl = document.createElement('div');
             tableEl.className = 'tree';
@@ -25480,6 +25514,20 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
             } else {
                 openAnalysisModal(false); // false = start fresh
             }
+        });
+
+        // Header Import Text button - same as sidebar analyze-text-btn
+        document.getElementById('import-text-header-btn')?.addEventListener('click', () => {
+            document.getElementById('analyze-text-btn').click();
+        });
+
+        // Empty state CTA buttons
+        document.getElementById('empty-state-import-btn')?.addEventListener('click', () => {
+            document.getElementById('analyze-text-btn').click();
+        });
+
+        document.getElementById('empty-state-chat-btn')?.addEventListener('click', () => {
+            document.getElementById('wizard-btn').click();
         });
 
         // Show modal to choose analysis mode
