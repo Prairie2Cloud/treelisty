@@ -6,10 +6,10 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.15.0 | Build 238 | 2025-12-02
+    TreeListy v2.16.0 | Build 239 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
-    - 18 specialized patterns (Generic, CAPEX, Philosophy, Sales, Veo3, Sora2, etc.)
+    - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
     - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
     - Pattern Translation Engine with shadow data preservation
     - Modern collapsible sidebar UI (icon-based navigation)
@@ -18,7 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 238): 📥 Import Text UX Elevation
+    Changelog (Build 239): 🎙️ Free Speech - Stream of Consciousness Voice Capture
+    - NEW: Free Speech pattern for psychological pattern analysis
+    - NEW: Web Speech API integration for voice recording
+    - NEW: Nudge system with gentle prompts during silence
+    - NEW: Gamification metrics (flow score, authenticity, word count)
+    - NEW: Privacy-first architecture (transcript deleted after analysis)
+    - NEW: AI analysis finds repetition, contradictions, implicit beliefs
+    - NEW: 🎙️ Free Speech button in AI Tools sidebar
+
+    Previous (Build 238): 📥 Import Text UX Elevation
     - NEW: 📥 Import button in header toolbar (prominent placement)
     - NEW: Empty state CTA with "Import Text" and "Chat Builder" buttons
     - IMPROVED: Import Text now discoverable as primary workflow entry point
@@ -2474,6 +2483,7 @@
         <button class="btn" data-icon="📥" id="analyze-text-btn" title="Convert text/files into tree structure"><span>Import Text</span></button>
         <button class="btn" data-icon="🔀" id="merge-branch-btn" title="Paste a collaboration URL to merge changes"><span>Merge Branch</span></button>
         <button class="btn" data-icon="👁️" id="watch-mode-btn" title="Watch a shared file for live sync with collaborators"><span>Watch Mode</span></button>
+        <button class="btn" data-icon="🎙️" id="freespeech-btn" onclick="openFreeSpeechModal()" title="Voice capture with psychological pattern analysis"><span>Free Speech</span></button>
         <button class="btn" data-icon="💬" id="wizard-btn" title="Build and edit tree via chat"><span>Chat Builder</span></button>
         <button class="btn" data-icon="🩺" id="ai-review-btn" title="Check for logic gaps and missing fields"><span>Check Quality</span></button>
         <button class="btn" data-icon="✨" id="auto-enhance-btn" title="Auto-fill details and add subtasks"><span>Smart Expand</span></button>
@@ -3252,6 +3262,116 @@ The AI will analyze the structure and convert it to a tree."
             </div>
         </div>
     </div>
+
+    <!-- Free Speech Recording Modal -->
+    <div class="modal" id="freespeech-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px; background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%); border: 1px solid rgba(99, 102, 241, 0.3);">
+            <div class="modal-header" style="border-bottom: 1px solid rgba(99, 102, 241, 0.2);">
+                <h3 style="color: #e2e8f0;">🎙️ Free Speech Session</h3>
+                <button class="modal-close" onclick="closeFreeSpeechModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="freespeech-modal-body" style="padding: 24px; text-align: center;">
+                <!-- IDLE State -->
+                <div id="freespeech-idle" style="display: block;">
+                    <div style="font-size: 64px; margin-bottom: 16px;">🎙️</div>
+                    <h4 style="color: #e2e8f0; margin-bottom: 12px;">Speak Without Thinking</h4>
+                    <p style="color: #94a3b8; font-size: 14px; line-height: 1.6; margin-bottom: 24px;">
+                        Let your thoughts flow freely. No judgment, no editing.<br>
+                        AI will find surprising patterns in your words.
+                    </p>
+                    <div style="background: rgba(99, 102, 241, 0.1); padding: 16px; border-radius: 12px; margin-bottom: 24px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                        <div style="font-size: 12px; color: #94a3b8; text-align: left;">
+                            <div style="margin-bottom: 8px;">✨ <strong>Tips for best results:</strong></div>
+                            <div style="margin-left: 16px;">• Speak as if thinking out loud</div>
+                            <div style="margin-left: 16px;">• Don't censor yourself</div>
+                            <div style="margin-left: 16px;">• Silences are okay - take your time</div>
+                            <div style="margin-left: 16px;">• Your words are private until analyzed</div>
+                        </div>
+                    </div>
+                    <button onclick="startFreeSpeechWarmup()" style="width: 100%; padding: 16px 24px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer; transition: all 0.2s;">
+                        🎤 Begin Recording
+                    </button>
+                </div>
+
+                <!-- WARMUP State (3-second countdown) -->
+                <div id="freespeech-warmup" style="display: none;">
+                    <div id="freespeech-countdown" style="font-size: 120px; color: #6366f1; font-weight: bold; animation: pulse 1s infinite;">3</div>
+                    <p style="color: #94a3b8; font-size: 16px;">Take a breath...</p>
+                </div>
+
+                <!-- RECORDING State -->
+                <div id="freespeech-recording" style="display: none;">
+                    <!-- Breathing Circle Visualization -->
+                    <div id="freespeech-visualizer" style="width: 200px; height: 200px; margin: 0 auto 24px; position: relative;">
+                        <div id="freespeech-circle" style="width: 100%; height: 100%; border-radius: 50%; background: radial-gradient(circle, rgba(99, 102, 241, 0.4) 0%, rgba(99, 102, 241, 0.1) 70%, transparent 100%); animation: breathe 4s ease-in-out infinite;"></div>
+                        <div style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); font-size: 48px;">🎙️</div>
+                    </div>
+
+                    <!-- Nudge Display (shows gentle prompts) -->
+                    <div id="freespeech-nudge" style="min-height: 32px; font-size: 18px; color: #94a3b8; font-style: italic; margin-bottom: 24px;"></div>
+
+                    <!-- Recording Status -->
+                    <div style="display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 24px;">
+                        <div style="width: 12px; height: 12px; background: #ef4444; border-radius: 50%; animation: blink 1s infinite;"></div>
+                        <span style="color: #ef4444; font-weight: 600;">Recording...</span>
+                    </div>
+
+                    <button onclick="stopFreeSpeechRecording()" style="width: 100%; padding: 16px 24px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 12px; font-size: 18px; font-weight: 600; cursor: pointer;">
+                        ✓ I'm Done
+                    </button>
+                </div>
+
+                <!-- PROCESSING State -->
+                <div id="freespeech-processing" style="display: none;">
+                    <div style="font-size: 64px; margin-bottom: 16px; animation: spin 2s linear infinite;">🔮</div>
+                    <h4 style="color: #e2e8f0; margin-bottom: 12px;">Finding Hidden Patterns...</h4>
+                    <p style="color: #94a3b8; font-size: 14px;">AI is analyzing your stream of consciousness</p>
+                    <div style="margin-top: 24px;">
+                        <div style="height: 4px; background: rgba(99, 102, 241, 0.2); border-radius: 2px; overflow: hidden;">
+                            <div id="freespeech-progress" style="height: 100%; background: linear-gradient(90deg, #6366f1, #8b5cf6); width: 0%; transition: width 0.5s ease;"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ERROR State -->
+                <div id="freespeech-error" style="display: none;">
+                    <div style="font-size: 64px; margin-bottom: 16px;">⚠️</div>
+                    <h4 style="color: #ef4444; margin-bottom: 12px;">Recording Issue</h4>
+                    <p id="freespeech-error-message" style="color: #94a3b8; font-size: 14px; margin-bottom: 24px;">Speech recognition is not supported in this browser.</p>
+                    <button onclick="resetFreeSpeechModal()" style="padding: 12px 24px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); cursor: pointer;">
+                        Try Again
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Free Speech CSS Animations -->
+    <style>
+        @keyframes breathe {
+            0%, 100% { transform: scale(1); opacity: 0.6; }
+            50% { transform: scale(1.15); opacity: 1; }
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.1); }
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.3; }
+        }
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        #freespeech-modal .modal-content {
+            animation: fadeInScale 0.3s ease-out;
+        }
+        @keyframes fadeInScale {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+    </style>
 
     <!-- Wizard Modal -->
     <div class="modal" id="wizard-modal" style="display: none; justify-content: flex-end; background: transparent; pointer-events: none;">
@@ -11319,6 +11439,62 @@ const PATTERNS = {
             includeDependencies: true,
             includeTracking: true,
             trackingFor: ['subtask']
+        }
+    },
+    freespeech: {
+        name: 'Free Speech',
+        icon: '🎙️',
+        levels: {
+            root: 'Session',
+            phase: 'Theme',
+            item: 'Pattern',
+            subtask: 'Evidence'
+        },
+        phaseSubtitles: ['Surface Themes', 'Hidden Patterns', 'Contradictions', 'Silences', 'Recurring Structures'],
+        types: [
+            { value: 'repetition', label: '🔁 Repetition (mentioned multiple times)' },
+            { value: 'emotional', label: '❤️ Emotional Weight (intensity markers)' },
+            { value: 'contradiction', label: '⚡ Contradiction (opposing statements)' },
+            { value: 'avoidance', label: '🕳️ Avoidance (logical gaps)' },
+            { value: 'implicit', label: '💭 Implicit Belief (unstated assumption)' },
+            { value: 'entity', label: '👤 Named Entity (person/thing mentioned)' },
+            { value: 'structure', label: '📝 Sentence Structure (grammar pattern)' }
+        ],
+        description: 'Stream-of-consciousness voice capture with psychological pattern analysis',
+        sortOptions: [
+            { value: 'frequency-high', label: '🔢 Frequency (Most First)', field: 'frequency', order: 'desc', type: 'number' },
+            { value: 'frequency-low', label: '🔢 Frequency (Least First)', field: 'frequency', order: 'asc', type: 'number' },
+            { value: 'emotional-high', label: '💓 Emotional Intensity (Highest)', field: 'emotionalIntensity', order: 'desc', type: 'text' },
+            { value: 'emotional-low', label: '💓 Emotional Intensity (Lowest)', field: 'emotionalIntensity', order: 'asc', type: 'text' }
+        ],
+        fields: {
+            frequency: {
+                label: 'Frequency',
+                type: 'number',
+                min: 1,
+                step: 1,
+                helpText: '🔢 Times this pattern appeared in speech'
+            },
+            emotionalIntensity: {
+                label: 'Emotional Intensity',
+                type: 'select',
+                options: ['Low', 'Medium', 'High', 'Peak'],
+                helpText: '💓 Detected emotional weight of this pattern'
+            },
+            quotedText: {
+                label: 'Quoted Text',
+                type: 'textarea',
+                placeholder: 'Exact words from transcript...',
+                helpText: '💬 Verbatim speech that evidences this pattern'
+            },
+            insight: {
+                label: 'AI Insight',
+                type: 'textarea',
+                placeholder: 'What this pattern reveals about the speaker...',
+                helpText: '🔮 Psychological interpretation of what this pattern suggests'
+            },
+            includeDependencies: false,
+            includeTracking: false
         }
     },
     custom: {
@@ -31075,6 +31251,533 @@ ${jsonText}`;
                 }, 500); // Match fade-out animation duration
             }
         }, 2000); // Show splash for 2 seconds (matches loader animation)
+
+        // ============================================================================
+        // FREE SPEECH - Stream of Consciousness Voice Capture (Build 238)
+        // ============================================================================
+
+        // Free Speech Session State
+        const freeSpeechSession = {
+            // State machine: IDLE -> WARMUP -> RECORDING -> PROCESSING -> REVEAL
+            state: 'IDLE',
+
+            // Web Speech API
+            recognition: null,
+
+            // Transcript (EPHEMERAL - never persisted, deleted after analysis)
+            transcript: [],
+
+            // Nudge system
+            nudgeTimer: null,
+            lastSpeechTime: null,
+            currentNudgeIndex: 0,
+
+            // Gamification metrics
+            metrics: {
+                totalDuration: 0,
+                silenceCount: 0,
+                nudgeCount: 0,
+                wordCount: 0,
+                uniqueWords: new Set(),
+                fillerWords: 0,
+                hedgeCount: 0,
+                restartCount: 0,
+                longestUninterruptedFlow: 0,
+                currentFlowDuration: 0,
+                startTime: null
+            }
+        };
+
+        // Nudge prompts - gentle, non-judgmental momentum maintainers
+        const NUDGES = [
+            { text: '...', delay: 5000 },          // Soft ellipsis after 5s
+            { text: 'mmhmm...', delay: 8000 },     // Acknowledgment after 8s
+            { text: 'and...?', delay: 12000 },     // Continuation prompt
+            { text: 'keep going...', delay: 16000 },
+            { text: 'what else...?', delay: 20000 },
+            { text: 'take your time...', delay: 25000 }
+        ];
+
+        // Filler words to detect
+        const FILLER_WORDS = ['um', 'uh', 'like', 'you know', 'basically', 'actually', 'literally', 'sort of', 'kind of'];
+
+        // Hedge words (self-editing indicators)
+        const HEDGE_WORDS = ['i think', 'maybe', 'probably', 'i guess', 'i mean', 'sort of', 'kind of', 'i suppose'];
+
+        // Restart indicators
+        const RESTART_PHRASES = ['no wait', 'let me start over', 'actually no', 'i mean', 'scratch that', 'no no'];
+
+        // Open Free Speech modal
+        function openFreeSpeechModal() {
+            const modal = document.getElementById('freespeech-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                resetFreeSpeechModal();
+            }
+        }
+
+        // Close Free Speech modal
+        function closeFreeSpeechModal() {
+            const modal = document.getElementById('freespeech-modal');
+            if (modal) {
+                modal.style.display = 'none';
+                stopFreeSpeechRecording();
+            }
+        }
+
+        // Reset modal to idle state
+        function resetFreeSpeechModal() {
+            freeSpeechSession.state = 'IDLE';
+            freeSpeechSession.transcript = [];
+            freeSpeechSession.currentNudgeIndex = 0;
+
+            // Reset metrics
+            freeSpeechSession.metrics = {
+                totalDuration: 0,
+                silenceCount: 0,
+                nudgeCount: 0,
+                wordCount: 0,
+                uniqueWords: new Set(),
+                fillerWords: 0,
+                hedgeCount: 0,
+                restartCount: 0,
+                longestUninterruptedFlow: 0,
+                currentFlowDuration: 0,
+                startTime: null
+            };
+
+            // Show/hide appropriate sections
+            document.getElementById('freespeech-idle').style.display = 'block';
+            document.getElementById('freespeech-warmup').style.display = 'none';
+            document.getElementById('freespeech-recording').style.display = 'none';
+            document.getElementById('freespeech-processing').style.display = 'none';
+            document.getElementById('freespeech-error').style.display = 'none';
+            document.getElementById('freespeech-nudge').textContent = '';
+        }
+
+        // Start warmup countdown
+        function startFreeSpeechWarmup() {
+            // Check for Web Speech API support
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showFreeSpeechError('Speech recognition is not supported in this browser. Please use Chrome, Edge, or Safari.');
+                return;
+            }
+
+            freeSpeechSession.state = 'WARMUP';
+            document.getElementById('freespeech-idle').style.display = 'none';
+            document.getElementById('freespeech-warmup').style.display = 'block';
+
+            // Countdown animation
+            const countdownEl = document.getElementById('freespeech-countdown');
+            let count = 3;
+            countdownEl.textContent = count;
+
+            const countdownInterval = setInterval(() => {
+                count--;
+                if (count > 0) {
+                    countdownEl.textContent = count;
+                } else {
+                    clearInterval(countdownInterval);
+                    startFreeSpeechRecording();
+                }
+            }, 1000);
+        }
+
+        // Start actual recording
+        function startFreeSpeechRecording() {
+            freeSpeechSession.state = 'RECORDING';
+            document.getElementById('freespeech-warmup').style.display = 'none';
+            document.getElementById('freespeech-recording').style.display = 'block';
+
+            // Initialize Web Speech API
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            freeSpeechSession.recognition = new SpeechRecognition();
+
+            const recognition = freeSpeechSession.recognition;
+            recognition.continuous = true;
+            recognition.interimResults = true;
+            recognition.lang = 'en-US';
+
+            // Track timing
+            freeSpeechSession.metrics.startTime = Date.now();
+            freeSpeechSession.lastSpeechTime = Date.now();
+
+            // Handle speech results
+            recognition.onresult = (event) => {
+                const now = Date.now();
+
+                // Calculate flow duration
+                const timeSinceLastSpeech = now - freeSpeechSession.lastSpeechTime;
+                if (timeSinceLastSpeech < 2000) {
+                    freeSpeechSession.metrics.currentFlowDuration += timeSinceLastSpeech;
+                } else {
+                    // Flow broken, check if it was longest
+                    if (freeSpeechSession.metrics.currentFlowDuration > freeSpeechSession.metrics.longestUninterruptedFlow) {
+                        freeSpeechSession.metrics.longestUninterruptedFlow = freeSpeechSession.metrics.currentFlowDuration;
+                    }
+                    freeSpeechSession.metrics.currentFlowDuration = 0;
+                }
+                freeSpeechSession.lastSpeechTime = now;
+
+                // Process results
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const result = event.results[i];
+                    if (result.isFinal) {
+                        const text = result[0].transcript.trim();
+                        if (text) {
+                            freeSpeechSession.transcript.push({
+                                text: text,
+                                timestamp: now - freeSpeechSession.metrics.startTime,
+                                confidence: result[0].confidence
+                            });
+
+                            // Analyze for metrics
+                            analyzeTranscriptSegment(text);
+                        }
+                    }
+                }
+
+                // Clear nudge when user speaks
+                document.getElementById('freespeech-nudge').textContent = '';
+                freeSpeechSession.currentNudgeIndex = 0;
+                resetNudgeTimer();
+            };
+
+            recognition.onerror = (event) => {
+                console.error('Speech recognition error:', event.error);
+                if (event.error === 'no-speech') {
+                    // User is being quiet, this is okay
+                    return;
+                }
+                if (event.error === 'aborted') {
+                    // User stopped, this is okay
+                    return;
+                }
+                showFreeSpeechError(`Speech recognition error: ${event.error}`);
+            };
+
+            recognition.onend = () => {
+                // Restart if still recording (continuous mode workaround)
+                if (freeSpeechSession.state === 'RECORDING') {
+                    try {
+                        recognition.start();
+                    } catch (e) {
+                        console.log('Recognition restart blocked:', e);
+                    }
+                }
+            };
+
+            // Start recognition
+            try {
+                recognition.start();
+                startNudgeTimer();
+            } catch (e) {
+                showFreeSpeechError('Failed to start speech recognition. Please try again.');
+            }
+        }
+
+        // Analyze a transcript segment for metrics
+        function analyzeTranscriptSegment(text) {
+            const words = text.toLowerCase().split(/\s+/);
+            freeSpeechSession.metrics.wordCount += words.length;
+
+            words.forEach(word => {
+                freeSpeechSession.metrics.uniqueWords.add(word.replace(/[^a-z]/g, ''));
+            });
+
+            // Check for filler words
+            const lowerText = text.toLowerCase();
+            FILLER_WORDS.forEach(filler => {
+                const regex = new RegExp(`\\b${filler}\\b`, 'gi');
+                const matches = lowerText.match(regex);
+                if (matches) {
+                    freeSpeechSession.metrics.fillerWords += matches.length;
+                }
+            });
+
+            // Check for hedges
+            HEDGE_WORDS.forEach(hedge => {
+                if (lowerText.includes(hedge)) {
+                    freeSpeechSession.metrics.hedgeCount++;
+                }
+            });
+
+            // Check for restarts
+            RESTART_PHRASES.forEach(restart => {
+                if (lowerText.includes(restart)) {
+                    freeSpeechSession.metrics.restartCount++;
+                }
+            });
+        }
+
+        // Nudge timer management
+        function startNudgeTimer() {
+            clearNudgeTimer();
+            freeSpeechSession.nudgeTimer = setInterval(() => {
+                if (freeSpeechSession.state !== 'RECORDING') {
+                    clearNudgeTimer();
+                    return;
+                }
+
+                const timeSinceLastSpeech = Date.now() - freeSpeechSession.lastSpeechTime;
+
+                // Find appropriate nudge based on silence duration
+                for (let i = NUDGES.length - 1; i >= 0; i--) {
+                    if (timeSinceLastSpeech >= NUDGES[i].delay) {
+                        if (i > freeSpeechSession.currentNudgeIndex - 1) {
+                            document.getElementById('freespeech-nudge').textContent = NUDGES[i].text;
+                            freeSpeechSession.currentNudgeIndex = i + 1;
+                            freeSpeechSession.metrics.nudgeCount++;
+                            freeSpeechSession.metrics.silenceCount++;
+                        }
+                        break;
+                    }
+                }
+            }, 1000);
+        }
+
+        function resetNudgeTimer() {
+            freeSpeechSession.currentNudgeIndex = 0;
+        }
+
+        function clearNudgeTimer() {
+            if (freeSpeechSession.nudgeTimer) {
+                clearInterval(freeSpeechSession.nudgeTimer);
+                freeSpeechSession.nudgeTimer = null;
+            }
+        }
+
+        // Stop recording and process
+        function stopFreeSpeechRecording() {
+            if (freeSpeechSession.recognition) {
+                freeSpeechSession.recognition.stop();
+                freeSpeechSession.recognition = null;
+            }
+            clearNudgeTimer();
+
+            if (freeSpeechSession.state === 'RECORDING') {
+                // Calculate final duration
+                if (freeSpeechSession.metrics.startTime) {
+                    freeSpeechSession.metrics.totalDuration = (Date.now() - freeSpeechSession.metrics.startTime) / 1000;
+                }
+
+                // Check final flow
+                if (freeSpeechSession.metrics.currentFlowDuration > freeSpeechSession.metrics.longestUninterruptedFlow) {
+                    freeSpeechSession.metrics.longestUninterruptedFlow = freeSpeechSession.metrics.currentFlowDuration;
+                }
+
+                // Process transcript
+                processFreeSpeechTranscript();
+            }
+        }
+
+        // Process transcript with AI
+        async function processFreeSpeechTranscript() {
+            freeSpeechSession.state = 'PROCESSING';
+            document.getElementById('freespeech-recording').style.display = 'none';
+            document.getElementById('freespeech-processing').style.display = 'block';
+
+            // Check if we have any transcript
+            if (freeSpeechSession.transcript.length === 0) {
+                showFreeSpeechError('No speech was detected. Please try again and speak clearly.');
+                return;
+            }
+
+            // Combine transcript
+            const fullTranscript = freeSpeechSession.transcript.map(t => t.text).join(' ');
+
+            // Show progress
+            const progressEl = document.getElementById('freespeech-progress');
+            progressEl.style.width = '20%';
+
+            try {
+                // Call AI to analyze
+                const tree = await analyzeFreeSpeechTranscript(fullTranscript, freeSpeechSession.metrics);
+                progressEl.style.width = '100%';
+
+                // Small delay for visual feedback
+                await new Promise(resolve => setTimeout(resolve, 500));
+
+                // Load the tree and close modal
+                if (tree) {
+                    // Set the pattern
+                    currentPattern = 'freespeech';
+
+                    // Load tree data
+                    capexTree = tree;
+
+                    // Render
+                    render();
+
+                    // Close modal
+                    closeFreeSpeechModal();
+
+                    // Show success notification
+                    if (typeof showNotification === 'function') {
+                        showNotification('Free Speech session analyzed! Explore your psychological patterns.', 'success');
+                    }
+                }
+            } catch (error) {
+                console.error('Free Speech analysis error:', error);
+                showFreeSpeechError('Failed to analyze your speech. Please try again.');
+            } finally {
+                // PRIVACY: Delete transcript immediately after analysis
+                freeSpeechSession.transcript = [];
+            }
+        }
+
+        // AI Analysis function
+        async function analyzeFreeSpeechTranscript(transcript, metrics) {
+            const systemPrompt = `You are a psychological pattern analyst examining stream-of-consciousness speech.
+The speaker was encouraged to talk freely without self-editing.
+
+DO NOT summarize what they said.
+DO NOT organize their explicit points.
+DO NOT judge or evaluate their thoughts.
+
+Your task is to find SURPRISING PATTERNS that reveal psychological topology:
+
+1. REPETITION - Words/phrases/themes appearing 3+ times
+   (Repetition = importance, even if speaker doesn't realize it)
+
+2. EMOTIONAL WEIGHT - Where language intensifies
+   (Stronger adjectives, qualifiers like "really", "actually", "honestly")
+
+3. NAMED ENTITIES - Who/what mentioned, frequency, context
+   (Frequency reveals actual vs stated priorities)
+
+4. CONTRADICTIONS - Opposing statements or logical inconsistencies
+   (Windows into internal conflict or ambivalence)
+
+5. AVOIDANCE - Logical topics that SHOULD have appeared but DIDN'T
+   (Negative space is data - what wasn't said matters)
+
+6. IMPLICIT BELIEFS - Unstated assumptions underlying statements
+   ("I just need to work harder" assumes effort = results)
+
+7. SENTENCE STRUCTURES - Patterns like "I should..." vs "I want..." vs "I have to..."
+   (Grammar reveals agency patterns and relationship to desires)
+
+Output a TreeListy-compatible JSON tree that REVEALS rather than ORGANIZES.
+
+The tree should have this structure:
+{
+  "id": "session-[timestamp]",
+  "name": "[Create a poetic/insightful session title based on themes]",
+  "type": "session",
+  "pattern": "freespeech",
+  "children": [
+    {
+      "id": "theme-1",
+      "name": "[Theme Name]",
+      "type": "phase",
+      "items": [
+        {
+          "id": "pattern-1",
+          "name": "[Pattern Name]",
+          "type": "item",
+          "itemType": "[one of: repetition, emotional, contradiction, avoidance, implicit, entity, structure]",
+          "frequency": [number],
+          "emotionalIntensity": "[Low/Medium/High/Peak]",
+          "quotedText": "[exact words from transcript]",
+          "insight": "[what this pattern reveals]",
+          "subItems": [
+            {
+              "id": "evidence-1",
+              "name": "[Evidence summary]",
+              "type": "subtask",
+              "quotedText": "[supporting quote]"
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}
+
+Session Metrics (for context):
+- Duration: ${Math.round(metrics.totalDuration)} seconds
+- Word count: ${metrics.wordCount}
+- Unique words: ${metrics.uniqueWords.size}
+- Filler words: ${metrics.fillerWords}
+- Self-editing hedges: ${metrics.hedgeCount}
+- Restarts: ${metrics.restartCount}
+- Nudges needed: ${metrics.nudgeCount}
+- Longest uninterrupted flow: ${Math.round(metrics.longestUninterruptedFlow / 1000)} seconds`;
+
+            const userPrompt = `Analyze this stream-of-consciousness transcript and return ONLY valid JSON (no markdown, no explanation):
+
+TRANSCRIPT:
+${transcript}`;
+
+            try {
+                // Use the existing AI call infrastructure
+                const response = await callClaudeAPI(systemPrompt, userPrompt);
+
+                // Parse the JSON response
+                let tree;
+                try {
+                    // Try to extract JSON from response
+                    const jsonMatch = response.match(/\{[\s\S]*\}/);
+                    if (jsonMatch) {
+                        tree = JSON.parse(jsonMatch[0]);
+                    } else {
+                        throw new Error('No JSON found in response');
+                    }
+                } catch (parseError) {
+                    console.error('JSON parse error:', parseError);
+                    // Create a minimal fallback tree
+                    tree = {
+                        id: `session-${Date.now()}`,
+                        name: 'Free Speech Session',
+                        type: 'session',
+                        pattern: 'freespeech',
+                        children: [{
+                            id: 'theme-1',
+                            name: 'Raw Transcript',
+                            type: 'phase',
+                            items: [{
+                                id: 'pattern-1',
+                                name: 'Full Recording',
+                                type: 'item',
+                                itemType: 'repetition',
+                                frequency: 1,
+                                emotionalIntensity: 'Medium',
+                                quotedText: transcript.substring(0, 500) + (transcript.length > 500 ? '...' : ''),
+                                insight: 'Analysis could not be parsed. Raw transcript preserved.',
+                                subItems: []
+                            }]
+                        }]
+                    };
+                }
+
+                return tree;
+            } catch (error) {
+                console.error('AI call error:', error);
+                throw error;
+            }
+        }
+
+        // Show error state
+        function showFreeSpeechError(message) {
+            freeSpeechSession.state = 'ERROR';
+            document.getElementById('freespeech-idle').style.display = 'none';
+            document.getElementById('freespeech-warmup').style.display = 'none';
+            document.getElementById('freespeech-recording').style.display = 'none';
+            document.getElementById('freespeech-processing').style.display = 'none';
+            document.getElementById('freespeech-error').style.display = 'block';
+            document.getElementById('freespeech-error-message').textContent = message;
+        }
+
+        // Expose functions globally
+        window.openFreeSpeechModal = openFreeSpeechModal;
+        window.closeFreeSpeechModal = closeFreeSpeechModal;
+        window.startFreeSpeechWarmup = startFreeSpeechWarmup;
+        window.stopFreeSpeechRecording = stopFreeSpeechRecording;
+        window.resetFreeSpeechModal = resetFreeSpeechModal;
+
+        console.log('Free Speech module initialized (Build 239)');
+
     </script>
 
     <!-- Canvas View Container -->
