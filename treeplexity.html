@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 256 | 2025-12-03
+    TreeListy v2.17.0 | Build 257 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 256): ↩️ Undo Support for Remote Sync + Editor Attribution
-    - Remote sync changes are now UNDO-ABLE (saveState before applying)
-    - "Last edit by" shows who made the most recent change (You / User ID / Name)
-    - setMyDisplayName('Name') - set your display name for collaborators
-    - setCollaboratorName('abc123', 'Owen') - name a collaborator by their short ID
-    - Display names stored in localStorage for persistence
+    Changelog (Build 257): 💾 Local JSON Save During Collaboration
+    - "Save JSON" button in Live Sync modal - download current tree anytime
+    - "Auto-save on sync" checkbox - automatically download JSON after each remote sync
+    - Each collaborator maintains their own local JSON backup
+    - Filename includes pattern, project name, and timestamp
+
+    Previous (Build 256): ↩️ Undo Support for Remote Sync + Editor Attribution
+    - Remote sync undo-able, "Last edit by" display, setMyDisplayName/setCollaboratorName
 
     Previous (Build 255): 🎮 TreeBeard Playground Mode - Test Improved Prompts
     - "improve prompt: X" pattern, action buttons, Playground Mode with model selector
@@ -2864,8 +2866,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 256 | 2025-12-03">
-                    v2.17.0 • Build 256
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 257 | 2025-12-03">
+                    v2.17.0 • Build 257
                 </div>
             </div>
         </div>
@@ -4449,6 +4451,17 @@ The AI will analyze the structure and convert it to a tree."
                             <div>📝 Last update: <span id="sync-last-update">--</span></div>
                             <div id="sync-last-editor-row" style="display: none;">✏️ Last edit by: <span id="sync-last-editor" style="font-weight: 600;">--</span></div>
                         </div>
+                    </div>
+
+                    <!-- BUILD 257: Local Save Options -->
+                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
+                        <button class="btn" onclick="window.saveCollabJSON()" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #10b981, #059669);" title="Download current tree as JSON file">
+                            💾 Save JSON
+                        </button>
+                        <label style="flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">
+                            <input type="checkbox" id="collab-auto-save-json" onchange="window.toggleCollabAutoSave(this.checked)" style="width: 16px; height: 16px;">
+                            <span style="font-size: 12px;">Auto-save on sync</span>
+                        </label>
                     </div>
 
                     <button class="btn" id="leave-sync-room-btn" onclick="window.leaveFirebaseSyncRoom()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); font-weight: 600;">
@@ -21837,6 +21850,11 @@ https://treelisty.netlify.app`;
 
                             showToast('🔄 Tree synced from collaborator', 'info');
 
+                            // BUILD 257: Auto-save JSON if enabled
+                            if (firebaseSyncState.autoSaveJSON && window.saveCollabJSON) {
+                                setTimeout(() => window.saveCollabJSON(), 500); // Small delay to ensure tree is updated
+                            }
+
                         } catch (e) {
                             console.error('🔥 Failed to parse tree update:', e);
                         }
@@ -21957,6 +21975,41 @@ https://treelisty.netlify.app`;
             window.copyFirebaseRoomId = copyRoomId;
             window.setMyDisplayName = setMyDisplayName;           // BUILD 256
             window.setCollaboratorName = setCollaboratorName;     // BUILD 256
+
+            // BUILD 257: Manual JSON save during collaboration
+            window.saveCollabJSON = function() {
+                if (typeof capexTree === 'undefined') {
+                    showToast('❌ No tree data to save', 'error');
+                    return;
+                }
+
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const safeName = (capexTree.name || 'collab-tree').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+                const filename = `treelisty-${currentPattern}-${safeName}-${timestamp}.json`;
+
+                const dataStr = JSON.stringify(capexTree, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                showToast(`💾 Saved: ${filename}`, 'success');
+            };
+
+            // BUILD 257: Toggle auto-save JSON on every sync
+            window.toggleCollabAutoSave = function(enabled) {
+                firebaseSyncState.autoSaveJSON = enabled;
+                localStorage.setItem('treelisty_collab_autosave', enabled ? 'true' : 'false');
+                showToast(enabled ? '✅ Auto-save JSON enabled' : '⏸️ Auto-save JSON disabled', 'info');
+            };
+
+            // BUILD 257: Check auto-save setting and restore checkbox state
+            firebaseSyncState.autoSaveJSON = localStorage.getItem('treelisty_collab_autosave') === 'true';
+
             window.initFirebaseAuthIfNeeded = async function() {
                 if (!firebaseSyncState.userId) {
                     await initFirebaseAuth();
@@ -21971,6 +22024,11 @@ https://treelisty.netlify.app`;
                     // Auto-init auth when modal opens
                     if (!firebaseSyncState.userId) {
                         initFirebaseAuth();
+                    }
+                    // BUILD 257: Restore auto-save checkbox state
+                    const autoSaveCheckbox = document.getElementById('collab-auto-save-json');
+                    if (autoSaveCheckbox) {
+                        autoSaveCheckbox.checked = firebaseSyncState.autoSaveJSON;
                     }
                 });
 
