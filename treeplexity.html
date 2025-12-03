@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 267 | 2025-12-03
+    TreeListy v2.17.0 | Build 268 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,16 +18,17 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 267): 🔧 Fix Double Room Creation + Deploy Functions
+    Changelog (Build 268): 💬 Floating Collab Chat + Auto-close Modal
+    - Auto-close Live Sync modal when first guest connects (host gets clean workspace)
+    - NEW: Floating chat box appears when collab session is active
+    - Shows connected collaborators count + chat in compact floating panel
+    - Host can share API keys in chat (session-only, time-limited)
+    - Minimizable chat with unread message indicator
+
+    Previous (Build 267): 🔧 Fix Double Room Creation + Deploy Functions
     - FIX: Prevent double room creation on rapid clicks
     - DEPLOY: Added gdrive-proxy function (was missing from repo)
     - DEPLOY: Added collab-session function (was missing from repo)
-    - Now Google Drive loading and API key sharing work on live site
-
-    Previous (Build 266): 🔑 Fix API Key Sharing in Live Sync
-    - Redesigned Live Sync modal with one-click start
-    - Added team chat and presence badges
-    - Added API key toggle switch
 
     Previous (Build 264): 🔑 Unified Live Sync + API Key Sharing
     - Migrated API key sharing from Watch Mode to Firebase Live Sync modal
@@ -2908,8 +2909,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 267 | 2025-12-03">
-                    v2.17.0 • Build 267
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 268 | 2025-12-03">
+                    v2.17.0 • Build 268
                 </div>
             </div>
         </div>
@@ -4432,6 +4433,53 @@ The AI will analyze the structure and convert it to a tree."
                     <div id="api-guest-host-name"></div>
                     <div id="api-guest-expires"></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 268: Floating Collab Chat Box -->
+    <div id="floating-collab-chat" style="display: none; position: fixed; bottom: 20px; right: 20px; width: 320px; background: var(--card-bg); border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); border: 1px solid var(--border); z-index: 9999; overflow: hidden; font-family: inherit;">
+        <!-- Header (always visible) -->
+        <div id="floating-chat-header" onclick="window.toggleFloatingChat()" style="cursor: pointer; padding: 12px 14px; background: linear-gradient(135deg, #f97316, #ea580c); display: flex; align-items: center; justify-content: space-between;">
+            <div style="display: flex; align-items: center; gap: 8px;">
+                <div style="width: 8px; height: 8px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
+                <span style="font-weight: 600; color: white; font-size: 13px;">🔄 Live Session</span>
+                <span id="floating-user-count" style="background: rgba(255,255,255,0.2); padding: 2px 8px; border-radius: 10px; font-size: 11px; color: white;">1</span>
+            </div>
+            <div style="display: flex; align-items: center; gap: 6px;">
+                <span id="floating-unread-badge" style="display: none; background: #ef4444; color: white; padding: 2px 6px; border-radius: 10px; font-size: 10px; font-weight: 600;">0</span>
+                <span id="floating-chat-toggle" style="color: white; font-size: 16px;">▼</span>
+            </div>
+        </div>
+        <!-- Body (collapsible) -->
+        <div id="floating-chat-body" style="max-height: 350px; overflow: hidden; transition: max-height 0.3s ease;">
+            <!-- Collaborators -->
+            <div style="padding: 10px 12px; border-bottom: 1px solid var(--border);">
+                <div id="floating-collab-list" style="display: flex; flex-wrap: wrap; gap: 6px;">
+                    <!-- Badges will be populated here -->
+                </div>
+            </div>
+            <!-- Chat Messages -->
+            <div id="floating-chat-messages" style="height: 160px; overflow-y: auto; padding: 10px 12px; background: var(--bg);">
+                <div style="color: var(--text-secondary); text-align: center; padding: 50px 0; font-size: 12px;">No messages yet</div>
+            </div>
+            <!-- Chat Input -->
+            <div style="padding: 10px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px;">
+                <input type="text" id="floating-chat-input" placeholder="Type a message..."
+                    style="flex: 1; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 12px;"
+                    onkeypress="if(event.key==='Enter') window.sendFloatingChatMessage()">
+                <button onclick="window.sendFloatingChatMessage()" style="padding: 8px 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 12px;">Send</button>
+            </div>
+            <!-- Share API Keys Button (Host Only) -->
+            <div id="floating-share-keys-section" style="display: none; padding: 10px 12px; border-top: 1px solid var(--border); background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));">
+                <button onclick="window.shareApiKeysInChat()" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 12px;">
+                    🔑 Share API Keys with Team (4-hour session)
+                </button>
+            </div>
+            <!-- Session Controls -->
+            <div style="padding: 8px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px;">
+                <button onclick="document.getElementById('live-sync-modal').style.display='flex'" style="flex: 1; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 11px;">⚙️ Settings</button>
+                <button onclick="window.leaveFirebaseSyncRoom()" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 11px; font-weight: 600;">Leave</button>
             </div>
         </div>
     </div>
@@ -22121,6 +22169,10 @@ https://treelisty.netlify.app`;
                     subscribeToRoom(roomId);
                     firebaseSyncState.isConnected = true;
 
+                    // BUILD 268: Mark as host for floating chat
+                    floatingChatState.isHost = true;
+                    floatingChatState.previousUserCount = 1; // Reset counter
+
                     // Generate invite link
                     const inviteLink = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
                     document.getElementById('sync-invite-link').value = inviteLink;
@@ -22396,6 +22448,21 @@ https://treelisty.netlify.app`;
                 firebaseSyncState.roomId = null;
                 updateSyncUI();
 
+                // BUILD 268: Hide floating chat and reset state
+                hideFloatingChat();
+                floatingChatState.isHost = false;
+                floatingChatState.previousUserCount = 1;
+                floatingChatState.unreadCount = 0;
+
+                // BUILD 268: Clear session API keys if guest used shared keys
+                if (sessionStorage.getItem('session_api_keys')) {
+                    localStorage.removeItem('anthropic_api_key');
+                    localStorage.removeItem('gemini_api_key');
+                    localStorage.removeItem('openai_api_key');
+                    sessionStorage.removeItem('session_api_keys');
+                    showToast('🔑 Session API keys cleared', 'info');
+                }
+
                 showToast('👋 Left sync room', 'info');
             }
 
@@ -22573,15 +22640,22 @@ https://treelisty.netlify.app`;
                 if (!message || !firebaseSyncState.roomId) return;
 
                 input.value = '';
+                await window.sendSyncChatMessageText(message);
+            };
+
+            // BUILD 268: Send chat message with text directly (for floating chat and API key sharing)
+            window.sendSyncChatMessageText = async function(message, metadata = null) {
+                if (!message || !firebaseSyncState.roomId) return;
 
                 const chatMsg = {
                     userId: firebaseSyncState.userId?.substring(0, 8) || 'anon',
                     name: firebaseSyncState.myDisplayName || 'User',
                     text: message,
-                    timestamp: Date.now()
+                    timestamp: Date.now(),
+                    ...(metadata && { metadata })
                 };
 
-                // Add to local display immediately
+                // Add to local display immediately (both modal and floating)
                 addChatMessageToUI(chatMsg);
 
                 // Push to Firebase (store in room doc)
@@ -22601,9 +22675,162 @@ https://treelisty.netlify.app`;
                 }
             };
 
-            // BUILD 265: Add chat message to UI
+            // BUILD 265: Add chat message to UI (modal)
             function addChatMessageToUI(msg) {
                 const container = document.getElementById('sync-chat-messages');
+                if (container) {
+                    // Remove "no messages" placeholder
+                    const placeholder = container.querySelector('div[style*="text-align: center"]');
+                    if (placeholder) placeholder.remove();
+
+                    const isMe = msg.userId === firebaseSyncState.userId?.substring(0, 8);
+                    const msgEl = document.createElement('div');
+                    msgEl.style.cssText = `margin-bottom: 6px; ${isMe ? 'text-align: right;' : ''}`;
+                    msgEl.innerHTML = `
+                        <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'};">${msg.name || 'User'}:</span>
+                        <span style="color: var(--text-primary);">${msg.text}</span>
+                    `;
+                    container.appendChild(msgEl);
+                    container.scrollTop = container.scrollHeight;
+                }
+
+                // BUILD 268: Also add to floating chat
+                addMessageToFloatingChat(msg);
+            }
+
+            // BUILD 268: Track floating chat state
+            let floatingChatState = {
+                isExpanded: true,
+                unreadCount: 0,
+                lastMessageCount: 0,
+                previousUserCount: 1,
+                isHost: false
+            };
+
+            // BUILD 268: Toggle floating chat expand/collapse
+            window.toggleFloatingChat = function() {
+                const body = document.getElementById('floating-chat-body');
+                const toggle = document.getElementById('floating-chat-toggle');
+                if (!body || !toggle) return;
+
+                floatingChatState.isExpanded = !floatingChatState.isExpanded;
+                if (floatingChatState.isExpanded) {
+                    body.style.maxHeight = '350px';
+                    toggle.textContent = '▼';
+                    // Clear unread when expanded
+                    floatingChatState.unreadCount = 0;
+                    const badge = document.getElementById('floating-unread-badge');
+                    if (badge) badge.style.display = 'none';
+                } else {
+                    body.style.maxHeight = '0';
+                    toggle.textContent = '▲';
+                }
+            };
+
+            // BUILD 268: Show floating chat box
+            function showFloatingChat() {
+                const chatBox = document.getElementById('floating-collab-chat');
+                if (chatBox) {
+                    chatBox.style.display = 'block';
+                    // Show API key share button for host
+                    const shareSection = document.getElementById('floating-share-keys-section');
+                    if (shareSection && floatingChatState.isHost) {
+                        shareSection.style.display = 'block';
+                    }
+                }
+            }
+
+            // BUILD 268: Hide floating chat box
+            function hideFloatingChat() {
+                const chatBox = document.getElementById('floating-collab-chat');
+                if (chatBox) chatBox.style.display = 'none';
+            }
+
+            // BUILD 268: Send message from floating chat
+            window.sendFloatingChatMessage = function() {
+                const input = document.getElementById('floating-chat-input');
+                if (!input || !input.value.trim()) return;
+
+                // Reuse existing sendSyncChatMessage but with floating input
+                const text = input.value.trim();
+                input.value = '';
+
+                // Call the existing chat send function
+                if (window.sendSyncChatMessageText) {
+                    window.sendSyncChatMessageText(text);
+                } else {
+                    // Fallback: set the modal input and send
+                    const modalInput = document.getElementById('sync-chat-input');
+                    if (modalInput) {
+                        modalInput.value = text;
+                        window.sendSyncChatMessage();
+                    }
+                }
+            };
+
+            // BUILD 268: Share API keys via chat
+            window.shareApiKeysInChat = async function() {
+                // Get the host's API keys
+                const claudeKey = localStorage.getItem('anthropic_api_key');
+                const geminiKey = localStorage.getItem('gemini_api_key');
+                const openaiKey = localStorage.getItem('openai_api_key');
+
+                if (!claudeKey && !geminiKey && !openaiKey) {
+                    showToast('No API keys configured to share', 'warning');
+                    return;
+                }
+
+                try {
+                    // Create a session via collab-session function
+                    const response = await fetch('/.netlify/functions/collab-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'create',
+                            hostName: firebaseSyncState.myDisplayName || 'Host',
+                            apiKeys: {
+                                ...(claudeKey && { claude: claudeKey }),
+                                ...(geminiKey && { gemini: geminiKey }),
+                                ...(openaiKey && { openai: openaiKey })
+                            }
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.sessionToken) {
+                        // Send the session token in chat
+                        const expiresIn = '4 hours';
+                        const keyTypes = [claudeKey && 'Claude', geminiKey && 'Gemini', openaiKey && 'ChatGPT'].filter(Boolean).join(', ');
+
+                        // Send a special message with the token
+                        const message = `🔑 API Keys shared! Token: ${data.sessionToken.substring(0, 20)}... | Keys: ${keyTypes} | Expires: ${expiresIn}`;
+
+                        // Store full token in a data attribute so guests can copy
+                        const specialMsg = {
+                            type: 'api_keys',
+                            token: data.sessionToken,
+                            keyTypes: keyTypes,
+                            expiresAt: data.expiresAt
+                        };
+
+                        // Send as chat message with metadata
+                        if (window.sendSyncChatMessageText) {
+                            window.sendSyncChatMessageText(message, specialMsg);
+                        }
+
+                        showToast('🔑 API keys shared with team!', 'success');
+                    } else {
+                        showToast('Failed to create key session: ' + (data.error || 'Unknown error'), 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to share API keys:', error);
+                    showToast('Failed to share keys: ' + error.message, 'error');
+                }
+            };
+
+            // BUILD 268: Update floating chat with new message
+            function addMessageToFloatingChat(msg) {
+                const container = document.getElementById('floating-chat-messages');
                 if (!container) return;
 
                 // Remove "no messages" placeholder
@@ -22613,12 +22840,110 @@ https://treelisty.netlify.app`;
                 const isMe = msg.userId === firebaseSyncState.userId?.substring(0, 8);
                 const msgEl = document.createElement('div');
                 msgEl.style.cssText = `margin-bottom: 6px; ${isMe ? 'text-align: right;' : ''}`;
-                msgEl.innerHTML = `
-                    <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'};">${msg.name || 'User'}:</span>
-                    <span style="color: var(--text-primary);">${msg.text}</span>
-                `;
+
+                // Check if this is an API key share message
+                if (msg.text && msg.text.includes('🔑 API Keys shared!') && msg.metadata?.token && !isMe) {
+                    // For guests: show a clickable message to apply keys
+                    msgEl.innerHTML = `
+                        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2)); padding: 8px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.4);">
+                            <div style="font-weight: 600; color: #f59e0b; font-size: 11px;">🔑 ${msg.name} shared API keys</div>
+                            <div style="font-size: 10px; color: var(--text-secondary); margin: 4px 0;">Keys: ${msg.metadata.keyTypes}</div>
+                            <button onclick="window.applySharedApiKeys('${msg.metadata.token}')" style="width: 100%; padding: 6px; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 11px; font-weight: 600; margin-top: 4px;">
+                                Apply Keys to My Session
+                            </button>
+                        </div>
+                    `;
+                } else {
+                    msgEl.innerHTML = `
+                        <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'}; font-size: 11px;">${msg.name || 'User'}:</span>
+                        <span style="color: var(--text-primary); font-size: 11px;">${msg.text}</span>
+                    `;
+                }
+
                 container.appendChild(msgEl);
                 container.scrollTop = container.scrollHeight;
+
+                // Update unread count if chat is collapsed
+                if (!floatingChatState.isExpanded && !isMe) {
+                    floatingChatState.unreadCount++;
+                    const badge = document.getElementById('floating-unread-badge');
+                    if (badge) {
+                        badge.textContent = floatingChatState.unreadCount;
+                        badge.style.display = 'inline';
+                    }
+                }
+            }
+
+            // BUILD 268: Apply shared API keys (for guests)
+            window.applySharedApiKeys = async function(sessionToken) {
+                try {
+                    const response = await fetch('/.netlify/functions/collab-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            action: 'validate',
+                            sessionToken: sessionToken
+                        })
+                    });
+
+                    const data = await response.json();
+                    if (data.valid && data.apiKeys) {
+                        // Apply keys to localStorage (session-only - will be cleared)
+                        if (data.apiKeys.claude) {
+                            localStorage.setItem('anthropic_api_key', data.apiKeys.claude);
+                            sessionStorage.setItem('session_api_keys', 'true'); // Mark as session keys
+                        }
+                        if (data.apiKeys.gemini) {
+                            localStorage.setItem('gemini_api_key', data.apiKeys.gemini);
+                            sessionStorage.setItem('session_api_keys', 'true');
+                        }
+                        if (data.apiKeys.openai) {
+                            localStorage.setItem('openai_api_key', data.apiKeys.openai);
+                            sessionStorage.setItem('session_api_keys', 'true');
+                        }
+
+                        const remainingMins = Math.round(data.remainingMs / 60000);
+                        showToast(`🔑 API keys applied! Valid for ~${remainingMins} minutes`, 'success');
+
+                        // Update any API key indicators in UI
+                        updateApiKeyIndicators();
+                    } else {
+                        showToast('Session expired or invalid', 'error');
+                    }
+                } catch (error) {
+                    console.error('Failed to apply API keys:', error);
+                    showToast('Failed to apply keys: ' + error.message, 'error');
+                }
+            };
+
+            // BUILD 268: Update floating chat collaborators list
+            function updateFloatingCollabList(connectedUsers) {
+                const listEl = document.getElementById('floating-collab-list');
+                const countEl = document.getElementById('floating-user-count');
+                if (!listEl) return;
+
+                const users = Object.entries(connectedUsers || {});
+                const count = users.length || 1;
+
+                if (countEl) countEl.textContent = count;
+
+                // Rebuild badges (compact version)
+                listEl.innerHTML = '';
+
+                // Add self first (smaller badge)
+                const selfBadge = document.createElement('div');
+                selfBadge.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 12px; font-size: 10px; font-weight: 600; color: white;';
+                selfBadge.innerHTML = `<span>👑</span> You`;
+                listEl.appendChild(selfBadge);
+
+                // Add others
+                users.forEach(([id, user]) => {
+                    if (id === firebaseSyncState.userId) return;
+                    const badge = document.createElement('div');
+                    badge.style.cssText = 'display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 12px; font-size: 10px; font-weight: 600; color: white;';
+                    badge.innerHTML = `<span>👤</span> ${user.name || id.substring(0, 6)}`;
+                    listEl.appendChild(badge);
+                });
             }
 
             // BUILD 265: Update collaborators list in UI
@@ -22651,6 +22976,28 @@ https://treelisty.netlify.app`;
                     badge.innerHTML = `<span>👤</span> ${user.name || id.substring(0, 6)}`;
                     listEl.appendChild(badge);
                 });
+
+                // BUILD 268: Also update floating chat
+                updateFloatingCollabList(connectedUsers);
+
+                // BUILD 268: Auto-close modal and show floating chat when first guest connects
+                const otherUsers = users.filter(([id]) => id !== firebaseSyncState.userId);
+                if (otherUsers.length > 0 && floatingChatState.previousUserCount <= 1) {
+                    // First guest just connected!
+                    console.log('🔥 First guest connected - auto-closing modal, showing floating chat');
+
+                    // Close the modal
+                    document.getElementById('live-sync-modal').style.display = 'none';
+
+                    // Show floating chat
+                    showFloatingChat();
+
+                    // Show toast notification
+                    showToast(`👋 ${otherUsers[0][1]?.name || 'A collaborator'} joined the session!`, 'success');
+                }
+
+                // Track previous count for next update
+                floatingChatState.previousUserCount = count;
             }
 
             window.initFirebaseAuthIfNeeded = async function() {
@@ -22768,6 +23115,11 @@ https://treelisty.netlify.app`;
                                 firebaseSyncState.isConnected = true;
                                 subscribeToRoom(roomParam);
                                 updateSyncUI();
+
+                                // BUILD 268: Show floating chat for guests (not host)
+                                floatingChatState.isHost = false;
+                                floatingChatState.previousUserCount = 1;
+                                showFloatingChat();
                             });
                         }, 500);
                     } else {
