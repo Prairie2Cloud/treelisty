@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 265 | 2025-12-03
+    TreeListy v2.17.0 | Build 266 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 265): 🚀 Streamlined Live Collaboration UX
-    - NEW: One-click "Start Live Session" - creates room + auto-copies invite link
-    - NEW: Clean invite URL (just ?room=CODE) - guests click and auto-join
-    - NEW: Connected collaborators display with live presence badges
-    - NEW: Team Chat - real-time messaging between collaborators
-    - NEW: API Key toggle switch - easily share/unshare your keys
-    - NEW: Email invite button - pre-filled email with session link
-    - UX: Completely redesigned Live Sync modal - cleaner, faster workflow
+    Changelog (Build 266): 🔑 Fix API Key Sharing in Live Sync
+    - FIX: API key toggle now properly updates invite link with session token
+    - FIX: Guests receive API key access when joining via shared link
+    - FIX: Disabling API keys restores room-only invite link
+    - UX: Better toggle feedback with "Enabling..." state
+
+    Previous (Build 265): 🚀 Streamlined Live Collaboration UX
+    - Redesigned Live Sync modal with one-click start
+    - Added team chat and presence badges
+    - Added API key toggle switch
 
     Previous (Build 264): 🔑 Unified Live Sync + API Key Sharing
     - Migrated API key sharing from Watch Mode to Firebase Live Sync modal
@@ -2906,8 +2908,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 265 | 2025-12-03">
-                    v2.17.0 • Build 265
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 266 | 2025-12-03">
+                    v2.17.0 • Build 266
                 </div>
             </div>
         </div>
@@ -21366,17 +21368,29 @@ Thanks!`;
                     };
 
                     // Generate shareable link - include room ID if we're in a Firebase sync room
-                    let shareLink = `${window.location.origin}${window.location.pathname}?session=${result.sessionToken}`;
+                    // BUILD 266: Put room first, then session for cleaner URLs
+                    let shareLink = `${window.location.origin}${window.location.pathname}`;
+                    const params = [];
 
                     // Include Firebase room ID if active
                     if (window.firebaseSyncState?.roomId) {
-                        shareLink += `&room=${window.firebaseSyncState.roomId}`;
+                        params.push(`room=${window.firebaseSyncState.roomId}`);
                         console.log('🔥 Firebase room ID included in session link:', window.firebaseSyncState.roomId);
                     }
 
-                    // Update both possible share link elements
-                    const shareLinkEl = document.getElementById('api-session-share-link') || document.getElementById('session-share-link');
-                    if (shareLinkEl) shareLinkEl.value = shareLink;
+                    // Add session token
+                    params.push(`session=${result.sessionToken}`);
+                    shareLink += '?' + params.join('&');
+
+                    // BUILD 266: Update the MAIN invite link in the Live Sync modal
+                    const mainInviteLink = document.getElementById('sync-invite-link');
+                    if (mainInviteLink) {
+                        mainInviteLink.value = shareLink;
+                    }
+
+                    // Also update legacy elements for backwards compat
+                    const legacyShareLink = document.getElementById('api-session-share-link') || document.getElementById('session-share-link');
+                    if (legacyShareLink) legacyShareLink.value = shareLink;
 
                     // Update UI - support both element ID schemes
                     const startSection = document.getElementById('api-session-start') || document.getElementById('host-session-start');
@@ -21389,7 +21403,7 @@ Thanks!`;
                     // Start status polling
                     sessionStatusInterval = setInterval(updateSessionStatus, 30000);
 
-                    showToast(`🔑 API keys active! Share the link with collaborators.`, 'success');
+                    showToast(`🔑 API keys enabled! Guests will use your keys.`, 'success');
                     console.log('🔑 Host session created:', result.sessionToken.substring(0, 8) + '...');
 
                 } catch (error) {
@@ -21426,13 +21440,21 @@ Thanks!`;
 
                 activeHostSession = null;
 
+                // BUILD 266: Restore invite link to room-only (no session token)
+                if (window.firebaseSyncState?.roomId) {
+                    const mainInviteLink = document.getElementById('sync-invite-link');
+                    if (mainInviteLink) {
+                        mainInviteLink.value = `${window.location.origin}${window.location.pathname}?room=${window.firebaseSyncState.roomId}`;
+                    }
+                }
+
                 // Update UI - support both element ID schemes
                 const startSection = document.getElementById('api-session-start') || document.getElementById('host-session-start');
                 const activeSection = document.getElementById('api-session-active') || document.getElementById('host-session-active');
                 if (startSection) startSection.style.display = 'block';
                 if (activeSection) activeSection.style.display = 'none';
 
-                showToast('⏹️ API key sharing ended', 'info');
+                showToast('⏹️ API key sharing disabled', 'info');
                 console.log('🔑 Host session ended');
             };
 
@@ -22480,42 +22502,51 @@ https://treelisty.netlify.app`;
                 window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
             };
 
-            // BUILD 265: Toggle API key sharing
+            // BUILD 265/266: Toggle API key sharing
             window.toggleApiKeySharing = async function(enabled) {
                 const statusEl = document.getElementById('api-key-status');
-                const toggleSpan = document.getElementById('api-toggle-knob');
-                const checkbox = document.getElementById('api-key-toggle');
+                const toggleKnob = document.getElementById('api-toggle-knob');
+                const toggleTrack = toggleKnob?.parentElement?.querySelector('span:first-of-type');
 
                 if (enabled) {
-                    // Start API key sharing
-                    toggleSpan.style.transform = 'translateX(22px)';
-                    toggleSpan.parentElement.previousElementSibling.nextElementSibling.style.backgroundColor = '#10b981';
-
-                    // Call existing startHostSession
-                    if (typeof startHostSession === 'function') {
-                        await startHostSession();
+                    // Visual feedback immediately
+                    if (toggleKnob) toggleKnob.style.transform = 'translateX(22px)';
+                    if (toggleTrack) toggleTrack.style.backgroundColor = '#10b981';
+                    if (statusEl) {
+                        statusEl.textContent = 'Enabling...';
+                        statusEl.style.color = '#f59e0b';
                     }
 
-                    statusEl.textContent = 'Guests can use your AI features';
-                    statusEl.style.color = '#10b981';
-
-                    // Update invite link to include session token
-                    const currentLink = document.getElementById('sync-invite-link')?.value || '';
-                    const sessionToken = window.getCollabSessionToken?.() || '';
-                    if (sessionToken && currentLink && !currentLink.includes('session=')) {
-                        // This will be handled by startHostSession
+                    // Call existing startHostSession - this updates the invite link
+                    try {
+                        await window.startHostSession();
+                        if (statusEl) {
+                            statusEl.textContent = 'Guests can use your AI features';
+                            statusEl.style.color = '#10b981';
+                        }
+                    } catch (e) {
+                        // Revert toggle on error
+                        if (toggleKnob) toggleKnob.style.transform = 'translateX(0)';
+                        if (toggleTrack) toggleTrack.style.backgroundColor = '#374151';
+                        const checkbox = document.getElementById('api-key-toggle');
+                        if (checkbox) checkbox.checked = false;
+                        if (statusEl) {
+                            statusEl.textContent = 'Failed to enable';
+                            statusEl.style.color = '#ef4444';
+                        }
                     }
                 } else {
-                    toggleSpan.style.transform = 'translateX(0)';
-                    toggleSpan.parentElement.previousElementSibling.nextElementSibling.style.backgroundColor = '#374151';
+                    // Visual feedback immediately
+                    if (toggleKnob) toggleKnob.style.transform = 'translateX(0)';
+                    if (toggleTrack) toggleTrack.style.backgroundColor = '#374151';
 
-                    // End API key sharing
-                    if (typeof endHostSession === 'function') {
-                        await endHostSession();
+                    // End API key sharing - this restores the invite link
+                    await window.endHostSession();
+
+                    if (statusEl) {
+                        statusEl.textContent = 'Guests will need their own keys';
+                        statusEl.style.color = 'var(--text-secondary)';
                     }
-
-                    statusEl.textContent = 'Guests will need their own keys';
-                    statusEl.style.color = 'var(--text-secondary)';
                 }
             };
 
