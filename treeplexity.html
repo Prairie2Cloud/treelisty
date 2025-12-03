@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 263 | 2025-12-03
+    TreeListy v2.17.0 | Build 264 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,9 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 263): 🔥 Fix Firebase Live Sync Room Creation
+    Changelog (Build 264): 🔑 Unified Live Sync + API Key Sharing
+    - NEW: API key sharing moved to Firebase Live Sync modal (🔄 button in header)
+    - NEW: Share link now includes both room ID AND session token for guests
+    - NEW: Guests automatically get tree sync + host's API keys in one link
+    - REMOVED: Watch Mode button and modal (deprecated, replaced by Firebase sync)
+    - UX: Single collaboration workflow instead of two separate systems
+
+    Previous (Build 263): 🔥 Fix Firebase Live Sync Room Creation
     - FIX: Changed Firestore collection from 'rooms' to 'syncRooms' to match security rules
-    - This fixes "Missing or insufficient permissions" error when creating sync rooms
 
     Previous (Build 262): 👥 Dynamic Team Management System
     - NEW: Project Team section in Project Settings - add Host, Collaborators, Contributors
@@ -2894,8 +2900,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 263 | 2025-12-03">
-                    v2.17.0 • Build 263
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 264 | 2025-12-03">
+                    v2.17.0 • Build 264
                 </div>
             </div>
         </div>
@@ -2950,7 +2956,6 @@
     <div id="ai-tools-panel">
         <button class="btn" data-icon="📥" id="analyze-text-btn" title="Convert text/files into tree structure"><span>Import Text</span></button>
         <button class="btn" data-icon="🔀" id="merge-branch-btn" title="Paste a collaboration URL to merge changes"><span>Merge Branch</span></button>
-        <button class="btn" data-icon="👁️" id="watch-mode-btn" title="Watch a shared file for live sync with collaborators"><span>Watch Mode</span></button>
         <button class="btn" data-icon="🎙️" id="freespeech-btn" onclick="openFreeSpeechModal()" title="Voice capture with psychological pattern analysis"><span>Free Speech</span></button>
         <button class="btn" data-icon="💬" id="wizard-btn" title="Build and edit tree via chat"><span>Chat Builder</span></button>
         <button class="btn" data-icon="🩺" id="ai-review-btn" title="Check for logic gaps and missing fields"><span>Check Quality</span></button>
@@ -3602,211 +3607,6 @@ The AI will analyze the structure and convert it to a tree."
                 <button class="btn" id="paste-branch-cancel">Cancel</button>
                 <button class="btn btn-primary" id="paste-branch-merge" style="background: linear-gradient(135deg, #10b981, #059669);">
                     🔀 Parse & Merge
-                </button>
-            </div>
-        </div>
-    </div>
-
-    <!-- Watch Mode Modal -->
-    <div class="modal" id="watch-mode-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 550px;">
-            <div class="modal-header" style="background: linear-gradient(135deg, #10b981, #059669); color: white;">
-                👁️ Watch Mode - Live Collaboration
-            </div>
-            <div class="modal-body" id="watch-mode-body">
-                <p style="color: var(--text-secondary); margin-bottom: 16px;">
-                    Watch a shared JSON file for real-time collaboration. When your collaborator saves changes, you'll see them automatically.
-                </p>
-
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">👤 Your Name:</label>
-                    <div style="display: flex; gap: 8px; flex-wrap: wrap;" id="watch-name-container">
-                        <input type="text" id="watch-collaborator-name" placeholder="Enter your name"
-                               style="flex: 1; min-width: 150px; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px;" />
-                        <!-- Build 262: Team member buttons populated dynamically -->
-                    </div>
-                </div>
-
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">📁 Shared File Path or URL:</label>
-                    <input type="text" id="watch-file-path" placeholder="e.g., C:\Shared\hegel-debate.json or Google Drive file ID"
-                           style="width: 100%; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px;" />
-                    <p style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">
-                        💡 Use a shared folder (OneDrive, Google Drive, Dropbox) that both collaborators can access
-                    </p>
-                </div>
-
-                <div style="margin-bottom: 16px;">
-                    <label style="display: block; margin-bottom: 8px; font-weight: 600;">⏱️ Poll Interval:</label>
-                    <select id="watch-interval" style="width: 100%; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px;">
-                        <option value="5000">Every 5 seconds (fast sync)</option>
-                        <option value="10000" selected>Every 10 seconds (balanced)</option>
-                        <option value="30000">Every 30 seconds (low bandwidth)</option>
-                        <option value="60000">Every 1 minute (manual-ish)</option>
-                    </select>
-                </div>
-
-                <!-- Status display (shown when watching) -->
-                <div id="watch-status-panel" style="display: none; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 16px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 16px;">
-                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
-                        <div id="watch-pulse" style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
-                        <span style="font-weight: 600; color: #10b981;">Watching for changes...</span>
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">
-                        <div>📄 File: <span id="watch-current-file" style="font-family: monospace;">--</span></div>
-                        <div>🕐 Last check: <span id="watch-last-check">--</span></div>
-                        <div>👥 Collaborator: <span id="watch-collaborator-display">--</span></div>
-                        <div id="watch-changes-count" style="margin-top: 8px; color: #10b981; font-weight: 600;"></div>
-                    </div>
-                </div>
-
-                <style>
-                    @keyframes watchPulse {
-                        0%, 100% { transform: scale(1); opacity: 1; }
-                        50% { transform: scale(1.3); opacity: 0.7; }
-                    }
-                </style>
-
-                <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 12px; border-radius: 6px; border-left: 3px solid #6366f1;">
-                    <p style="color: var(--text-secondary); font-size: 12px; margin: 0;">
-                        <strong>How it works:</strong><br>
-                        1. Both collaborators open the same tree<br>
-                        2. Save your tree to a shared location (File → Save As JSON)<br>
-                        3. Start Watch Mode with the same file path<br>
-                        4. Edits are auto-detected and merged!
-                    </p>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <!-- ASYNC SHARE - Share Google Drive link (no API keys needed) -->
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <div id="async-share-section" style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(37, 99, 235, 0.1)); border-radius: 8px; border: 1px solid rgba(59, 130, 246, 0.3);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <span style="font-size: 20px;">📧</span>
-                        <span style="font-weight: 600; color: #3b82f6;">Async Share (Chess by Mail)</span>
-                    </div>
-                    <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">
-                        Share a Google Drive link. Collaborators use their own API keys.
-                    </p>
-
-                    <!-- Google Drive URL input -->
-                    <div style="margin-bottom: 12px;">
-                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">
-                            ☁️ Google Drive Link:
-                        </label>
-                        <div style="display: flex; gap: 8px;">
-                            <input type="text" id="async-gdrive-url" placeholder="Paste your Google Drive share link..."
-                                   style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-size: 12px;" />
-                            <button type="button" onclick="generateAsyncShareLink()"
-                                    style="padding: 8px 16px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 600;">
-                                🔗
-                            </button>
-                        </div>
-                    </div>
-
-                    <!-- Generated TreeListy link -->
-                    <div id="async-share-result" style="display: none;">
-                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">🔗 TreeListy Link:</label>
-                        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                            <input type="text" id="async-share-link" readonly
-                                   style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-family: monospace; font-size: 10px;" />
-                            <button type="button" onclick="copyAsyncShareLink()"
-                                    style="padding: 8px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">📋</button>
-                        </div>
-                        <div style="display: flex; gap: 8px;">
-                            <button type="button" onclick="sendAsyncInviteEmail()"
-                                    style="flex: 1; padding: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600;">
-                                📧 Email This Link
-                            </button>
-                            <button type="button" onclick="copyAsyncInviteEmail()"
-                                    style="flex: 1; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary); font-size: 11px;">
-                                📋 Copy Email Text
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <!-- LIVE SESSION - Share API keys with collaborators -->
-                <!-- ═══════════════════════════════════════════════════════════════ -->
-                <div id="host-session-section" style="margin-top: 16px; padding: 16px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1)); border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <span style="font-size: 20px;">🔑</span>
-                        <span style="font-weight: 600; color: #f59e0b;">Live Session (Share API Keys)</span>
-                    </div>
-
-                    <!-- Not hosting yet -->
-                    <div id="host-session-start" style="display: block;">
-                        <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">
-                            Let collaborators use YOUR API keys for 4 hours. They don't need their own keys.
-                        </p>
-
-                        <button type="button" id="start-host-session-btn" onclick="startHostSession()"
-                                style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            🔑 Start Live Session (4 hours)
-                        </button>
-                    </div>
-
-                    <!-- Currently hosting -->
-                    <div id="host-session-active" style="display: none;">
-                        <div style="background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 12px;">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                                <div style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
-                                <span style="font-weight: 600; color: #10b981;">Session Active</span>
-                            </div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">
-                                <div>🕐 Expires: <span id="session-expires-at">--</span></div>
-                                <div>👥 Guests joined: <span id="session-guest-count">0</span></div>
-                            </div>
-                        </div>
-
-                        <!-- Direct link -->
-                        <div style="margin-bottom: 12px;">
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">🔗 Session Link:</label>
-                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                                <input type="text" id="session-share-link" readonly
-                                       style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-family: monospace; font-size: 10px;" />
-                                <button type="button" onclick="copySessionLink()"
-                                        style="padding: 8px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">📋</button>
-                            </div>
-                            <div style="display: flex; gap: 8px;">
-                                <button type="button" onclick="sendSessionInvite()"
-                                        style="flex: 1; padding: 8px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 11px; font-weight: 600;">
-                                    📧 Email This Link
-                                </button>
-                                <button type="button" onclick="copySessionInviteEmail()"
-                                        style="flex: 1; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary); font-size: 11px;">
-                                    📋 Copy Email Text
-                                </button>
-                            </div>
-                        </div>
-
-                        <button type="button" id="end-host-session-btn" onclick="endHostSession()"
-                                style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                            ⏹️ End Session
-                        </button>
-                    </div>
-                </div>
-
-                <!-- Guest Session Section -->
-                <div id="guest-session-section" style="margin-top: 12px; padding: 16px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.3); display: none;">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                        <span style="font-size: 18px;">🎟️</span>
-                        <span style="font-weight: 600; color: #6366f1;">Using Host's API Keys</span>
-                    </div>
-                    <div style="font-size: 12px; color: var(--text-secondary);">
-                        <div>👤 Host: <span id="guest-session-host">--</span></div>
-                        <div>🕐 Session expires: <span id="guest-session-expires">--</span></div>
-                    </div>
-                </div>
-            </div>
-            <div class="modal-footer">
-                <button class="btn" id="watch-mode-close">Close</button>
-                <button class="btn" id="watch-mode-stop" style="display: none; background: linear-gradient(135deg, #ef4444, #dc2626);">
-                    ⏹️ Stop Watching
-                </button>
-                <button class="btn btn-primary" id="watch-mode-start" style="background: linear-gradient(135deg, #10b981, #059669);">
-                    👁️ Start Watching
                 </button>
             </div>
         </div>
@@ -4578,6 +4378,68 @@ The AI will analyze the structure and convert it to a tree."
                     </button>
                 </div>
 
+                <!-- API KEY SHARING SECTION -->
+                <div style="margin-top: 20px; padding: 16px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1)); border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 20px;">🔑</span>
+                        <span style="font-weight: 600; color: #f59e0b;">Share API Keys with Collaborators</span>
+                    </div>
+
+                    <!-- Not hosting yet -->
+                    <div id="api-session-start" style="display: block;">
+                        <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">
+                            Let collaborators use YOUR API keys for AI features. They won't need their own keys.
+                        </p>
+
+                        <button type="button" id="start-api-session-btn" onclick="startHostSession()"
+                                style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            🔑 Start API Key Sharing (4 hours)
+                        </button>
+                    </div>
+
+                    <!-- Currently hosting -->
+                    <div id="api-session-active" style="display: none;">
+                        <div style="background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 12px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <div style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
+                                <span style="font-weight: 600; color: #10b981;">API Keys Active</span>
+                            </div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                <div>🕐 Expires: <span id="api-session-expires-at">--</span></div>
+                                <div>👥 Guests using keys: <span id="api-session-guest-count">0</span></div>
+                            </div>
+                        </div>
+
+                        <!-- Session link -->
+                        <div style="margin-bottom: 12px;">
+                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">🔗 Share this link (includes Room ID + API Keys):</label>
+                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+                                <input type="text" id="api-session-share-link" readonly
+                                       style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-family: monospace; font-size: 10px;" />
+                                <button type="button" onclick="copyApiSessionLink()"
+                                        style="padding: 8px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">📋</button>
+                            </div>
+                        </div>
+
+                        <button type="button" id="end-api-session-btn" onclick="endHostSession()"
+                                style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
+                            ⏹️ Stop Sharing API Keys
+                        </button>
+                    </div>
+
+                    <!-- Guest Session Display -->
+                    <div id="api-guest-session" style="display: none; margin-top: 12px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.3);">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 18px;">🎟️</span>
+                            <span style="font-weight: 600; color: #6366f1;">Using Host's API Keys</span>
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary);">
+                            <div>👤 Host: <span id="api-guest-host-name">--</span></div>
+                            <div>🕐 Session expires: <span id="api-guest-expires">--</span></div>
+                        </div>
+                    </div>
+                </div>
+
                 <!-- Help -->
                 <div style="margin-top: 20px; padding: 16px; background: rgba(249, 115, 22, 0.1); border-radius: 8px; border-left: 3px solid #f97316;">
                     <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text-primary);">🔥 Firebase Live Sync</p>
@@ -4586,9 +4448,7 @@ The AI will analyze the structure and convert it to a tree."
                         <li>No sign-in required (anonymous auth)</li>
                         <li>Share Room ID with collaborators</li>
                         <li>All edits merge automatically</li>
-                        <li>Delete operations sync immediately (Build 236)</li>
-                        <li>Nested subtasks fully supported</li>
-                        <li>Auto-saves to localStorage after sync</li>
+                        <li>🔑 Share API keys so guests can use AI features</li>
                     </ul>
                 </div>
             </div>
@@ -21472,7 +21332,10 @@ Thanks!`;
 
             // Start a host session
             window.startHostSession = async function() {
-                const btn = document.getElementById('start-host-session-btn');
+                // Support both old Watch Mode and new Live Sync modal element IDs
+                const btn = document.getElementById('start-api-session-btn') || document.getElementById('start-host-session-btn');
+                if (!btn) return;
+
                 const originalText = btn.innerHTML;
                 btn.innerHTML = '⏳ Creating session...';
                 btn.disabled = true;
@@ -21496,8 +21359,9 @@ Thanks!`;
                         return;
                     }
 
-                    // Get host name
-                    const collaboratorName = document.getElementById('watch-collaborator-name')?.value?.trim() || 'Host';
+                    // Get host name from team or default
+                    const team = typeof getProjectTeam === 'function' ? getProjectTeam() : null;
+                    const hostName = team?.host?.name || 'Host';
 
                     // Create session on server
                     const response = await fetch('/.netlify/functions/collab-session', {
@@ -21505,7 +21369,7 @@ Thanks!`;
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({
                             action: 'create',
-                            hostName: collaboratorName,
+                            hostName: hostName,
                             apiKeys: apiKeys
                         })
                     });
@@ -21522,33 +21386,31 @@ Thanks!`;
                         expiresAt: result.expiresAt
                     };
 
-                    // Generate shareable link with Google Drive reference (if available)
+                    // Generate shareable link - include room ID if we're in a Firebase sync room
                     let shareLink = `${window.location.origin}${window.location.pathname}?session=${result.sessionToken}`;
 
-                    // If host imported from Google Drive, include that in the URL
-                    if (hostImportedGdriveId) {
-                        shareLink += `&gdrive=${hostImportedGdriveId}`;
-                        console.log('📎 Google Drive file ID included in session link:', hostImportedGdriveId);
+                    // Include Firebase room ID if active
+                    if (window.firebaseSyncState?.roomId) {
+                        shareLink += `&room=${window.firebaseSyncState.roomId}`;
+                        console.log('🔥 Firebase room ID included in session link:', window.firebaseSyncState.roomId);
                     }
 
-                    document.getElementById('session-share-link').value = shareLink;
+                    // Update both possible share link elements
+                    const shareLinkEl = document.getElementById('api-session-share-link') || document.getElementById('session-share-link');
+                    if (shareLinkEl) shareLinkEl.value = shareLink;
 
-                    // Update UI
-                    document.getElementById('host-session-start').style.display = 'none';
-                    document.getElementById('host-session-active').style.display = 'block';
-
-                    // Update tree name display
-                    const treeNameDisplay = document.getElementById('session-tree-name');
-                    if (treeNameDisplay && capexTree) {
-                        treeNameDisplay.textContent = capexTree.name || 'Current project';
-                    }
+                    // Update UI - support both element ID schemes
+                    const startSection = document.getElementById('api-session-start') || document.getElementById('host-session-start');
+                    const activeSection = document.getElementById('api-session-active') || document.getElementById('host-session-active');
+                    if (startSection) startSection.style.display = 'none';
+                    if (activeSection) activeSection.style.display = 'block';
 
                     updateSessionStatus();
 
                     // Start status polling
                     sessionStatusInterval = setInterval(updateSessionStatus, 30000);
 
-                    showToast(`🔑 Session active! Share the link with collaborators.`, 'success');
+                    showToast(`🔑 API keys active! Share the link with collaborators.`, 'success');
                     console.log('🔑 Host session created:', result.sessionToken.substring(0, 8) + '...');
 
                 } catch (error) {
@@ -21585,11 +21447,13 @@ Thanks!`;
 
                 activeHostSession = null;
 
-                // Update UI
-                document.getElementById('host-session-start').style.display = 'block';
-                document.getElementById('host-session-active').style.display = 'none';
+                // Update UI - support both element ID schemes
+                const startSection = document.getElementById('api-session-start') || document.getElementById('host-session-start');
+                const activeSection = document.getElementById('api-session-active') || document.getElementById('host-session-active');
+                if (startSection) startSection.style.display = 'block';
+                if (activeSection) activeSection.style.display = 'none';
 
-                showToast('⏹️ Session ended', 'info');
+                showToast('⏹️ API key sharing ended', 'info');
                 console.log('🔑 Host session ended');
             };
 
@@ -21612,26 +21476,40 @@ Thanks!`;
                     if (!result.active) {
                         // Session expired
                         endHostSession();
-                        showToast('⏰ Session expired', 'info');
+                        showToast('⏰ API key session expired', 'info');
                         return;
                     }
 
-                    // Update display
+                    // Update display - support both element ID schemes
                     const expiresAt = new Date(result.expiresAt);
-                    document.getElementById('session-expires-at').textContent = expiresAt.toLocaleTimeString();
-                    document.getElementById('session-guest-count').textContent = result.guestCount || 0;
+                    const expiresEl = document.getElementById('api-session-expires-at') || document.getElementById('session-expires-at');
+                    const guestCountEl = document.getElementById('api-session-guest-count') || document.getElementById('session-guest-count');
+                    if (expiresEl) expiresEl.textContent = expiresAt.toLocaleTimeString();
+                    if (guestCountEl) guestCountEl.textContent = result.guestCount || 0;
 
                 } catch (error) {
                     console.error('Failed to get session status:', error);
                 }
             }
 
-            // Copy session link
+            // Copy API session link (new Live Sync modal)
+            window.copyApiSessionLink = function() {
+                const linkInput = document.getElementById('api-session-share-link');
+                if (linkInput) {
+                    linkInput.select();
+                    document.execCommand('copy');
+                    showToast('📋 Link copied! Guests will join room + use your API keys.', 'success');
+                }
+            };
+
+            // Copy session link (legacy Watch Mode)
             window.copySessionLink = function() {
                 const linkInput = document.getElementById('session-share-link');
-                linkInput.select();
-                document.execCommand('copy');
-                showToast('📋 Session link copied!', 'success');
+                if (linkInput) {
+                    linkInput.select();
+                    document.execCommand('copy');
+                    showToast('📋 Session link copied!', 'success');
+                }
             };
 
             // Join as guest (called from URL parameter)
@@ -21659,11 +21537,28 @@ Thanks!`;
                         expiresAt: result.expiresAt
                     };
 
-                    // Update UI
-                    document.getElementById('host-session-section').style.display = 'none';
-                    document.getElementById('guest-session-section').style.display = 'block';
-                    document.getElementById('guest-session-host').textContent = result.hostName;
-                    document.getElementById('guest-session-expires').textContent = new Date(result.expiresAt).toLocaleTimeString();
+                    // Update UI - support both old Watch Mode and new Live Sync modal
+                    // Hide host section, show guest section in Watch Mode modal
+                    const hostSection = document.getElementById('host-session-section');
+                    const guestSection = document.getElementById('guest-session-section');
+                    if (hostSection) hostSection.style.display = 'none';
+                    if (guestSection) {
+                        guestSection.style.display = 'block';
+                        document.getElementById('guest-session-host').textContent = result.hostName;
+                        document.getElementById('guest-session-expires').textContent = new Date(result.expiresAt).toLocaleTimeString();
+                    }
+
+                    // Update Live Sync modal guest display
+                    const apiStartSection = document.getElementById('api-session-start');
+                    const apiGuestSection = document.getElementById('api-guest-session');
+                    if (apiStartSection) apiStartSection.style.display = 'none';
+                    if (apiGuestSection) {
+                        apiGuestSection.style.display = 'block';
+                        const hostNameEl = document.getElementById('api-guest-host-name');
+                        const expiresEl = document.getElementById('api-guest-expires');
+                        if (hostNameEl) hostNameEl.textContent = result.hostName;
+                        if (expiresEl) expiresEl.textContent = new Date(result.expiresAt).toLocaleTimeString();
+                    }
 
                     // Show indicator in main UI
                     showGuestSessionIndicator(result.hostName);
