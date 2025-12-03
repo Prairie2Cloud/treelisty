@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 241 | 2025-12-02
+    TreeListy v2.16.0 | Build 242 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,20 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 241): 🤖 AI-Powered Excel Import
+    Changelog (Build 242): 📊 AI Multi-Sheet Excel Import
+    - NEW: AI analyzes ALL sheets in workbook and suggests import strategy
+    - NEW: Strategy options: combine similar, separate phases, skip reference sheets
+    - NEW: AI recommends which sheets to import as phases
+    - NEW: Automatic column mapping for each sheet during multi-import
+    - NEW: Progress indicator during multi-sheet processing
+    - NEW: "Pick Sheets Manually" fallback option
+    - IMPROVED: Each sheet becomes a phase with AI-suggested names
+
+    Previous (Build 241): 🤖 AI-Powered Excel Import
     - NEW: AI analyzes Excel structure and auto-detects column mappings
     - NEW: AI recommends best pattern based on data content
     - NEW: Simplified import UI with confidence scores
     - NEW: Click-to-adjust mapping cards (no more dropdown walls)
-    - NEW: Data quality warnings (missing values, issues)
-    - NEW: One-click import when AI mappings are correct
-    - IMPROVED: Falls back to keyword matching when AI unavailable
 
     Previous (Build 239): 🎙️ Free Speech - Stream of Consciousness Voice Capture
     - NEW: Free Speech pattern for psychological pattern analysis
@@ -2435,8 +2441,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 241 | 2025-12-02">
-                    v2.16.0 • Build 241
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 242 | 2025-12-02">
+                    v2.16.0 • Build 242
                 </div>
             </div>
         </div>
@@ -29646,6 +29652,7 @@ IMPORTANT:
             console.log('🧙 Starting flexible import wizard...');
 
             excelImportState.workbook = workbook;
+            excelImportState.multiSheetAnalysis = null;
 
             // If only one sheet, skip to column mapping
             if (workbook.SheetNames.length === 1) {
@@ -29653,8 +29660,405 @@ IMPORTANT:
                 return;
             }
 
-            // Multiple sheets - show selection UI
-            showSheetSelection(workbook);
+            // Multiple sheets - check if AI is available
+            const aiMode = document.getElementById('unified-ai-mode-select')?.value || '';
+            const aiAvailable = aiMode && aiMode !== 'off';
+
+            if (aiAvailable) {
+                // AI analyzes all sheets and suggests how to combine
+                analyzeMultipleSheetsWithAI(workbook);
+            } else {
+                // Fallback to manual sheet selection
+                showSheetSelection(workbook);
+            }
+        }
+
+        async function analyzeMultipleSheetsWithAI(workbook) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🤖 AI Analyzing Workbook...';
+            modalBody.innerHTML = `
+                <div style="padding: 40px; text-align: center;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <p style="color: var(--text-secondary); font-size: 14px;">
+                        AI is analyzing ${workbook.SheetNames.length} sheets to suggest the best import strategy...
+                    </p>
+                </div>
+            `;
+            modal.style.display = 'flex';
+
+            // Gather info about each sheet
+            const sheetsInfo = workbook.SheetNames.map(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                const headers = data[0]?.filter(h => h !== '' && h !== null && h !== undefined) || [];
+                const sampleRows = data.slice(1, 4);
+                const rowCount = data.length - 1;
+
+                return {
+                    name: sheetName,
+                    headers,
+                    sampleRows,
+                    rowCount,
+                    colCount: headers.length
+                };
+            });
+
+            // Build AI prompt
+            const systemPrompt = `You are an expert data analyst helping import a multi-sheet Excel workbook into TreeListy.
+
+TreeListy organizes data hierarchically: Root → Phases → Items → Subtasks
+You need to analyze multiple sheets and recommend how to combine them.`;
+
+            const userPrompt = `Analyze this Excel workbook with ${sheetsInfo.length} sheets and suggest how to import:
+
+${sheetsInfo.map((s, i) => `
+SHEET ${i + 1}: "${s.name}"
+- Columns: ${s.headers.join(', ')}
+- Rows: ${s.rowCount}
+- Sample: ${JSON.stringify(s.sampleRows[0]?.slice(0, 6) || [])}
+`).join('\n')}
+
+Respond with ONLY valid JSON:
+{
+  "strategy": "combine_similar|separate_phases|single_primary|skip_some",
+  "strategyReason": "Brief explanation of recommended approach",
+  "sheets": [
+    {
+      "name": "Sheet1",
+      "action": "import_as_phase|combine_with|skip|primary",
+      "combineWith": null,
+      "phaseNameSuggestion": "Suggested phase name",
+      "importance": "primary|secondary|reference|skip",
+      "reason": "Why this action"
+    }
+  ],
+  "recommendedPattern": "generic|sales|philosophy|etc",
+  "patternConfidence": 0.85,
+  "warnings": ["Any issues or notes"]
+}
+
+STRATEGIES:
+- combine_similar: Sheets with same structure merge into one phase
+- separate_phases: Each sheet becomes its own phase
+- single_primary: One main sheet, others are reference/skip
+- skip_some: Some sheets aren't useful for import`;
+
+            try {
+                const response = await callClaudeAPI(userPrompt, systemPrompt, 1500, false);
+
+                let jsonStr = response.trim();
+                if (jsonStr.startsWith('```')) {
+                    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+                }
+
+                const analysis = JSON.parse(jsonStr);
+                console.log('🤖 Multi-sheet analysis:', analysis);
+
+                excelImportState.multiSheetAnalysis = analysis;
+                showMultiSheetStrategyUI(workbook, analysis, sheetsInfo);
+
+            } catch (error) {
+                console.error('❌ Multi-sheet AI analysis failed:', error);
+                // Fall back to manual selection
+                showSheetSelection(workbook);
+            }
+        }
+
+        function showMultiSheetStrategyUI(workbook, analysis, sheetsInfo) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🤖 AI Import Strategy';
+
+            const strategyLabels = {
+                'combine_similar': '🔗 Combine Similar Sheets',
+                'separate_phases': '📁 Each Sheet → Phase',
+                'single_primary': '⭐ Focus on Primary Sheet',
+                'skip_some': '🎯 Selective Import'
+            };
+
+            const actionIcons = {
+                'import_as_phase': '📁',
+                'combine_with': '🔗',
+                'skip': '⏭️',
+                'primary': '⭐'
+            };
+
+            const importanceColors = {
+                'primary': '#10b981',
+                'secondary': '#6366f1',
+                'reference': '#f59e0b',
+                'skip': '#6b7280'
+            };
+
+            // Build sheet cards
+            let sheetsHTML = '';
+            analysis.sheets.forEach((sheetAnalysis, idx) => {
+                const sheetInfo = sheetsInfo.find(s => s.name === sheetAnalysis.name) || sheetsInfo[idx];
+                const icon = actionIcons[sheetAnalysis.action] || '📄';
+                const color = importanceColors[sheetAnalysis.importance] || '#6b7280';
+                const isIncluded = sheetAnalysis.action !== 'skip';
+
+                sheetsHTML += `
+                    <div class="multi-sheet-card" data-sheet="${sheetAnalysis.name}" style="
+                        padding: 12px 16px;
+                        background: ${isIncluded ? 'rgba(16, 185, 129, 0.05)' : 'rgba(107, 114, 128, 0.05)'};
+                        border: 1px solid ${isIncluded ? 'rgba(16, 185, 129, 0.2)' : 'rgba(107, 114, 128, 0.2)'};
+                        border-radius: 8px;
+                        margin-bottom: 8px;
+                        opacity: ${isIncluded ? '1' : '0.6'};
+                    ">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <span style="font-size: 18px;">${icon}</span>
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary);">${sheetAnalysis.name}</div>
+                                    <div style="font-size: 11px; color: var(--text-secondary);">
+                                        ${sheetInfo?.rowCount || '?'} rows • ${sheetInfo?.colCount || '?'} columns
+                                    </div>
+                                </div>
+                            </div>
+                            <div style="text-align: right;">
+                                <div style="font-size: 12px; color: ${color}; font-weight: 600;">
+                                    ${sheetAnalysis.importance.toUpperCase()}
+                                </div>
+                                ${sheetAnalysis.phaseNameSuggestion ?
+                                    `<div style="font-size: 11px; color: var(--text-secondary);">→ ${sheetAnalysis.phaseNameSuggestion}</div>` :
+                                    ''}
+                            </div>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary); margin-top: 6px;">
+                            ${sheetAnalysis.reason}
+                        </div>
+                    </div>
+                `;
+            });
+
+            // Count what will be imported
+            const importCount = analysis.sheets.filter(s => s.action !== 'skip').length;
+            const totalRows = analysis.sheets
+                .filter(s => s.action !== 'skip')
+                .reduce((sum, s) => {
+                    const info = sheetsInfo.find(si => si.name === s.name);
+                    return sum + (info?.rowCount || 0);
+                }, 0);
+
+            // Warnings
+            let warningsHTML = '';
+            if (analysis.warnings?.length > 0) {
+                warningsHTML = `
+                    <div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;">
+                        <div style="font-size: 12px; font-weight: 600; color: #f59e0b; margin-bottom: 6px;">⚠️ Notes:</div>
+                        ${analysis.warnings.map(w => `<div style="font-size: 12px; color: var(--text-secondary);">• ${w}</div>`).join('')}
+                    </div>
+                `;
+            }
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                    <!-- Strategy Banner -->
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                        <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 4px;">
+                            ${strategyLabels[analysis.strategy] || analysis.strategy}
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            ${analysis.strategyReason}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                            📊 Importing ${importCount} of ${analysis.sheets.length} sheets • ~${totalRows} total rows
+                            ${analysis.recommendedPattern ? ` • Pattern: <strong>${PATTERNS[analysis.recommendedPattern]?.name || analysis.recommendedPattern}</strong>` : ''}
+                        </div>
+                    </div>
+
+                    <!-- Sheet Cards -->
+                    <div style="margin-bottom: 16px;">
+                        ${sheetsHTML}
+                    </div>
+
+                    ${warningsHTML}
+
+                    <!-- Action Buttons -->
+                    <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: space-between;">
+                        <button id="multi-sheet-manual-btn" style="padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px;">
+                            📋 Pick Sheets Manually
+                        </button>
+                        <div style="display: flex; gap: 12px;">
+                            <button id="multi-sheet-cancel-btn" style="padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px;">
+                                Cancel
+                            </button>
+                            <button id="multi-sheet-proceed-btn" style="padding: 10px 24px; border: none; border-radius: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; cursor: pointer; font-size: 14px; font-weight: 600;">
+                                ✓ Proceed with AI Strategy
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Event handlers
+            document.getElementById('multi-sheet-cancel-btn').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            document.getElementById('multi-sheet-manual-btn').addEventListener('click', () => {
+                showSheetSelection(workbook);
+            });
+
+            document.getElementById('multi-sheet-proceed-btn').addEventListener('click', () => {
+                executeMultiSheetImport(workbook, analysis, sheetsInfo);
+            });
+        }
+
+        async function executeMultiSheetImport(workbook, analysis, sheetsInfo) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            // Apply recommended pattern
+            if (analysis.recommendedPattern && PATTERNS[analysis.recommendedPattern]) {
+                document.getElementById('pattern-select').value = analysis.recommendedPattern;
+                currentPattern = analysis.recommendedPattern;
+            }
+
+            // Get sheets to import
+            const sheetsToImport = analysis.sheets.filter(s => s.action !== 'skip');
+
+            if (sheetsToImport.length === 0) {
+                alert('No sheets selected for import');
+                return;
+            }
+
+            // If only one sheet to import, use standard flow
+            if (sheetsToImport.length === 1) {
+                analyzeSheetStructure(sheetsToImport[0].name);
+                return;
+            }
+
+            // Multiple sheets - show progress and import each
+            modalTitle.textContent = '🤖 Importing Multiple Sheets...';
+            modalBody.innerHTML = `
+                <div style="padding: 40px; text-align: center;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <p style="color: var(--text-secondary); font-size: 14px;">
+                        Processing ${sheetsToImport.length} sheets...
+                    </p>
+                    <div id="multi-import-progress" style="margin-top: 16px; font-size: 13px; color: var(--text-secondary);"></div>
+                </div>
+            `;
+
+            const progressEl = document.getElementById('multi-import-progress');
+            const allItems = [];
+            const phaseMap = {};
+
+            for (let i = 0; i < sheetsToImport.length; i++) {
+                const sheetConfig = sheetsToImport[i];
+                const sheetName = sheetConfig.name;
+                progressEl.textContent = `Analyzing: ${sheetName} (${i + 1}/${sheetsToImport.length})`;
+
+                const sheet = workbook.Sheets[sheetName];
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                // Find headers
+                let headerRowIndex = 0;
+                for (let j = 0; j < data.length; j++) {
+                    if (data[j] && data[j].some(cell => cell !== '' && cell !== null && cell !== undefined)) {
+                        headerRowIndex = j;
+                        break;
+                    }
+                }
+
+                const headers = data[headerRowIndex].filter(h => h !== '' && h !== null && h !== undefined);
+                const rows = data.slice(headerRowIndex + 1);
+
+                // Quick AI analysis for column mapping
+                const sampleRows = rows.slice(0, 5);
+
+                try {
+                    const aiAnalysis = await aiAnalyzeExcelStructure(headers, sampleRows);
+
+                    if (aiAnalysis?.columnMappings) {
+                        const mapping = applyAIAnalysisToMapping(aiAnalysis, headers);
+
+                        // Determine phase name
+                        const phaseName = sheetConfig.phaseNameSuggestion || sheetName;
+
+                        // Extract items
+                        rows.forEach(row => {
+                            if (!row || row.every(cell => !cell)) return;
+
+                            const itemName = mapping.itemName !== null ? row[mapping.itemName] : null;
+                            if (!itemName) return;
+
+                            const item = {
+                                name: String(itemName),
+                                description: mapping.description !== null ? String(row[mapping.description] || '') : '',
+                                type: mapping.itemType !== null ? String(row[mapping.itemType] || '') : '',
+                                sourceSheet: sheetName
+                            };
+
+                            // Add pattern-specific fields
+                            Object.keys(mapping).forEach(key => {
+                                if (!['itemName', 'phaseName', 'description', 'itemType', 'dependencies'].includes(key)) {
+                                    if (mapping[key] !== null && row[mapping[key]]) {
+                                        item[key] = row[mapping[key]];
+                                    }
+                                }
+                            });
+
+                            if (!phaseMap[phaseName]) phaseMap[phaseName] = [];
+                            phaseMap[phaseName].push(item);
+                            allItems.push(item);
+                        });
+                    }
+                } catch (error) {
+                    console.warn(`⚠️ Failed to analyze sheet ${sheetName}:`, error);
+                }
+            }
+
+            // Build final tree
+            progressEl.textContent = 'Building tree structure...';
+
+            const patternDef = PATTERNS[currentPattern];
+            const phases = Object.keys(phaseMap).map((phaseName, phaseIndex) => ({
+                id: `phase-${phaseIndex}`,
+                type: 'phase',
+                phase: phaseIndex,
+                name: phaseName,
+                subtitle: `${phaseMap[phaseName].length} items`,
+                icon: `${phaseIndex + 1}️⃣`,
+                expanded: false,
+                items: phaseMap[phaseName].map((item, itemIndex) => ({
+                    ...item,
+                    id: `item-${phaseIndex}-${itemIndex}`,
+                    type: 'item'
+                }))
+            }));
+
+            saveState('Multi-sheet Excel Import');
+
+            capexTree = {
+                id: 'root',
+                type: 'root',
+                name: `Imported from ${excelImportState.file}`,
+                icon: '🌳',
+                expanded: true,
+                hyperedges: [],
+                children: phases,
+                pattern: {
+                    key: currentPattern,
+                    labels: patternDef.levels
+                }
+            };
+
+            render();
+            modal.style.display = 'none';
+
+            showToast(`✅ Imported ${allItems.length} items from ${sheetsToImport.length} sheets into ${phases.length} phases`);
         }
 
         function showSheetSelection(workbook) {
