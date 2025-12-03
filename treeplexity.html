@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 254 | 2025-12-03
+    TreeListy v2.17.0 | Build 255 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 254): 📝 Info Panel Redesign + TreeBeard Visual Polish
-    - Description is now the HERO field at the top of the Info Panel
-    - Compact metadata row for Type, ID, and Cost
-    - TreeBeard panel has stronger multi-layer shadow for floating effect
-    - Purple glow border differentiates from background nodes
-    - Backdrop blur adds depth perception
+    Changelog (Build 255): 🎮 TreeBeard Playground Mode - Test Improved Prompts
+    - "improve prompt: X" pattern detected and processes prompt improvement
+    - Shows improved prompt with action buttons: Try with Claude/GPT/Gemini, Copy, Save
+    - Playground Mode: test prompts against any model in chat session
+    - Model selector (Claude Sonnet/Opus, GPT-4o, Gemini Pro)
+    - Session memory maintains conversation context in playground
+    - "exit playground" returns to TreeBeard assistant mode
 
-    Previous (Build 253): 🌳 TreeBeard - Draggable Floating Panel
+    Previous (Build 254): 📝 Info Panel Redesign + TreeBeard Visual Polish
     - Renamed "TreeListy Assistant" to "TreeBeard" (wise tree guardian)
     - Made the TreeBeard panel draggable by its header
     - Panel is resizable (drag bottom-right corner)
@@ -2861,8 +2862,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 254 | 2025-12-03">
-                    v2.16.0 • Build 254
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 255 | 2025-12-03">
+                    v2.17.0 • Build 255
                 </div>
             </div>
         </div>
@@ -33517,7 +33518,12 @@ ${transcript}`;
             isProcessing: false,
             conversationHistory: [],
             voiceRecognition: null,
-            isRecording: false
+            isRecording: false,
+            // Playground Mode (Build 255)
+            playgroundMode: false,
+            playgroundSystemPrompt: '',
+            playgroundModel: 'claude-sonnet',
+            playgroundHistory: []
         };
 
         // ═══════════════════════════════════════════════════════════════
@@ -34252,8 +34258,310 @@ ${transcript}`;
                 const fields = Object.keys(node).filter(k => !['children', 'items', 'subItems', 'canvasX', 'canvasY', 'id'].includes(k));
 
                 return `📍 **Focused Node:**\n• Name: ${node.name || node.title || 'Untitled'}\n• ID: ${node.id}\n• Children: ${children}\n• Fields: ${fields.join(', ')}`;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 255: PROMPT PLAYGROUND MODE
+            // ═══════════════════════════════════════════════════════════════
+
+            // Improve a prompt using AI
+            'improve_prompt': async (promptText) => {
+                if (!promptText || promptText.trim().length < 5) {
+                    return '⚠️ Please provide a prompt to improve. Example: "improve prompt: write a haiku about cats"';
+                }
+
+                // Store the prompt for playground
+                chatState.pendingPromptToImprove = promptText;
+
+                // Show improving message
+                addMessage('🧠 Improving your prompt...', 'system');
+
+                try {
+                    // Use the existing improvePromptWithAI function
+                    const result = await improvePromptWithAI(promptText, 'quick');
+
+                    if (result && result.phases && result.phases[0] && result.phases[0].items && result.phases[0].items[0]) {
+                        const improved = result.phases[0].items[0];
+                        const systemPrompt = improved.systemPrompt || '';
+                        const userPrompt = improved.userPromptTemplate || '';
+                        const examples = improved.fewShotExamples || '';
+
+                        // Combine into full prompt
+                        const fullPrompt = [systemPrompt, userPrompt, examples].filter(Boolean).join('\n\n');
+
+                        // Store for playground
+                        chatState.improvedPrompt = {
+                            system: systemPrompt,
+                            user: userPrompt,
+                            examples: examples,
+                            full: fullPrompt,
+                            name: improved.name || 'Improved Prompt',
+                            model: improved.modelTarget || 'Claude Sonnet 4'
+                        };
+
+                        return null; // We'll add the message with buttons separately
+                    } else {
+                        return '❌ Could not improve prompt. Please try again.';
+                    }
+                } catch (error) {
+                    console.error('Prompt improvement error:', error);
+                    return `❌ Error improving prompt: ${error.message}`;
+                }
+            },
+
+            // Enter playground mode with a prompt
+            'enter_playground': (model) => {
+                if (!chatState.improvedPrompt) {
+                    return '⚠️ No prompt loaded. Use "improve prompt: [your prompt]" first.';
+                }
+
+                chatState.playgroundMode = true;
+                chatState.playgroundSystemPrompt = chatState.improvedPrompt.system || chatState.improvedPrompt.full;
+                chatState.playgroundModel = model || 'claude-sonnet';
+                chatState.playgroundHistory = [];
+
+                // Update UI to show playground mode
+                updatePlaygroundUI(true);
+
+                return `🎮 **Playground Mode Active**\n\nModel: ${getModelDisplayName(chatState.playgroundModel)}\nSystem prompt loaded. Send a test message to try it out!\n\nType "exit playground" to return to TreeBeard.`;
+            },
+
+            // Exit playground mode
+            'exit_playground': () => {
+                chatState.playgroundMode = false;
+                chatState.playgroundSystemPrompt = '';
+                chatState.playgroundHistory = [];
+
+                // Update UI to show normal mode
+                updatePlaygroundUI(false);
+
+                return '🌳 Back to TreeBeard! How can I help you?';
+            },
+
+            // Copy improved prompt to clipboard
+            'copy_prompt': async () => {
+                if (!chatState.improvedPrompt) {
+                    return '⚠️ No prompt to copy. Use "improve prompt: [your prompt]" first.';
+                }
+
+                try {
+                    await navigator.clipboard.writeText(chatState.improvedPrompt.full);
+                    return '📋 Prompt copied to clipboard!';
+                } catch (e) {
+                    return '❌ Could not copy to clipboard. Try selecting the text manually.';
+                }
+            },
+
+            // Save prompt as file
+            'save_prompt': () => {
+                if (!chatState.improvedPrompt) {
+                    return '⚠️ No prompt to save. Use "improve prompt: [your prompt]" first.';
+                }
+
+                const blob = new Blob([chatState.improvedPrompt.full], { type: 'text/plain' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${chatState.improvedPrompt.name.replace(/[^a-z0-9]/gi, '-').toLowerCase()}.txt`;
+                a.click();
+                URL.revokeObjectURL(url);
+
+                return '💾 Prompt saved as text file!';
             }
         };
+
+        // ═══════════════════════════════════════════════════════════════
+        // PLAYGROUND MODE HELPERS
+        // ═══════════════════════════════════════════════════════════════
+
+        function getModelDisplayName(modelKey) {
+            const names = {
+                'claude-sonnet': '🟣 Claude Sonnet 4',
+                'claude-opus': '🟣 Claude Opus 4',
+                'claude-haiku': '🟣 Claude Haiku',
+                'gpt-4o': '🟢 GPT-4o',
+                'gpt-4-turbo': '🟢 GPT-4 Turbo',
+                'gemini-pro': '🔵 Gemini Pro',
+                'gemini-flash': '🔵 Gemini Flash'
+            };
+            return names[modelKey] || modelKey;
+        }
+
+        function updatePlaygroundUI(isPlayground) {
+            const header = document.getElementById('chat-assistant-header');
+            const title = header?.querySelector('h3');
+
+            if (isPlayground) {
+                if (title) {
+                    title.innerHTML = `🎮 Prompt Playground <span style="font-size: 11px; opacity: 0.7; font-weight: normal;">(${getModelDisplayName(chatState.playgroundModel)})</span>`;
+                }
+                header?.style.setProperty('background', 'linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(5, 150, 105, 0.15))');
+
+                // Add model selector if not present
+                if (!document.getElementById('playground-model-select')) {
+                    const actionsDiv = header?.querySelector('.header-actions');
+                    if (actionsDiv) {
+                        const select = document.createElement('select');
+                        select.id = 'playground-model-select';
+                        select.style.cssText = 'padding: 4px 8px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.2); border-radius: 4px; color: #fff; font-size: 11px; cursor: pointer;';
+                        select.innerHTML = `
+                            <option value="claude-sonnet">Claude Sonnet</option>
+                            <option value="claude-opus">Claude Opus</option>
+                            <option value="gpt-4o">GPT-4o</option>
+                            <option value="gemini-pro">Gemini Pro</option>
+                        `;
+                        select.value = chatState.playgroundModel;
+                        select.onchange = (e) => {
+                            chatState.playgroundModel = e.target.value;
+                            updatePlaygroundUI(true);
+                        };
+                        actionsDiv.insertBefore(select, actionsDiv.firstChild);
+                    }
+                }
+
+                // Add exit button if not present
+                if (!document.getElementById('playground-exit-btn')) {
+                    const actionsDiv = header?.querySelector('.header-actions');
+                    if (actionsDiv) {
+                        const exitBtn = document.createElement('button');
+                        exitBtn.id = 'playground-exit-btn';
+                        exitBtn.title = 'Exit Playground';
+                        exitBtn.textContent = '🚪';
+                        exitBtn.onclick = () => COMMAND_REGISTRY['exit_playground']().then ? COMMAND_REGISTRY['exit_playground']() : addMessage(COMMAND_REGISTRY['exit_playground'](), 'system');
+                        actionsDiv.insertBefore(exitBtn, actionsDiv.firstChild);
+                    }
+                }
+            } else {
+                if (title) {
+                    title.innerHTML = '🌳 TreeBeard';
+                }
+                header?.style.setProperty('background', 'linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.15))');
+
+                // Remove playground UI elements
+                document.getElementById('playground-model-select')?.remove();
+                document.getElementById('playground-exit-btn')?.remove();
+            }
+        }
+
+        async function handlePlaygroundMessage(message) {
+            // Add to playground history
+            chatState.playgroundHistory.push({ role: 'user', content: message });
+
+            try {
+                let response;
+                const model = chatState.playgroundModel;
+
+                if (model.startsWith('claude')) {
+                    // Use Claude API
+                    const modelId = model === 'claude-opus' ? 'claude-opus-4-20250514' :
+                                   model === 'claude-haiku' ? 'claude-3-haiku-20240307' :
+                                   'claude-sonnet-4-20250514';
+
+                    const apiKey = localStorage.getItem('anthropic_api_key');
+                    const useServer = !apiKey;
+
+                    const messages = chatState.playgroundHistory.map(m => ({
+                        role: m.role,
+                        content: m.content
+                    }));
+
+                    if (useServer) {
+                        const res = await fetch('/.netlify/functions/claude-proxy', {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                model: modelId,
+                                max_tokens: 2000,
+                                system: chatState.playgroundSystemPrompt,
+                                messages: messages
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.error) throw new Error(data.error);
+                        response = data.content[0].text;
+                    } else {
+                        const res = await fetch('https://api.anthropic.com/v1/messages', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'x-api-key': apiKey,
+                                'anthropic-version': '2023-06-01',
+                                'anthropic-dangerous-direct-browser-access': 'true'
+                            },
+                            body: JSON.stringify({
+                                model: modelId,
+                                max_tokens: 2000,
+                                system: chatState.playgroundSystemPrompt,
+                                messages: messages
+                            })
+                        });
+                        const data = await res.json();
+                        if (data.error) throw new Error(data.error.message);
+                        response = data.content[0].text;
+                    }
+                } else if (model.startsWith('gpt')) {
+                    // Use OpenAI API
+                    const openaiKey = localStorage.getItem('openai_api_key');
+                    if (!openaiKey) {
+                        return '🔑 Please set your OpenAI API key in Settings to use GPT models.';
+                    }
+
+                    const modelId = model === 'gpt-4-turbo' ? 'gpt-4-turbo-preview' : 'gpt-4o';
+                    const messages = [
+                        { role: 'system', content: chatState.playgroundSystemPrompt },
+                        ...chatState.playgroundHistory.map(m => ({ role: m.role, content: m.content }))
+                    ];
+
+                    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${openaiKey}`
+                        },
+                        body: JSON.stringify({
+                            model: modelId,
+                            max_tokens: 2000,
+                            messages: messages
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error.message);
+                    response = data.choices[0].message.content;
+                } else if (model.startsWith('gemini')) {
+                    // Use Gemini API
+                    const geminiKey = localStorage.getItem('gemini_api_key');
+                    if (!geminiKey) {
+                        return '🔑 Please set your Gemini API key in Settings to use Gemini models.';
+                    }
+
+                    const modelId = model === 'gemini-flash' ? 'gemini-1.5-flash' : 'gemini-1.5-pro';
+                    const contents = chatState.playgroundHistory.map(m => ({
+                        role: m.role === 'user' ? 'user' : 'model',
+                        parts: [{ text: m.content }]
+                    }));
+
+                    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${geminiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            systemInstruction: { parts: [{ text: chatState.playgroundSystemPrompt }] },
+                            contents: contents
+                        })
+                    });
+                    const data = await res.json();
+                    if (data.error) throw new Error(data.error.message);
+                    response = data.candidates[0].content.parts[0].text;
+                }
+
+                // Add response to history
+                chatState.playgroundHistory.push({ role: 'assistant', content: response });
+
+                return response;
+            } catch (error) {
+                console.error('Playground error:', error);
+                return `❌ Error: ${error.message}`;
+            }
+        }
 
         // ═══════════════════════════════════════════════════════════════
         // AI COMMAND INTERPRETER
@@ -34668,18 +34976,28 @@ RULES:
         }
 
         async function executeAction(actionName, param = null) {
-            const command = COMMAND_REGISTRY[actionName];
+            // BUILD 255: Handle compound actions like "enter_playground:claude-sonnet"
+            let commandName = actionName;
+            let commandParam = param;
+
+            if (actionName.includes(':') && !param) {
+                const parts = actionName.split(':');
+                commandName = parts[0];
+                commandParam = parts.slice(1).join(':'); // Rejoin in case value has colons
+            }
+
+            const command = COMMAND_REGISTRY[commandName];
             if (command) {
                 try {
-                    const result = await command(param);
+                    const result = await command(commandParam);
                     if (result) {
-                        addMessage(result, 'system');
+                        addMessage(result, 'assistant');
                     }
                 } catch (error) {
                     addMessage(`❌ Error: ${error.message}`, 'error');
                 }
             } else {
-                addMessage(`❌ Unknown action: ${actionName}`, 'error');
+                addMessage(`❌ Unknown action: ${commandName}`, 'error');
             }
         }
 
@@ -34701,7 +35019,63 @@ RULES:
             showTypingIndicator();
 
             try {
-                // Interpret command
+                // BUILD 255: Check for Playground Mode
+                if (chatState.playgroundMode) {
+                    // Check for exit command
+                    if (message.toLowerCase().includes('exit playground') || message.toLowerCase() === 'exit') {
+                        hideTypingIndicator();
+                        const exitResult = await COMMAND_REGISTRY['exit_playground']();
+                        addMessage(exitResult, 'assistant');
+                        chatState.isProcessing = false;
+                        return;
+                    }
+
+                    // Route to playground handler
+                    const response = await handlePlaygroundMessage(message);
+                    hideTypingIndicator();
+                    addMessage(response, 'assistant');
+                    chatState.isProcessing = false;
+                    return;
+                }
+
+                // Check for "improve prompt:" pattern BEFORE AI interpretation
+                const improveMatch = message.match(/^(?:improve|enhance|optimize|refine)\s+(?:this\s+)?(?:prompt|my prompt)?[:\s]+(.+)$/is);
+                if (improveMatch) {
+                    const promptToImprove = improveMatch[1].trim();
+
+                    try {
+                        const result = await COMMAND_REGISTRY['improve_prompt'](promptToImprove);
+                        hideTypingIndicator();
+
+                        if (result) {
+                            // Error message
+                            addMessage(result, 'assistant');
+                        } else if (chatState.improvedPrompt) {
+                            // Success - show improved prompt with action buttons
+                            const preview = chatState.improvedPrompt.full.length > 500
+                                ? chatState.improvedPrompt.full.substring(0, 500) + '...'
+                                : chatState.improvedPrompt.full;
+
+                            const successMsg = `✨ **Prompt Improved!**\n\n**${chatState.improvedPrompt.name}**\n\n\`\`\`\n${preview}\n\`\`\`\n\nWhat would you like to do?`;
+
+                            // Add message with action buttons
+                            addMessage(successMsg, 'assistant', [
+                                { label: '🟣 Try with Claude', action: 'enter_playground:claude-sonnet' },
+                                { label: '🟢 Try with GPT-4', action: 'enter_playground:gpt-4o' },
+                                { label: '🔵 Try with Gemini', action: 'enter_playground:gemini-pro' },
+                                { label: '📋 Copy', action: 'copy_prompt' },
+                                { label: '💾 Save', action: 'save_prompt' }
+                            ]);
+                        }
+                    } catch (err) {
+                        hideTypingIndicator();
+                        addMessage(`❌ Failed to improve prompt: ${err.message}`, 'error');
+                    }
+                    chatState.isProcessing = false;
+                    return;
+                }
+
+                // Standard command interpretation
                 const result = await interpretCommand(message);
                 hideTypingIndicator();
 
