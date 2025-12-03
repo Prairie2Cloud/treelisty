@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 255 | 2025-12-03
+    TreeListy v2.17.0 | Build 256 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 255): 🎮 TreeBeard Playground Mode - Test Improved Prompts
-    - "improve prompt: X" pattern detected and processes prompt improvement
-    - Shows improved prompt with action buttons: Try with Claude/GPT/Gemini, Copy, Save
-    - Playground Mode: test prompts against any model in chat session
-    - Model selector (Claude Sonnet/Opus, GPT-4o, Gemini Pro)
-    - Session memory maintains conversation context in playground
-    - "exit playground" returns to TreeBeard assistant mode
+    Changelog (Build 256): ↩️ Undo Support for Remote Sync + Editor Attribution
+    - Remote sync changes are now UNDO-ABLE (saveState before applying)
+    - "Last edit by" shows who made the most recent change (You / User ID / Name)
+    - setMyDisplayName('Name') - set your display name for collaborators
+    - setCollaboratorName('abc123', 'Owen') - name a collaborator by their short ID
+    - Display names stored in localStorage for persistence
+
+    Previous (Build 255): 🎮 TreeBeard Playground Mode - Test Improved Prompts
+    - "improve prompt: X" pattern, action buttons, Playground Mode with model selector
 
     Previous (Build 254): 📝 Info Panel Redesign + TreeBeard Visual Polish
     - Renamed "TreeListy Assistant" to "TreeBeard" (wise tree guardian)
@@ -2862,8 +2864,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 255 | 2025-12-03">
-                    v2.17.0 • Build 255
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 256 | 2025-12-03">
+                    v2.17.0 • Build 256
                 </div>
             </div>
         </div>
@@ -4445,6 +4447,7 @@ The AI will analyze the structure and convert it to a tree."
                             </div>
                             <div>👥 Users in room: <span id="sync-user-count">1</span></div>
                             <div>📝 Last update: <span id="sync-last-update">--</span></div>
+                            <div id="sync-last-editor-row" style="display: none;">✏️ Last edit by: <span id="sync-last-editor" style="font-weight: 600;">--</span></div>
                         </div>
                     </div>
 
@@ -21542,7 +21545,11 @@ https://treelisty.netlify.app`;
                 unsubscribe: null,
                 lastSyncTimestamp: null,
                 isSyncing: false,
-                ignoreNextUpdate: false  // Prevent echo when we push our own changes
+                ignoreNextUpdate: false,  // Prevent echo when we push our own changes
+                // BUILD 256: Track collaborator names for undo history
+                collaboratorNames: {},  // userId -> display name
+                myDisplayName: null,    // This user's display name
+                lastEditor: null        // Who made the last edit
             };
 
             // Generate a random room ID
@@ -21784,7 +21791,23 @@ https://treelisty.netlify.app`;
                     if (data.treeData) {
                         try {
                             const newTree = JSON.parse(data.treeData);
-                            console.log('🔥 Received tree update from', data.lastUpdatedBy?.substring(0, 8));
+                            const editorId = data.lastUpdatedBy?.substring(0, 8) || 'Unknown';
+                            console.log('🔥 Received tree update from', editorId);
+
+                            // BUILD 256: Save state BEFORE applying remote changes (enables undo)
+                            const editorName = firebaseSyncState.collaboratorNames[data.lastUpdatedBy] || `User ${editorId}`;
+                            if (typeof saveState === 'function') {
+                                saveState(`Remote sync from ${editorName}`);
+                            }
+
+                            // BUILD 256: Update last editor display
+                            firebaseSyncState.lastEditor = data.lastUpdatedBy;
+                            const lastEditorEl = document.getElementById('sync-last-editor');
+                            const lastEditorRow = document.getElementById('sync-last-editor-row');
+                            if (lastEditorEl && lastEditorRow) {
+                                lastEditorEl.textContent = editorName;
+                                lastEditorRow.style.display = 'block';
+                            }
 
                             // Update global tree
                             window.capexTree = newTree;
@@ -21853,6 +21876,14 @@ https://treelisty.netlify.app`;
                     console.log('🔥 Pushed tree update');
                     document.getElementById('sync-last-update').textContent = new Date().toLocaleTimeString();
 
+                    // BUILD 256: Update last editor to show "You"
+                    const lastEditorEl = document.getElementById('sync-last-editor');
+                    const lastEditorRow = document.getElementById('sync-last-editor-row');
+                    if (lastEditorEl && lastEditorRow) {
+                        lastEditorEl.textContent = 'You';
+                        lastEditorRow.style.display = 'block';
+                    }
+
                 } catch (error) {
                     console.error('🔥 Failed to push tree:', error);
                     firebaseSyncState.ignoreNextUpdate = false;
@@ -21885,6 +21916,38 @@ https://treelisty.netlify.app`;
                 }
             }
 
+            // BUILD 256: Set display name for this user
+            function setMyDisplayName(name) {
+                firebaseSyncState.myDisplayName = name;
+                // Store own name in collaboratorNames too
+                if (firebaseSyncState.userId) {
+                    firebaseSyncState.collaboratorNames[firebaseSyncState.userId] = name;
+                }
+                localStorage.setItem('treelisty_display_name', name);
+                showToast(`✏️ Display name set to: ${name}`, 'success');
+            }
+
+            // BUILD 256: Set name for a collaborator (by their short ID)
+            function setCollaboratorName(shortId, name) {
+                // Find full userId that starts with shortId
+                const fullId = Object.keys(firebaseSyncState.collaboratorNames).find(id => id.startsWith(shortId)) ||
+                               firebaseSyncState.lastEditor?.startsWith(shortId) ? firebaseSyncState.lastEditor : null;
+
+                if (fullId) {
+                    firebaseSyncState.collaboratorNames[fullId] = name;
+                    // Update display if this was the last editor
+                    const lastEditorEl = document.getElementById('sync-last-editor');
+                    if (lastEditorEl && firebaseSyncState.lastEditor === fullId) {
+                        lastEditorEl.textContent = name;
+                    }
+                    showToast(`✏️ Named collaborator ${shortId} as: ${name}`, 'success');
+                } else {
+                    // Store for future use
+                    firebaseSyncState.collaboratorNames[shortId] = name;
+                    showToast(`✏️ Will name collaborator ${shortId} as: ${name}`, 'info');
+                }
+            }
+
             // Expose functions globally
             window.firebaseSyncState = firebaseSyncState;
             window.createFirebaseSyncRoom = createSyncRoom;
@@ -21892,6 +21955,8 @@ https://treelisty.netlify.app`;
             window.leaveFirebaseSyncRoom = leaveSyncRoom;
             window.pushTreeToFirebase = pushTreeToRoom;
             window.copyFirebaseRoomId = copyRoomId;
+            window.setMyDisplayName = setMyDisplayName;           // BUILD 256
+            window.setCollaboratorName = setCollaboratorName;     // BUILD 256
             window.initFirebaseAuthIfNeeded = async function() {
                 if (!firebaseSyncState.userId) {
                     await initFirebaseAuth();
