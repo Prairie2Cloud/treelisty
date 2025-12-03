@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 259 | 2025-12-03
+    TreeListy v2.17.0 | Build 260 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 259): 💬 TreeBeard Chat Redesign
+    Changelog (Build 260): 🎯 AI Specialist Context
+    - NEW: specialistContext field on tree root - domain expertise prompt
+    - AI prompts now include tree-specific specialist knowledge
+    - Edit via Project Settings modal (right-click root → Edit Project)
+    - Example: "Expert in French existentialism, Sartre, de Beauvoir, Camus"
+    - Saved with JSON, makes AI a domain specialist for your tree
+
+    Previous (Build 259): 💬 TreeBeard Chat Redesign
     - Increased default panel size (440x520 for more chat space)
     - Removed quirky "Hoom, hm..." sayings - cleaner welcome
-    - Compact header (10px padding)
-    - Removed quick action chips (declutter input area)
-    - Tighter message spacing for denser conversation view
 
     Previous (Build 258): 🎤 Voice Input Fix
     - Fixed: Voice button now works (added touch support for mobile)
@@ -2877,8 +2881,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 259 | 2025-12-03">
-                    v2.17.0 • Build 259
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 260 | 2025-12-03">
+                    v2.17.0 • Build 260
                 </div>
             </div>
         </div>
@@ -2975,6 +2979,47 @@
             <div class="modal-footer">
                 <button class="btn" id="edit-cancel">Cancel</button>
                 <button class="btn btn-primary" id="edit-save">Save Changes</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Project Settings Modal (Build 260) -->
+    <div class="modal" id="project-settings-modal">
+        <div class="modal-content" style="max-width: 600px;">
+            <div class="modal-header">⚙️ Project Settings</div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label style="font-weight: 600; margin-bottom: 8px; display: block;">Project Name</label>
+                    <input type="text" id="project-name-input" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--item-bg); color: var(--text-primary); font-size: 16px;" />
+                </div>
+
+                <div class="form-group" style="margin-top: 20px;">
+                    <label style="font-weight: 600; margin-bottom: 8px; display: block;">Project Description</label>
+                    <textarea id="project-description-input" rows="2" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--item-bg); color: var(--text-primary); font-size: 14px; resize: vertical;" placeholder="Brief description of the project..."></textarea>
+                </div>
+
+                <div class="form-group" style="margin-top: 24px; padding: 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.05)); border: 2px solid rgba(139, 92, 246, 0.3); border-radius: 12px;">
+                    <label style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 20px;">🎯</span>
+                        AI Specialist Context
+                    </label>
+                    <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.5;">
+                        Make the AI an expert in your tree's specific domain. This context is injected into all AI prompts for this project.
+                    </p>
+                    <textarea id="project-specialist-context" rows="4" style="width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--item-bg); color: var(--text-primary); font-size: 14px; resize: vertical; line-height: 1.5;" placeholder="e.g., Expert in French existentialism, particularly Sartre's 'Being and Nothingness', Camus' absurdism, and de Beauvoir's feminist existentialism. Deep knowledge of 20th century continental philosophy."></textarea>
+                    <div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">
+                        <strong>Examples:</strong>
+                        <ul style="margin: 6px 0 0 16px; padding: 0; line-height: 1.6;">
+                            <li>Philosophy: "Specialist in Hegelian dialectics and phenomenology"</li>
+                            <li>Sales: "Expert in enterprise SaaS sales to Fortune 500 CFOs"</li>
+                            <li>Film: "Cinematographer specializing in noir lighting and Hitchcock techniques"</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" id="project-settings-cancel">Cancel</button>
+                <button class="btn btn-primary" id="project-settings-save">💾 Save Settings</button>
             </div>
         </div>
     </div>
@@ -5089,12 +5134,83 @@ Do not ask permission—just provide the critique, then help.
                 tuning += `\nUSER PRIORITY INSTRUCTION: ${config.customInstructions.trim()}\n`;
             }
 
-            // Prepend tuning to the base prompt
-            if (tuning) {
-                return `${tuning}\n${baseSystemPrompt}`;
+            // BUILD 260: Append specialist context to the BASE prompt (not prepend)
+            // This makes it a natural extension of the persona, not a competing directive
+            let enhancedBasePrompt = baseSystemPrompt;
+            if (capexTree.specialistContext && capexTree.specialistContext.trim()) {
+                enhancedBasePrompt += `\n\nFor this specific project, you have additional specialized expertise: ${capexTree.specialistContext.trim()}`;
             }
-            return baseSystemPrompt;
+
+            // Prepend tuning to the enhanced base prompt
+            if (tuning) {
+                return `${tuning}\n${enhancedBasePrompt}`;
+            }
+            return enhancedBasePrompt;
         }
+
+        // Open Project Settings Modal (Build 260)
+        function openProjectSettingsModal() {
+            const modal = document.getElementById('project-settings-modal');
+
+            // Populate fields with current values
+            document.getElementById('project-name-input').value = capexTree.name || '';
+            document.getElementById('project-description-input').value = capexTree.description || '';
+            document.getElementById('project-specialist-context').value = capexTree.specialistContext || '';
+
+            modal.classList.add('open');
+
+            // Focus on first field
+            setTimeout(() => document.getElementById('project-name-input').focus(), 100);
+        }
+
+        // Save Project Settings (Build 260)
+        function saveProjectSettings() {
+            const newName = document.getElementById('project-name-input').value.trim();
+            const newDescription = document.getElementById('project-description-input').value.trim();
+            const newSpecialistContext = document.getElementById('project-specialist-context').value.trim();
+
+            // Save state for undo
+            saveState('Edit project settings');
+
+            // Update tree root
+            if (newName) capexTree.name = newName;
+            capexTree.description = newDescription;
+            capexTree.specialistContext = newSpecialistContext;
+
+            // Close modal and re-render
+            document.getElementById('project-settings-modal').classList.remove('open');
+            render();
+
+            // Show toast
+            const hasSpecialist = newSpecialistContext ? ' with AI specialist context' : '';
+            showToast(`Project settings saved${hasSpecialist}`, 'success');
+        }
+
+        // Initialize Project Settings Modal listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const cancelBtn = document.getElementById('project-settings-cancel');
+            const saveBtn = document.getElementById('project-settings-save');
+
+            if (cancelBtn) {
+                cancelBtn.addEventListener('click', () => {
+                    document.getElementById('project-settings-modal').classList.remove('open');
+                });
+            }
+
+            if (saveBtn) {
+                saveBtn.addEventListener('click', saveProjectSettings);
+            }
+
+            // Close on background click
+            const modal = document.getElementById('project-settings-modal');
+            if (modal) {
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) {
+                        modal.classList.remove('open');
+                    }
+                });
+            }
+        });
 
         // Open AI Settings Modal
         function openAISettingsModal() {
@@ -15495,10 +15611,10 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-upload">📂 Upload JSON</div>
                 `;
             } else if (activeNode.type === 'root') {
-                // Root context menu
+                // Root context menu (Build 260: Edit opens Project Settings)
                 menuHtml = `
                     <div class="context-item" id="ctx-view">📋 View Details</div>
-                    <div class="context-item" id="ctx-edit">✏️ Edit ${labels.root}</div>
+                    <div class="context-item" id="ctx-edit">⚙️ Project Settings</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-expand">📂 Expand All</div>
                     <div class="context-item" id="ctx-collapse">📁 Collapse All</div>
@@ -16504,11 +16620,16 @@ Your response:`;
         function handleEdit() {
             if (!activeNode) return;
 
-            // Simple name editing for root and phase nodes
-            if (activeNode.type === 'root' || activeNode.type === 'phase') {
+            // Root node - open Project Settings modal (Build 260)
+            if (activeNode.type === 'root') {
+                openProjectSettingsModal();
+                return;
+            }
+
+            // Simple name editing for phase nodes
+            if (activeNode.type === 'phase') {
                 const labels = getPatternLabels();
-                const nodeType = activeNode.type === 'root' ? labels.root : labels.phase;
-                const newName = prompt(`Enter new ${nodeType} name:`, activeNode.name);
+                const newName = prompt(`Enter new ${labels.phase} name:`, activeNode.name);
 
                 if (newName && newName !== activeNode.name) {
                     activeNode.name = newName;
@@ -35489,7 +35610,7 @@ RULES:
             // Restore saved position
             restorePanelPosition();
 
-            console.log('🌳 TreeBeard initialized (Build 259 - Chat Redesign)');
+            console.log('🌳 TreeBeard initialized (Build 260 - Specialist Context)');
         }
 
         // ═══════════════════════════════════════════════════════════════
