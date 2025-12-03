@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 262 | 2025-12-03
+    TreeListy v2.17.0 | Build 263 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 262): 👥 Dynamic Team Management System
+    Changelog (Build 263): 🔥 Fix Firebase Live Sync Room Creation
+    - FIX: Changed Firestore collection from 'rooms' to 'syncRooms' to match security rules
+    - This fixes "Missing or insufficient permissions" error when creating sync rooms
+
+    Previous (Build 262): 👥 Dynamic Team Management System
     - NEW: Project Team section in Project Settings - add Host, Collaborators, Contributors
     - NEW: Unique initials system - first letter, adds 2nd if collision, 3rd if needed
     - NEW: Email association for accountability - hover to see email
@@ -2890,8 +2894,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 262 | 2025-12-03">
-                    v2.17.0 • Build 262
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 263 | 2025-12-03">
+                    v2.17.0 • Build 263
                 </div>
             </div>
         </div>
@@ -22165,7 +22169,7 @@ https://treelisty.netlify.app`;
 
                 try {
                     // Create the room document with current tree data
-                    const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', roomId);
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
                     console.log('🔥 Got room ref, setting doc...');
                     await window.firebaseSetDoc(roomRef, {
                         createdBy: firebaseSyncState.userId,
@@ -22207,7 +22211,7 @@ https://treelisty.netlify.app`;
 
                 try {
                     // Check if room exists
-                    const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', roomId);
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
                     const roomSnap = await window.firebaseGetDoc(roomRef);
 
                     if (!roomSnap.exists()) {
@@ -22255,7 +22259,7 @@ https://treelisty.netlify.app`;
                     firebaseSyncState.unsubscribe();
                 }
 
-                const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', roomId);
+                const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
 
                 firebaseSyncState.unsubscribe = window.firebaseOnSnapshot(roomRef, (doc) => {
                     if (!doc.exists()) {
@@ -22362,7 +22366,7 @@ https://treelisty.netlify.app`;
                 firebaseSyncState.ignoreNextUpdate = true;
 
                 try {
-                    const roomRef = window.firebaseDoc(window.firebaseDb, 'rooms', firebaseSyncState.roomId);
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', firebaseSyncState.roomId);
                     await window.firebaseSetDoc(roomRef, {
                         lastUpdatedBy: firebaseSyncState.userId,
                         lastUpdatedAt: window.firebaseServerTimestamp(),
