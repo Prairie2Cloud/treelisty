@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 244 | 2025-12-02
+    TreeListy v2.16.0 | Build 245 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,19 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 244): 📷 Professional Canvas Export as PNG
+    Changelog (Build 245): 📝 Enhanced Whiteboard Sketch Style for Image Generation
+    - IMPROVED: Whiteboard Sketch style now creates authentic meeting whiteboard aesthetic
+      - Dry-erase markers on glossy white surface with smudges and imperfect lines
+      - Stick-figure characters with expressive faces and speech bubbles
+      - Chunky arrows in blue/red/green connecting ideas
+      - Doodle icons (lightbulbs, gears, checkmarks) as visual punctuation
+      - Handwritten-style lettering with uneven baselines
+    - NEW: "Meeting Sketch" style with sticky notes and collaborative feel
+    - CHANGED: Default model now Nano Banana (Fast) instead of Pro
+    - 9 visual styles total: Whiteboard, Meeting, Infographic, Cartoon, Tech, Nature, Minimal, Isometric, Academic
+
+    Previous (Build 244): 📷 Professional Canvas Export as PNG
     - NEW: Export Canvas view as high-quality PNG image (📷 button)
-    - NEW: Professional header with project name, pattern, item count, date
-    - NEW: Subtle engineering grid background
-    - NEW: TreeListy branding footer
-    - NEW: 2x resolution for retina/print quality
-    - NEW: Smart bounds detection for perfect framing
 
     Previous (Build 243): 🎯 Improved CAPEX Pattern Detection in Excel Import
     - FIX: AI prompt now explicitly lists CAPEX pattern detection hints
@@ -2456,8 +2462,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 244 | 2025-12-02">
-                    v2.16.0 • Build 244
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 245 | 2025-12-02">
+                    v2.16.0 • Build 245
                 </div>
             </div>
         </div>
@@ -21726,8 +21732,13 @@ https://treelisty.netlify.app`;
         const IMAGEN_STYLES = {
             whiteboard: {
                 name: '📝 Whiteboard Sketch',
-                prompt: 'Clean whiteboard illustration style, hand-drawn marker aesthetic, simple shapes, educational diagram, white background with colorful markers, fun and approachable, minimal detail, clear labels',
-                description: 'Fun educational whiteboard style'
+                prompt: 'Hand-drawn cartoon whiteboard sketch style, dry-erase markers on glossy white surface with slight smudges and imperfect lines. Stick-figure characters with expressive faces and speech bubbles. Chunky arrows in blue red and green marker connecting ideas. Key concepts inside wobbly rectangles or circled in red. Doodle icons like lightbulbs gears checkmarks scattered as visual punctuation. Visible marker cap in corner for authenticity. Left-to-right flow with numbered steps and branching paths. Handwritten-style lettering with uneven baselines and occasional ALL-CAPS emphasis. Friendly irreverent tone like a colleague sketching during a brainstorm.',
+                description: 'Meeting whiteboard with markers and doodles'
+            },
+            meeting: {
+                name: '🤝 Meeting Sketch',
+                prompt: 'Collaborative meeting room whiteboard, hand-drawn flowchart with sticky notes in yellow pink and blue. Quick marker sketches with arrows showing process flow. Bold START at left edge, DONE checkmark at right. Rough boxes containing bullet points. Red circles around key decisions. Green checkmarks for completed items. Playful stick figures pointing at elements. Coffee ring stain in corner for authenticity. Messy but readable handwriting.',
+                description: 'Collaborative meeting room style'
             },
             infographic: {
                 name: '📊 Infographic',
@@ -21872,8 +21883,8 @@ https://treelisty.netlify.app`;
                             <div>
                                 <label style="display: block; font-weight: 600; margin-bottom: 6px; font-size: 12px;">🖼️ Model</label>
                                 <select id="imagen-model" style="width: 100%; padding: 10px; border-radius: 8px; border: 2px solid var(--border); background: var(--card-bg); color: var(--text-primary); font-size: 13px;">
-                                    <option value="gemini-3-pro-image-preview" selected>🍌 Nano Banana Pro (Best)</option>
-                                    <option value="gemini-2.5-flash-preview-image">🍌 Nano Banana (Fast)</option>
+                                    <option value="gemini-2.5-flash-preview-image" selected>🍌 Nano Banana (Fast)</option>
+                                    <option value="gemini-3-pro-image-preview">🍌 Nano Banana Pro (Best)</option>
                                     <option value="imagen-4.0-generate-001">Imagen 4 Standard</option>
                                     <option value="imagen-4.0-ultra-generate-001">Imagen 4 Ultra</option>
                                 </select>
@@ -21892,7 +21903,7 @@ https://treelisty.netlify.app`;
 
                         <!-- Generate Button -->
                         <button id="imagen-generate" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 12px; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            🍌 Generate with Nano Banana Pro
+                            🍌 Generate with Nano Banana
                         </button>
 
                         <!-- Results Container -->
@@ -21968,8 +21979,11 @@ https://treelisty.netlify.app`;
 
             modelSelect.onchange = () => {
                 const model = modelSelect.value;
-                if (model.startsWith('gemini')) {
+                if (model.includes('gemini-3')) {
                     generateBtn.textContent = '🍌 Generate with Nano Banana Pro';
+                    resolutionRow.style.display = 'block';
+                } else if (model.includes('gemini-2')) {
+                    generateBtn.textContent = '🍌 Generate with Nano Banana';
                     resolutionRow.style.display = 'block';
                 } else {
                     generateBtn.textContent = '🎨 Generate with Imagen 4';
