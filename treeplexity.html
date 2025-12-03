@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 264 | 2025-12-03
+    TreeListy v2.17.0 | Build 265 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,18 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 264): 🔑 Unified Live Sync + API Key Sharing
-    - NEW: API key sharing moved to Firebase Live Sync modal (🔄 button in header)
-    - NEW: Share link now includes both room ID AND session token for guests
-    - NEW: Guests automatically get tree sync + host's API keys in one link
-    - REMOVED: Watch Mode button and modal (deprecated, replaced by Firebase sync)
-    - UX: Single collaboration workflow instead of two separate systems
+    Changelog (Build 265): 🚀 Streamlined Live Collaboration UX
+    - NEW: One-click "Start Live Session" - creates room + auto-copies invite link
+    - NEW: Clean invite URL (just ?room=CODE) - guests click and auto-join
+    - NEW: Connected collaborators display with live presence badges
+    - NEW: Team Chat - real-time messaging between collaborators
+    - NEW: API Key toggle switch - easily share/unshare your keys
+    - NEW: Email invite button - pre-filled email with session link
+    - UX: Completely redesigned Live Sync modal - cleaner, faster workflow
+
+    Previous (Build 264): 🔑 Unified Live Sync + API Key Sharing
+    - Migrated API key sharing from Watch Mode to Firebase Live Sync modal
+    - Removed deprecated Watch Mode
 
     Previous (Build 263): 🔥 Fix Firebase Live Sync Room Creation
     - FIX: Changed Firestore collection from 'rooms' to 'syncRooms' to match security rules
@@ -2900,8 +2906,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 264 | 2025-12-03">
-                    v2.17.0 • Build 264
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 265 | 2025-12-03">
+                    v2.17.0 • Build 265
                 </div>
             </div>
         </div>
@@ -4291,50 +4297,34 @@ The AI will analyze the structure and convert it to a tree."
 
     <!-- Firebase Live Sync Modal -->
     <div class="modal" id="live-sync-modal" style="display: none;">
-        <div class="modal-content" style="max-width: 500px;">
+        <div class="modal-content" style="max-width: 520px;">
             <div class="modal-header" style="background: linear-gradient(135deg, #f97316, #ea580c);">
-                <span>🔄 Firebase Live Sync</span>
+                <span>🔄 Live Collaboration</span>
                 <button class="modal-close" id="live-sync-close" onclick="document.getElementById('live-sync-modal').style.display='none'">&times;</button>
             </div>
-            <div class="modal-body" style="padding: 24px;">
-                <!-- Connection Status -->
-                <div id="sync-status-section" style="margin-bottom: 20px; padding: 16px; border-radius: 8px; border: 1px solid var(--border); background: var(--card-bg);">
-                    <div style="display: flex; align-items: center; gap: 10px;">
-                        <div id="sync-status-indicator" style="width: 12px; height: 12px; border-radius: 50%; background: #6b7280;"></div>
-                        <span id="sync-status-text" style="font-weight: 600;">Not Connected</span>
-                    </div>
-                    <div id="sync-user-id" style="font-size: 11px; color: var(--text-secondary); margin-top: 8px; display: none;">
-                        User ID: <span id="sync-user-id-value">--</span>
-                    </div>
-                </div>
-
-                <!-- Not syncing yet -->
+            <div class="modal-body" style="padding: 20px;">
+                <!-- NOT CONNECTED STATE -->
                 <div id="sync-start-section">
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
-                            🆕 Start New Session
-                        </label>
-                        <button class="btn" id="create-sync-room-btn" onclick="window.createFirebaseSyncRoom()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #10b981, #059669); font-weight: 600; font-size: 14px;">
-                            🔥 Create Live Sync Room
-                        </button>
-                        <p style="margin-top: 8px; font-size: 12px; color: var(--text-secondary); text-align: center;">
-                            Creates a room and uploads your current tree
+                    <div style="text-align: center; padding: 20px 0;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">🤝</div>
+                        <h3 style="margin: 0 0 8px; color: var(--text-primary);">Start Collaborating</h3>
+                        <p style="margin: 0 0 20px; font-size: 13px; color: var(--text-secondary);">
+                            Work together in real-time with instant sync
                         </p>
-                    </div>
 
-                    <div style="display: flex; align-items: center; gap: 12px; margin: 20px 0;">
-                        <div style="flex: 1; height: 1px; background: var(--border);"></div>
-                        <span style="font-size: 12px; color: var(--text-secondary);">OR</span>
-                        <div style="flex: 1; height: 1px; background: var(--border);"></div>
-                    </div>
+                        <button class="btn" id="create-sync-room-btn" onclick="window.createFirebaseSyncRoom()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #10b981, #059669); font-weight: 600; font-size: 15px; margin-bottom: 16px;">
+                            🚀 Start Live Session
+                        </button>
 
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; font-size: 14px; font-weight: 600; margin-bottom: 8px;">
-                            🔗 Join Existing Session
-                        </label>
+                        <div style="display: flex; align-items: center; gap: 12px; margin: 16px 0;">
+                            <div style="flex: 1; height: 1px; background: var(--border);"></div>
+                            <span style="font-size: 11px; color: var(--text-secondary);">or join existing</span>
+                            <div style="flex: 1; height: 1px; background: var(--border);"></div>
+                        </div>
+
                         <div style="display: flex; gap: 8px;">
-                            <input type="text" id="join-room-id" placeholder="Enter Room ID..."
-                                style="flex: 1; padding: 12px 16px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-family: monospace;">
+                            <input type="text" id="join-room-id" placeholder="Room code (e.g. ABC123)"
+                                style="flex: 1; padding: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-family: monospace; text-transform: uppercase;">
                             <button class="btn" id="join-sync-room-btn" onclick="window.joinFirebaseSyncRoom(document.getElementById('join-room-id').value)" style="padding: 12px 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); font-weight: 600;">
                                 Join
                             </button>
@@ -4342,114 +4332,103 @@ The AI will analyze the structure and convert it to a tree."
                     </div>
                 </div>
 
-                <!-- Currently syncing -->
+                <!-- CONNECTED STATE -->
                 <div id="sync-active-section" style="display: none;">
-                    <div style="background: rgba(16, 185, 129, 0.1); padding: 16px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 16px;">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                            <div style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
-                            <span style="font-weight: 600; color: #10b981;">Live Syncing</span>
-                        </div>
-                        <div style="font-size: 13px; color: var(--text-secondary);">
-                            <div style="margin-bottom: 4px;">🔗 Room ID:</div>
-                            <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                                <input type="text" id="active-room-id" readonly
-                                    style="flex: 1; padding: 10px; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 14px; color: var(--text-primary);">
-                                <button class="btn" id="copy-room-id-btn" onclick="window.copyFirebaseRoomId()" style="padding: 10px 16px;" title="Copy Room ID">📋</button>
-                            </div>
-                            <div>👥 Users in room: <span id="sync-user-count">1</span></div>
-                            <div>📝 Last update: <span id="sync-last-update">--</span></div>
-                            <div id="sync-last-editor-row" style="display: none;">✏️ Last edit by: <span id="sync-last-editor" style="font-weight: 600;">--</span></div>
-                        </div>
-                    </div>
-
-                    <!-- BUILD 257: Local Save Options -->
-                    <div style="display: flex; gap: 8px; margin-bottom: 12px;">
-                        <button class="btn" onclick="window.saveCollabJSON()" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #10b981, #059669);" title="Download current tree as JSON file">
-                            💾 Save JSON
-                        </button>
-                        <label style="flex: 1; display: flex; align-items: center; gap: 8px; padding: 10px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer;">
-                            <input type="checkbox" id="collab-auto-save-json" onchange="window.toggleCollabAutoSave(this.checked)" style="width: 16px; height: 16px;">
-                            <span style="font-size: 12px;">Auto-save on sync</span>
-                        </label>
-                    </div>
-
-                    <button class="btn" id="leave-sync-room-btn" onclick="window.leaveFirebaseSyncRoom()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); font-weight: 600;">
-                        ⏹️ Leave Room
-                    </button>
-                </div>
-
-                <!-- API KEY SHARING SECTION -->
-                <div style="margin-top: 20px; padding: 16px; background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1)); border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <span style="font-size: 20px;">🔑</span>
-                        <span style="font-weight: 600; color: #f59e0b;">Share API Keys with Collaborators</span>
-                    </div>
-
-                    <!-- Not hosting yet -->
-                    <div id="api-session-start" style="display: block;">
-                        <p style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">
-                            Let collaborators use YOUR API keys for AI features. They won't need their own keys.
-                        </p>
-
-                        <button type="button" id="start-api-session-btn" onclick="startHostSession()"
-                                style="width: 100%; padding: 12px; background: linear-gradient(135deg, #f59e0b, #d97706); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-                            🔑 Start API Key Sharing (4 hours)
-                        </button>
-                    </div>
-
-                    <!-- Currently hosting -->
-                    <div id="api-session-active" style="display: none;">
-                        <div style="background: rgba(16, 185, 129, 0.1); padding: 12px; border-radius: 6px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 12px;">
-                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                    <!-- Invite Link - Most Prominent -->
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15)); padding: 16px; border-radius: 10px; border: 2px solid rgba(16, 185, 129, 0.4); margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
                                 <div style="width: 10px; height: 10px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
-                                <span style="font-weight: 600; color: #10b981;">API Keys Active</span>
+                                <span style="font-weight: 600; color: #10b981; font-size: 14px;">Live Session Active</span>
                             </div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">
-                                <div>🕐 Expires: <span id="api-session-expires-at">--</span></div>
-                                <div>👥 Guests using keys: <span id="api-session-guest-count">0</span></div>
-                            </div>
+                            <span id="active-room-id-display" style="font-family: monospace; font-size: 14px; font-weight: 700; color: var(--text-primary); background: var(--bg); padding: 4px 10px; border-radius: 4px;">--</span>
                         </div>
 
-                        <!-- Session link -->
-                        <div style="margin-bottom: 12px;">
-                            <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">🔗 Share this link (includes Room ID + API Keys):</label>
-                            <div style="display: flex; gap: 8px; margin-bottom: 8px;">
-                                <input type="text" id="api-session-share-link" readonly
-                                       style="flex: 1; background: var(--card-bg); border: 2px solid var(--border); color: var(--text-primary); padding: 8px; border-radius: 6px; font-family: monospace; font-size: 10px;" />
-                                <button type="button" onclick="copyApiSessionLink()"
-                                        style="padding: 8px 16px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; cursor: pointer; color: var(--text-primary);">📋</button>
-                            </div>
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600; color: var(--text-primary);">📧 Send this invite link to collaborators:</label>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="sync-invite-link" readonly
+                                style="flex: 1; padding: 10px; background: var(--bg); border: 2px solid var(--border); border-radius: 6px; font-family: monospace; font-size: 11px; color: var(--text-primary);">
+                            <button class="btn" onclick="window.copySyncInviteLink()" style="padding: 10px 14px; background: linear-gradient(135deg, #10b981, #059669);" title="Copy invite link">📋</button>
+                            <button class="btn" onclick="window.emailSyncInvite()" style="padding: 10px 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6);" title="Email invite">📧</button>
                         </div>
-
-                        <button type="button" id="end-api-session-btn" onclick="endHostSession()"
-                                style="width: 100%; padding: 10px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer;">
-                            ⏹️ Stop Sharing API Keys
-                        </button>
                     </div>
 
-                    <!-- Guest Session Display -->
-                    <div id="api-guest-session" style="display: none; margin-top: 12px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 6px; border: 1px solid rgba(99, 102, 241, 0.3);">
-                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
-                            <span style="font-size: 18px;">🎟️</span>
-                            <span style="font-weight: 600; color: #6366f1;">Using Host's API Keys</span>
+                    <!-- Connected Collaborators -->
+                    <div style="background: var(--card-bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px;">
+                            <span style="font-weight: 600; font-size: 13px;">👥 Connected</span>
+                            <span id="sync-user-count" style="font-size: 12px; color: var(--text-secondary);">1 user</span>
                         </div>
-                        <div style="font-size: 12px; color: var(--text-secondary);">
-                            <div>👤 Host: <span id="api-guest-host-name">--</span></div>
-                            <div>🕐 Session expires: <span id="api-guest-expires">--</span></div>
+                        <div id="sync-collaborators-list" style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            <!-- Collaborators will be populated here -->
+                            <div class="collab-badge" style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 20px; font-size: 12px; font-weight: 600; color: white;">
+                                <span>👑</span> You (Host)
+                            </div>
                         </div>
+                    </div>
+
+                    <!-- Quick Chat -->
+                    <div style="background: var(--card-bg); padding: 14px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-weight: 600; font-size: 13px;">💬 Team Chat</span>
+                        </div>
+                        <div id="sync-chat-messages" style="height: 100px; overflow-y: auto; background: var(--bg); border-radius: 6px; padding: 8px; margin-bottom: 8px; font-size: 12px;">
+                            <div style="color: var(--text-secondary); text-align: center; padding: 30px 0;">No messages yet</div>
+                        </div>
+                        <div style="display: flex; gap: 6px;">
+                            <input type="text" id="sync-chat-input" placeholder="Type a message..."
+                                style="flex: 1; padding: 8px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 12px;"
+                                onkeypress="if(event.key==='Enter') window.sendSyncChatMessage()">
+                            <button class="btn" onclick="window.sendSyncChatMessage()" style="padding: 8px 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6);">Send</button>
+                        </div>
+                    </div>
+
+                    <!-- API Key Sharing Toggle -->
+                    <div id="api-key-section" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1)); padding: 12px; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 12px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span style="font-size: 16px;">🔑</span>
+                                <div>
+                                    <div style="font-weight: 600; font-size: 12px; color: #f59e0b;">Share Your API Keys</div>
+                                    <div id="api-key-status" style="font-size: 11px; color: var(--text-secondary);">Guests will need their own keys</div>
+                                </div>
+                            </div>
+                            <label style="position: relative; display: inline-block; width: 48px; height: 26px; cursor: pointer;">
+                                <input type="checkbox" id="api-key-toggle" onchange="window.toggleApiKeySharing(this.checked)" style="opacity: 0; width: 0; height: 0;">
+                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; border-radius: 26px; transition: .3s;"></span>
+                                <span id="api-toggle-knob" style="position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;"></span>
+                            </label>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn" onclick="window.saveCollabJSON()" style="flex: 1; padding: 10px; background: var(--card-bg); border: 1px solid var(--border);" title="Download current tree as JSON">
+                            💾 Save Local Copy
+                        </button>
+                        <button class="btn" id="leave-sync-room-btn" onclick="window.leaveFirebaseSyncRoom()" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #ef4444, #dc2626); font-weight: 600;">
+                            ⏹️ Leave Session
+                        </button>
                     </div>
                 </div>
 
-                <!-- Help -->
-                <div style="margin-top: 20px; padding: 16px; background: rgba(249, 115, 22, 0.1); border-radius: 8px; border-left: 3px solid #f97316;">
-                    <p style="margin: 0 0 8px; font-size: 13px; font-weight: 600; color: var(--text-primary);">🔥 Firebase Live Sync</p>
-                    <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: var(--text-secondary); line-height: 1.8;">
-                        <li>Real-time collaboration - changes sync instantly</li>
-                        <li>No sign-in required (anonymous auth)</li>
-                        <li>Share Room ID with collaborators</li>
-                        <li>All edits merge automatically</li>
-                        <li>🔑 Share API keys so guests can use AI features</li>
-                    </ul>
+                <!-- Hidden elements for backwards compatibility -->
+                <div style="display: none;">
+                    <div id="sync-status-section"></div>
+                    <div id="sync-status-indicator"></div>
+                    <div id="sync-status-text"></div>
+                    <div id="sync-user-id"><span id="sync-user-id-value"></span></div>
+                    <input type="text" id="active-room-id">
+                    <div id="sync-last-update"></div>
+                    <div id="sync-last-editor-row"><span id="sync-last-editor"></span></div>
+                    <div id="api-session-start"></div>
+                    <div id="api-session-active"></div>
+                    <div id="api-session-expires-at"></div>
+                    <div id="api-session-guest-count"></div>
+                    <input id="api-session-share-link">
+                    <div id="api-guest-session"></div>
+                    <div id="api-guest-host-name"></div>
+                    <div id="api-guest-expires"></div>
                 </div>
             </div>
         </div>
@@ -21956,47 +21935,59 @@ https://treelisty.netlify.app`;
 
             // Update UI based on sync state
             function updateSyncUI() {
-                const statusIndicator = document.getElementById('sync-status-indicator');
-                const statusText = document.getElementById('sync-status-text');
-                const userIdSection = document.getElementById('sync-user-id');
-                const userIdValue = document.getElementById('sync-user-id-value');
                 const startSection = document.getElementById('sync-start-section');
                 const activeSection = document.getElementById('sync-active-section');
                 const syncBtn = document.getElementById('live-sync-btn');
 
+                // Build 265: Also update legacy hidden elements for backwards compat
+                const statusIndicator = document.getElementById('sync-status-indicator');
+                const statusText = document.getElementById('sync-status-text');
+                const userIdSection = document.getElementById('sync-user-id');
+                const userIdValue = document.getElementById('sync-user-id-value');
+
                 if (firebaseSyncState.isConnected && firebaseSyncState.roomId) {
                     // Connected to a room
-                    statusIndicator.style.background = '#10b981';
-                    statusText.textContent = 'Connected';
-                    statusText.style.color = '#10b981';
-                    userIdSection.style.display = 'block';
-                    userIdValue.textContent = firebaseSyncState.userId?.substring(0, 8) + '...';
                     startSection.style.display = 'none';
                     activeSection.style.display = 'block';
+
+                    // Update room ID displays
                     document.getElementById('active-room-id').value = firebaseSyncState.roomId;
+                    const roomIdDisplay = document.getElementById('active-room-id-display');
+                    if (roomIdDisplay) roomIdDisplay.textContent = firebaseSyncState.roomId;
+
+                    // Update invite link
+                    const inviteLinkEl = document.getElementById('sync-invite-link');
+                    if (inviteLinkEl && !inviteLinkEl.value) {
+                        inviteLinkEl.value = `${window.location.origin}${window.location.pathname}?room=${firebaseSyncState.roomId}`;
+                    }
+
+                    // Update header button style
                     syncBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                    syncBtn.title = '🔥 Live Sync Active - ' + firebaseSyncState.roomId;
-                } else if (firebaseSyncState.userId) {
-                    // Authenticated but not in a room
-                    statusIndicator.style.background = '#f59e0b';
-                    statusText.textContent = 'Ready';
-                    statusText.style.color = '#f59e0b';
-                    userIdSection.style.display = 'block';
-                    userIdValue.textContent = firebaseSyncState.userId?.substring(0, 8) + '...';
-                    startSection.style.display = 'block';
-                    activeSection.style.display = 'none';
-                    syncBtn.style.background = 'linear-gradient(135deg, #f97316, #ea580c)';
-                    syncBtn.title = '🔥 Firebase Live Sync';
+                    syncBtn.title = '🔥 Live Session Active - ' + firebaseSyncState.roomId;
+
+                    // Legacy elements
+                    if (statusIndicator) statusIndicator.style.background = '#10b981';
+                    if (statusText) { statusText.textContent = 'Connected'; statusText.style.color = '#10b981'; }
+                    if (userIdSection) userIdSection.style.display = 'block';
+                    if (userIdValue) userIdValue.textContent = firebaseSyncState.userId?.substring(0, 8) + '...';
                 } else {
                     // Not connected
-                    statusIndicator.style.background = '#6b7280';
-                    statusText.textContent = 'Not Connected';
-                    statusText.style.color = 'var(--text-secondary)';
-                    userIdSection.style.display = 'none';
                     startSection.style.display = 'block';
                     activeSection.style.display = 'none';
                     syncBtn.style.background = 'linear-gradient(135deg, #f97316, #ea580c)';
-                    syncBtn.title = '🔥 Firebase Live Sync';
+                    syncBtn.title = '🔄 Live Collaboration';
+
+                    // Reset create button
+                    const createBtn = document.getElementById('create-sync-room-btn');
+                    if (createBtn) {
+                        createBtn.innerHTML = '🚀 Start Live Session';
+                        createBtn.disabled = false;
+                    }
+
+                    // Legacy elements
+                    if (statusIndicator) statusIndicator.style.background = '#6b7280';
+                    if (statusText) { statusText.textContent = 'Not Connected'; statusText.style.color = 'var(--text-secondary)'; }
+                    if (userIdSection) userIdSection.style.display = 'none';
                 }
             }
 
@@ -22042,10 +22033,17 @@ https://treelisty.netlify.app`;
             async function createSyncRoom() {
                 console.log('🔥 createSyncRoom called');
 
+                const btn = document.getElementById('create-sync-room-btn');
+                if (btn) {
+                    btn.innerHTML = '⏳ Creating...';
+                    btn.disabled = true;
+                }
+
                 // Check if Firebase is ready
                 if (!window.firebaseReady) {
                     console.error('🔥 Firebase not ready yet');
                     showToast('⏳ Firebase loading, please try again...', 'warning');
+                    if (btn) { btn.innerHTML = '🚀 Start Live Session'; btn.disabled = false; }
                     return;
                 }
 
@@ -22054,6 +22052,7 @@ https://treelisty.netlify.app`;
                     const authed = await initFirebaseAuth();
                     if (!authed) {
                         console.error('🔥 Auth failed');
+                        if (btn) { btn.innerHTML = '🚀 Start Live Session'; btn.disabled = false; }
                         return;
                     }
                 }
@@ -22073,21 +22072,41 @@ https://treelisty.netlify.app`;
                         lastUpdatedAt: window.firebaseServerTimestamp(),
                         treeData: JSON.stringify(capexTree),
                         pattern: currentPattern,
-                        projectName: capexTree?.name || 'Untitled'
+                        projectName: capexTree?.name || 'Untitled',
+                        // Build 265: Add chat messages array
+                        chatMessages: [],
+                        // Build 265: Track connected users
+                        connectedUsers: {}
                     });
 
                     console.log('🔥 Room created:', roomId);
-                    showToast('🔥 Room created: ' + roomId, 'success');
 
                     // Subscribe to changes
                     subscribeToRoom(roomId);
                     firebaseSyncState.isConnected = true;
+
+                    // Generate invite link
+                    const inviteLink = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+                    document.getElementById('sync-invite-link').value = inviteLink;
+                    document.getElementById('active-room-id-display').textContent = roomId;
+                    document.getElementById('active-room-id').value = roomId;
+
+                    // Update UI
                     updateSyncUI();
+
+                    // Copy link to clipboard automatically
+                    try {
+                        await navigator.clipboard.writeText(inviteLink);
+                        showToast('🔥 Session started! Invite link copied to clipboard.', 'success');
+                    } catch (e) {
+                        showToast('🔥 Session started! Room: ' + roomId, 'success');
+                    }
 
                 } catch (error) {
                     console.error('🔥 Failed to create room:', error);
                     showToast('❌ Failed to create room: ' + error.message, 'error');
                     firebaseSyncState.roomId = null;
+                    if (btn) { btn.innerHTML = '🚀 Start Live Session'; btn.disabled = false; }
                 }
             }
 
@@ -22238,12 +22257,51 @@ https://treelisty.netlify.app`;
                             console.error('🔥 Failed to parse tree update:', e);
                         }
                     }
+
+                    // BUILD 265: Handle chat messages
+                    if (data.chatMessages && Array.isArray(data.chatMessages)) {
+                        const container = document.getElementById('sync-chat-messages');
+                        if (container) {
+                            // Clear and rebuild chat
+                            container.innerHTML = '';
+                            if (data.chatMessages.length === 0) {
+                                container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 30px 0;">No messages yet</div>';
+                            } else {
+                                data.chatMessages.forEach(msg => addChatMessageToUI(msg));
+                            }
+                        }
+                    }
+
+                    // BUILD 265: Handle connected users
+                    if (data.connectedUsers) {
+                        updateCollaboratorsUI(data.connectedUsers);
+                    }
                 }, (error) => {
                     console.error('🔥 Snapshot error:', error);
                     showToast('❌ Sync error: ' + error.message, 'error');
                 });
 
+                // BUILD 265: Register ourselves as connected
+                registerAsConnected(roomId);
+
                 console.log('🔥 Subscribed to room:', roomId);
+            }
+
+            // BUILD 265: Register user as connected to room
+            async function registerAsConnected(roomId) {
+                if (!firebaseSyncState.userId) return;
+
+                try {
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
+                    const connectedUsers = {};
+                    connectedUsers[firebaseSyncState.userId] = {
+                        name: firebaseSyncState.myDisplayName || 'User',
+                        joinedAt: Date.now()
+                    };
+                    await window.firebaseSetDoc(roomRef, { connectedUsers }, { merge: true });
+                } catch (e) {
+                    console.error('🔥 Failed to register as connected:', e);
+                }
             }
 
             // Push local changes to the room
@@ -22388,6 +22446,165 @@ https://treelisty.netlify.app`;
 
             // BUILD 257: Check auto-save setting and restore checkbox state
             firebaseSyncState.autoSaveJSON = localStorage.getItem('treelisty_collab_autosave') === 'true';
+
+            // BUILD 265: Copy invite link
+            window.copySyncInviteLink = async function() {
+                const linkInput = document.getElementById('sync-invite-link');
+                if (linkInput && linkInput.value) {
+                    try {
+                        await navigator.clipboard.writeText(linkInput.value);
+                        showToast('📋 Invite link copied!', 'success');
+                    } catch (e) {
+                        linkInput.select();
+                        document.execCommand('copy');
+                        showToast('📋 Invite link copied!', 'success');
+                    }
+                }
+            };
+
+            // BUILD 265: Email invite link
+            window.emailSyncInvite = function() {
+                const roomId = firebaseSyncState.roomId || '';
+                const inviteLink = document.getElementById('sync-invite-link')?.value || '';
+                const projectName = capexTree?.name || 'TreeListy Project';
+
+                const subject = encodeURIComponent(`Join my TreeListy session: ${projectName}`);
+                const body = encodeURIComponent(
+                    `Hi!\n\n` +
+                    `I'd like to collaborate with you on "${projectName}" in TreeListy.\n\n` +
+                    `Click this link to join my live session:\n${inviteLink}\n\n` +
+                    `Room Code: ${roomId}\n\n` +
+                    `See you there!`
+                );
+
+                window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
+            };
+
+            // BUILD 265: Toggle API key sharing
+            window.toggleApiKeySharing = async function(enabled) {
+                const statusEl = document.getElementById('api-key-status');
+                const toggleSpan = document.getElementById('api-toggle-knob');
+                const checkbox = document.getElementById('api-key-toggle');
+
+                if (enabled) {
+                    // Start API key sharing
+                    toggleSpan.style.transform = 'translateX(22px)';
+                    toggleSpan.parentElement.previousElementSibling.nextElementSibling.style.backgroundColor = '#10b981';
+
+                    // Call existing startHostSession
+                    if (typeof startHostSession === 'function') {
+                        await startHostSession();
+                    }
+
+                    statusEl.textContent = 'Guests can use your AI features';
+                    statusEl.style.color = '#10b981';
+
+                    // Update invite link to include session token
+                    const currentLink = document.getElementById('sync-invite-link')?.value || '';
+                    const sessionToken = window.getCollabSessionToken?.() || '';
+                    if (sessionToken && currentLink && !currentLink.includes('session=')) {
+                        // This will be handled by startHostSession
+                    }
+                } else {
+                    toggleSpan.style.transform = 'translateX(0)';
+                    toggleSpan.parentElement.previousElementSibling.nextElementSibling.style.backgroundColor = '#374151';
+
+                    // End API key sharing
+                    if (typeof endHostSession === 'function') {
+                        await endHostSession();
+                    }
+
+                    statusEl.textContent = 'Guests will need their own keys';
+                    statusEl.style.color = 'var(--text-secondary)';
+                }
+            };
+
+            // BUILD 265: Send chat message
+            window.sendSyncChatMessage = async function() {
+                const input = document.getElementById('sync-chat-input');
+                const message = input?.value?.trim();
+                if (!message || !firebaseSyncState.roomId) return;
+
+                input.value = '';
+
+                const chatMsg = {
+                    userId: firebaseSyncState.userId?.substring(0, 8) || 'anon',
+                    name: firebaseSyncState.myDisplayName || 'User',
+                    text: message,
+                    timestamp: Date.now()
+                };
+
+                // Add to local display immediately
+                addChatMessageToUI(chatMsg);
+
+                // Push to Firebase (store in room doc)
+                try {
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', firebaseSyncState.roomId);
+                    const roomSnap = await window.firebaseGetDoc(roomRef);
+                    if (roomSnap.exists()) {
+                        const data = roomSnap.data();
+                        const messages = data.chatMessages || [];
+                        messages.push(chatMsg);
+                        // Keep only last 50 messages
+                        if (messages.length > 50) messages.shift();
+                        await window.firebaseSetDoc(roomRef, { chatMessages: messages }, { merge: true });
+                    }
+                } catch (e) {
+                    console.error('🔥 Failed to send chat message:', e);
+                }
+            };
+
+            // BUILD 265: Add chat message to UI
+            function addChatMessageToUI(msg) {
+                const container = document.getElementById('sync-chat-messages');
+                if (!container) return;
+
+                // Remove "no messages" placeholder
+                const placeholder = container.querySelector('div[style*="text-align: center"]');
+                if (placeholder) placeholder.remove();
+
+                const isMe = msg.userId === firebaseSyncState.userId?.substring(0, 8);
+                const msgEl = document.createElement('div');
+                msgEl.style.cssText = `margin-bottom: 6px; ${isMe ? 'text-align: right;' : ''}`;
+                msgEl.innerHTML = `
+                    <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'};">${msg.name || 'User'}:</span>
+                    <span style="color: var(--text-primary);">${msg.text}</span>
+                `;
+                container.appendChild(msgEl);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            // BUILD 265: Update collaborators list in UI
+            function updateCollaboratorsUI(connectedUsers) {
+                const listEl = document.getElementById('sync-collaborators-list');
+                const countEl = document.getElementById('sync-user-count');
+                if (!listEl) return;
+
+                const users = Object.entries(connectedUsers || {});
+                const count = users.length || 1;
+
+                if (countEl) countEl.textContent = `${count} user${count !== 1 ? 's' : ''}`;
+
+                // Rebuild collaborator badges
+                listEl.innerHTML = '';
+
+                // Add self first
+                const selfBadge = document.createElement('div');
+                selfBadge.className = 'collab-badge';
+                selfBadge.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: linear-gradient(135deg, #f59e0b, #d97706); border-radius: 20px; font-size: 12px; font-weight: 600; color: white;';
+                selfBadge.innerHTML = `<span>👑</span> ${firebaseSyncState.myDisplayName || 'You'}`;
+                listEl.appendChild(selfBadge);
+
+                // Add others
+                users.forEach(([id, user]) => {
+                    if (id === firebaseSyncState.userId) return; // Skip self
+                    const badge = document.createElement('div');
+                    badge.className = 'collab-badge';
+                    badge.style.cssText = 'display: inline-flex; align-items: center; gap: 6px; padding: 6px 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 20px; font-size: 12px; font-weight: 600; color: white;';
+                    badge.innerHTML = `<span>👤</span> ${user.name || id.substring(0, 6)}`;
+                    listEl.appendChild(badge);
+                });
+            }
 
             window.initFirebaseAuthIfNeeded = async function() {
                 if (!firebaseSyncState.userId) {
