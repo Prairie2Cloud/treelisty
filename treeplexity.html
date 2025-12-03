@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 249 | 2025-12-02
+    TreeListy v2.16.0 | Build 250 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,21 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 249): 🎤 Expanded Chat Assistant Commands (35 total)
-    - NEW: File operations - import_text, load_json, import_excel, share_url, live_sync
-    - NEW: Search command - "search for X" opens search modal
-    - NEW: AI operations - generate_image, deep_dive for selected nodes
-    - NEW: Canvas layouts - hierarchical, timeline, force-directed
-    - NEW: Selection commands - select_all, clear_selection
-    - NEW: project_info, open_settings, refresh_drive
-    - IMPROVED: AI system prompt lists all 35 commands by category
-    - IMPROVED: Fallback interpreter with comprehensive pattern matching
+    Changelog (Build 250): 🧭 Conversational Tree Navigation & Editing
+    - NEW: find_node - search and select nodes by name/description ("find Becoming")
+    - NEW: Tree traversal - first_child, parent_node, next_sibling, prev_sibling
+    - NEW: expand_node / collapse_node - toggle focused node
+    - NEW: set_title, set_description, set_field - edit any field via chat
+    - NEW: ai_enhance_field - AI-improve specific fields ("enhance description")
+    - NEW: add_child, delete_node - structural editing via chat
+    - NEW: zoom_in, zoom_out, zoom_fit, zoom_reset - canvas view control
+    - NEW: list_children, list_fields, get_field, node_info - inspection commands
+    - IMPROVED: Natural language patterns for navigation ("go to parent", "next")
+    - Enables workflow: "find Hegel" → "expand" → "first child" → "set description: ..."
+
+    Previous (Build 249): 🎤 Expanded Chat Assistant Commands (35 total)
+    - File operations - import_text, load_json, import_excel, share_url, live_sync
+    - Search, AI operations, Canvas layouts, Selection commands
 
     Previous (Build 248): 💬 Chat Assistant with Voice Control
     - Floating chat bubble (bottom-right) - click or press Ctrl+/
@@ -2806,8 +2812,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 249 | 2025-12-02">
-                    v2.16.0 • Build 249
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 250 | 2025-12-02">
+                    v2.16.0 • Build 250
                 </div>
             </div>
         </div>
@@ -33557,6 +33563,471 @@ ${transcript}`;
                 const items = typeof capexTree !== 'undefined' && capexTree.phases ?
                     capexTree.phases.reduce((sum, p) => sum + (p.items?.length || 0), 0) : 0;
                 return `📋 **Project:** ${name}\n**Pattern:** ${pattern}\n**Phases:** ${phases}\n**Items:** ${items}`;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 250: NAVIGATION & FOCUS COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            // Find node by name/text and select it
+            'find_node': (query) => {
+                if (!query) return '⚠️ Please specify what to search for. Example: "find Becoming"';
+
+                const results = [];
+                function searchTree(node, path = []) {
+                    const nameMatch = node.name && node.name.toLowerCase().includes(query.toLowerCase());
+                    const titleMatch = node.title && node.title.toLowerCase().includes(query.toLowerCase());
+                    const descMatch = node.description && node.description.toLowerCase().includes(query.toLowerCase());
+
+                    if (nameMatch || titleMatch || descMatch) {
+                        results.push({ node, path: [...path], matchField: nameMatch ? 'name' : titleMatch ? 'title' : 'description' });
+                    }
+
+                    // Search children
+                    (node.children || node.items || node.subItems || []).forEach((child, i) => {
+                        searchTree(child, [...path, { name: node.name || node.id, index: i }]);
+                    });
+                }
+                searchTree(capexTree);
+
+                if (results.length === 0) {
+                    return `❌ No nodes found matching "${query}"`;
+                }
+
+                // Select the first match
+                const firstMatch = results[0].node;
+                window.chatFocusedNode = firstMatch;
+                window.selectedCanvasNodes = [firstMatch];
+
+                // Scroll to node in canvas if visible
+                const nodeEl = document.querySelector(`.canvas-node[data-id="${firstMatch.id}"]`);
+                if (nodeEl) {
+                    nodeEl.classList.add('selected');
+                    nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
+                const matchList = results.slice(0, 5).map((r, i) =>
+                    `${i + 1}. "${r.node.name || r.node.title}" (${r.matchField})`
+                ).join('\n');
+
+                return `🔍 Found ${results.length} match${results.length > 1 ? 'es' : ''} for "${query}":\n${matchList}\n\n✅ Selected: "${firstMatch.name || firstMatch.title}"`;
+            },
+
+            // Focus on a specific node by ID
+            'focus_node': (nodeId) => {
+                if (!nodeId) return '⚠️ Please specify a node ID';
+
+                const node = typeof getNodeById === 'function' ? getNodeById(nodeId) : null;
+                if (!node) {
+                    return `❌ Node with ID "${nodeId}" not found`;
+                }
+
+                window.chatFocusedNode = node;
+                window.selectedCanvasNodes = [node];
+
+                const nodeEl = document.querySelector(`.canvas-node[data-id="${nodeId}"]`);
+                if (nodeEl) {
+                    nodeEl.classList.add('selected');
+                    nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
+                return `🎯 Focused on: "${node.name || node.title || nodeId}"`;
+            },
+
+            // Expand focused node
+            'expand_node': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                node.expanded = true;
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                const childCount = (node.children || node.items || node.subItems || []).length;
+                return `⬇️ Expanded "${node.name || node.title}" (${childCount} children)`;
+            },
+
+            // Collapse focused node
+            'collapse_node': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                node.expanded = false;
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `⬆️ Collapsed "${node.name || node.title}"`;
+            },
+
+            // Navigate to first child
+            'first_child': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                const children = node.children || node.items || node.subItems || [];
+                if (children.length === 0) {
+                    return `❌ "${node.name || node.title}" has no children`;
+                }
+
+                const child = children[0];
+                window.chatFocusedNode = child;
+                window.selectedCanvasNodes = [child];
+
+                return `👶 Moved to first child: "${child.name || child.title}"`;
+            },
+
+            // Navigate to parent
+            'parent_node': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                // Find parent by searching tree
+                let parent = null;
+                function findParent(current, target) {
+                    const children = current.children || current.items || current.subItems || [];
+                    for (const child of children) {
+                        if (child.id === target.id) {
+                            parent = current;
+                            return true;
+                        }
+                        if (findParent(child, target)) return true;
+                    }
+                    return false;
+                }
+                findParent(capexTree, node);
+
+                if (!parent) {
+                    return `❌ "${node.name || node.title}" has no parent (it's the root)`;
+                }
+
+                window.chatFocusedNode = parent;
+                window.selectedCanvasNodes = [parent];
+
+                return `⬆️ Moved to parent: "${parent.name || parent.title}"`;
+            },
+
+            // Navigate to next sibling
+            'next_sibling': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                // Find sibling
+                let sibling = null;
+                function findSibling(parent) {
+                    const children = parent.children || parent.items || parent.subItems || [];
+                    const idx = children.findIndex(c => c.id === node.id);
+                    if (idx >= 0 && idx < children.length - 1) {
+                        sibling = children[idx + 1];
+                        return true;
+                    }
+                    for (const child of children) {
+                        if (findSibling(child)) return true;
+                    }
+                    return false;
+                }
+                findSibling(capexTree);
+
+                if (!sibling) {
+                    return `❌ "${node.name || node.title}" has no next sibling`;
+                }
+
+                window.chatFocusedNode = sibling;
+                window.selectedCanvasNodes = [sibling];
+
+                return `➡️ Moved to next sibling: "${sibling.name || sibling.title}"`;
+            },
+
+            // Navigate to previous sibling
+            'prev_sibling': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                let sibling = null;
+                function findSibling(parent) {
+                    const children = parent.children || parent.items || parent.subItems || [];
+                    const idx = children.findIndex(c => c.id === node.id);
+                    if (idx > 0) {
+                        sibling = children[idx - 1];
+                        return true;
+                    }
+                    for (const child of children) {
+                        if (findSibling(child)) return true;
+                    }
+                    return false;
+                }
+                findSibling(capexTree);
+
+                if (!sibling) {
+                    return `❌ "${node.name || node.title}" has no previous sibling`;
+                }
+
+                window.chatFocusedNode = sibling;
+                window.selectedCanvasNodes = [sibling];
+
+                return `⬅️ Moved to previous sibling: "${sibling.name || sibling.title}"`;
+            },
+
+            // List children of focused node
+            'list_children': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                const children = node.children || node.items || node.subItems || [];
+                if (children.length === 0) {
+                    return `📭 "${node.name || node.title}" has no children`;
+                }
+
+                const list = children.map((c, i) => `${i + 1}. ${c.name || c.title || c.id}`).join('\n');
+                return `📋 Children of "${node.name || node.title}" (${children.length}):\n${list}`;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // VIEW CONTROL COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            'zoom_in': () => {
+                if (typeof canvasZoom !== 'undefined') {
+                    canvasZoom = Math.min(3, canvasZoom * 1.2);
+                    if (typeof updateCanvasTransform === 'function') updateCanvasTransform();
+                    return `🔍 Zoomed in to ${Math.round(canvasZoom * 100)}%`;
+                }
+                return '❌ Switch to Canvas view first';
+            },
+
+            'zoom_out': () => {
+                if (typeof canvasZoom !== 'undefined') {
+                    canvasZoom = Math.max(0.2, canvasZoom / 1.2);
+                    if (typeof updateCanvasTransform === 'function') updateCanvasTransform();
+                    return `🔍 Zoomed out to ${Math.round(canvasZoom * 100)}%`;
+                }
+                return '❌ Switch to Canvas view first';
+            },
+
+            'zoom_fit': () => {
+                if (typeof fitToView === 'function') {
+                    fitToView();
+                    return '📐 Fit all nodes to view';
+                }
+                return '❌ Switch to Canvas view first';
+            },
+
+            'zoom_reset': () => {
+                if (typeof resetView === 'function') {
+                    resetView();
+                    return '🔄 View reset to 100%';
+                }
+                return '❌ Switch to Canvas view first';
+            },
+
+            'scroll_to_node': (nodeId) => {
+                const id = nodeId || (window.chatFocusedNode?.id);
+                if (!id) return '⚠️ No node to scroll to. Use "find [name]" first.';
+
+                const nodeEl = document.querySelector(`.canvas-node[data-id="${id}"]`);
+                if (nodeEl) {
+                    nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return `📍 Scrolled to node`;
+                }
+                return '❌ Node not visible in current view';
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // FIELD EDITING COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            'set_title': (newTitle) => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                if (!newTitle) return '⚠️ Please provide a new title';
+
+                const oldTitle = node.name || node.title;
+                if (node.name !== undefined) node.name = newTitle;
+                if (node.title !== undefined) node.title = newTitle;
+
+                if (typeof saveState === 'function') saveState('Chat: Set title');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `✏️ Title changed: "${oldTitle}" → "${newTitle}"`;
+            },
+
+            'set_description': (newDesc) => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                if (!newDesc) return '⚠️ Please provide a description';
+
+                node.description = newDesc;
+
+                if (typeof saveState === 'function') saveState('Chat: Set description');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `📝 Description updated for "${node.name || node.title}"`;
+            },
+
+            'set_field': (fieldAndValue) => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                if (!fieldAndValue) return '⚠️ Usage: set_field:fieldName:value';
+
+                const parts = fieldAndValue.split(':');
+                if (parts.length < 2) return '⚠️ Usage: set_field:fieldName:value';
+
+                const field = parts[0];
+                const value = parts.slice(1).join(':'); // Allow colons in value
+
+                node[field] = value;
+
+                if (typeof saveState === 'function') saveState(`Chat: Set ${field}`);
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `✅ Set ${field} = "${value}" on "${node.name || node.title}"`;
+            },
+
+            'get_field': (field) => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                if (!field) return '⚠️ Please specify a field name';
+
+                const value = node[field];
+                if (value === undefined) {
+                    return `❌ Field "${field}" not found on this node. Available fields: ${Object.keys(node).join(', ')}`;
+                }
+
+                return `📖 ${field}: "${value}"`;
+            },
+
+            'list_fields': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                const fields = Object.entries(node)
+                    .filter(([k, v]) => !['children', 'items', 'subItems', 'canvasX', 'canvasY'].includes(k) && v !== null && v !== undefined)
+                    .map(([k, v]) => {
+                        const val = typeof v === 'string' ? (v.length > 50 ? v.substring(0, 50) + '...' : v) : v;
+                        return `• ${k}: ${val}`;
+                    });
+
+                return `📋 Fields on "${node.name || node.title}":\n${fields.join('\n')}`;
+            },
+
+            // AI enhance specific field
+            'ai_enhance_field': async (field) => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                if (!field) return '⚠️ Please specify a field to enhance (e.g., description, thesis)';
+
+                const currentValue = node[field] || '';
+
+                // Use the proxy to enhance
+                try {
+                    const response = await fetch('/.netlify/functions/claude-proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 500,
+                            messages: [{
+                                role: 'user',
+                                content: `Improve this ${field} for a node titled "${node.name || node.title}" in a ${typeof currentPattern !== 'undefined' ? currentPattern : 'generic'} project tree. Keep it concise but make it more specific and actionable.\n\nCurrent ${field}: ${currentValue || '(empty)'}\n\nReturn ONLY the improved text, no explanations.`
+                            }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    const enhanced = data.content?.[0]?.text || data.choices?.[0]?.message?.content;
+
+                    if (enhanced) {
+                        node[field] = enhanced.trim();
+                        if (typeof saveState === 'function') saveState(`Chat: AI enhanced ${field}`);
+                        if (typeof render === 'function') render();
+                        if (typeof renderCanvas === 'function') renderCanvas();
+                        return `✨ AI enhanced ${field}:\n"${enhanced.trim()}"`;
+                    }
+                    return '❌ AI enhancement failed - no response';
+                } catch (err) {
+                    return `❌ AI enhancement failed: ${err.message}`;
+                }
+            },
+
+            // Add a child node
+            'add_child': (childName) => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                if (!childName) return '⚠️ Please provide a name for the new child';
+
+                const newChild = {
+                    id: 'chat_' + Date.now(),
+                    name: childName,
+                    expanded: true
+                };
+
+                // Determine which array to use
+                if (node.subItems) {
+                    node.subItems.push(newChild);
+                } else if (node.items) {
+                    node.items.push(newChild);
+                } else if (node.children) {
+                    node.children.push(newChild);
+                } else {
+                    node.subItems = [newChild];
+                }
+
+                if (typeof saveState === 'function') saveState('Chat: Added child');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                // Focus the new child
+                window.chatFocusedNode = newChild;
+
+                return `➕ Added child "${childName}" to "${node.name || node.title}"`;
+            },
+
+            // Delete focused node
+            'delete_node': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                if (node.id === capexTree.id) return '❌ Cannot delete the root node';
+
+                // Find and remove from parent
+                function removeFromParent(parent) {
+                    const arrays = ['children', 'items', 'subItems'];
+                    for (const arr of arrays) {
+                        if (parent[arr]) {
+                            const idx = parent[arr].findIndex(c => c.id === node.id);
+                            if (idx >= 0) {
+                                parent[arr].splice(idx, 1);
+                                return true;
+                            }
+                            for (const child of parent[arr]) {
+                                if (removeFromParent(child)) return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                const name = node.name || node.title;
+                removeFromParent(capexTree);
+                window.chatFocusedNode = null;
+
+                if (typeof saveState === 'function') saveState('Chat: Deleted node');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `🗑️ Deleted "${name}"`;
+            },
+
+            // Show focused node info
+            'node_info': () => {
+                const node = window.chatFocusedNode;
+                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+
+                const children = (node.children || node.items || node.subItems || []).length;
+                const fields = Object.keys(node).filter(k => !['children', 'items', 'subItems', 'canvasX', 'canvasY', 'id'].includes(k));
+
+                return `📍 **Focused Node:**\n• Name: ${node.name || node.title || 'Untitled'}\n• ID: ${node.id}\n• Children: ${children}\n• Fields: ${fields.join(', ')}`;
             }
         };
 
@@ -33587,9 +34058,10 @@ CURRENT CONTEXT:
 
 AVAILABLE COMMANDS (return these exact action names when user wants to execute):
 
-VIEW & NAVIGATION:
+VIEW SWITCHING:
 - switch_to_canvas / switch_to_tree / toggle_view
 - layout_hierarchical / layout_timeline / layout_force (Canvas layouts)
+- zoom_in / zoom_out / zoom_fit / zoom_reset
 
 THEMES:
 - set_theme_dark / set_theme_steampunk / set_theme_tron / set_theme_powerpuff
@@ -33599,29 +34071,44 @@ PATTERNS:
 
 FILE OPERATIONS:
 - new_project / open_wizard
-- import_text (paste text for AI structuring)
-- load_json / export_json
+- import_text / load_json / export_json
 - import_excel / export_excel
-- export_canvas_image (PNG export)
-- share_url (generate shareable link)
-- live_sync (Firebase real-time sync)
-- refresh_drive (reload from Google Drive)
+- export_canvas_image / share_url
+- live_sync / refresh_drive
 
-EDITING:
-- add_phase / expand_all / collapse_all
-- undo / redo
-- search (open search modal)
-- select_all / clear_selection
+NODE NAVIGATION (most powerful - enables workflow automation):
+- find_node:{query} → Search & select node by name/description
+- focus_node:{id} → Focus specific node by ID
+- expand_node / collapse_node → Toggle focused node
+- first_child / parent_node → Navigate tree hierarchy
+- next_sibling / prev_sibling → Navigate siblings
+- list_children → Show children of focused node
+- scroll_to_node → Scroll canvas to focused node
+- node_info → Show focused node details
+
+NODE EDITING:
+- set_title:{text} → Change focused node's title
+- set_description:{text} → Change description
+- set_field:{field}:{value} → Set any field
+- get_field:{field} → Read a field value
+- list_fields → Show all fields on focused node
+- add_child:{name} → Add child to focused node
+- delete_node → Delete focused node
 
 AI FEATURES:
-- enhance_selected (AI enhance selected nodes)
-- deep_dive (deep analysis of selected)
-- generate_image (create image from selected - requires Gemini key)
+- ai_enhance_field:{field} → AI-improve specific field (description, thesis, etc.)
+- enhance_selected / deep_dive / generate_image
+
+TREE OPERATIONS:
+- add_phase / expand_all / collapse_all
+- undo / redo / search
+- select_all / clear_selection
 
 SETTINGS & HELP:
-- open_settings (API keys)
-- show_help
-- project_info (show current project stats)
+- open_settings / show_help / project_info
+
+FOCUSED NODE: The "focused node" is set by find_node or navigation commands. Many commands operate on it.
+Example workflow: "find Becoming" → "expand node" → "first child" → "set description: The dialectical synthesis..."
 
 RESPONSE FORMAT (JSON only, no markdown):
 {
@@ -33700,9 +34187,130 @@ RULES:
             }
         }
 
-        // Simple fallback when AI unavailable
+        // Simple fallback when AI unavailable - also handles direct commands
         function fallbackInterpret(message) {
             const lower = message.toLowerCase();
+            const original = message; // Keep original for parameters
+
+            // ═══════════════════════════════════════════════════════════════
+            // NODE NAVIGATION (Build 250) - Most powerful commands
+            // ═══════════════════════════════════════════════════════════════
+
+            // Find node: "find Being", "search for Becoming", "locate synthesis"
+            const findMatch = original.match(/(?:find|search|locate|go to|show me)\s+(?:node\s+)?["']?(.+?)["']?$/i);
+            if (findMatch) {
+                return { type: 'action', message: `🔍 Searching for "${findMatch[1]}"...`, action: 'find_node', actionParam: findMatch[1] };
+            }
+
+            // Focus by ID: "focus node_123"
+            const focusMatch = original.match(/focus\s+(?:on\s+)?(?:node\s+)?(\S+)/i);
+            if (focusMatch && focusMatch[1].includes('_')) {
+                return { type: 'action', message: `🎯 Focusing on ${focusMatch[1]}...`, action: 'focus_node', actionParam: focusMatch[1] };
+            }
+
+            // Expand current node
+            if (lower.match(/^expand(\s+node)?(\s+it)?$/)) {
+                return { type: 'action', message: '⬇️ Expanding focused node...', action: 'expand_node' };
+            }
+
+            // Collapse current node
+            if (lower.match(/^collapse(\s+node)?(\s+it)?$/)) {
+                return { type: 'action', message: '⬆️ Collapsing focused node...', action: 'collapse_node' };
+            }
+
+            // Tree navigation
+            if (lower.includes('first child') || lower.includes('go to child') || lower.includes('into')) {
+                return { type: 'action', message: '👶 Moving to first child...', action: 'first_child' };
+            }
+            if (lower.includes('parent') || lower.includes('go up') || lower.includes('back up')) {
+                return { type: 'action', message: '⬆️ Moving to parent...', action: 'parent_node' };
+            }
+            if (lower.includes('next') || lower.includes('next sibling')) {
+                return { type: 'action', message: '➡️ Moving to next sibling...', action: 'next_sibling' };
+            }
+            if (lower.includes('prev') || lower.includes('previous')) {
+                return { type: 'action', message: '⬅️ Moving to previous sibling...', action: 'prev_sibling' };
+            }
+            if (lower.includes('list child') || lower.includes('show child') || lower.includes('children')) {
+                return { type: 'action', message: '📋 Listing children...', action: 'list_children' };
+            }
+            if (lower.includes('node info') || lower.includes('current node') || lower.includes('what node')) {
+                return { type: 'action', message: '📍 Node info:', action: 'node_info' };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // FIELD EDITING (Build 250)
+            // ═══════════════════════════════════════════════════════════════
+
+            // Set title: "set title to X", "rename to X", "title: X"
+            const titleMatch = original.match(/(?:set\s+title|rename|title)\s*(?:to|:)\s*["']?(.+?)["']?$/i);
+            if (titleMatch) {
+                return { type: 'action', message: `✏️ Setting title...`, action: 'set_title', actionParam: titleMatch[1] };
+            }
+
+            // Set description: "set description to X", "describe as X"
+            const descMatch = original.match(/(?:set\s+description|describe|description)\s*(?:to|as|:)\s*["']?(.+?)["']?$/i);
+            if (descMatch) {
+                return { type: 'action', message: `📝 Setting description...`, action: 'set_description', actionParam: descMatch[1] };
+            }
+
+            // Set any field: "set thesis to X"
+            const fieldMatch = original.match(/set\s+(\w+)\s+(?:to|:)\s*["']?(.+?)["']?$/i);
+            if (fieldMatch && !['title', 'description', 'theme'].includes(fieldMatch[1].toLowerCase())) {
+                return { type: 'action', message: `✅ Setting ${fieldMatch[1]}...`, action: 'set_field', actionParam: `${fieldMatch[1]}:${fieldMatch[2]}` };
+            }
+
+            // Get field: "get thesis", "show description", "what is the title"
+            const getMatch = original.match(/(?:get|show|what\s+is\s+(?:the\s+)?)\s*(\w+)$/i);
+            if (getMatch && ['thesis', 'argument', 'description', 'source', 'status'].includes(getMatch[1].toLowerCase())) {
+                return { type: 'action', message: `📖 Getting ${getMatch[1]}...`, action: 'get_field', actionParam: getMatch[1] };
+            }
+
+            // List fields
+            if (lower.includes('list fields') || lower.includes('show fields') || lower.includes('what fields')) {
+                return { type: 'action', message: '📋 Listing fields...', action: 'list_fields' };
+            }
+
+            // Add child: "add child X", "create child X", "new child X"
+            const addChildMatch = original.match(/(?:add|create|new)\s+child\s*(?:named|called)?\s*["']?(.+?)["']?$/i);
+            if (addChildMatch) {
+                return { type: 'action', message: `➕ Adding child "${addChildMatch[1]}"...`, action: 'add_child', actionParam: addChildMatch[1] };
+            }
+
+            // Delete node
+            if (lower.includes('delete') && (lower.includes('node') || lower.includes('this') || lower.includes('it'))) {
+                return { type: 'action', message: '🗑️ Deleting focused node...', action: 'delete_node' };
+            }
+
+            // AI enhance field: "enhance description", "ai improve thesis"
+            const enhanceFieldMatch = original.match(/(?:enhance|improve|ai\s+enhance|ai\s+improve)\s+(?:the\s+)?(\w+)/i);
+            if (enhanceFieldMatch && ['description', 'thesis', 'argument', 'summary', 'explanation'].includes(enhanceFieldMatch[1].toLowerCase())) {
+                return { type: 'action', message: `✨ AI enhancing ${enhanceFieldMatch[1]}...`, action: 'ai_enhance_field', actionParam: enhanceFieldMatch[1] };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // VIEW CONTROL (Build 250)
+            // ═══════════════════════════════════════════════════════════════
+
+            if (lower.includes('zoom in') || lower === 'zoom+') {
+                return { type: 'action', message: '🔍 Zooming in...', action: 'zoom_in' };
+            }
+            if (lower.includes('zoom out') || lower === 'zoom-') {
+                return { type: 'action', message: '🔍 Zooming out...', action: 'zoom_out' };
+            }
+            if (lower.includes('fit') || lower.includes('zoom fit') || lower.includes('fit all')) {
+                return { type: 'action', message: '📐 Fitting to view...', action: 'zoom_fit' };
+            }
+            if (lower.includes('reset') && lower.includes('zoom')) {
+                return { type: 'action', message: '🔄 Resetting zoom...', action: 'zoom_reset' };
+            }
+            if (lower.includes('scroll to') || lower.includes('center on')) {
+                return { type: 'action', message: '📍 Scrolling to node...', action: 'scroll_to_node' };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // ORIGINAL COMMANDS
+            // ═══════════════════════════════════════════════════════════════
 
             // View commands
             if (lower.includes('canvas')) return { type: 'action', message: '🎨 Switching to Canvas!', action: 'switch_to_canvas' };
@@ -33716,27 +34324,27 @@ RULES:
 
             // File operations
             if (lower.includes('import excel')) return { type: 'action', message: '📊 Opening Excel import!', action: 'import_excel' };
-            if (lower.includes('export excel') || lower.includes('excel')) return { type: 'action', message: '📊 Exporting Excel!', action: 'export_excel' };
+            if (lower.includes('export excel') || (lower.includes('excel') && !lower.includes('import'))) return { type: 'action', message: '📊 Exporting Excel!', action: 'export_excel' };
             if (lower.includes('import') && lower.includes('text')) return { type: 'action', message: '📥 Opening text import!', action: 'import_text' };
             if (lower.includes('load') && lower.includes('json')) return { type: 'action', message: '📂 Loading JSON!', action: 'load_json' };
-            if (lower.includes('save') || lower.includes('export json') || lower.includes('json')) return { type: 'action', message: '💾 Saving JSON!', action: 'export_json' };
-            if (lower.includes('share') || lower.includes('url')) return { type: 'action', message: '📤 Generating URL!', action: 'share_url' };
+            if (lower.includes('save') || lower.includes('export json')) return { type: 'action', message: '💾 Saving JSON!', action: 'export_json' };
+            if (lower.includes('share') || lower.includes('shareable')) return { type: 'action', message: '📤 Generating URL!', action: 'share_url' };
             if (lower.includes('sync') || lower.includes('firebase')) return { type: 'action', message: '🔄 Opening sync!', action: 'live_sync' };
-            if (lower.includes('png') || lower.includes('image') && lower.includes('export')) return { type: 'action', message: '📷 Exporting PNG!', action: 'export_canvas_image' };
+            if (lower.includes('png') || (lower.includes('image') && lower.includes('export'))) return { type: 'action', message: '📷 Exporting PNG!', action: 'export_canvas_image' };
 
             // Editing
             if (lower.includes('pattern')) return { type: 'action', message: '📋 Here are the patterns:', action: 'list_patterns' };
             if (lower.includes('add phase') || lower.includes('new phase')) return { type: 'action', message: '➕ Adding phase!', action: 'add_phase' };
             if (lower.includes('undo')) return { type: 'action', message: '↩️ Undoing!', action: 'undo' };
             if (lower.includes('redo')) return { type: 'action', message: '↪️ Redoing!', action: 'redo' };
-            if (lower.includes('search') || lower.includes('find')) return { type: 'action', message: '🔍 Opening search!', action: 'search' };
-            if (lower.includes('expand')) return { type: 'action', message: '⬇️ Expanding!', action: 'expand_all' };
-            if (lower.includes('collapse')) return { type: 'action', message: '⬆️ Collapsing!', action: 'collapse_all' };
+            if (lower.includes('search')) return { type: 'action', message: '🔍 Opening search!', action: 'search' };
+            if (lower.includes('expand all')) return { type: 'action', message: '⬇️ Expanding all!', action: 'expand_all' };
+            if (lower.includes('collapse all')) return { type: 'action', message: '⬆️ Collapsing all!', action: 'collapse_all' };
             if (lower.includes('select all')) return { type: 'action', message: '✅ Selecting all!', action: 'select_all' };
             if (lower.includes('clear') && lower.includes('select')) return { type: 'action', message: '🔲 Clearing selection!', action: 'clear_selection' };
 
             // AI operations
-            if (lower.includes('enhance')) return { type: 'action', message: '✨ Enhancing selected!', action: 'enhance_selected' };
+            if (lower.includes('enhance') && !lower.includes('field')) return { type: 'action', message: '✨ Enhancing selected!', action: 'enhance_selected' };
             if (lower.includes('deep dive') || lower.includes('analyze')) return { type: 'action', message: '🔬 Deep diving!', action: 'deep_dive' };
             if (lower.includes('generate') && lower.includes('image')) return { type: 'action', message: '🎨 Opening Imagen!', action: 'generate_image' };
 
@@ -33744,7 +34352,7 @@ RULES:
             if (lower.includes('steampunk')) return { type: 'action', message: '⚙️ Steampunk theme!', action: 'set_theme_steampunk' };
             if (lower.includes('tron')) return { type: 'action', message: '💠 Tron theme!', action: 'set_theme_tron' };
             if (lower.includes('powerpuff') || lower.includes('pink')) return { type: 'action', message: '💗 Powerpuff theme!', action: 'set_theme_powerpuff' };
-            if (lower.includes('dark') || lower.includes('default')) return { type: 'action', message: '🌙 Dark theme!', action: 'set_theme_dark' };
+            if (lower.includes('dark') || lower.includes('default theme')) return { type: 'action', message: '🌙 Dark theme!', action: 'set_theme_dark' };
 
             // Settings & Help
             if (lower.includes('help')) return { type: 'action', message: '📖 Opening help!', action: 'show_help' };
@@ -33753,14 +34361,14 @@ RULES:
             if (lower.includes('new project') || lower.includes('start fresh')) return { type: 'action', message: '🆕 New project!', action: 'new_project' };
             if (lower.includes('info') || lower.includes('status') || lower.includes('stats')) return { type: 'action', message: '📋 Project info:', action: 'project_info' };
 
-            // Default with helpful buttons
+            // Default with navigation-focused buttons
             return {
                 type: 'answer',
-                message: "I can help with that! Here are some things I can do:",
+                message: "I can help with that! Try these navigation commands or quick actions:",
                 buttons: [
-                    { label: '📥 Import', action: 'import_text' },
+                    { label: '🔍 Find Node', action: 'search' },
+                    { label: '📋 Node Info', action: 'node_info' },
                     { label: '🎨 Canvas', action: 'switch_to_canvas' },
-                    { label: '📊 Export', action: 'export_excel' },
                     { label: '🧙 Wizard', action: 'open_wizard' }
                 ]
             };
