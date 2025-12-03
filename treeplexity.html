@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 253 | 2025-12-03
+    TreeListy v2.16.0 | Build 254 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,18 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 253): 🌳 TreeBeard - Draggable Floating Panel
+    Changelog (Build 254): 📝 Info Panel Redesign + TreeBeard Visual Polish
+    - Description is now the HERO field at the top of the Info Panel
+    - Compact metadata row for Type, ID, and Cost
+    - TreeBeard panel has stronger multi-layer shadow for floating effect
+    - Purple glow border differentiates from background nodes
+    - Backdrop blur adds depth perception
+
+    Previous (Build 253): 🌳 TreeBeard - Draggable Floating Panel
     - Renamed "TreeListy Assistant" to "TreeBeard" (wise tree guardian)
-    - Made the Tree Guide panel draggable by its header
+    - Made the TreeBeard panel draggable by its header
     - Panel is resizable (drag bottom-right corner)
     - Panel position and size saved to localStorage
-    - Touch support for mobile dragging
-    - No longer clashes with node info panel on the right
 
     Previous (Build 252): 🐛 Fix splash screen not loading (syntax error in Build 251)
     - Edge Function streaming proxy (netlify/edge-functions/claude-stream.ts)
@@ -2336,7 +2341,7 @@
         transform: rotate(45deg);
     }
 
-    /* Chat panel - Draggable Floating Frame */
+    /* Chat panel - Draggable Floating Frame (TreeBeard) */
     #chat-assistant-panel {
         position: fixed;
         bottom: 96px;
@@ -2347,16 +2352,23 @@
         height: 480px;
         min-height: 300px;
         max-height: calc(100vh - 100px);
-        background: var(--card-bg, #1e1e2e);
-        border: 1px solid var(--border, #3f3f5a);
-        border-radius: 12px;
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
+        background: linear-gradient(180deg, rgba(30, 30, 46, 0.98), rgba(24, 24, 38, 0.99));
+        border: 2px solid rgba(139, 92, 246, 0.3);
+        border-radius: 16px;
+        /* Multi-layer shadow for strong floating effect */
+        box-shadow:
+            0 0 0 1px rgba(139, 92, 246, 0.15),
+            0 4px 8px rgba(0, 0, 0, 0.3),
+            0 12px 24px rgba(0, 0, 0, 0.4),
+            0 24px 48px rgba(0, 0, 0, 0.5),
+            0 0 60px rgba(139, 92, 246, 0.08);
         z-index: 9999;
         display: none;
         flex-direction: column;
         overflow: hidden;
         resize: both;
         overflow: auto;
+        backdrop-filter: blur(8px);
     }
 
     #chat-assistant-panel.open {
@@ -2365,8 +2377,14 @@
     }
 
     #chat-assistant-panel.dragging {
-        opacity: 0.9;
-        box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(139, 92, 246, 0.4);
+        opacity: 0.95;
+        border-color: rgba(139, 92, 246, 0.5);
+        box-shadow:
+            0 0 0 2px rgba(139, 92, 246, 0.3),
+            0 8px 16px rgba(0, 0, 0, 0.4),
+            0 24px 48px rgba(0, 0, 0, 0.5),
+            0 32px 64px rgba(0, 0, 0, 0.6),
+            0 0 80px rgba(139, 92, 246, 0.15);
         transition: none;
     }
 
@@ -2843,8 +2861,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 253 | 2025-12-03">
-                    v2.16.0 • Build 253
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 254 | 2025-12-03">
+                    v2.16.0 • Build 254
                 </div>
             </div>
         </div>
@@ -15288,33 +15306,43 @@ function hidePatternDescription() {
             }
 
             body.innerHTML = `
+                <!-- HERO: Description Field (Primary Content) -->
+                <div style="margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, rgba(0, 166, 125, 0.08), rgba(0, 140, 105, 0.04)); border-radius: 12px; border: 1px solid rgba(0, 166, 125, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                        <span style="font-size: 18px;">📝</span>
+                        <span style="font-size: 13px; font-weight: 600; color: var(--treeplex-primary); text-transform: uppercase; letter-spacing: 0.5px;">Description</span>
+                    </div>
+                    <div style="font-size: 15px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap;">${node.description || node.subtitle || '<span style="color: var(--text-secondary); font-style: italic;">No description yet. Double-click to edit.</span>'}</div>
+                </div>
+
+                <!-- Metadata Row: Type + ID + Cost (compact) -->
+                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
+                    <div style="flex: 1; min-width: 100px; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid var(--border);">
+                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Type</div>
+                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${node.itemType || node.type || 'N/A'}</div>
+                    </div>
+                    <div style="flex: 1; min-width: 140px; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid var(--border);">
+                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">ID</div>
+                        <div style="font-size: 11px; font-family: monospace; color: var(--text-secondary); word-break: break-all;">${node.id || 'N/A'}</div>
+                    </div>
+                    ${PATTERNS[currentPattern].fields?.cost && node.cost > 0 ? `
+                    <div style="flex: 1; min-width: 100px; padding: 12px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05)); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
+                        <div style="font-size: 10px; font-weight: 600; color: #10B981; text-transform: uppercase; margin-bottom: 4px;">Cost</div>
+                        <div style="font-size: 15px; font-weight: 700; color: #10B981;">${formatCost(node.cost)}</div>
+                    </div>
+                    ` : ''}
+                </div>
+
+                ${node.type === 'root' && PATTERNS[currentPattern].fields?.cost && calculateTotal(node) > 0 ? `
+                <div style="padding: 16px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.08)); border-radius: 10px; border: 2px solid rgba(16, 185, 129, 0.4); margin-bottom: 20px; text-align: center;">
+                    <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">Total Project Cost</div>
+                    <div style="font-size: 28px; font-weight: 700; color: #10B981;">${formatCost(calculateTotal(node))}</div>
+                </div>
+                ` : ''}
+
                 ${pmDashboardHtml}
                 ${patternInfoHtml}
                 ${filesystemInfoHtml}
-                <div class="info-section">
-                    <h4>ID</h4>
-                    <p><code style="background: var(--bg); padding: 2px 6px; border-radius: 4px; font-family: monospace; font-size: 12px;">${node.id || 'N/A'}</code></p>
-                </div>
-                ${PATTERNS[currentPattern].fields?.cost && node.type !== 'root' && node.cost > 0 ? `
-                <div class="info-section">
-                    <h4>Cost</h4>
-                    <p class="value">${formatCost(node.cost)}</p>
-                </div>
-                ` : ''}
-                ${node.type === 'root' && PATTERNS[currentPattern].fields?.cost && calculateTotal(node) > 0 ? `
-                <div class="info-section">
-                    <h4>Total Cost</h4>
-                    <p class="value">${formatCost(calculateTotal(node))}</p>
-                </div>
-                ` : ''}
-                <div class="info-section">
-                    <h4>Description</h4>
-                    <p>${node.description || node.subtitle || 'N/A'}</p>
-                </div>
-                <div class="info-section">
-                    <h4>Type</h4>
-                    <p>${node.itemType || node.type || 'N/A'}</p>
-                </div>
                 ${node.alternateSource ? `
                     <div class="info-section">
                         <h4>Alternate Source</h4>
@@ -34844,7 +34872,7 @@ RULES:
             // Restore saved position
             restorePanelPosition();
 
-            console.log('🌳 TreeBeard initialized (Build 253)');
+            console.log('🌳 TreeBeard initialized (Build 254)');
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -35129,4 +35157,4 @@ RULES:
 
 </body>
 </html>
-<!-- Cache buster: 1764724653 -->
+<!-- Cache buster: 1764725799 -->
