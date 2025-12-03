@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 251 | 2025-12-03
+    TreeListy v2.16.0 | Build 252 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 251): 🌊 Edge Function Streaming - No More Timeouts!
-    - FIXED: Claude Sonnet/Opus timeout issue on Netlify free tier
-    - NEW: Edge Function streaming proxy (netlify/edge-functions/claude-stream.ts)
-    - NEW: callClaudeStreamingAPI() - SSE streaming with no timeout limit
-    - NEW: callClaudeEdgeBuffered() - buffered Edge response for compatibility
-    - IMPROVED: Automatic fallback chain: Edge → Regular Function → Direct API
-    - IMPROVED: Extended Thinking now works reliably (was timing out at 10s)
-    - Edge Functions use Deno runtime with streaming - no timeout for long requests
-    - Streaming enables real-time token display (future enhancement)
+    Changelog (Build 252): 🐛 Fix splash screen not loading (syntax error in Build 251)
+    - FIXED: JavaScript syntax error in catch block that prevented app initialization
+    - Build 251 Edge Function implementation still works after fix
+
+    Previous (Build 251): 🌊 Edge Function Streaming - No More Timeouts!
+    - Edge Function streaming proxy (netlify/edge-functions/claude-stream.ts)
+    - callClaudeStreamingAPI() - SSE streaming with no timeout limit
+    - callClaudeEdgeBuffered() - buffered Edge response for compatibility
+    - Automatic fallback chain: Edge → Regular Function → Direct API
 
     Previous (Build 250): 🧭 Conversational Tree Navigation & Editing
     - find_node, Tree traversal, expand/collapse, field editing, ai_enhance_field
@@ -2815,8 +2815,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 251 | 2025-12-03">
-                    v2.16.0 • Build 251
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 252 | 2025-12-03">
+                    v2.16.0 • Build 252
                 </div>
             </div>
         </div>
@@ -6222,13 +6222,12 @@ This happened because:
 3. Self-host with backend that has no timeout limits
 
 💡 The Chat Builder works best with Fast Mode on Netlify.`);
-                        }
-                    } else if (fetchError.name === 'AbortError') {
-                        // Timeout but no user API key - can't fallback
-                        throw new Error(`Sonnet request timeout on Netlify (10s free tier limit).\n\nAdd your API key (🔑 button) to bypass Netlify timeout.\n\nOr use ⚡ Fast Mode (Haiku) - faster and works everywhere.`);
-                    } else {
-                        throw fetchError;
                     }
+                } else if (fetchError.name === 'AbortError') {
+                    // Timeout but no user API key - can't fallback
+                    throw new Error(`Sonnet request timeout on Netlify (10s free tier limit).\n\nAdd your API key (🔑 button) to bypass Netlify timeout.\n\nOr use ⚡ Fast Mode (Haiku) - faster and works everywhere.`);
+                } else {
+                    throw fetchError;
                 }
 
                 if (!response.ok) {
