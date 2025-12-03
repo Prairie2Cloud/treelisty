@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 239 | 2025-12-02
+    TreeListy v2.16.0 | Build 241 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 239): 🎙️ Free Speech - Stream of Consciousness Voice Capture
+    Changelog (Build 241): 🤖 AI-Powered Excel Import
+    - NEW: AI analyzes Excel structure and auto-detects column mappings
+    - NEW: AI recommends best pattern based on data content
+    - NEW: Simplified import UI with confidence scores
+    - NEW: Click-to-adjust mapping cards (no more dropdown walls)
+    - NEW: Data quality warnings (missing values, issues)
+    - NEW: One-click import when AI mappings are correct
+    - IMPROVED: Falls back to keyword matching when AI unavailable
+
+    Previous (Build 239): 🎙️ Free Speech - Stream of Consciousness Voice Capture
     - NEW: Free Speech pattern for psychological pattern analysis
     - NEW: Web Speech API integration for voice recording
     - NEW: Nudge system with gentle prompts during silence
@@ -2426,8 +2435,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.15.0 | Build 238 | 2025-12-02">
-                    v2.15.0 • Build 238
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 241 | 2025-12-02">
+                    v2.16.0 • Build 241
                 </div>
             </div>
         </div>
@@ -29091,8 +29100,110 @@ ${jsonText}`;
             sampleData: [],
             columnMapping: {},
             hierarchyConfig: {},
-            pattern: null
+            pattern: null,
+            aiAnalysis: null,  // NEW: Store AI analysis results
+            aiAnalysisInProgress: false
         };
+
+        // =============================================================================
+        // AI-POWERED EXCEL ANALYSIS (Build 241)
+        // =============================================================================
+
+        async function aiAnalyzeExcelStructure(headers, sampleRows) {
+            console.log('🤖 Starting AI analysis of Excel structure...');
+
+            // Build pattern descriptions for the AI
+            const patternDescriptions = Object.entries(PATTERNS).map(([key, p]) => {
+                const fieldNames = Object.keys(p.fields || {}).filter(f =>
+                    !['includeDependencies', 'includeTracking', 'trackingFor'].includes(f)
+                ).slice(0, 8).join(', ');
+                return `• ${key}: ${p.name} (fields: ${fieldNames || 'basic'})`;
+            }).join('\n');
+
+            const systemPrompt = `You are an expert data analyst helping import Excel spreadsheets into TreeListy, a hierarchical project management tool.
+
+TreeListy organizes data into: Root → Phases → Items → Subtasks
+Each item can have pattern-specific fields like cost, dates, descriptions, etc.
+
+Available patterns:
+${patternDescriptions}
+
+Your job: Analyze the Excel structure and suggest the best import configuration.`;
+
+            const userPrompt = `Analyze this Excel data and suggest how to import it into TreeListy.
+
+COLUMN HEADERS:
+${headers.map((h, i) => `${i}: "${h}"`).join('\n')}
+
+SAMPLE DATA (first ${sampleRows.length} rows):
+${sampleRows.map((row, i) => `Row ${i + 1}: ${JSON.stringify(row.slice(0, headers.length))}`).join('\n')}
+
+Respond with ONLY valid JSON (no markdown, no explanation):
+{
+  "recommendedPattern": "pattern_key (e.g., generic, sales, philosophy)",
+  "patternConfidence": 0.85,
+  "patternReason": "Brief explanation why this pattern fits",
+  "columnMappings": {
+    "itemName": {"column": 0, "confidence": 0.95, "reason": "Contains task/item names"},
+    "phaseName": {"column": 2, "confidence": 0.80, "reason": "Groups items by category"},
+    "description": {"column": null, "confidence": 0, "reason": "No description column found"}
+  },
+  "hierarchyDetection": {
+    "hasPhases": true,
+    "phaseColumn": 2,
+    "estimatedPhaseCount": 4,
+    "note": "Detected quarterly grouping"
+  },
+  "dataQuality": {
+    "totalRows": ${sampleRows.length},
+    "issues": ["Column X has 20% empty values"]
+  }
+}
+
+IMPORTANT:
+- Column numbers are 0-indexed
+- Only map columns that clearly match - use null for uncertain mappings
+- Focus on: itemName (required), phaseName, description, and pattern-specific fields
+- Pattern-specific fields to look for based on detected pattern`;
+
+            try {
+                const response = await callClaudeAPI(userPrompt, systemPrompt, 1024, false);
+
+                // Parse JSON from response (handle potential markdown wrapping)
+                let jsonStr = response.trim();
+                if (jsonStr.startsWith('```')) {
+                    jsonStr = jsonStr.replace(/```json?\n?/g, '').replace(/```$/g, '').trim();
+                }
+
+                const analysis = JSON.parse(jsonStr);
+                console.log('🤖 AI Analysis complete:', analysis);
+                return analysis;
+            } catch (error) {
+                console.error('❌ AI Excel analysis failed:', error);
+                return null;
+            }
+        }
+
+        function applyAIAnalysisToMapping(aiAnalysis, headers) {
+            if (!aiAnalysis || !aiAnalysis.columnMappings) return null;
+
+            const mapping = {
+                itemName: null,
+                phaseName: null,
+                description: null,
+                itemType: null,
+                dependencies: null
+            };
+
+            // Apply AI-suggested mappings
+            Object.entries(aiAnalysis.columnMappings).forEach(([fieldKey, fieldData]) => {
+                if (fieldData && fieldData.column !== null && fieldData.confidence >= 0.5) {
+                    mapping[fieldKey] = fieldData.column;
+                }
+            });
+
+            return mapping;
+        }
 
         function importFromExcel(file) {
             const reader = new FileReader();
@@ -29600,7 +29711,7 @@ ${jsonText}`;
             });
         }
 
-        function analyzeSheetStructure(sheetName) {
+        async function analyzeSheetStructure(sheetName) {
             const sheet = excelImportState.workbook.Sheets[sheetName];
             const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
 
@@ -29616,7 +29727,7 @@ ${jsonText}`;
             }
 
             const headers = data[headerRowIndex].filter(h => h !== '' && h !== null && h !== undefined);
-            const sampleData = data.slice(headerRowIndex + 1, headerRowIndex + 6); // 5 sample rows
+            const sampleData = data.slice(headerRowIndex + 1, headerRowIndex + 11); // 10 sample rows for AI
 
             console.log('📋 Found headers:', headers);
             console.log('📋 Sample data rows:', sampleData.length);
@@ -29624,15 +29735,314 @@ ${jsonText}`;
             excelImportState.selectedSheet = sheetName;
             excelImportState.headers = headers;
             excelImportState.sampleData = sampleData;
+            excelImportState.aiAnalysis = null;
 
-            // Auto-suggest column mappings
+            // Check if AI is available (any provider configured)
+            const aiMode = document.getElementById('unified-ai-mode-select')?.value || '';
+            const aiAvailable = aiMode && aiMode !== 'off';
+
+            if (aiAvailable) {
+                // Show loading state
+                showAIAnalysisLoading();
+
+                try {
+                    // Call AI to analyze structure
+                    const aiAnalysis = await aiAnalyzeExcelStructure(headers, sampleData);
+                    excelImportState.aiAnalysis = aiAnalysis;
+
+                    if (aiAnalysis) {
+                        // Apply AI-suggested mappings
+                        const aiMappings = applyAIAnalysisToMapping(aiAnalysis, headers);
+                        if (aiMappings) {
+                            excelImportState.columnMapping = aiMappings;
+                        }
+
+                        // If AI recommends a different pattern, offer to switch
+                        if (aiAnalysis.recommendedPattern && aiAnalysis.patternConfidence >= 0.7) {
+                            const recommendedKey = aiAnalysis.recommendedPattern.toLowerCase().replace(/[^a-z]/g, '');
+                            if (PATTERNS[recommendedKey] && recommendedKey !== currentPattern) {
+                                console.log(`🤖 AI recommends pattern: ${recommendedKey} (${(aiAnalysis.patternConfidence * 100).toFixed(0)}% confidence)`);
+                            }
+                        }
+
+                        // Show AI-enhanced mapping UI
+                        showAIEnhancedMappingUI();
+                        return;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ AI analysis failed, falling back to keyword matching:', error);
+                }
+            }
+
+            // Fallback: Use keyword-based auto-suggest
             const suggestedMappings = autoSuggestColumnMappings(headers);
             excelImportState.columnMapping = suggestedMappings;
 
-            console.log('🎯 Suggested mappings:', suggestedMappings);
+            console.log('🎯 Suggested mappings (keyword-based):', suggestedMappings);
 
-            // Show column mapping UI
+            // Show standard column mapping UI
             showColumnMappingUI();
+        }
+
+        function showAIAnalysisLoading() {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🤖 AI Analyzing Excel Structure...';
+            modalBody.innerHTML = `
+                <div style="padding: 40px; text-align: center;">
+                    <div class="spinner" style="margin: 0 auto 20px;"></div>
+                    <p style="color: var(--text-secondary); font-size: 14px;">
+                        AI is analyzing your spreadsheet to suggest the best import configuration...
+                    </p>
+                    <p style="color: var(--text-secondary); font-size: 12px; margin-top: 12px; opacity: 0.7;">
+                        Detecting patterns, mapping columns, identifying hierarchy...
+                    </p>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+
+        function showAIEnhancedMappingUI() {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+            const aiAnalysis = excelImportState.aiAnalysis;
+            const headers = excelImportState.headers;
+            const mapping = excelImportState.columnMapping;
+
+            modalTitle.textContent = '🤖 AI-Detected Import Configuration';
+
+            // Build confidence badge
+            const confidence = aiAnalysis?.patternConfidence || 0;
+            const confidenceColor = confidence >= 0.8 ? '#10b981' : confidence >= 0.6 ? '#f59e0b' : '#ef4444';
+            const confidencePercent = (confidence * 100).toFixed(0);
+
+            // Build pattern recommendation
+            const recommendedPattern = aiAnalysis?.recommendedPattern || currentPattern;
+            const patternDef = PATTERNS[recommendedPattern] || PATTERNS[currentPattern];
+            const patternReason = aiAnalysis?.patternReason || '';
+
+            // Build mapping cards
+            let mappingCardsHTML = '';
+            const coreMappings = [
+                { key: 'itemName', label: 'Item Name', required: true, icon: '📝' },
+                { key: 'phaseName', label: 'Phase/Category', required: false, icon: '📁' },
+                { key: 'description', label: 'Description', required: false, icon: '📄' }
+            ];
+
+            coreMappings.forEach(({ key, label, required, icon }) => {
+                const colIndex = mapping[key];
+                const colName = colIndex !== null ? headers[colIndex] : null;
+                const aiData = aiAnalysis?.columnMappings?.[key];
+                const confidence = aiData?.confidence || 0;
+                const reason = aiData?.reason || '';
+
+                const isMapped = colIndex !== null;
+                const bgColor = isMapped ? 'rgba(16, 185, 129, 0.1)' : 'rgba(239, 68, 68, 0.1)';
+                const borderColor = isMapped ? 'rgba(16, 185, 129, 0.3)' : 'rgba(239, 68, 68, 0.3)';
+
+                mappingCardsHTML += `
+                    <div class="ai-mapping-card" data-field="${key}" style="padding: 12px 16px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; margin-bottom: 8px; cursor: pointer; transition: all 0.2s;">
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <div>
+                                <span style="font-size: 16px; margin-right: 8px;">${icon}</span>
+                                <strong style="color: var(--text-primary);">${label}</strong>
+                                ${required ? '<span style="color: #ef4444; margin-left: 4px;">*</span>' : ''}
+                            </div>
+                            <div style="text-align: right;">
+                                ${isMapped ?
+                                    `<span style="color: #10b981; font-weight: 600;">"${colName}"</span>
+                                     <span style="color: var(--text-secondary); font-size: 11px; margin-left: 8px;">${(confidence * 100).toFixed(0)}%</span>` :
+                                    `<span style="color: #ef4444;">Not mapped</span>`
+                                }
+                            </div>
+                        </div>
+                        ${reason ? `<div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px; padding-left: 28px;">${reason}</div>` : ''}
+                    </div>
+                `;
+            });
+
+            // Add pattern-specific field mappings
+            const fields = patternDef.fields || {};
+            const mappedPatternFields = Object.entries(fields)
+                .filter(([key]) => !['includeDependencies', 'includeTracking', 'trackingFor'].includes(key))
+                .filter(([key]) => mapping[key] !== null && mapping[key] !== undefined)
+                .slice(0, 5);
+
+            if (mappedPatternFields.length > 0) {
+                mappingCardsHTML += `<div style="margin-top: 16px; padding-top: 12px; border-top: 1px solid var(--border);">
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">Pattern-specific fields detected:</div>`;
+
+                mappedPatternFields.forEach(([key, fieldConfig]) => {
+                    const colIndex = mapping[key];
+                    const colName = headers[colIndex];
+                    mappingCardsHTML += `
+                        <div style="display: flex; justify-content: space-between; padding: 6px 0; font-size: 13px;">
+                            <span style="color: var(--text-secondary);">${fieldConfig.label || key}</span>
+                            <span style="color: #10b981;">"${colName}"</span>
+                        </div>
+                    `;
+                });
+
+                mappingCardsHTML += `</div>`;
+            }
+
+            // Data quality notes
+            let qualityHTML = '';
+            if (aiAnalysis?.dataQuality?.issues?.length > 0) {
+                qualityHTML = `
+                    <div style="margin-top: 16px; padding: 12px; background: rgba(245, 158, 11, 0.1); border: 1px solid rgba(245, 158, 11, 0.3); border-radius: 8px;">
+                        <div style="font-size: 12px; font-weight: 600; color: #f59e0b; margin-bottom: 6px;">⚠️ Data Quality Notes:</div>
+                        ${aiAnalysis.dataQuality.issues.map(issue => `<div style="font-size: 12px; color: var(--text-secondary);">• ${issue}</div>`).join('')}
+                    </div>
+                `;
+            }
+
+            // Total row count
+            const totalRows = XLSX.utils.sheet_to_json(excelImportState.workbook.Sheets[excelImportState.selectedSheet], { header: 1 }).length - 1;
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px; max-height: 75vh; overflow-y: auto;">
+                    <!-- AI Confidence Banner -->
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); padding: 16px; border-radius: 12px; margin-bottom: 20px; border: 1px solid rgba(99, 102, 241, 0.2);">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                            <div style="font-weight: 600; color: var(--text-primary);">
+                                🤖 AI Detected: <span style="color: #8b5cf6;">${patternDef.name}</span>
+                            </div>
+                            <div style="background: ${confidenceColor}; color: white; padding: 4px 10px; border-radius: 12px; font-size: 12px; font-weight: 600;">
+                                ${confidencePercent}% confidence
+                            </div>
+                        </div>
+                        ${patternReason ? `<div style="font-size: 13px; color: var(--text-secondary);">${patternReason}</div>` : ''}
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 8px;">
+                            📊 Sheet: <strong>${excelImportState.selectedSheet}</strong> • ${totalRows} rows
+                        </div>
+                    </div>
+
+                    <!-- Column Mappings -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 14px; font-weight: 600; color: var(--text-primary); margin-bottom: 12px;">
+                            Column Mappings <span style="font-weight: 400; color: var(--text-secondary); font-size: 12px;">(click to adjust)</span>
+                        </div>
+                        ${mappingCardsHTML}
+                    </div>
+
+                    ${qualityHTML}
+
+                    <!-- Action Buttons -->
+                    <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: space-between;">
+                        <button id="ai-import-adjust-btn" style="padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px;">
+                            ⚙️ Adjust Mappings
+                        </button>
+                        <div style="display: flex; gap: 12px;">
+                            <button id="ai-import-cancel-btn" style="padding: 10px 20px; border: 1px solid var(--border); border-radius: 8px; background: transparent; color: var(--text-primary); cursor: pointer; font-size: 14px;">
+                                Cancel
+                            </button>
+                            <button id="ai-import-confirm-btn" style="padding: 10px 24px; border: none; border-radius: 8px; background: linear-gradient(135deg, #10b981, #059669); color: white; cursor: pointer; font-size: 14px; font-weight: 600;" ${mapping.itemName === null ? 'disabled style="opacity: 0.5; cursor: not-allowed;"' : ''}>
+                                ✓ Import ${totalRows} Items
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Event handlers
+            document.getElementById('ai-import-cancel-btn').addEventListener('click', () => {
+                modal.style.display = 'none';
+            });
+
+            document.getElementById('ai-import-adjust-btn').addEventListener('click', () => {
+                showColumnMappingUI(); // Fall back to detailed mapping UI
+            });
+
+            document.getElementById('ai-import-confirm-btn').addEventListener('click', () => {
+                if (mapping.itemName === null) {
+                    alert('❌ Item Name mapping is required');
+                    return;
+                }
+                // Apply recommended pattern if different
+                if (aiAnalysis?.recommendedPattern) {
+                    const recKey = aiAnalysis.recommendedPattern.toLowerCase().replace(/[^a-z]/g, '');
+                    if (PATTERNS[recKey]) {
+                        document.getElementById('pattern-select').value = recKey;
+                        currentPattern = recKey;
+                    }
+                }
+                previewFlexibleImport();
+            });
+
+            // Make mapping cards clickable to adjust individual mappings
+            document.querySelectorAll('.ai-mapping-card').forEach(card => {
+                card.addEventListener('click', () => {
+                    const fieldKey = card.dataset.field;
+                    showQuickFieldMapping(fieldKey);
+                });
+            });
+        }
+
+        function showQuickFieldMapping(fieldKey) {
+            const headers = excelImportState.headers;
+            const currentMapping = excelImportState.columnMapping[fieldKey];
+
+            const fieldLabels = {
+                itemName: 'Item Name',
+                phaseName: 'Phase/Category',
+                description: 'Description',
+                itemType: 'Item Type',
+                dependencies: 'Dependencies'
+            };
+
+            const options = headers.map((h, i) =>
+                `<option value="${i}" ${currentMapping === i ? 'selected' : ''}>${h}</option>`
+            ).join('');
+
+            const popup = document.createElement('div');
+            popup.id = 'quick-mapping-popup';
+            popup.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--card-bg); padding: 24px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 10001; min-width: 300px;';
+            popup.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 16px; color: var(--text-primary);">
+                    Map: ${fieldLabels[fieldKey] || fieldKey}
+                </div>
+                <select id="quick-mapping-select" style="width: 100%; padding: 10px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text-primary); font-size: 14px; margin-bottom: 16px;">
+                    <option value="">-- Skip this field --</option>
+                    ${options}
+                </select>
+                <div style="display: flex; gap: 8px; justify-content: flex-end;">
+                    <button id="quick-mapping-cancel" style="padding: 8px 16px; border: 1px solid var(--border); border-radius: 6px; background: transparent; color: var(--text-primary); cursor: pointer;">Cancel</button>
+                    <button id="quick-mapping-apply" style="padding: 8px 16px; border: none; border-radius: 6px; background: var(--treeplex-primary); color: white; cursor: pointer; font-weight: 600;">Apply</button>
+                </div>
+            `;
+
+            // Add overlay
+            const overlay = document.createElement('div');
+            overlay.id = 'quick-mapping-overlay';
+            overlay.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000;';
+
+            document.body.appendChild(overlay);
+            document.body.appendChild(popup);
+
+            overlay.addEventListener('click', () => {
+                popup.remove();
+                overlay.remove();
+            });
+
+            document.getElementById('quick-mapping-cancel').addEventListener('click', () => {
+                popup.remove();
+                overlay.remove();
+            });
+
+            document.getElementById('quick-mapping-apply').addEventListener('click', () => {
+                const select = document.getElementById('quick-mapping-select');
+                const value = select.value === '' ? null : parseInt(select.value);
+                excelImportState.columnMapping[fieldKey] = value;
+                popup.remove();
+                overlay.remove();
+                showAIEnhancedMappingUI(); // Refresh the UI
+            });
         }
 
         function autoSuggestColumnMappings(headers) {
@@ -31253,7 +31663,7 @@ ${jsonText}`;
         }, 2000); // Show splash for 2 seconds (matches loader animation)
 
         // ============================================================================
-        // FREE SPEECH - Stream of Consciousness Voice Capture (Build 238)
+        // FREE SPEECH - Stream of Consciousness Voice Capture (Build 240)
         // ============================================================================
 
         // Free Speech Session State
@@ -31422,56 +31832,87 @@ ${jsonText}`;
                 // Process results
                 for (let i = event.resultIndex; i < event.results.length; i++) {
                     const result = event.results[i];
+                    const text = result[0].transcript.trim();
+
                     if (result.isFinal) {
-                        const text = result[0].transcript.trim();
                         if (text) {
                             freeSpeechSession.transcript.push({
                                 text: text,
                                 timestamp: now - freeSpeechSession.metrics.startTime,
                                 confidence: result[0].confidence
                             });
+                            console.log('Captured:', text);
 
                             // Analyze for metrics
                             analyzeTranscriptSegment(text);
+                        }
+                        // Clear the "hearing" indicator
+                        document.getElementById('freespeech-nudge').textContent = '';
+                    } else {
+                        // Show interim results so user knows mic is working
+                        // (but don't show the actual words - just indicate hearing)
+                        const wordCount = text.split(/\s+/).length;
+                        if (wordCount > 0) {
+                            document.getElementById('freespeech-nudge').innerHTML = '<span style="color: #10b981;">🎧 hearing you...</span>';
                         }
                     }
                 }
 
                 // Clear nudge when user speaks
-                document.getElementById('freespeech-nudge').textContent = '';
                 freeSpeechSession.currentNudgeIndex = 0;
                 resetNudgeTimer();
             };
 
             recognition.onerror = (event) => {
-                console.error('Speech recognition error:', event.error);
-                if (event.error === 'no-speech') {
-                    // User is being quiet, this is okay
+                console.log('Speech recognition event:', event.error);
+                // These errors are normal and should not stop recording
+                if (event.error === 'no-speech' || event.error === 'aborted' || event.error === 'network') {
+                    console.log('Non-fatal speech error, continuing...');
                     return;
                 }
-                if (event.error === 'aborted') {
-                    // User stopped, this is okay
-                    return;
+                // Only show error for real problems
+                if (event.error === 'not-allowed') {
+                    showFreeSpeechError('Microphone access denied. Please allow microphone permission and try again.');
+                } else if (event.error === 'audio-capture') {
+                    showFreeSpeechError('No microphone found. Please connect a microphone and try again.');
+                } else {
+                    showFreeSpeechError(`Speech recognition error: ${event.error}`);
                 }
-                showFreeSpeechError(`Speech recognition error: ${event.error}`);
+            };
+
+            recognition.onstart = () => {
+                console.log('Speech recognition started successfully');
+            };
+
+            recognition.onaudiostart = () => {
+                console.log('Audio capture started - microphone is active');
             };
 
             recognition.onend = () => {
-                // Restart if still recording (continuous mode workaround)
+                console.log('Speech recognition ended, state:', freeSpeechSession.state);
+                // Restart if still recording (continuous mode workaround for Chrome)
                 if (freeSpeechSession.state === 'RECORDING') {
-                    try {
-                        recognition.start();
-                    } catch (e) {
-                        console.log('Recognition restart blocked:', e);
-                    }
+                    console.log('Restarting recognition...');
+                    setTimeout(() => {
+                        if (freeSpeechSession.state === 'RECORDING') {
+                            try {
+                                recognition.start();
+                            } catch (e) {
+                                console.log('Recognition restart blocked:', e);
+                            }
+                        }
+                    }, 100); // Small delay before restart
                 }
             };
 
             // Start recognition
             try {
+                console.log('Starting speech recognition...');
                 recognition.start();
                 startNudgeTimer();
+                console.log('Recognition start() called');
             } catch (e) {
+                console.error('Failed to start:', e);
                 showFreeSpeechError('Failed to start speech recognition. Please try again.');
             }
         }
@@ -31776,7 +32217,7 @@ ${transcript}`;
         window.stopFreeSpeechRecording = stopFreeSpeechRecording;
         window.resetFreeSpeechModal = resetFreeSpeechModal;
 
-        console.log('Free Speech module initialized (Build 239)');
+        console.log('Free Speech module initialized (Build 240)');
 
     </script>
 
