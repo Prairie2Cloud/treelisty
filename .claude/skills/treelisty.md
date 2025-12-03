@@ -1,6 +1,6 @@
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.12.0 (Build 212)
+**Version**: 2.12.0 (Build 262)
 **Author**: TreeListy Team
 **Description**: Work with TreeListy hierarchical project trees using natural language and AI
 
@@ -36,34 +36,62 @@ git push origin main
 
 ---
 
-## What's New in v2.12.0 (Build 210-212)
+## What's New in v2.12.0 (Builds 259-262)
+
+**🧑‍🤝‍🧑 Build 262: Dynamic Team Management**:
+- **Unique Initials**: Contributors identified by auto-generated initials (collision handling)
+- **Email Accountability**: Team members associated with email addresses
+- **Project Team Section**: Host, Collaborators, Contributors in Project Settings
+- **Dynamic Contributor Buttons**: Replace hardcoded names with configurable team
+
+**Key Functions (Build 262)**:
+- `generateUniqueInitials(name, existingInitials)` - Create unique 1-2 char initials
+- `getProjectTeam()` - Get/initialize team structure
+- `addTeamMember(name, email, role)` - Add host/collaborator/contributor
+- `removeTeamMember(email, role)` - Remove team member
+- `generateContributorButtons()` - Render dynamic team buttons in Edit modal
+
+**🎨 Build 261: Imagen 4 Image Generation**:
+- **Google Imagen 4**: AI-generated images from node context
+- **Visual Styles**: Whiteboard Sketch, Infographic, Friendly Cartoon, 3D Render, etc.
+- **Aspect Ratios**: 1:1, 16:9, 9:16, 4:3, 3:4
+- **Resolutions**: 256px to 4K
+- **Nano Banana Pro**: Enhanced generation model
+
+**🧠 Build 260: AI Specialist Context**:
+- **Per-Project Expertise**: Set specialist context in Project Settings
+- **AI-Enhanced**: Context passed to all AI calls (Wizard, Analyze, Review)
+- **Stored in Tree**: `capexTree.specialistContext` persists with project
+
+**💬 Build 259: TreeBeard Chat Redesign**:
+- **Expanded Panel**: 440x520px for better conversation view
+- **Clean Welcome**: Simplified greeting message
+- **Removed Quick Actions**: Cleaner, more focused chat interface
+
+**🔥 Build 231+: Firebase Live Sync**:
+- **Real-Time Collaboration**: Firebase-backed live sync
+- **Session Management**: Create/join collaborative sessions
+- **Cross-Device**: Changes sync instantly across all participants
 
 **👥 Collaboration Features ("Chess by Mail")**:
 - **Collaboration Comments**: Leave notes for collaborators on any node
-- **Contributor Tags**: Tag who made edits (e.g., "Dad", "Owen") with timestamps
+- **Contributor Tags**: Tag who made edits with timestamps
 - **Visual Badges**: 👤 contributor badge and 💬 comment indicator on nodes
 - **Watch Mode**: Poll shared files for real-time sync (5s/10s/30s/1min intervals)
 - **Google Drive Links**: `?gdrive=FILE_ID` URL parameter loads trees from Google Drive
-- **Watch Mode Links**: `?watch=URL` auto-opens Watch Mode for live collaboration
 
 **How Collaboration Works**:
 1. Save tree to shared folder (OneDrive, Google Drive, Dropbox)
 2. Email collaborator: `https://treelisty.netlify.app?gdrive=YOUR_FILE_ID`
 3. They edit, set their contributor name, save
 4. You reload → see their 👤 badges and 💬 comments
-5. Or use Watch Mode for live sync during a call
+5. Or use Firebase Live Sync for real-time collaboration
 
-**Watch Mode Features**:
-- Polls shared file at configurable intervals
-- Auto-detects changes from other contributors
-- Skips reloading your own saves
-- Visual sync indicator with pulse animation
-- Shows last check time and changes count
-
-**New Fields**:
-- `collabComments` (textarea): Notes for collaborators
-- `contributor` (text): Who made this edit
-- `contributorTimestamp` (date): When edit was made
+**Team Management Fields**:
+- `capexTree.team.host` (object): { name, email, initials }
+- `capexTree.team.collaborators` (array): [{ name, email, initials }]
+- `capexTree.team.contributors` (array): [{ name, email, initials }]
+- `capexTree.specialistContext` (string): AI specialist expertise context
 
 ---
 

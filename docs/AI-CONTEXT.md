@@ -1,7 +1,7 @@
 # TreeListy AI Context Document
 
-**Current Version**: v2.11.0 (Build 203)
-**Last Updated**: 2025-11-30
+**Current Version**: v2.11.0 (Build 262)
+**Last Updated**: 2025-12-03
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -62,13 +62,15 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Current Version Highlights (Build 187)
+## Current Version Highlights (Build 262)
 
-1. **Collaboration System**: Share nodes → Edit → Share Back → Merge workflow
-2. **Branch & Merge**: URL-based async collaboration with device fingerprinting
-3. **Deep Dive Analysis**: AI-powered philosophical relationship analysis
-4. **Hyperedge Visualization**: N-ary relationships with hover effects
-5. **Model Selector**: Per-call model selection (Claude Haiku/Sonnet/Opus, Gemini Flash/Pro, GPT-4o/o1)
+1. **Dynamic Team Management** (Build 262): Contributors with unique initials, email accountability
+2. **Imagen 4 Image Generation** (Build 261): AI-generated images with multiple styles
+3. **AI Specialist Context** (Build 260): Per-project expertise context for AI calls
+4. **TreeBeard Chat Redesign** (Build 259): Expanded panel, cleaner UX
+5. **Firebase Live Sync** (Build 231+): Real-time collaboration via Firebase
+6. **Collaboration System**: Share nodes → Edit → Share Back → Merge workflow
+7. **Model Selector**: Per-call model selection (Claude Haiku/Sonnet/Opus, Gemini Flash/Pro, GPT-4o/o1)
 
 ---
 
@@ -204,18 +206,16 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 | Build | Date | Key Feature |
 |-------|------|-------------|
+| 262 | 2025-12-03 | Dynamic Team Management (unique initials, email accountability) |
+| 261 | 2025-12-02 | Imagen 4 Image Generation (visual styles, aspect ratios) |
+| 260 | 2025-12-02 | AI Specialist Context (per-project expertise) |
+| 259 | 2025-12-01 | TreeBeard Chat Redesign (expanded panel, clean UX) |
+| 231 | 2025-12-01 | Firebase Live Sync (real-time collaboration) |
 | 203 | 2025-11-30 | Collaboration privacy fix + UX improvements |
 | 187 | 2025-11-29 | Complete Collaboration System (Branch & Merge) |
-| 186 | 2025-11-29 | Share for Collaboration UI |
-| 185 | 2025-11-29 | Collaboration Foundation |
-| 179 | 2025-11-29 | Deep Dive Analysis + Hyperedge clicks |
-| 172 | 2025-11-29 | Hyperedge debug logging |
-| 169 | 2025-11-28 | Deep Dive Analysis (Structured Scholar) |
 | 165 | 2025-11-28 | Cognitive Citadel (migration, provenance, dialectic) |
-| 164 | 2025-11-25 | Model Selector dropdown |
 | 156 | 2025-11-24 | Semantic Chunking Engine |
 | 152 | 2025-11-22 | Wolfram-style Hyperedges |
-| 143 | 2025-11-20 | CORS protection all providers |
 | 140 | 2025-11-20 | Selective Canvas visibility |
 
 ---
@@ -223,7 +223,7 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 ## Related Documentation
 
 - **Full Feature Matrix**: `TREELISTY_FEATURES_2025.md`
-- **Skill Definition**: `.claude/skills/treeplexity.md`
+- **Skill Definition**: `.claude/skills/treelisty.md`
 - **Build Details**: `docs/builds/` folder
 - **Legacy Docs**: `docs/archive/` folder
 

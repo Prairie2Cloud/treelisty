@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-**Current Version**: v2.11.0 (Build 203)
+**Current Version**: v2.11.0 (Build 262)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -39,6 +39,7 @@ TreeListy is a **single-file HTML application** (~1.3MB) for hierarchical projec
 - `treeplexity.html` - Main production file (edit this)
 - `welcome-to-treelisty.json` - Default welcome tree
 - `netlify/functions/claude-proxy.js` - Server proxy for Claude API
+- `.claude/skills/treelisty.md` - Claude Code skill definition (comprehensive)
 - `docs/AI-CONTEXT.md` - Extended documentation
 
 ---
@@ -110,6 +111,32 @@ treeplexity.html (single file ~1.3MB)
 - `renderCanvas()` - re-render canvas view
 - `saveState(description)` - save undo state
 - `showToast(message, type)` - show notification
+
+---
+
+## Recent Features (Builds 259-262)
+
+### Build 262: Dynamic Team Management
+- Contributors identified by unique initials (collision handling)
+- Email-based accountability for team members
+- Project Team section in Project Settings (Host, Collaborators, Contributors)
+- Dynamic contributor buttons replace hardcoded names
+
+### Build 261: Imagen 4 Image Generation
+- Google Imagen 4 integration for AI-generated images
+- Multiple visual styles (Whiteboard, Sketch, Infographic, etc.)
+- Configurable aspect ratios and resolutions
+- Nano Banana Pro for enhanced generation
+
+### Build 260: AI Specialist Context
+- Per-project specialist expertise context
+- Stored in tree metadata, passed to all AI calls
+- Configurable in Project Settings modal
+
+### Build 259: TreeBeard Chat Redesign
+- Expanded chat panel (440x520px)
+- Clean welcome message
+- Removed quick action chips for cleaner UX
 
 ---
 
