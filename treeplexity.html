@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 272 | 2025-12-03
+    TreeListy v2.17.0 | Build 273 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 272): 💬 Floating Draggable Collab Chat
-    - Removed Team Chat from modal (now only in floating window)
-    - Auto-show floating chat when 2+ users in room (both host & guest)
-    - Floating chat is now draggable (click to collapse, drag to move)
+    Changelog (Build 273): 🔧 Fix Host Not Detecting Guest Join
+    - FIX: Process presence updates BEFORE early return checks
+    - Root cause: lastUpdatedBy check was skipping connectedUsers processing
+    - Now host properly sees floating chat when guest joins
+
+    Previous (Build 272): 💬 Floating Draggable Collab Chat
+    - Floating chat draggable, auto-shows for both host & guest
 
     Previous (Build 271): 🔧 Fix runForceDirectedLayout undefined error
-    - Changed runForceDirectedLayout() → applyForceDirectedLayout()
-
-    Previous (Build 270): 🔧 Fix Host Presence + Guest Detection
     - Auto-close Live Sync modal when first guest connects
     - Floating chat box with API key sharing
     - Session keys for guests that clear on leave
@@ -2915,8 +2915,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 272 | 2025-12-03">
-                    v2.17.0 • Build 272
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 273 | 2025-12-03">
+                    v2.17.0 • Build 273
                 </div>
             </div>
         </div>
@@ -22277,16 +22277,22 @@ https://treelisty.netlify.app`;
 
                     const data = doc.data();
 
-                    // Skip if we just pushed this update
+                    // BUILD 273: ALWAYS process presence updates regardless of who triggered
+                    // This fixes the bug where host doesn't see guest join because lastUpdatedBy was host
+                    if (data.connectedUsers) {
+                        updateCollaboratorsUI(data.connectedUsers);
+                    }
+
+                    // Skip tree updates if we just pushed this update
                     if (firebaseSyncState.ignoreNextUpdate) {
                         firebaseSyncState.ignoreNextUpdate = false;
-                        console.log('🔥 Ignoring our own update');
+                        console.log('🔥 Ignoring our own tree update');
                         return;
                     }
 
-                    // Skip if it's our own update
+                    // Skip tree updates if it's our own update
                     if (data.lastUpdatedBy === firebaseSyncState.userId) {
-                        console.log('🔥 Skipping own update');
+                        console.log('🔥 Skipping own tree update');
                         return;
                     }
 
@@ -22386,10 +22392,7 @@ https://treelisty.netlify.app`;
                         }
                     }
 
-                    // BUILD 265: Handle connected users
-                    if (data.connectedUsers) {
-                        updateCollaboratorsUI(data.connectedUsers);
-                    }
+                    // BUILD 265/273: Connected users now handled at top of snapshot (before early returns)
                 }, (error) => {
                     console.error('🔥 Snapshot error:', error);
                     showToast('❌ Sync error: ' + error.message, 'error');
