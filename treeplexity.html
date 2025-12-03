@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 247 | 2025-12-02
+    TreeListy v2.16.0 | Build 248 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 247): 🧠 AI-Enhanced System Prompts (+2.6 avg sophistication)
+    Changelog (Build 248): 💬 Chat Assistant with Voice Control
+    - NEW: Floating chat bubble (bottom-right) - click or press Ctrl+/
+    - NEW: Conversational AI assistant that understands TreeListy context
+    - NEW: Execute commands via natural language ("switch to canvas", "export excel")
+    - NEW: Voice input - hold microphone button to speak (Web Speech API)
+    - NEW: Quick action chips for common operations
+    - NEW: Context-aware responses (knows current project, pattern, selection)
+    - Commands: view switching, themes, patterns, export, undo/redo, wizard, help
+
+    Previous (Build 247): 🧠 AI-Enhanced System Prompts (+2.6 avg sophistication)
     - IMPROVED: Generic Deep Dive now uses McKinsey RAID methodology
       - SubItem types: risk-factor, dependency, assumption, subtask, constraint, success-metric
       - Critical Path Method and stakeholder impact analysis
@@ -2272,6 +2281,326 @@
         padding: 8px 12px !important;
     }
 
+    /* ═══════════════════════════════════════════════════════════════
+       CHAT ASSISTANT BUBBLE STYLES
+       ═══════════════════════════════════════════════════════════════ */
+
+    /* Floating bubble button */
+    #chat-assistant-bubble {
+        position: fixed;
+        bottom: 24px;
+        right: 24px;
+        width: 56px;
+        height: 56px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(99, 102, 241, 0.4);
+        z-index: 10000;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 24px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #chat-assistant-bubble:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 28px rgba(99, 102, 241, 0.5);
+    }
+
+    #chat-assistant-bubble.active {
+        transform: rotate(45deg);
+    }
+
+    /* Chat panel */
+    #chat-assistant-panel {
+        position: fixed;
+        bottom: 96px;
+        right: 24px;
+        width: 400px;
+        max-width: calc(100vw - 48px);
+        height: 500px;
+        max-height: calc(100vh - 140px);
+        background: var(--card-bg, #1e1e2e);
+        border: 1px solid var(--border, #3f3f5a);
+        border-radius: 16px;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+        z-index: 9999;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    #chat-assistant-panel.open {
+        display: flex;
+        animation: chatSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    @keyframes chatSlideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    /* Chat header */
+    #chat-assistant-header {
+        padding: 16px;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.2));
+        border-bottom: 1px solid var(--border, #3f3f5a);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    #chat-assistant-header h3 {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary, #fff);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    #chat-assistant-header .header-actions {
+        display: flex;
+        gap: 8px;
+    }
+
+    #chat-assistant-header button {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary, #a0a0a0);
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 6px;
+        font-size: 14px;
+        transition: all 0.2s;
+    }
+
+    #chat-assistant-header button:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary, #fff);
+    }
+
+    /* Chat messages area */
+    #chat-assistant-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .chat-message {
+        max-width: 85%;
+        padding: 10px 14px;
+        border-radius: 12px;
+        font-size: 14px;
+        line-height: 1.5;
+        word-wrap: break-word;
+    }
+
+    .chat-message.user {
+        align-self: flex-end;
+        background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        color: white;
+        border-bottom-right-radius: 4px;
+    }
+
+    .chat-message.assistant {
+        align-self: flex-start;
+        background: var(--item-bg, #2a2a3e);
+        color: var(--text-primary, #fff);
+        border-bottom-left-radius: 4px;
+    }
+
+    .chat-message.assistant .action-buttons {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-top: 10px;
+    }
+
+    .chat-message.assistant .action-btn {
+        padding: 6px 12px;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        border-radius: 6px;
+        color: var(--text-primary, #fff);
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .chat-message.assistant .action-btn:hover {
+        background: rgba(99, 102, 241, 0.4);
+        border-color: rgba(99, 102, 241, 0.6);
+    }
+
+    .chat-message.system {
+        align-self: center;
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 20px;
+    }
+
+    .chat-message.error {
+        align-self: center;
+        background: rgba(239, 68, 68, 0.2);
+        color: #ef4444;
+        font-size: 12px;
+        padding: 6px 12px;
+        border-radius: 20px;
+    }
+
+    .chat-typing {
+        display: flex;
+        gap: 4px;
+        padding: 12px 16px;
+        align-self: flex-start;
+    }
+
+    .chat-typing span {
+        width: 8px;
+        height: 8px;
+        background: var(--text-secondary, #a0a0a0);
+        border-radius: 50%;
+        animation: typingBounce 1.4s ease-in-out infinite;
+    }
+
+    .chat-typing span:nth-child(2) { animation-delay: 0.2s; }
+    .chat-typing span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes typingBounce {
+        0%, 60%, 100% { transform: translateY(0); }
+        30% { transform: translateY(-6px); }
+    }
+
+    /* Chat input area */
+    #chat-assistant-input-area {
+        padding: 12px 16px;
+        border-top: 1px solid var(--border, #3f3f5a);
+        display: flex;
+        gap: 8px;
+        align-items: flex-end;
+    }
+
+    #chat-assistant-input {
+        flex: 1;
+        background: var(--item-bg, #2a2a3e);
+        border: 1px solid var(--border, #3f3f5a);
+        border-radius: 12px;
+        padding: 10px 14px;
+        color: var(--text-primary, #fff);
+        font-size: 14px;
+        resize: none;
+        min-height: 20px;
+        max-height: 100px;
+        font-family: inherit;
+    }
+
+    #chat-assistant-input:focus {
+        outline: none;
+        border-color: #8b5cf6;
+    }
+
+    #chat-assistant-input::placeholder {
+        color: var(--text-secondary, #a0a0a0);
+    }
+
+    #chat-voice-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--item-bg, #2a2a3e);
+        border: 1px solid var(--border, #3f3f5a);
+        color: var(--text-secondary, #a0a0a0);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: all 0.2s;
+    }
+
+    #chat-voice-btn:hover {
+        border-color: #8b5cf6;
+        color: #8b5cf6;
+    }
+
+    #chat-voice-btn.recording {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: #ef4444;
+        color: #ef4444;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.05); }
+    }
+
+    #chat-send-btn {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        border: none;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 18px;
+        transition: all 0.2s;
+    }
+
+    #chat-send-btn:hover {
+        transform: scale(1.05);
+    }
+
+    #chat-send-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    /* Quick actions bar */
+    #chat-quick-actions {
+        padding: 8px 16px;
+        border-top: 1px solid var(--border, #3f3f5a);
+        display: flex;
+        gap: 6px;
+        flex-wrap: wrap;
+    }
+
+    .quick-action-chip {
+        padding: 4px 10px;
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+        color: var(--text-secondary, #a0a0a0);
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .quick-action-chip:hover {
+        background: rgba(99, 102, 241, 0.3);
+        color: var(--text-primary, #fff);
+    }
+
     </style>
     <!-- SheetJS library for Excel export -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
@@ -2468,8 +2797,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 247 | 2025-12-02">
-                    v2.16.0 • Build 247
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 248 | 2025-12-02">
+                    v2.16.0 • Build 248
                 </div>
             </div>
         </div>
@@ -32933,6 +33262,584 @@ ${transcript}`;
 
     </script>
 
+    <!-- ═══════════════════════════════════════════════════════════════
+         CHAT ASSISTANT MODULE (Build 248)
+         ═══════════════════════════════════════════════════════════════ -->
+    <script>
+    (function() {
+        'use strict';
+
+        // ═══════════════════════════════════════════════════════════════
+        // CHAT ASSISTANT STATE
+        // ═══════════════════════════════════════════════════════════════
+
+        const chatState = {
+            isOpen: false,
+            isProcessing: false,
+            conversationHistory: [],
+            voiceRecognition: null,
+            isRecording: false
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // COMMAND REGISTRY - Maps intents to TreeListy functions
+        // ═══════════════════════════════════════════════════════════════
+
+        const COMMAND_REGISTRY = {
+            // View commands
+            'switch_to_canvas': () => {
+                const container = document.getElementById('canvas-container');
+                if (container && !container.classList.contains('active')) {
+                    document.getElementById('toggle-view-mode')?.click();
+                }
+                return '🎨 Switched to Canvas view!';
+            },
+            'switch_to_tree': () => {
+                const container = document.getElementById('canvas-container');
+                if (container && container.classList.contains('active')) {
+                    document.getElementById('toggle-view-mode')?.click();
+                }
+                return '🌳 Switched to Tree view!';
+            },
+            'toggle_view': () => {
+                document.getElementById('toggle-view-mode')?.click();
+                return '🔄 View toggled!';
+            },
+
+            // Theme commands
+            'set_theme_dark': () => {
+                document.getElementById('theme-select').value = 'default';
+                document.getElementById('theme-select').dispatchEvent(new Event('change'));
+                return '🌙 Dark theme applied!';
+            },
+            'set_theme_steampunk': () => {
+                document.getElementById('theme-select').value = 'steampunk';
+                document.getElementById('theme-select').dispatchEvent(new Event('change'));
+                return '⚙️ Steampunk theme applied!';
+            },
+            'set_theme_tron': () => {
+                document.getElementById('theme-select').value = 'tron';
+                document.getElementById('theme-select').dispatchEvent(new Event('change'));
+                return '💠 Tron theme applied!';
+            },
+
+            // Pattern commands
+            'list_patterns': () => {
+                const patterns = ['Generic', 'Philosophy', 'Sales', 'CAPEX', 'Thesis', 'Roadmap', 'Book', 'Film', 'Course', 'Fitness', 'Event', 'Strategy', 'Family Tree', 'Dialogue', 'File System'];
+                return '📋 Available patterns:\n• ' + patterns.join('\n• ');
+            },
+            'switch_pattern': (patternName) => {
+                const select = document.getElementById('pattern-select');
+                if (select) {
+                    const options = Array.from(select.options);
+                    const match = options.find(o => o.text.toLowerCase().includes(patternName.toLowerCase()));
+                    if (match) {
+                        select.value = match.value;
+                        select.dispatchEvent(new Event('change'));
+                        return `✅ Switched to ${match.text} pattern!`;
+                    }
+                }
+                return `❌ Pattern "${patternName}" not found. Try "list patterns" to see options.`;
+            },
+
+            // Export commands
+            'export_json': () => {
+                document.getElementById('save-btn')?.click();
+                return '💾 JSON file downloaded!';
+            },
+            'export_excel': () => {
+                document.getElementById('excel-export-btn')?.click();
+                return '📊 Excel file downloaded!';
+            },
+            'export_canvas_image': () => {
+                if (typeof exportCanvasAsImage === 'function') {
+                    exportCanvasAsImage();
+                    return '📷 Canvas exported as PNG!';
+                }
+                return '❌ Please switch to Canvas view first.';
+            },
+
+            // Tree manipulation
+            'add_phase': () => {
+                document.getElementById('add-phase-btn')?.click();
+                return '➕ New phase added! You can rename it by clicking on it.';
+            },
+            'expand_all': () => {
+                document.getElementById('expand-btn')?.click();
+                return '⬇️ Expanded one level!';
+            },
+            'collapse_all': () => {
+                document.getElementById('collapse-btn')?.click();
+                return '⬆️ Collapsed one level!';
+            },
+            'undo': () => {
+                document.getElementById('undo-btn')?.click();
+                return '↩️ Undo complete!';
+            },
+            'redo': () => {
+                document.getElementById('redo-btn')?.click();
+                return '↪️ Redo complete!';
+            },
+
+            // AI operations
+            'enhance_selected': async () => {
+                const selectedNodes = window.selectedCanvasNodes || [];
+                if (selectedNodes.length === 0) {
+                    return '⚠️ No nodes selected. Select some items first!';
+                }
+                // Trigger enhance on selected
+                if (typeof enhanceWithAI === 'function') {
+                    await enhanceWithAI(selectedNodes);
+                    return `✨ Enhancing ${selectedNodes.length} selected item(s)...`;
+                }
+                return '❌ AI enhancement not available.';
+            },
+
+            // Help
+            'show_help': () => {
+                document.getElementById('how-to-btn')?.click();
+                return '📖 Opening help modal...';
+            },
+
+            // Project operations
+            'new_project': () => {
+                document.getElementById('new-tree-btn')?.click();
+                return '🆕 New project dialog opened!';
+            },
+            'open_wizard': () => {
+                document.getElementById('wizard-btn')?.click();
+                return '🧙 Build Wizard opened!';
+            }
+        };
+
+        // ═══════════════════════════════════════════════════════════════
+        // AI COMMAND INTERPRETER
+        // ═══════════════════════════════════════════════════════════════
+
+        async function interpretCommand(userMessage) {
+            // Get current context
+            const context = {
+                projectName: typeof capexTree !== 'undefined' ? capexTree.name : 'Unknown',
+                pattern: typeof currentPattern !== 'undefined' ? currentPattern : 'generic',
+                itemCount: typeof capexTree !== 'undefined' && capexTree.phases ?
+                    capexTree.phases.reduce((sum, p) => sum + (p.items?.length || 0), 0) : 0,
+                phaseCount: typeof capexTree !== 'undefined' && capexTree.phases ? capexTree.phases.length : 0,
+                viewMode: document.getElementById('canvas-container')?.classList.contains('active') ? 'canvas' : 'tree',
+                selectedCount: window.selectedCanvasNodes?.length || 0
+            };
+
+            const systemPrompt = `You are the TreeListy Assistant, an AI helper embedded in TreeListy - a hierarchical project decomposition tool.
+
+CURRENT CONTEXT:
+- Project: "${context.projectName}"
+- Pattern: ${context.pattern}
+- Phases: ${context.phaseCount}, Items: ${context.itemCount}
+- View: ${context.viewMode}
+- Selected nodes: ${context.selectedCount}
+
+AVAILABLE COMMANDS (return these exact action names when user wants to execute):
+- switch_to_canvas / switch_to_tree / toggle_view
+- set_theme_dark / set_theme_steampunk / set_theme_tron
+- list_patterns / switch_pattern:{pattern_name}
+- export_json / export_excel / export_canvas_image
+- add_phase / expand_all / collapse_all / undo / redo
+- enhance_selected / show_help / new_project / open_wizard
+
+RESPONSE FORMAT (JSON):
+{
+  "type": "action" | "answer" | "clarify" | "multi",
+  "message": "Your conversational response to the user",
+  "action": "command_name" | null,
+  "actionParam": "optional parameter" | null,
+  "buttons": [{"label": "Button Text", "action": "command_name"}] | null
+}
+
+RULES:
+1. For simple questions, type="answer" with helpful message
+2. For clear commands, type="action" with the action name
+3. When offering choices, include buttons array
+4. Be concise and friendly
+5. If user asks about patterns, recommend based on their needs
+6. If unsure what user wants, type="clarify" and ask
+
+Example user: "export as excel" → {"type":"action","message":"📊 Exporting your project to Excel!","action":"export_excel"}
+Example user: "what can you do?" → {"type":"answer","message":"I can help you...","buttons":[...]}`;
+
+            try {
+                // Use TreeListy's existing AI infrastructure
+                const aiMode = document.getElementById('unified-ai-mode-select')?.value || 'server-sonnet';
+
+                let response;
+                if (aiMode.startsWith('server-')) {
+                    // Use server proxy
+                    response = await fetch('/.netlify/functions/claude-proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 500,
+                            messages: [
+                                ...chatState.conversationHistory.slice(-6).map(m => ({
+                                    role: m.role === 'user' ? 'user' : 'assistant',
+                                    content: m.content
+                                })),
+                                { role: 'user', content: systemPrompt + '\n\nUser message: ' + userMessage }
+                            ]
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error);
+                    return JSON.parse(data.content[0].text);
+                } else if (aiMode.startsWith('user-')) {
+                    // Use user's API key
+                    const anthropicKey = localStorage.getItem('anthropic_api_key');
+                    if (!anthropicKey) {
+                        return {
+                            type: 'answer',
+                            message: '🔑 Please set your API key in Settings (🔑 button) or switch to Server mode.',
+                            action: null
+                        };
+                    }
+                    response = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': anthropicKey,
+                            'anthropic-version': '2023-06-01',
+                            'anthropic-dangerous-direct-browser-access': 'true'
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 500,
+                            messages: [{ role: 'user', content: systemPrompt + '\n\nUser message: ' + userMessage }]
+                        })
+                    });
+                    const data = await response.json();
+                    if (data.error) throw new Error(data.error.message);
+                    return JSON.parse(data.content[0].text);
+                }
+            } catch (error) {
+                console.error('Chat AI error:', error);
+                // Fallback to simple pattern matching
+                return fallbackInterpret(userMessage);
+            }
+        }
+
+        // Simple fallback when AI unavailable
+        function fallbackInterpret(message) {
+            const lower = message.toLowerCase();
+
+            if (lower.includes('canvas')) return { type: 'action', message: '🎨 Switching to Canvas!', action: 'switch_to_canvas' };
+            if (lower.includes('tree view')) return { type: 'action', message: '🌳 Switching to Tree!', action: 'switch_to_tree' };
+            if (lower.includes('excel')) return { type: 'action', message: '📊 Exporting Excel!', action: 'export_excel' };
+            if (lower.includes('json')) return { type: 'action', message: '💾 Saving JSON!', action: 'export_json' };
+            if (lower.includes('pattern')) return { type: 'action', message: '📋 Here are the patterns:', action: 'list_patterns' };
+            if (lower.includes('add phase')) return { type: 'action', message: '➕ Adding phase!', action: 'add_phase' };
+            if (lower.includes('undo')) return { type: 'action', message: '↩️ Undoing!', action: 'undo' };
+            if (lower.includes('help')) return { type: 'action', message: '📖 Opening help!', action: 'show_help' };
+            if (lower.includes('wizard')) return { type: 'action', message: '🧙 Opening wizard!', action: 'open_wizard' };
+            if (lower.includes('dark') || lower.includes('theme')) return { type: 'action', message: '🌙 Dark theme!', action: 'set_theme_dark' };
+
+            return {
+                type: 'answer',
+                message: "I understand you said: \"" + message + "\". Try asking me to switch views, export data, change patterns, or use commands like 'add phase' or 'open wizard'.",
+                buttons: [
+                    { label: '🎨 Canvas', action: 'switch_to_canvas' },
+                    { label: '📊 Export', action: 'export_excel' },
+                    { label: '📖 Help', action: 'show_help' }
+                ]
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // UI FUNCTIONS
+        // ═══════════════════════════════════════════════════════════════
+
+        function toggleChatPanel() {
+            const panel = document.getElementById('chat-assistant-panel');
+            const bubble = document.getElementById('chat-assistant-bubble');
+
+            chatState.isOpen = !chatState.isOpen;
+
+            if (chatState.isOpen) {
+                panel.classList.add('open');
+                bubble.classList.add('active');
+                bubble.textContent = '✕';
+                document.getElementById('chat-assistant-input')?.focus();
+            } else {
+                panel.classList.remove('open');
+                bubble.classList.remove('active');
+                bubble.textContent = '💬';
+            }
+        }
+
+        function addMessage(content, type = 'assistant', buttons = null) {
+            const messagesContainer = document.getElementById('chat-assistant-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = `chat-message ${type}`;
+
+            // Handle markdown-like formatting
+            let formattedContent = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+
+            messageDiv.innerHTML = formattedContent;
+
+            // Add action buttons if provided
+            if (buttons && buttons.length > 0) {
+                const btnContainer = document.createElement('div');
+                btnContainer.className = 'action-buttons';
+                buttons.forEach(btn => {
+                    const button = document.createElement('button');
+                    button.className = 'action-btn';
+                    button.textContent = btn.label;
+                    button.onclick = () => executeAction(btn.action, btn.param);
+                    btnContainer.appendChild(button);
+                });
+                messageDiv.appendChild(btnContainer);
+            }
+
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+
+            // Store in history
+            chatState.conversationHistory.push({ role: type, content });
+        }
+
+        function showTypingIndicator() {
+            const messagesContainer = document.getElementById('chat-assistant-messages');
+            const typing = document.createElement('div');
+            typing.className = 'chat-typing';
+            typing.id = 'typing-indicator';
+            typing.innerHTML = '<span></span><span></span><span></span>';
+            messagesContainer.appendChild(typing);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+
+        function hideTypingIndicator() {
+            document.getElementById('typing-indicator')?.remove();
+        }
+
+        async function executeAction(actionName, param = null) {
+            const command = COMMAND_REGISTRY[actionName];
+            if (command) {
+                try {
+                    const result = await command(param);
+                    if (result) {
+                        addMessage(result, 'system');
+                    }
+                } catch (error) {
+                    addMessage(`❌ Error: ${error.message}`, 'error');
+                }
+            } else {
+                addMessage(`❌ Unknown action: ${actionName}`, 'error');
+            }
+        }
+
+        async function handleSendMessage() {
+            const input = document.getElementById('chat-assistant-input');
+            const message = input.value.trim();
+
+            if (!message || chatState.isProcessing) return;
+
+            // Clear input
+            input.value = '';
+            input.style.height = 'auto';
+
+            // Add user message
+            addMessage(message, 'user');
+
+            // Show typing indicator
+            chatState.isProcessing = true;
+            showTypingIndicator();
+
+            try {
+                // Interpret command
+                const result = await interpretCommand(message);
+                hideTypingIndicator();
+
+                // Add assistant response
+                addMessage(result.message, 'assistant', result.buttons);
+
+                // Execute action if present
+                if (result.action) {
+                    await executeAction(result.action, result.actionParam);
+                }
+            } catch (error) {
+                hideTypingIndicator();
+                addMessage(`❌ Sorry, something went wrong: ${error.message}`, 'error');
+            } finally {
+                chatState.isProcessing = false;
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // VOICE INPUT (Web Speech API)
+        // ═══════════════════════════════════════════════════════════════
+
+        function initVoiceInput() {
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                console.log('Voice input not supported');
+                document.getElementById('chat-voice-btn')?.style.setProperty('display', 'none');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            chatState.voiceRecognition = new SpeechRecognition();
+            chatState.voiceRecognition.continuous = false;
+            chatState.voiceRecognition.interimResults = false;
+            chatState.voiceRecognition.lang = 'en-US';
+
+            chatState.voiceRecognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                document.getElementById('chat-assistant-input').value = transcript;
+                stopVoiceRecording();
+                handleSendMessage();
+            };
+
+            chatState.voiceRecognition.onerror = (event) => {
+                console.error('Voice error:', event.error);
+                stopVoiceRecording();
+                if (event.error !== 'aborted') {
+                    addMessage(`🎤 Voice error: ${event.error}`, 'error');
+                }
+            };
+
+            chatState.voiceRecognition.onend = () => {
+                stopVoiceRecording();
+            };
+        }
+
+        function startVoiceRecording() {
+            if (!chatState.voiceRecognition) return;
+
+            chatState.isRecording = true;
+            document.getElementById('chat-voice-btn')?.classList.add('recording');
+
+            try {
+                chatState.voiceRecognition.start();
+                addMessage('🎤 Listening...', 'system');
+            } catch (e) {
+                stopVoiceRecording();
+            }
+        }
+
+        function stopVoiceRecording() {
+            chatState.isRecording = false;
+            document.getElementById('chat-voice-btn')?.classList.remove('recording');
+
+            try {
+                chatState.voiceRecognition?.stop();
+            } catch (e) {}
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // INITIALIZATION
+        // ═══════════════════════════════════════════════════════════════
+
+        function initChatAssistant() {
+            // Toggle button
+            document.getElementById('chat-assistant-bubble')?.addEventListener('click', toggleChatPanel);
+
+            // Close button
+            document.getElementById('chat-close-btn')?.addEventListener('click', toggleChatPanel);
+
+            // Clear button
+            document.getElementById('chat-clear-btn')?.addEventListener('click', () => {
+                const messages = document.getElementById('chat-assistant-messages');
+                messages.innerHTML = `
+                    <div class="chat-message assistant">
+                        Chat cleared! How can I help you?
+                        <div class="action-buttons" style="margin-top: 8px;">
+                            <button class="action-btn" data-action="help">📖 Learn features</button>
+                            <button class="action-btn" data-action="create">🌳 Create a project</button>
+                        </div>
+                    </div>
+                `;
+                chatState.conversationHistory = [];
+            });
+
+            // Send button
+            document.getElementById('chat-send-btn')?.addEventListener('click', handleSendMessage);
+
+            // Input - Enter to send, Shift+Enter for newline
+            const input = document.getElementById('chat-assistant-input');
+            input?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage();
+                }
+            });
+
+            // Auto-resize textarea
+            input?.addEventListener('input', () => {
+                input.style.height = 'auto';
+                input.style.height = Math.min(input.scrollHeight, 100) + 'px';
+            });
+
+            // Voice button
+            const voiceBtn = document.getElementById('chat-voice-btn');
+            voiceBtn?.addEventListener('mousedown', startVoiceRecording);
+            voiceBtn?.addEventListener('mouseup', stopVoiceRecording);
+            voiceBtn?.addEventListener('mouseleave', stopVoiceRecording);
+
+            // Quick action chips
+            document.querySelectorAll('.quick-action-chip').forEach(chip => {
+                chip.addEventListener('click', () => {
+                    const prompt = chip.dataset.prompt;
+                    if (prompt) {
+                        document.getElementById('chat-assistant-input').value = prompt;
+                        handleSendMessage();
+                    }
+                });
+            });
+
+            // Welcome action buttons
+            document.querySelectorAll('.action-btn[data-action]').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.dataset.action;
+                    if (action === 'help') {
+                        executeAction('show_help');
+                    } else if (action === 'create') {
+                        executeAction('open_wizard');
+                    } else if (action === 'enhance') {
+                        addMessage('Select some items in Canvas view, then ask me to "enhance selected items"!', 'assistant');
+                    }
+                });
+            });
+
+            // Keyboard shortcut: Ctrl+/ to toggle
+            document.addEventListener('keydown', (e) => {
+                if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+                    e.preventDefault();
+                    toggleChatPanel();
+                }
+            });
+
+            // Initialize voice
+            initVoiceInput();
+
+            console.log('💬 Chat Assistant initialized (Build 248)');
+        }
+
+        // Initialize when DOM ready
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initChatAssistant);
+        } else {
+            initChatAssistant();
+        }
+
+        // Expose for debugging
+        window.chatAssistant = {
+            toggle: toggleChatPanel,
+            send: handleSendMessage,
+            execute: executeAction,
+            state: chatState
+        };
+
+    })();
+    </script>
+
     <!-- Canvas View Container -->
     <div class="canvas-container" id="canvas-container">
         <!-- Canvas Toolbar -->
@@ -32985,6 +33892,51 @@ ${transcript}`;
                 <rect width="100%" height="100%" fill="url(#grid-pattern)" />
             </svg>
             <svg class="canvas-connections" id="canvas-connections"></svg>
+        </div>
+    </div>
+
+    <!-- ═══════════════════════════════════════════════════════════════
+         CHAT ASSISTANT BUBBLE & PANEL
+         ═══════════════════════════════════════════════════════════════ -->
+
+    <!-- Floating Chat Bubble -->
+    <button id="chat-assistant-bubble" title="TreeListy Assistant (Ctrl+/)">
+        💬
+    </button>
+
+    <!-- Chat Panel -->
+    <div id="chat-assistant-panel">
+        <div id="chat-assistant-header">
+            <h3>🤖 TreeListy Assistant</h3>
+            <div class="header-actions">
+                <button id="chat-clear-btn" title="Clear conversation">🗑️</button>
+                <button id="chat-close-btn" title="Close">✕</button>
+            </div>
+        </div>
+
+        <div id="chat-assistant-messages">
+            <!-- Welcome message -->
+            <div class="chat-message assistant">
+                Hi! I'm your TreeListy assistant. I can help you:
+                <div class="action-buttons" style="margin-top: 8px;">
+                    <button class="action-btn" data-action="help">📖 Learn features</button>
+                    <button class="action-btn" data-action="create">🌳 Create a project</button>
+                    <button class="action-btn" data-action="enhance">✨ Enhance items</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="chat-quick-actions">
+            <button class="quick-action-chip" data-prompt="Switch to Canvas view">🎨 Canvas</button>
+            <button class="quick-action-chip" data-prompt="Add a new phase">➕ Add Phase</button>
+            <button class="quick-action-chip" data-prompt="What pattern should I use?">🎯 Patterns</button>
+            <button class="quick-action-chip" data-prompt="Export as Excel">📊 Export</button>
+        </div>
+
+        <div id="chat-assistant-input-area">
+            <textarea id="chat-assistant-input" placeholder="Ask anything or give a command..." rows="1"></textarea>
+            <button id="chat-voice-btn" title="Voice input (hold to speak)">🎤</button>
+            <button id="chat-send-btn" title="Send message">➤</button>
         </div>
     </div>
 
