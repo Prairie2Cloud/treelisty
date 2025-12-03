@@ -7,11 +7,18 @@
   [headers.values]
     Cache-Control = "public, max-age=0, must-revalidate"
 
+# Redirect root to treeplexity.html
 [[redirects]]
-  from = "/*"
+  from = "/"
   to = "/treeplexity.html"
   status = 200
-  force = false
 
 [functions]
   node_bundler = "esbuild"
+
+# Edge Functions configuration
+# Edge Functions have no timeout for streaming (unlike 10s limit on regular functions)
+# This enables Claude Sonnet/Opus to work without timeouts
+[[edge_functions]]
+  path = "/api/claude-stream"
+  function = "claude-stream"

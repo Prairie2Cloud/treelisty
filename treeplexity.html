@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 250 | 2025-12-02
+    TreeListy v2.16.0 | Build 251 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,17 +18,20 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 250): 🧭 Conversational Tree Navigation & Editing
-    - NEW: find_node - search and select nodes by name/description ("find Becoming")
-    - NEW: Tree traversal - first_child, parent_node, next_sibling, prev_sibling
-    - NEW: expand_node / collapse_node - toggle focused node
-    - NEW: set_title, set_description, set_field - edit any field via chat
-    - NEW: ai_enhance_field - AI-improve specific fields ("enhance description")
-    - NEW: add_child, delete_node - structural editing via chat
-    - NEW: zoom_in, zoom_out, zoom_fit, zoom_reset - canvas view control
-    - NEW: list_children, list_fields, get_field, node_info - inspection commands
-    - IMPROVED: Natural language patterns for navigation ("go to parent", "next")
-    - Enables workflow: "find Hegel" → "expand" → "first child" → "set description: ..."
+    Changelog (Build 251): 🌊 Edge Function Streaming - No More Timeouts!
+    - FIXED: Claude Sonnet/Opus timeout issue on Netlify free tier
+    - NEW: Edge Function streaming proxy (netlify/edge-functions/claude-stream.ts)
+    - NEW: callClaudeStreamingAPI() - SSE streaming with no timeout limit
+    - NEW: callClaudeEdgeBuffered() - buffered Edge response for compatibility
+    - IMPROVED: Automatic fallback chain: Edge → Regular Function → Direct API
+    - IMPROVED: Extended Thinking now works reliably (was timing out at 10s)
+    - Edge Functions use Deno runtime with streaming - no timeout for long requests
+    - Streaming enables real-time token display (future enhancement)
+
+    Previous (Build 250): 🧭 Conversational Tree Navigation & Editing
+    - find_node, Tree traversal, expand/collapse, field editing, ai_enhance_field
+    - add_child, delete_node, zoom controls, list_children, node_info
+    - Natural language patterns for navigation
 
     Previous (Build 249): 🎤 Expanded Chat Assistant Commands (35 total)
     - File operations - import_text, load_json, import_excel, share_url, live_sync
@@ -2812,8 +2815,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 250 | 2025-12-02">
-                    v2.16.0 • Build 250
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 251 | 2025-12-03">
+                    v2.16.0 • Build 251
                 </div>
             </div>
         </div>
@@ -5731,6 +5734,154 @@ Do not ask permission—just provide the critique, then help.
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 251: Edge Function Streaming API (No Timeout!)
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Call Claude via Edge Function with streaming (SSE)
+         * This bypasses Netlify's 10-second timeout by using Edge Functions
+         * which have no timeout for streaming responses.
+         *
+         * @param {object} requestData - The Anthropic API request body
+         * @param {string|null} userApiKey - Optional user API key
+         * @param {function|null} onDelta - Optional callback for streaming deltas
+         * @returns {Promise<string>} The complete response text
+         */
+        async function callClaudeStreamingAPI(requestData, userApiKey = null, onDelta = null) {
+            const STREAMING_ENDPOINT = '/api/claude-stream';
+
+            console.log('🌊 Streaming: Using Edge Function (no timeout limit)');
+
+            // Check if we're on deployed site (Edge Functions only work deployed)
+            const isLocalFile = window.location.protocol === 'file:';
+            if (isLocalFile) {
+                throw new Error('STREAMING_NOT_AVAILABLE_LOCAL');
+            }
+
+            const requestBody = {
+                ...requestData,
+                userApiKey: userApiKey || undefined,
+                stream: true, // Tell Edge Function we want streaming
+            };
+
+            try {
+                const response = await fetch(STREAMING_ENDPOINT, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(requestBody),
+                });
+
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('❌ Streaming API error:', response.status, errorText);
+                    throw new Error(`Streaming API error: ${response.status}`);
+                }
+
+                // Read SSE stream
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let buffer = '';
+                let fullText = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+
+                    if (done) {
+                        break;
+                    }
+
+                    buffer += decoder.decode(value, { stream: true });
+
+                    // Process complete SSE events
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            const data = line.slice(6);
+
+                            if (data === '[DONE]') {
+                                continue;
+                            }
+
+                            try {
+                                const event = JSON.parse(data);
+
+                                if (event.type === 'delta' && event.text) {
+                                    fullText = event.accumulated || (fullText + event.text);
+
+                                    // Call delta callback if provided (for UI updates)
+                                    if (onDelta && typeof onDelta === 'function') {
+                                        onDelta(event.text, fullText);
+                                    }
+                                }
+
+                                if (event.type === 'message_complete') {
+                                    fullText = event.content || fullText;
+                                    console.log('✅ Streaming complete:', {
+                                        tokens: event.usage,
+                                        model: event.model
+                                    });
+                                }
+
+                                if (event.type === 'thinking_start') {
+                                    console.log('🧠 Extended Thinking started...');
+                                }
+
+                                if (event.error) {
+                                    throw new Error(event.error);
+                                }
+                            } catch (parseError) {
+                                if (parseError.message !== 'Unexpected end of JSON input') {
+                                    console.warn('SSE parse error:', parseError);
+                                }
+                            }
+                        }
+                    }
+                }
+
+                return fullText;
+
+            } catch (error) {
+                console.error('❌ Streaming failed:', error);
+                throw error;
+            }
+        }
+
+        /**
+         * Call Claude via Edge Function (buffered mode - no streaming UI)
+         * Still uses Edge Function for no timeout, but returns complete response
+         */
+        async function callClaudeEdgeBuffered(requestData, userApiKey = null) {
+            const STREAMING_ENDPOINT = '/api/claude-stream';
+
+            console.log('📦 Edge Buffered: Using Edge Function without streaming');
+
+            const requestBody = {
+                ...requestData,
+                userApiKey: userApiKey || undefined,
+                stream: false, // Tell Edge Function to buffer response
+            };
+
+            const response = await fetch(STREAMING_ENDPOINT, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(requestBody),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json().catch(() => ({}));
+                throw new Error(errorData.error || `Edge API error: ${response.status}`);
+            }
+
+            return response;
+        }
+
         // Helper: Direct API call to Google Gemini
         async function callGeminiDirectAPI(prompt, systemPrompt, maxTokens, apiKey) {
             console.log('🚀 Direct API: Calling Google Gemini directly');
@@ -5976,68 +6127,86 @@ Do not ask permission—just provide the critique, then help.
                 }
             }
 
-            // ALL Claude API calls go through Netlify proxy (Anthropic blocks direct browser calls via CORS)
-            // This includes both Fast Mode and Deep Mode - Deep Mode may timeout on complex requests
-            if (true) { // Always use Netlify for Claude
-                // Log the mode being used
-                if (requestData.thinking) {
-                    console.log('🧠 Deep Mode: Using Netlify proxy with Extended Thinking');
-                    console.log('⚠️ Complex requests may timeout (Netlify free tier: 10s limit)');
-                }
-                console.log(localApiKey ? '🔑 Using Netlify function with your API key' : '🌐 Using Netlify function with server API key');
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 251: Prioritize Edge Function Streaming (No Timeout!)
+            // Fallback chain: Edge Stream → Edge Buffered → Regular Function
+            // ═══════════════════════════════════════════════════════════════
 
-                // Check if we're a guest using host's session keys
-                const sessionToken = window.getCollabSessionToken?.() || null;
-
-                const netlifyRequestBody = {
-                    ...requestData,
-                    // Include local API key if available (Netlify function will use it)
-                    userApiKey: localApiKey || undefined,
-                    // Include session token for live collaboration (host's keys)
-                    sessionToken: sessionToken || undefined
-                };
-
-                // Log session usage
-                if (sessionToken) {
-                    const hostName = window.getCollabHostName?.() || 'Host';
-                    console.log(`🎟️ Using ${hostName}'s API keys via live session`);
-                }
-
-                // Add timeout to prevent hanging on Netlify's 10s function limit
-                // Increased to 25s to give Netlify full time (Sonnet can be slow)
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 25000); // 25s timeout (Netlify has 10s limit on free tier)
-
+            // Try Edge Function streaming first (no timeout, works on deployed site)
+            if (!isLocalFile) {
                 try {
-                    response = await fetch(AI_CONFIG.apiEndpoint, {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify(netlifyRequestBody),
-                        signal: controller.signal
-                    });
-                    clearTimeout(timeoutId);
-                } catch (fetchError) {
-                    clearTimeout(timeoutId);
+                    console.log('🌊 Trying Edge Function streaming (no timeout limit)...');
+                    const streamResult = await callClaudeEdgeBuffered(requestData, localApiKey);
+                    const data = await streamResult.json();
+                    console.log('✅ Edge Function success!');
 
-                    // AUTOMATIC FALLBACK: If timeout AND user has API key, try direct API (only from local files)
-                    if (fetchError.name === 'AbortError' && localApiKey) {
-                        const isLocalFile = window.location.protocol === 'file:';
+                    // Handle response
+                    if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
+                        console.error('Invalid Edge API response:', data);
+                        throw new Error('Invalid response from Edge Function');
+                    }
 
-                        if (isLocalFile) {
-                            // Running from file:// - try direct API fallback
-                            console.warn('⚠️ Netlify timeout detected. Falling back to direct API (no timeout limit)...');
-                            try {
-                                response = await callClaudeDirectAPI(requestData, localApiKey);
-                                console.log('✅ Direct API fallback successful!');
-                            } catch (directError) {
-                                console.error('❌ Direct API fallback failed:', directError);
-                                throw new Error(`Netlify timeout AND direct API failed.\n\n✅ Solutions:\n1. Run via local server: python -m http.server 8000\n2. Use deployed site: https://treelisty.netlify.app\n3. Use ⚡ Fast Mode (Haiku) - faster and works everywhere`);
-                            }
-                        } else {
-                            // Running from web deployment (https://) - Claude API doesn't support CORS
-                            throw new Error(`⏱️ Request timeout (Netlify 10-second limit exceeded)
+                    return data.content[0].text;
+                } catch (edgeError) {
+                    // Edge Function failed - fall back to regular function
+                    console.warn('⚠️ Edge Function failed, falling back to regular function:', edgeError.message);
+                    // Continue to fallback below
+                }
+            }
+
+            // Fallback: Regular Netlify Function (has 10s timeout)
+            console.log('📦 Using regular Netlify function (10s timeout limit)');
+            if (requestData.thinking) {
+                console.log('🧠 Deep Mode: Extended Thinking enabled');
+                console.log('⚠️ Complex requests may timeout on free tier');
+            }
+            console.log(localApiKey ? '🔑 Using your API key' : '🌐 Using server API key');
+
+            // Check if we're a guest using host's session keys
+            const sessionToken = window.getCollabSessionToken?.() || null;
+
+            const netlifyRequestBody = {
+                ...requestData,
+                userApiKey: localApiKey || undefined,
+                sessionToken: sessionToken || undefined
+            };
+
+            if (sessionToken) {
+                const hostName = window.getCollabHostName?.() || 'Host';
+                console.log(`🎟️ Using ${hostName}'s API keys via live session`);
+            }
+
+            // Timeout for regular function (Netlify has 10s limit)
+            const controller = new AbortController();
+            const timeoutId = setTimeout(() => controller.abort(), 25000);
+
+            try {
+                response = await fetch(AI_CONFIG.apiEndpoint, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(netlifyRequestBody),
+                    signal: controller.signal
+                });
+                clearTimeout(timeoutId);
+            } catch (fetchError) {
+                clearTimeout(timeoutId);
+
+                // Handle timeout
+                if (fetchError.name === 'AbortError' && localApiKey) {
+                    if (isLocalFile) {
+                        console.warn('⚠️ Netlify timeout. Trying direct API...');
+                        try {
+                            response = await callClaudeDirectAPI(requestData, localApiKey);
+                            console.log('✅ Direct API fallback successful!');
+                        } catch (directError) {
+                            console.error('❌ Direct API fallback failed:', directError);
+                            throw new Error(`Netlify timeout AND direct API failed.\n\n✅ Solutions:\n1. Run via local server: python -m http.server 8000\n2. Use deployed site: https://treelisty.netlify.app\n3. Use ⚡ Fast Mode (Haiku) - faster`);
+                        }
+                    } else {
+                        // From deployed site but Edge Function also failed
+                        throw new Error(`⏱️ Request timeout (Netlify 10-second limit exceeded)
 
 ❌ Claude API doesn't support CORS - cannot bypass Netlify from browser
 
