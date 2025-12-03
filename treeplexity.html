@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 252 | 2025-12-03
+    TreeListy v2.16.0 | Build 253 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 252): 🐛 Fix splash screen not loading (syntax error in Build 251)
-    - FIXED: JavaScript syntax error in catch block that prevented app initialization
-    - Build 251 Edge Function implementation still works after fix
+    Changelog (Build 253): 🌳 TreeBeard - Draggable Floating Panel
+    - Renamed "TreeListy Assistant" to "TreeBeard" (wise tree guardian)
+    - Made the Tree Guide panel draggable by its header
+    - Panel is resizable (drag bottom-right corner)
+    - Panel position and size saved to localStorage
+    - Touch support for mobile dragging
+    - No longer clashes with node info panel on the right
 
-    Previous (Build 251): 🌊 Edge Function Streaming - No More Timeouts!
+    Previous (Build 252): 🐛 Fix splash screen not loading (syntax error in Build 251)
     - Edge Function streaming proxy (netlify/edge-functions/claude-stream.ts)
     - callClaudeStreamingAPI() - SSE streaming with no timeout limit
     - callClaudeEdgeBuffered() - buffered Edge response for compatibility
@@ -2332,28 +2336,38 @@
         transform: rotate(45deg);
     }
 
-    /* Chat panel */
+    /* Chat panel - Draggable Floating Frame */
     #chat-assistant-panel {
         position: fixed;
         bottom: 96px;
         right: 24px;
-        width: 400px;
+        width: 380px;
+        min-width: 320px;
         max-width: calc(100vw - 48px);
-        height: 500px;
-        max-height: calc(100vh - 140px);
+        height: 480px;
+        min-height: 300px;
+        max-height: calc(100vh - 100px);
         background: var(--card-bg, #1e1e2e);
         border: 1px solid var(--border, #3f3f5a);
-        border-radius: 16px;
-        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.4);
+        border-radius: 12px;
+        box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255, 255, 255, 0.05);
         z-index: 9999;
         display: none;
         flex-direction: column;
         overflow: hidden;
+        resize: both;
+        overflow: auto;
     }
 
     #chat-assistant-panel.open {
         display: flex;
         animation: chatSlideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #chat-assistant-panel.dragging {
+        opacity: 0.9;
+        box-shadow: 0 16px 64px rgba(0, 0, 0, 0.6), 0 0 0 2px rgba(139, 92, 246, 0.4);
+        transition: none;
     }
 
     @keyframes chatSlideUp {
@@ -2367,29 +2381,37 @@
         }
     }
 
-    /* Chat header */
+    /* Chat header - Drag Handle */
     #chat-assistant-header {
-        padding: 16px;
-        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.2));
+        padding: 12px 16px;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.15), rgba(99, 102, 241, 0.15));
         border-bottom: 1px solid var(--border, #3f3f5a);
         display: flex;
         align-items: center;
         justify-content: space-between;
+        cursor: grab;
+        user-select: none;
+        flex-shrink: 0;
+    }
+
+    #chat-assistant-header:active {
+        cursor: grabbing;
     }
 
     #chat-assistant-header h3 {
         margin: 0;
-        font-size: 16px;
+        font-size: 14px;
         font-weight: 600;
         color: var(--text-primary, #fff);
         display: flex;
         align-items: center;
         gap: 8px;
+        pointer-events: none;
     }
 
     #chat-assistant-header .header-actions {
         display: flex;
-        gap: 8px;
+        gap: 4px;
     }
 
     #chat-assistant-header button {
@@ -2406,6 +2428,12 @@
     #chat-assistant-header button:hover {
         background: rgba(255, 255, 255, 0.1);
         color: var(--text-primary, #fff);
+    }
+
+    /* Resize handle styling */
+    #chat-assistant-panel::-webkit-resizer {
+        background: linear-gradient(135deg, transparent 50%, rgba(139, 92, 246, 0.3) 50%);
+        border-radius: 0 0 12px 0;
     }
 
     /* Chat messages area */
@@ -2815,8 +2843,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 252 | 2025-12-03">
-                    v2.16.0 • Build 252
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 253 | 2025-12-03">
+                    v2.16.0 • Build 253
                 </div>
             </div>
         </div>
@@ -34215,7 +34243,7 @@ ${transcript}`;
                 selectedCount: window.selectedCanvasNodes?.length || 0
             };
 
-            const systemPrompt = `You are the TreeListy Assistant, an AI helper embedded in TreeListy - a hierarchical project decomposition tool.
+            const systemPrompt = `You are TreeBeard, a wise and thoughtful AI helper embedded in TreeListy - a hierarchical project decomposition tool. Like your namesake from Middle-earth, you are patient, deliberate, and deeply knowledgeable about trees and their structure.
 
 CURRENT CONTEXT:
 - Project: "${context.projectName}"
@@ -34810,7 +34838,175 @@ RULES:
             // Initialize voice
             initVoiceInput();
 
-            console.log('💬 Chat Assistant initialized (Build 248)');
+            // Initialize draggable panel
+            initDraggablePanel();
+
+            // Restore saved position
+            restorePanelPosition();
+
+            console.log('🌳 TreeBeard initialized (Build 253)');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // DRAGGABLE FLOATING PANEL
+        // ═══════════════════════════════════════════════════════════════
+
+        function initDraggablePanel() {
+            const panel = document.getElementById('chat-assistant-panel');
+            const header = document.getElementById('chat-assistant-header');
+            if (!panel || !header) return;
+
+            let isDragging = false;
+            let startX, startY;
+            let startLeft, startTop;
+
+            header.addEventListener('mousedown', (e) => {
+                // Don't drag if clicking on buttons
+                if (e.target.tagName === 'BUTTON') return;
+
+                isDragging = true;
+                panel.classList.add('dragging');
+
+                // Get current position
+                const rect = panel.getBoundingClientRect();
+                startX = e.clientX;
+                startY = e.clientY;
+                startLeft = rect.left;
+                startTop = rect.top;
+
+                // Switch from bottom/right to top/left positioning
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+                panel.style.left = rect.left + 'px';
+                panel.style.top = rect.top + 'px';
+
+                e.preventDefault();
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const dx = e.clientX - startX;
+                const dy = e.clientY - startY;
+
+                let newLeft = startLeft + dx;
+                let newTop = startTop + dy;
+
+                // Keep panel within viewport bounds
+                const panelRect = panel.getBoundingClientRect();
+                const maxLeft = window.innerWidth - panelRect.width;
+                const maxTop = window.innerHeight - panelRect.height;
+
+                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                newTop = Math.max(0, Math.min(newTop, maxTop));
+
+                panel.style.left = newLeft + 'px';
+                panel.style.top = newTop + 'px';
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    panel.classList.remove('dragging');
+                    savePanelPosition();
+                }
+            });
+
+            // Touch support for mobile
+            header.addEventListener('touchstart', (e) => {
+                if (e.target.tagName === 'BUTTON') return;
+
+                isDragging = true;
+                panel.classList.add('dragging');
+
+                const touch = e.touches[0];
+                const rect = panel.getBoundingClientRect();
+                startX = touch.clientX;
+                startY = touch.clientY;
+                startLeft = rect.left;
+                startTop = rect.top;
+
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+                panel.style.left = rect.left + 'px';
+                panel.style.top = rect.top + 'px';
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+
+                const touch = e.touches[0];
+                const dx = touch.clientX - startX;
+                const dy = touch.clientY - startY;
+
+                let newLeft = startLeft + dx;
+                let newTop = startTop + dy;
+
+                const panelRect = panel.getBoundingClientRect();
+                const maxLeft = window.innerWidth - panelRect.width;
+                const maxTop = window.innerHeight - panelRect.height;
+
+                newLeft = Math.max(0, Math.min(newLeft, maxLeft));
+                newTop = Math.max(0, Math.min(newTop, maxTop));
+
+                panel.style.left = newLeft + 'px';
+                panel.style.top = newTop + 'px';
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    panel.classList.remove('dragging');
+                    savePanelPosition();
+                }
+            });
+        }
+
+        function savePanelPosition() {
+            const panel = document.getElementById('chat-assistant-panel');
+            if (!panel) return;
+
+            const rect = panel.getBoundingClientRect();
+            const position = {
+                left: rect.left,
+                top: rect.top,
+                width: rect.width,
+                height: rect.height
+            };
+            localStorage.setItem('treebeardPosition', JSON.stringify(position));
+        }
+
+        function restorePanelPosition() {
+            const panel = document.getElementById('chat-assistant-panel');
+            if (!panel) return;
+
+            try {
+                const saved = localStorage.getItem('treebeardPosition');
+                if (saved) {
+                    const position = JSON.parse(saved);
+
+                    // Validate position is within current viewport
+                    const maxLeft = window.innerWidth - 320; // min width
+                    const maxTop = window.innerHeight - 300; // min height
+
+                    if (position.left >= 0 && position.left <= maxLeft &&
+                        position.top >= 0 && position.top <= maxTop) {
+                        panel.style.bottom = 'auto';
+                        panel.style.right = 'auto';
+                        panel.style.left = Math.min(position.left, maxLeft) + 'px';
+                        panel.style.top = Math.min(position.top, maxTop) + 'px';
+
+                        if (position.width && position.width >= 320) {
+                            panel.style.width = position.width + 'px';
+                        }
+                        if (position.height && position.height >= 300) {
+                            panel.style.height = position.height + 'px';
+                        }
+                    }
+                }
+            } catch (e) {
+                console.warn('Could not restore TreeBeard position:', e);
+            }
         }
 
         // Initialize when DOM ready
@@ -34891,14 +35087,14 @@ RULES:
          ═══════════════════════════════════════════════════════════════ -->
 
     <!-- Floating Chat Bubble -->
-    <button id="chat-assistant-bubble" title="TreeListy Assistant (Ctrl+/)">
+    <button id="chat-assistant-bubble" title="TreeBeard (Ctrl+/)">
         💬
     </button>
 
-    <!-- Chat Panel -->
+    <!-- Chat Panel - Draggable Floating Frame -->
     <div id="chat-assistant-panel">
         <div id="chat-assistant-header">
-            <h3>🤖 TreeListy Assistant</h3>
+            <h3>🌳 TreeBeard</h3>
             <div class="header-actions">
                 <button id="chat-clear-btn" title="Clear conversation">🗑️</button>
                 <button id="chat-close-btn" title="Close">✕</button>
@@ -34908,7 +35104,7 @@ RULES:
         <div id="chat-assistant-messages">
             <!-- Welcome message -->
             <div class="chat-message assistant">
-                Hi! I'm your TreeListy assistant. I can help you:
+                Hoom, hm... I'm TreeBeard. I can help you:
                 <div class="action-buttons" style="margin-top: 8px;">
                     <button class="action-btn" data-action="help">📖 Learn features</button>
                     <button class="action-btn" data-action="create">🌳 Create a project</button>
@@ -34933,4 +35129,4 @@ RULES:
 
 </body>
 </html>
-<!-- Cache buster: 1733082600 -->
+<!-- Cache buster: 1764724653 -->
