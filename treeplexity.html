@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 269 | 2025-12-03
+    TreeListy v2.17.0 | Build 270 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,10 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 269): 🔧 Fix Guest Presence + Chat Sync
-    - FIX: Guest presence now properly merges (was overwriting other users)
-    - FIX: Chat messages sync to both modal and floating chat
-    - Uses Firestore dot notation for proper nested object merging
+    Changelog (Build 270): 🔧 Fix Host Presence + Guest Detection
+    - FIX: Host now included in connectedUsers from room creation
+    - FIX: Auto-close modal only triggers for HOST (not guests)
+    - Added debug logging for presence updates
+
+    Previous (Build 269): 🔧 Fix Guest Presence + Chat Sync
+    - Guest presence properly merges with dot notation
+    - Chat syncs to both modal and floating chat
 
     Previous (Build 268): 💬 Floating Collab Chat + Auto-close Modal
     - Auto-close Live Sync modal when first guest connects
@@ -2912,8 +2916,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 269 | 2025-12-03">
-                    v2.17.0 • Build 269
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 270 | 2025-12-03">
+                    v2.17.0 • Build 270
                 </div>
             </div>
         </div>
@@ -22152,6 +22156,15 @@ https://treelisty.netlify.app`;
                     // Create the room document with current tree data
                     const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
                     console.log('🔥 Got room ref, setting doc...');
+
+                    // BUILD 270: Include host in connectedUsers from the start
+                    const initialConnectedUsers = {};
+                    initialConnectedUsers[firebaseSyncState.userId] = {
+                        name: firebaseSyncState.myDisplayName || 'Host',
+                        joinedAt: Date.now(),
+                        isHost: true
+                    };
+
                     await window.firebaseSetDoc(roomRef, {
                         createdBy: firebaseSyncState.userId,
                         createdAt: window.firebaseServerTimestamp(),
@@ -22162,8 +22175,8 @@ https://treelisty.netlify.app`;
                         projectName: capexTree?.name || 'Untitled',
                         // Build 265: Add chat messages array
                         chatMessages: [],
-                        // Build 265: Track connected users
-                        connectedUsers: {}
+                        // Build 270: Include host in connected users
+                        connectedUsers: initialConnectedUsers
                     });
 
                     console.log('🔥 Room created:', roomId);
@@ -23010,11 +23023,20 @@ https://treelisty.netlify.app`;
                 // BUILD 268: Also update floating chat
                 updateFloatingCollabList(connectedUsers);
 
-                // BUILD 268: Auto-close modal and show floating chat when first guest connects
+                // BUILD 270: Auto-close modal and show floating chat when first guest connects (HOST ONLY)
                 const otherUsers = users.filter(([id]) => id !== firebaseSyncState.userId);
-                if (otherUsers.length > 0 && floatingChatState.previousUserCount <= 1) {
-                    // First guest just connected!
-                    console.log('🔥 First guest connected - auto-closing modal, showing floating chat');
+                console.log('🔥 Presence update:', {
+                    totalUsers: count,
+                    otherUsers: otherUsers.length,
+                    previousCount: floatingChatState.previousUserCount,
+                    isHost: floatingChatState.isHost,
+                    myUserId: firebaseSyncState.userId?.substring(0, 8)
+                });
+
+                // Only auto-close for HOST when first guest connects
+                if (floatingChatState.isHost && otherUsers.length > 0 && floatingChatState.previousUserCount <= 1) {
+                    // First guest just connected to host's session!
+                    console.log('🔥 BUILD 270: First guest connected - auto-closing modal, showing floating chat');
 
                     // Close the modal
                     document.getElementById('live-sync-modal').style.display = 'none';
@@ -23023,7 +23045,8 @@ https://treelisty.netlify.app`;
                     showFloatingChat();
 
                     // Show toast notification
-                    showToast(`👋 ${otherUsers[0][1]?.name || 'A collaborator'} joined the session!`, 'success');
+                    const guestName = otherUsers[0][1]?.name || 'A collaborator';
+                    showToast(`👋 ${guestName} joined the session!`, 'success');
                 }
 
                 // Track previous count for next update
