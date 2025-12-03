@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 243 | 2025-12-02
+    TreeListy v2.16.0 | Build 244 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,17 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 243): 🎯 Improved CAPEX Pattern Detection in Excel Import
+    Changelog (Build 244): 📷 Professional Canvas Export as PNG
+    - NEW: Export Canvas view as high-quality PNG image (📷 button)
+    - NEW: Professional header with project name, pattern, item count, date
+    - NEW: Subtle engineering grid background
+    - NEW: TreeListy branding footer
+    - NEW: 2x resolution for retina/print quality
+    - NEW: Smart bounds detection for perfect framing
+
+    Previous (Build 243): 🎯 Improved CAPEX Pattern Detection in Excel Import
     - FIX: AI prompt now explicitly lists CAPEX pattern detection hints
     - FIX: Budget/Actual/Variance, ROI, Risk/Mitigation columns now trigger CAPEX pattern
-    - FIX: Pattern examples in prompt now include capex alongside generic/sales/philosophy
-    - IMPROVED: Detection hints for sales, philosophy, thesis, roadmap patterns
 
     Previous (Build 242): 📊 AI Multi-Sheet Excel Import
     - NEW: AI analyzes ALL sheets in workbook and suggests import strategy
@@ -2259,6 +2265,8 @@
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
     <!-- LZ-String library for URL compression -->
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
+    <!-- html2canvas for Canvas export as image -->
+    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <!-- Google API Client Library for OAuth and Drive API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -2335,6 +2343,7 @@
                     <span id="view-mode-icon">🎨</span>
                     <span id="view-mode-text">Canvas</span>
                 </button>
+                <button class="btn" id="export-canvas-btn" title="Export Canvas as high-quality PNG image" style="display: none; background: linear-gradient(135deg, #0ea5e9, #06b6d4); padding: 6px 10px; font-size: 13px;">📷</button>
             </div>
 
             <div class="control-section" style="margin-right: 4px;">
@@ -2447,8 +2456,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 243 | 2025-12-02">
-                    v2.16.0 • Build 243
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 244 | 2025-12-02">
+                    v2.16.0 • Build 244
                 </div>
             </div>
         </div>
@@ -7512,6 +7521,10 @@ Focus on logical structure and content organization best practices.`;
                         showToast('🖱️ Canvas Tips: Wheel to zoom, Middle-click+drag to pan, Left-drag nodes to move. Click ❓ for more!', 'info', 8000);
                     }, 500);
                 }
+
+                // Show export button in Canvas view
+                const exportBtn = document.getElementById('export-canvas-btn');
+                if (exportBtn) exportBtn.style.display = 'inline-flex';
             } else {
                 console.log('📊 Switching to Tree View');
                 document.getElementById('view-mode-icon').textContent = '🎨';
@@ -7524,9 +7537,253 @@ Focus on logical structure and content organization best practices.`;
                     toolbar.classList.remove('active');
                 }
 
+                // Hide export button in Tree view
+                const exportBtn = document.getElementById('export-canvas-btn');
+                if (exportBtn) exportBtn.style.display = 'none';
+
                 render();
                 console.log('✅ Tree View ready');
             }
+        }
+
+        // =============================================================================
+        // CANVAS EXPORT AS IMAGE (Build 244)
+        // Professional PNG export with title, metadata, and branding
+        // =============================================================================
+
+        async function exportCanvasAsImage() {
+            const canvasContainer = document.getElementById('canvas-container');
+            const canvas = document.getElementById('canvas');
+
+            if (!canvasContainer || !canvasContainer.classList.contains('active')) {
+                showToast('⚠️ Switch to Canvas view first', 'warning');
+                return;
+            }
+
+            showToast('📷 Preparing high-quality export...', 'info', 2000);
+
+            try {
+                // Get all node positions to calculate bounds
+                const nodes = canvas.querySelectorAll('.canvas-node');
+                if (nodes.length === 0) {
+                    showToast('⚠️ No nodes to export', 'warning');
+                    return;
+                }
+
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                nodes.forEach(node => {
+                    const rect = node.getBoundingClientRect();
+                    const x = parseFloat(node.style.left) || 0;
+                    const y = parseFloat(node.style.top) || 0;
+                    const width = node.offsetWidth;
+                    const height = node.offsetHeight;
+
+                    minX = Math.min(minX, x);
+                    minY = Math.min(minY, y);
+                    maxX = Math.max(maxX, x + width);
+                    maxY = Math.max(maxY, y + height);
+                });
+
+                // Add generous padding
+                const padding = 80;
+                const headerHeight = 100;
+                const footerHeight = 60;
+
+                const contentWidth = maxX - minX + (padding * 2);
+                const contentHeight = maxY - minY + (padding * 2) + headerHeight + footerHeight;
+
+                // Create export container
+                const exportContainer = document.createElement('div');
+                exportContainer.id = 'export-container';
+                exportContainer.style.cssText = `
+                    position: fixed;
+                    left: -99999px;
+                    top: 0;
+                    width: ${contentWidth}px;
+                    height: ${contentHeight}px;
+                    background: linear-gradient(135deg, #0f0f1a 0%, #1a1a2e 50%, #16213e 100%);
+                    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, sans-serif;
+                    overflow: hidden;
+                `;
+
+                // Add subtle grid pattern
+                const gridPattern = document.createElement('div');
+                gridPattern.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    bottom: 0;
+                    background-image:
+                        linear-gradient(rgba(255,255,255,0.03) 1px, transparent 1px),
+                        linear-gradient(90deg, rgba(255,255,255,0.03) 1px, transparent 1px);
+                    background-size: 40px 40px;
+                    pointer-events: none;
+                `;
+                exportContainer.appendChild(gridPattern);
+
+                // Create header with project info
+                const header = document.createElement('div');
+                const patternDef = PATTERNS[currentPattern] || PATTERNS.generic;
+                const totalItems = countAllItems(capexTree);
+                const dateStr = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+
+                header.style.cssText = `
+                    position: absolute;
+                    top: 0;
+                    left: 0;
+                    right: 0;
+                    height: ${headerHeight}px;
+                    padding: 20px 30px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-bottom: 1px solid rgba(255,255,255,0.1);
+                    background: linear-gradient(180deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+                `;
+
+                header.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 16px;">
+                        <div style="font-size: 28px; font-weight: 700; color: #ffffff; letter-spacing: -0.5px;">
+                            ${capexTree.name || 'Untitled Project'}
+                        </div>
+                        <div style="
+                            background: linear-gradient(135deg, #00A67D, #1D6F42);
+                            padding: 4px 12px;
+                            border-radius: 20px;
+                            font-size: 12px;
+                            font-weight: 600;
+                            color: white;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                        ">
+                            ${patternDef.icon} ${patternDef.name}
+                        </div>
+                    </div>
+                    <div style="text-align: right; color: rgba(255,255,255,0.6); font-size: 13px;">
+                        <div style="font-weight: 600; color: rgba(255,255,255,0.8);">${totalItems} items</div>
+                        <div>${dateStr}</div>
+                    </div>
+                `;
+                exportContainer.appendChild(header);
+
+                // Clone canvas content
+                const canvasClone = canvas.cloneNode(true);
+                canvasClone.style.cssText = `
+                    position: absolute;
+                    top: ${headerHeight + padding - minY}px;
+                    left: ${padding - minX}px;
+                    transform: none;
+                `;
+                exportContainer.appendChild(canvasClone);
+
+                // Clone SVG connections
+                const svgOriginal = document.getElementById('canvas-connections');
+                if (svgOriginal) {
+                    const svgClone = svgOriginal.cloneNode(true);
+                    svgClone.style.cssText = `
+                        position: absolute;
+                        top: ${headerHeight + padding - minY - 5000}px;
+                        left: ${padding - minX - 5000}px;
+                        width: 20000px;
+                        height: 20000px;
+                        pointer-events: none;
+                    `;
+                    exportContainer.appendChild(svgClone);
+                }
+
+                // Create footer with branding
+                const footer = document.createElement('div');
+                footer.style.cssText = `
+                    position: absolute;
+                    bottom: 0;
+                    left: 0;
+                    right: 0;
+                    height: ${footerHeight}px;
+                    padding: 15px 30px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    border-top: 1px solid rgba(255,255,255,0.1);
+                    background: linear-gradient(0deg, rgba(0,0,0,0.3) 0%, transparent 100%);
+                `;
+
+                footer.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 18px;">🌳</span>
+                        <span style="
+                            font-size: 14px;
+                            font-weight: 600;
+                            color: rgba(255,255,255,0.7);
+                            letter-spacing: 1px;
+                        ">TreeListy</span>
+                        <span style="
+                            font-size: 11px;
+                            color: rgba(255,255,255,0.4);
+                            margin-left: 8px;
+                        ">treelisty.netlify.app</span>
+                    </div>
+                    <div style="
+                        font-size: 11px;
+                        color: rgba(255,255,255,0.4);
+                    ">
+                        Exported ${new Date().toLocaleTimeString()}
+                    </div>
+                `;
+                exportContainer.appendChild(footer);
+
+                // Add to DOM
+                document.body.appendChild(exportContainer);
+
+                // Use html2canvas to capture
+                const exportCanvas = await html2canvas(exportContainer, {
+                    backgroundColor: null,
+                    scale: 2, // 2x for retina quality
+                    useCORS: true,
+                    allowTaint: true,
+                    logging: false
+                });
+
+                // Remove export container
+                document.body.removeChild(exportContainer);
+
+                // Convert to blob and download
+                exportCanvas.toBlob(blob => {
+                    const url = URL.createObjectURL(blob);
+                    const link = document.createElement('a');
+                    const safeName = (capexTree.name || 'treelisty-canvas')
+                        .toLowerCase()
+                        .replace(/[^a-z0-9]+/g, '-')
+                        .replace(/^-|-$/g, '');
+                    link.download = `${safeName}-${new Date().toISOString().slice(0,10)}.png`;
+                    link.href = url;
+                    link.click();
+                    URL.revokeObjectURL(url);
+
+                    showToast('✅ Canvas exported as PNG!', 'success');
+                }, 'image/png', 1.0);
+
+            } catch (error) {
+                console.error('Canvas export error:', error);
+                showToast('❌ Export failed: ' + error.message, 'error');
+            }
+        }
+
+        // Helper to count all items recursively
+        function countAllItems(tree) {
+            let count = 0;
+            function countNode(node) {
+                count++;
+                const children = node.subItems || node.children || node.items || [];
+                children.forEach(countNode);
+            }
+            if (tree.children) {
+                tree.children.forEach(phase => {
+                    const items = phase.items || phase.children || [];
+                    items.forEach(countNode);
+                });
+            }
+            return count;
         }
 
         function migrateToCanvasCoordinates() {
@@ -25128,6 +25385,12 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
             const toggleBtn = document.getElementById('toggle-view-mode');
             if (toggleBtn) {
                 toggleBtn.addEventListener('click', toggleViewMode);
+            }
+
+            // Attach Canvas export button
+            const exportCanvasBtn = document.getElementById('export-canvas-btn');
+            if (exportCanvasBtn) {
+                exportCanvasBtn.addEventListener('click', exportCanvasAsImage);
             }
 
             // Initialize canvas event listeners
