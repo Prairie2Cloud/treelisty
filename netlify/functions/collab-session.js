@@ -1,8 +1,11 @@
 // Netlify serverless function for managing live collaboration sessions
 // Allows hosts to share API keys with collaborators securely
-// Keys are stored encrypted in Netlify Blobs, never exposed to clients
+//
+// Architecture: Self-contained encrypted tokens (no server-side storage needed)
+// - Session data is encrypted and encoded into the token itself
+// - Token can be validated without database lookup
+// - Keys are never stored on server, only in the encrypted token
 
-const { getStore } = require('@netlify/blobs');
 const crypto = require('crypto');
 
 const CORS_HEADERS = {
@@ -15,28 +18,30 @@ const CORS_HEADERS = {
 // Session duration: 4 hours
 const SESSION_DURATION_MS = 4 * 60 * 60 * 1000;
 
-// Generate a secure random token
-function generateSessionToken() {
-  return crypto.randomBytes(32).toString('hex');
-}
-
-// Simple encryption for API keys (using a server-side secret)
-function encryptKeys(keys, secret) {
+// Encrypt session data into a self-contained token
+function createEncryptedToken(data, secret) {
   const iv = crypto.randomBytes(16);
   const cipher = crypto.createCipheriv('aes-256-cbc', Buffer.from(secret, 'hex'), iv);
-  let encrypted = cipher.update(JSON.stringify(keys), 'utf8', 'hex');
+  let encrypted = cipher.update(JSON.stringify(data), 'utf8', 'hex');
   encrypted += cipher.final('hex');
+  // Token format: iv:encrypted (both hex encoded)
   return iv.toString('hex') + ':' + encrypted;
 }
 
-// Decrypt API keys
-function decryptKeys(encryptedData, secret) {
-  const [ivHex, encrypted] = encryptedData.split(':');
-  const iv = Buffer.from(ivHex, 'hex');
-  const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(secret, 'hex'), iv);
-  let decrypted = decipher.update(encrypted, 'hex', 'utf8');
-  decrypted += decipher.final('utf8');
-  return JSON.parse(decrypted);
+// Decrypt and validate token
+function decryptToken(token, secret) {
+  try {
+    const [ivHex, encrypted] = token.split(':');
+    if (!ivHex || !encrypted) return null;
+
+    const iv = Buffer.from(ivHex, 'hex');
+    const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(secret, 'hex'), iv);
+    let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+    decrypted += decipher.final('utf8');
+    return JSON.parse(decrypted);
+  } catch (e) {
+    return null;
+  }
 }
 
 exports.handler = async (event, context) => {
@@ -60,14 +65,13 @@ exports.handler = async (event, context) => {
     };
   }
 
-  const store = getStore('collab-sessions');
-
   try {
     const body = event.body ? JSON.parse(event.body) : {};
     const { action } = body;
 
     // ═══════════════════════════════════════════════════════════════════
     // CREATE SESSION - Host creates a session with their API keys
+    // The token contains all session data (self-contained, no DB needed)
     // ═══════════════════════════════════════════════════════════════════
     if (action === 'create') {
       const { hostName, apiKeys } = body;
@@ -80,24 +84,20 @@ exports.handler = async (event, context) => {
         };
       }
 
-      // Generate session token
-      const sessionToken = generateSessionToken();
-      const expiresAt = Date.now() + SESSION_DURATION_MS;
+      const createdAt = Date.now();
+      const expiresAt = createdAt + SESSION_DURATION_MS;
 
-      // Encrypt the API keys
-      const encryptedKeys = encryptKeys(apiKeys, ENCRYPTION_SECRET);
-
-      // Store session data
+      // Create self-contained session data
       const sessionData = {
         hostName,
-        encryptedKeys,
-        createdAt: Date.now(),
+        apiKeys,
+        createdAt,
         expiresAt,
-        guestCount: 0,
-        lastActivity: Date.now()
+        version: 2  // Token version for future compatibility
       };
 
-      await store.set(sessionToken, JSON.stringify(sessionData));
+      // Encrypt everything into the token
+      const sessionToken = createEncryptedToken(sessionData, ENCRYPTION_SECRET);
 
       console.log(`Session created by ${hostName}, expires in 4 hours`);
 
@@ -114,7 +114,8 @@ exports.handler = async (event, context) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // VALIDATE SESSION - Check if a session is valid (for guests)
+    // VALIDATE SESSION - Check if a session is valid and get API keys
+    // Decrypts the token to validate and extract data
     // ═══════════════════════════════════════════════════════════════════
     if (action === 'validate') {
       const { sessionToken } = body;
@@ -127,22 +128,18 @@ exports.handler = async (event, context) => {
         };
       }
 
-      const sessionDataStr = await store.get(sessionToken);
+      const sessionData = decryptToken(sessionToken, ENCRYPTION_SECRET);
 
-      if (!sessionDataStr) {
+      if (!sessionData) {
         return {
           statusCode: 404,
           headers: CORS_HEADERS,
-          body: JSON.stringify({ error: 'Session not found or expired' })
+          body: JSON.stringify({ error: 'Invalid or corrupted session token' })
         };
       }
 
-      const sessionData = JSON.parse(sessionDataStr);
-
       // Check expiration
       if (Date.now() > sessionData.expiresAt) {
-        // Clean up expired session
-        await store.delete(sessionToken);
         return {
           statusCode: 410,
           headers: CORS_HEADERS,
@@ -150,17 +147,13 @@ exports.handler = async (event, context) => {
         };
       }
 
-      // Update last activity
-      sessionData.lastActivity = Date.now();
-      sessionData.guestCount = (sessionData.guestCount || 0) + 1;
-      await store.set(sessionToken, JSON.stringify(sessionData));
-
       return {
         statusCode: 200,
         headers: CORS_HEADERS,
         body: JSON.stringify({
           valid: true,
           hostName: sessionData.hostName,
+          apiKeys: sessionData.apiKeys,  // Return keys to guest
           expiresAt: sessionData.expiresAt,
           remainingMs: sessionData.expiresAt - Date.now()
         })
@@ -168,14 +161,14 @@ exports.handler = async (event, context) => {
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // GET KEYS - Internal use only (called by claude-proxy with session)
-    // Returns decrypted keys for proxying AI requests
+    // GET KEYS - For internal proxy use (validates and returns keys)
     // ═══════════════════════════════════════════════════════════════════
     if (action === 'getKeys') {
       const { sessionToken, internalSecret } = body;
 
       // Verify this is an internal call from our own proxy
-      if (internalSecret !== process.env.INTERNAL_PROXY_SECRET) {
+      const INTERNAL_SECRET = process.env.INTERNAL_PROXY_SECRET;
+      if (INTERNAL_SECRET && internalSecret !== INTERNAL_SECRET) {
         return {
           statusCode: 403,
           headers: CORS_HEADERS,
@@ -191,21 +184,18 @@ exports.handler = async (event, context) => {
         };
       }
 
-      const sessionDataStr = await store.get(sessionToken);
+      const sessionData = decryptToken(sessionToken, ENCRYPTION_SECRET);
 
-      if (!sessionDataStr) {
+      if (!sessionData) {
         return {
           statusCode: 404,
           headers: CORS_HEADERS,
-          body: JSON.stringify({ error: 'Session not found' })
+          body: JSON.stringify({ error: 'Invalid session token' })
         };
       }
 
-      const sessionData = JSON.parse(sessionDataStr);
-
       // Check expiration
       if (Date.now() > sessionData.expiresAt) {
-        await store.delete(sessionToken);
         return {
           statusCode: 410,
           headers: CORS_HEADERS,
@@ -213,46 +203,18 @@ exports.handler = async (event, context) => {
         };
       }
 
-      // Decrypt and return keys
-      const apiKeys = decryptKeys(sessionData.encryptedKeys, ENCRYPTION_SECRET);
-
       return {
         statusCode: 200,
         headers: CORS_HEADERS,
         body: JSON.stringify({
-          apiKeys,
+          apiKeys: sessionData.apiKeys,
           hostName: sessionData.hostName
         })
       };
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // REVOKE SESSION - Host ends the session early
-    // ═══════════════════════════════════════════════════════════════════
-    if (action === 'revoke') {
-      const { sessionToken } = body;
-
-      if (!sessionToken) {
-        return {
-          statusCode: 400,
-          headers: CORS_HEADERS,
-          body: JSON.stringify({ error: 'sessionToken required' })
-        };
-      }
-
-      await store.delete(sessionToken);
-
-      console.log('Session revoked');
-
-      return {
-        statusCode: 200,
-        headers: CORS_HEADERS,
-        body: JSON.stringify({ success: true, message: 'Session revoked' })
-      };
-    }
-
-    // ═══════════════════════════════════════════════════════════════════
-    // SESSION STATUS - Host checks session status
+    // STATUS - Check session status without returning keys
     // ═══════════════════════════════════════════════════════════════════
     if (action === 'status') {
       const { sessionToken } = body;
@@ -265,9 +227,9 @@ exports.handler = async (event, context) => {
         };
       }
 
-      const sessionDataStr = await store.get(sessionToken);
+      const sessionData = decryptToken(sessionToken, ENCRYPTION_SECRET);
 
-      if (!sessionDataStr) {
+      if (!sessionData) {
         return {
           statusCode: 404,
           headers: CORS_HEADERS,
@@ -275,12 +237,7 @@ exports.handler = async (event, context) => {
         };
       }
 
-      const sessionData = JSON.parse(sessionDataStr);
       const isExpired = Date.now() > sessionData.expiresAt;
-
-      if (isExpired) {
-        await store.delete(sessionToken);
-      }
 
       return {
         statusCode: 200,
@@ -290,9 +247,26 @@ exports.handler = async (event, context) => {
           hostName: sessionData.hostName,
           createdAt: sessionData.createdAt,
           expiresAt: sessionData.expiresAt,
-          guestCount: sessionData.guestCount || 0,
-          lastActivity: sessionData.lastActivity,
           remainingMs: isExpired ? 0 : sessionData.expiresAt - Date.now()
+        })
+      };
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // REVOKE - With self-contained tokens, revocation is client-side only
+    // (Token remains valid until expiry, but client discards it)
+    // ═══════════════════════════════════════════════════════════════════
+    if (action === 'revoke') {
+      // With self-contained tokens, we can't truly revoke server-side
+      // The client should discard the token
+      console.log('Session revoke requested (client should discard token)');
+
+      return {
+        statusCode: 200,
+        headers: CORS_HEADERS,
+        body: JSON.stringify({
+          success: true,
+          message: 'Session revoked. Token will expire at scheduled time but should be discarded.'
         })
       };
     }
@@ -300,7 +274,7 @@ exports.handler = async (event, context) => {
     return {
       statusCode: 400,
       headers: CORS_HEADERS,
-      body: JSON.stringify({ error: 'Invalid action. Use: create, validate, revoke, status' })
+      body: JSON.stringify({ error: 'Invalid action. Use: create, validate, status, revoke' })
     };
 
   } catch (error) {
