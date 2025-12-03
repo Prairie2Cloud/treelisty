@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 266 | 2025-12-03
+    TreeListy v2.17.0 | Build 267 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 266): 🔑 Fix API Key Sharing in Live Sync
-    - FIX: API key toggle now properly updates invite link with session token
-    - FIX: Guests receive API key access when joining via shared link
-    - FIX: Disabling API keys restores room-only invite link
-    - UX: Better toggle feedback with "Enabling..." state
+    Changelog (Build 267): 🔧 Fix Double Room Creation + Deploy Functions
+    - FIX: Prevent double room creation on rapid clicks
+    - DEPLOY: Added gdrive-proxy function (was missing from repo)
+    - DEPLOY: Added collab-session function (was missing from repo)
+    - Now Google Drive loading and API key sharing work on live site
 
-    Previous (Build 265): 🚀 Streamlined Live Collaboration UX
+    Previous (Build 266): 🔑 Fix API Key Sharing in Live Sync
     - Redesigned Live Sync modal with one-click start
     - Added team chat and presence badges
     - Added API key toggle switch
@@ -2908,8 +2908,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 266 | 2025-12-03">
-                    v2.17.0 • Build 266
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 267 | 2025-12-03">
+                    v2.17.0 • Build 267
                 </div>
             </div>
         </div>
@@ -22052,8 +22052,20 @@ https://treelisty.netlify.app`;
             }
 
             // Create a new sync room
+            let isCreatingRoom = false; // BUILD 267: Prevent double creation
             async function createSyncRoom() {
                 console.log('🔥 createSyncRoom called');
+
+                // BUILD 267: Prevent double-click creating multiple rooms
+                if (isCreatingRoom) {
+                    console.log('🔥 Already creating room, ignoring duplicate call');
+                    return;
+                }
+                if (firebaseSyncState.isConnected && firebaseSyncState.roomId) {
+                    console.log('🔥 Already connected to room:', firebaseSyncState.roomId);
+                    return;
+                }
+                isCreatingRoom = true;
 
                 const btn = document.getElementById('create-sync-room-btn');
                 if (btn) {
@@ -22066,6 +22078,7 @@ https://treelisty.netlify.app`;
                     console.error('🔥 Firebase not ready yet');
                     showToast('⏳ Firebase loading, please try again...', 'warning');
                     if (btn) { btn.innerHTML = '🚀 Start Live Session'; btn.disabled = false; }
+                    isCreatingRoom = false;
                     return;
                 }
 
@@ -22075,6 +22088,7 @@ https://treelisty.netlify.app`;
                     if (!authed) {
                         console.error('🔥 Auth failed');
                         if (btn) { btn.innerHTML = '🚀 Start Live Session'; btn.disabled = false; }
+                        isCreatingRoom = false;
                         return;
                     }
                 }
@@ -22129,6 +22143,8 @@ https://treelisty.netlify.app`;
                     showToast('❌ Failed to create room: ' + error.message, 'error');
                     firebaseSyncState.roomId = null;
                     if (btn) { btn.innerHTML = '🚀 Start Live Session'; btn.disabled = false; }
+                } finally {
+                    isCreatingRoom = false; // BUILD 267: Reset flag
                 }
             }
 
