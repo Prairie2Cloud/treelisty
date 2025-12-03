@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.16.0 | Build 242 | 2025-12-02
+    TreeListy v2.16.0 | Build 243 | 2025-12-02
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 242): 📊 AI Multi-Sheet Excel Import
+    Changelog (Build 243): 🎯 Improved CAPEX Pattern Detection in Excel Import
+    - FIX: AI prompt now explicitly lists CAPEX pattern detection hints
+    - FIX: Budget/Actual/Variance, ROI, Risk/Mitigation columns now trigger CAPEX pattern
+    - FIX: Pattern examples in prompt now include capex alongside generic/sales/philosophy
+    - IMPROVED: Detection hints for sales, philosophy, thesis, roadmap patterns
+
+    Previous (Build 242): 📊 AI Multi-Sheet Excel Import
     - NEW: AI analyzes ALL sheets in workbook and suggests import strategy
     - NEW: Strategy options: combine similar, separate phases, skip reference sheets
     - NEW: AI recommends which sheets to import as phases
@@ -2441,8 +2447,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 242 | 2025-12-02">
-                    v2.16.0 • Build 242
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.16.0 | Build 243 | 2025-12-02">
+                    v2.16.0 • Build 243
                 </div>
             </div>
         </div>
@@ -29134,6 +29140,14 @@ Each item can have pattern-specific fields like cost, dates, descriptions, etc.
 Available patterns:
 ${patternDescriptions}
 
+PATTERN DETECTION HINTS:
+- capex: Look for Budget/Actual/Variance columns, CAPEX/OPEX terminology, Cost/Investment/ROI fields, Funding Phase/Seed/Series terms, Risk/Mitigation columns, WBS codes, project financial tracking
+- sales: Look for Deal Value, Close Date, Pipeline, Quarter columns, Probability/Stage fields
+- philosophy: Look for philosophical concepts, arguments, objections, sources, thinkers
+- thesis: Look for chapters, sections, word counts, citations, academic structure
+- roadmap: Look for Features, Story Points, Sprints, Quarters, technical terms
+- generic: Use when data has project phases but doesn't clearly match other patterns
+
 Your job: Analyze the Excel structure and suggest the best import configuration.`;
 
             const userPrompt = `Analyze this Excel data and suggest how to import it into TreeListy.
@@ -29146,7 +29160,7 @@ ${sampleRows.map((row, i) => `Row ${i + 1}: ${JSON.stringify(row.slice(0, header
 
 Respond with ONLY valid JSON (no markdown, no explanation):
 {
-  "recommendedPattern": "pattern_key (e.g., generic, sales, philosophy)",
+  "recommendedPattern": "pattern_key (e.g., generic, capex, sales, philosophy, roadmap)",
   "patternConfidence": 0.85,
   "patternReason": "Brief explanation why this pattern fits",
   "columnMappings": {
