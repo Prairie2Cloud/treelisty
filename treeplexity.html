@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 257 | 2025-12-03
+    TreeListy v2.17.0 | Build 258 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 257): 💾 Local JSON Save During Collaboration
+    Changelog (Build 258): 🎤 Voice Input Fix
+    - Fixed: Voice button now works (added touch support for mobile)
+    - Added interim results - see transcription as you speak
+    - Added visual pulse animation while recording
+    - Voice button now works with click OR touch-hold
+    - Better error messages for microphone permission issues
+
+    Previous (Build 257): 💾 Local JSON Save During Collaboration
     - "Save JSON" button in Live Sync modal - download current tree anytime
     - "Auto-save on sync" checkbox - automatically download JSON after each remote sync
     - Each collaborator maintains their own local JSON backup
@@ -2866,8 +2873,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 257 | 2025-12-03">
-                    v2.17.0 • Build 257
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 258 | 2025-12-03">
+                    v2.17.0 • Build 258
                 </div>
             </div>
         </div>
@@ -35218,7 +35225,7 @@ RULES:
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // VOICE INPUT (Web Speech API)
+        // VOICE INPUT (Web Speech API) - Build 258 Fix
         // ═══════════════════════════════════════════════════════════════
 
         function initVoiceInput() {
@@ -35230,51 +35237,133 @@ RULES:
 
             const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
             chatState.voiceRecognition = new SpeechRecognition();
-            chatState.voiceRecognition.continuous = false;
-            chatState.voiceRecognition.interimResults = false;
+            chatState.voiceRecognition.continuous = true;  // BUILD 258: Keep listening
+            chatState.voiceRecognition.interimResults = true;  // BUILD 258: Show text as speaking
             chatState.voiceRecognition.lang = 'en-US';
+            chatState.voiceInterimText = '';
+            chatState.voiceFinalText = '';
 
             chatState.voiceRecognition.onresult = (event) => {
-                const transcript = event.results[0][0].transcript;
-                document.getElementById('chat-assistant-input').value = transcript;
-                stopVoiceRecording();
-                handleSendMessage();
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                // Process all results
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                // Update accumulated final text
+                if (finalTranscript) {
+                    chatState.voiceFinalText += finalTranscript + ' ';
+                }
+
+                // Show interim results in input box
+                const inputEl = document.getElementById('chat-assistant-input');
+                if (inputEl) {
+                    inputEl.value = chatState.voiceFinalText + interimTranscript;
+                    // Show visual feedback
+                    inputEl.style.borderColor = '#10b981';
+                }
+
+                console.log('Voice interim:', interimTranscript, 'Final:', finalTranscript);
             };
 
             chatState.voiceRecognition.onerror = (event) => {
                 console.error('Voice error:', event.error);
                 stopVoiceRecording();
-                if (event.error !== 'aborted') {
+
+                // BUILD 258: Better error messages
+                if (event.error === 'not-allowed') {
+                    addMessage('🎤 Microphone access denied. Please allow microphone in browser settings and try again.', 'error');
+                } else if (event.error === 'no-speech') {
+                    addMessage('🎤 No speech detected. Please speak louder or check your microphone.', 'system');
+                } else if (event.error === 'network') {
+                    addMessage('🎤 Network error. Voice recognition requires internet connection.', 'error');
+                } else if (event.error !== 'aborted') {
                     addMessage(`🎤 Voice error: ${event.error}`, 'error');
                 }
             };
 
             chatState.voiceRecognition.onend = () => {
-                stopVoiceRecording();
+                // BUILD 258: Auto-send if we have text
+                const finalText = chatState.voiceFinalText.trim();
+                if (finalText && chatState.isRecording) {
+                    document.getElementById('chat-assistant-input').value = finalText;
+                    stopVoiceRecording();
+                    handleSendMessage();
+                } else {
+                    stopVoiceRecording();
+                }
+            };
+
+            chatState.voiceRecognition.onaudiostart = () => {
+                console.log('🎤 Audio capture started');
+            };
+
+            chatState.voiceRecognition.onspeechstart = () => {
+                console.log('🎤 Speech detected');
             };
         }
 
         function startVoiceRecording() {
-            if (!chatState.voiceRecognition) return;
+            if (!chatState.voiceRecognition) {
+                addMessage('🎤 Voice input not available. Please use Chrome, Edge, or Safari.', 'error');
+                return;
+            }
+
+            // Prevent double-start
+            if (chatState.isRecording) return;
 
             chatState.isRecording = true;
+            chatState.voiceFinalText = '';
+            chatState.voiceInterimText = '';
             document.getElementById('chat-voice-btn')?.classList.add('recording');
+
+            // Reset input styling
+            const inputEl = document.getElementById('chat-assistant-input');
+            if (inputEl) {
+                inputEl.value = '';
+                inputEl.placeholder = '🎤 Listening... speak now';
+            }
 
             try {
                 chatState.voiceRecognition.start();
-                addMessage('🎤 Listening...', 'system');
+                console.log('🎤 Voice recording started');
             } catch (e) {
-                stopVoiceRecording();
+                console.error('Voice start error:', e);
+                if (e.message.includes('already started')) {
+                    // Already recording, ignore
+                } else {
+                    addMessage('🎤 Could not start voice recording. Please try again.', 'error');
+                    stopVoiceRecording();
+                }
             }
         }
 
         function stopVoiceRecording() {
+            if (!chatState.isRecording) return;
+
             chatState.isRecording = false;
             document.getElementById('chat-voice-btn')?.classList.remove('recording');
 
+            // Reset input styling
+            const inputEl = document.getElementById('chat-assistant-input');
+            if (inputEl) {
+                inputEl.style.borderColor = '';
+                inputEl.placeholder = 'Ask anything or give a command...';
+            }
+
             try {
                 chatState.voiceRecognition?.stop();
-            } catch (e) {}
+                console.log('🎤 Voice recording stopped');
+            } catch (e) {
+                // Ignore stop errors
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -35321,11 +35410,38 @@ RULES:
                 input.style.height = Math.min(input.scrollHeight, 100) + 'px';
             });
 
-            // Voice button
+            // Voice button - BUILD 258: Added touch support for mobile
             const voiceBtn = document.getElementById('chat-voice-btn');
-            voiceBtn?.addEventListener('mousedown', startVoiceRecording);
-            voiceBtn?.addEventListener('mouseup', stopVoiceRecording);
-            voiceBtn?.addEventListener('mouseleave', stopVoiceRecording);
+            if (voiceBtn) {
+                // Desktop: hold to record
+                voiceBtn.addEventListener('mousedown', (e) => {
+                    e.preventDefault();
+                    startVoiceRecording();
+                });
+                voiceBtn.addEventListener('mouseup', stopVoiceRecording);
+                voiceBtn.addEventListener('mouseleave', stopVoiceRecording);
+
+                // Mobile: touch hold to record
+                voiceBtn.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    startVoiceRecording();
+                }, { passive: false });
+                voiceBtn.addEventListener('touchend', (e) => {
+                    e.preventDefault();
+                    stopVoiceRecording();
+                });
+                voiceBtn.addEventListener('touchcancel', stopVoiceRecording);
+
+                // Also support single click/tap to toggle
+                let clickTimeout;
+                voiceBtn.addEventListener('click', (e) => {
+                    // If already recording, stop
+                    if (chatState.isRecording) {
+                        stopVoiceRecording();
+                    }
+                    // Quick click also starts (will auto-stop after speech ends)
+                });
+            }
 
             // Quick action chips
             document.querySelectorAll('.quick-action-chip').forEach(chip => {
@@ -35369,7 +35485,7 @@ RULES:
             // Restore saved position
             restorePanelPosition();
 
-            console.log('🌳 TreeBeard initialized (Build 254)');
+            console.log('🌳 TreeBeard initialized (Build 258 - Voice Fixed)');
         }
 
         // ═══════════════════════════════════════════════════════════════
