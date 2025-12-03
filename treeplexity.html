@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 268 | 2025-12-03
+    TreeListy v2.17.0 | Build 269 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 268): 💬 Floating Collab Chat + Auto-close Modal
-    - Auto-close Live Sync modal when first guest connects (host gets clean workspace)
-    - NEW: Floating chat box appears when collab session is active
-    - Shows connected collaborators count + chat in compact floating panel
-    - Host can share API keys in chat (session-only, time-limited)
-    - Minimizable chat with unread message indicator
+    Changelog (Build 269): 🔧 Fix Guest Presence + Chat Sync
+    - FIX: Guest presence now properly merges (was overwriting other users)
+    - FIX: Chat messages sync to both modal and floating chat
+    - Uses Firestore dot notation for proper nested object merging
+
+    Previous (Build 268): 💬 Floating Collab Chat + Auto-close Modal
+    - Auto-close Live Sync modal when first guest connects
+    - Floating chat box with API key sharing
+    - Session keys for guests that clear on leave
 
     Previous (Build 267): 🔧 Fix Double Room Creation + Deploy Functions
     - FIX: Prevent double room creation on rapid clicks
@@ -2909,8 +2912,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 268 | 2025-12-03">
-                    v2.17.0 • Build 268
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 269 | 2025-12-03">
+                    v2.17.0 • Build 269
                 </div>
             </div>
         </div>
@@ -22348,16 +22351,38 @@ https://treelisty.netlify.app`;
                         }
                     }
 
-                    // BUILD 265: Handle chat messages
+                    // BUILD 265/268: Handle chat messages - update both modal and floating chat
                     if (data.chatMessages && Array.isArray(data.chatMessages)) {
+                        // Update modal chat
                         const container = document.getElementById('sync-chat-messages');
                         if (container) {
-                            // Clear and rebuild chat
                             container.innerHTML = '';
                             if (data.chatMessages.length === 0) {
                                 container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 30px 0;">No messages yet</div>';
                             } else {
-                                data.chatMessages.forEach(msg => addChatMessageToUI(msg));
+                                data.chatMessages.forEach(msg => {
+                                    // Add to modal chat (inline to avoid double-adding to floating)
+                                    const isMe = msg.userId === firebaseSyncState.userId?.substring(0, 8);
+                                    const msgEl = document.createElement('div');
+                                    msgEl.style.cssText = `margin-bottom: 6px; ${isMe ? 'text-align: right;' : ''}`;
+                                    msgEl.innerHTML = `
+                                        <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'};">${msg.name || 'User'}:</span>
+                                        <span style="color: var(--text-primary);">${msg.text}</span>
+                                    `;
+                                    container.appendChild(msgEl);
+                                });
+                                container.scrollTop = container.scrollHeight;
+                            }
+                        }
+
+                        // BUILD 268: Update floating chat too
+                        const floatingContainer = document.getElementById('floating-chat-messages');
+                        if (floatingContainer) {
+                            floatingContainer.innerHTML = '';
+                            if (data.chatMessages.length === 0) {
+                                floatingContainer.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 50px 0; font-size: 12px;">No messages yet</div>';
+                            } else {
+                                data.chatMessages.forEach(msg => addMessageToFloatingChat(msg));
                             }
                         }
                     }
@@ -22377,18 +22402,23 @@ https://treelisty.netlify.app`;
                 console.log('🔥 Subscribed to room:', roomId);
             }
 
-            // BUILD 265: Register user as connected to room
+            // BUILD 265/268: Register user as connected to room
+            // Uses dot notation to properly merge nested user data without overwriting others
             async function registerAsConnected(roomId) {
                 if (!firebaseSyncState.userId) return;
 
                 try {
                     const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
-                    const connectedUsers = {};
-                    connectedUsers[firebaseSyncState.userId] = {
+
+                    // BUILD 268: Use dot notation to add user without overwriting others
+                    const updateData = {};
+                    updateData[`connectedUsers.${firebaseSyncState.userId}`] = {
                         name: firebaseSyncState.myDisplayName || 'User',
                         joinedAt: Date.now()
                     };
-                    await window.firebaseSetDoc(roomRef, { connectedUsers }, { merge: true });
+
+                    await window.firebaseSetDoc(roomRef, updateData, { merge: true });
+                    console.log('🔥 Registered as connected:', firebaseSyncState.userId);
                 } catch (e) {
                     console.error('🔥 Failed to register as connected:', e);
                 }
