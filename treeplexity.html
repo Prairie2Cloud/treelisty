@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 282 | 2025-12-04
+    TreeListy v2.17.0 | Build 283 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 282): 🔗 Editable Hyperedges + Deep Dive + Fix Undefined Labels
-    - FIX: Hyperedge labels no longer show "undefined" - defaults to "Unnamed Hyperedge"
-    - NEW: Edit button on hyperedge info modal - edit label and description
-    - NEW: Deep Dive button - analyze hyperedge relationship with AI in tree context
-    - NEW: deepDiveHyperedge() function for contextual hyperedge analysis
+    Changelog (Build 283): 🔗 Smart Hyperedge Labels + Fix Deep Dive
+    - FIX: Hyperedge labels now derive from description (<5 words) instead of "Unnamed"
+    - FIX: Deep Dive from hyperedge modal now works (uses handleAnalyzeSelection)
+    - NEW: getHyperedgeDisplayLabel() - smart label derivation from description/type
 
+    Previous (Build 282): 🔗 Editable Hyperedges + Deep Dive Button
     Previous (Build 281): 🔧 Remove Share API Keys Feature
     Previous (Build 280): 🔄 Auto-Update Notification System
-    Previous (Build 279): 🐛 Fix Guest Presence Registration
 
     Previous (Build 275): 🔧 Debug Host Chat Box + Improved Logging
     - Auto-close Live Sync modal when first guest connects
@@ -2913,8 +2912,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 282 | 2025-12-04">
-                    v2.17.0 • Build 282
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 283 | 2025-12-04">
+                    v2.17.0 • Build 283
                 </div>
             </div>
         </div>
@@ -8930,6 +8929,45 @@ Focus on logical structure and content organization best practices.`;
         // HYPEREDGE VISUALIZATION
         // =============================================================================
 
+        /**
+         * BUILD 283: Get a display label for a hyperedge
+         * If no label exists, derive a concise one from description (<5 words)
+         */
+        function getHyperedgeDisplayLabel(hyperedge) {
+            // If label exists and is meaningful, use it
+            if (hyperedge.label && hyperedge.label.trim() && hyperedge.label !== 'Unnamed Hyperedge') {
+                return hyperedge.label;
+            }
+
+            // Try to derive from description
+            if (hyperedge.description && hyperedge.description.trim()) {
+                const desc = hyperedge.description.trim();
+                // Take first sentence or up to 50 chars
+                let concise = desc.split(/[.!?]/)[0].trim();
+                if (concise.length > 50) {
+                    // Take first ~5 words
+                    const words = concise.split(/\s+/).slice(0, 5);
+                    concise = words.join(' ');
+                    if (concise.length < desc.length) concise += '...';
+                }
+                return concise || 'Relationship';
+            }
+
+            // Fallback based on type
+            if (hyperedge.type) {
+                const typeLabels = {
+                    'analysis': 'Deep Dive Analysis',
+                    'dependency-cluster': 'Dependency Cluster',
+                    'montage': 'Montage',
+                    'argument': 'Argument',
+                    'theme': 'Theme'
+                };
+                return typeLabels[hyperedge.type] || `${hyperedge.type} Relationship`;
+            }
+
+            return 'Relationship';
+        }
+
         // SVG offset to match the large canvas-connections area (top: -5000px, left: -5000px)
         const SVG_OFFSET = 5000;
 
@@ -9061,7 +9099,7 @@ Focus on logical structure and content organization best practices.`;
                     label.setAttribute('font-weight', 'bold');
                     label.style.cursor = 'pointer';
                     label.style.textShadow = '0 0 6px rgba(0,0,0,0.8)';
-                    label.textContent = hyperedge.label || 'Unnamed Hyperedge';
+                    label.textContent = getHyperedgeDisplayLabel(hyperedge);
                     label.addEventListener('click', (e) => {
                         e.stopPropagation();
                         showHyperedgeInfo(hyperedge);
@@ -9366,7 +9404,7 @@ Focus on logical structure and content organization best practices.`;
                     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                         <div style="font-size: 48px;">🔗</div>
                         <div>
-                            <h3 style="color: var(--treeplex-primary); margin-bottom: 4px;">${hyperedge.label || 'Unnamed Hyperedge'}</h3>
+                            <h3 style="color: var(--treeplex-primary); margin-bottom: 4px;">${getHyperedgeDisplayLabel(hyperedge)}</h3>
                             <div style="font-size: 12px; color: var(--text-secondary);">
                                 ${hyperedge.type} hyperedge • ${hyperedge.nodeIds?.length || 0} connected nodes
                             </div>
@@ -9542,8 +9580,9 @@ Focus on logical structure and content organization best practices.`;
         }
 
         /**
-         * BUILD 282: Deep dive into a hyperedge relationship using AI
+         * BUILD 283: Deep dive into a hyperedge relationship using AI
          * Analyzes the connected nodes in the context of the current tree
+         * Uses handleAnalyzeSelection directly for reliable execution
          */
         function deepDiveHyperedge(hyperedgeId) {
             if (!capexTree.hyperedges) return;
@@ -9582,46 +9621,20 @@ Focus on logical structure and content organization best practices.`;
                 return;
             }
 
-            // Select these nodes and trigger deep dive
-            selectedNodes = nodes.map(n => n.id);
+            // Close the modal first
             document.getElementById('modal').style.display = 'none';
 
-            // Build context about the existing hyperedge
-            const hyperedgeContext = `
-This analysis is for an existing hyperedge relationship:
-- Label: ${hyperedge.label || 'Unnamed'}
-- Type: ${hyperedge.type || 'general'}
-- Description: ${hyperedge.description || 'None'}
-${hyperedge.metadata?.philosophyFields ? `
-Existing Philosophy Analysis:
-- Dialectical Relation: ${hyperedge.metadata.philosophyFields.dialecticalRelation || 'Unknown'}
-- Argumentative Flow: ${hyperedge.metadata.philosophyFields.argumentativeFlow || 'Unknown'}
-- Conceptual Bridge: ${hyperedge.metadata.philosophyFields.conceptualBridge || 'Unknown'}
-` : ''}
+            // Store context about the existing hyperedge for the analysis
+            window._hyperedgeDeepDiveContext = {
+                label: getHyperedgeDisplayLabel(hyperedge),
+                type: hyperedge.type || 'general',
+                description: hyperedge.description || '',
+                philosophyFields: hyperedge.metadata?.philosophyFields || null
+            };
 
-Please provide a deeper analysis of this relationship in the context of the current tree: "${capexTree.name}"
-Focus on exploring nuances, implications, and connections that weren't covered in the initial analysis.
-`;
-
-            // Store context for the deep dive function to use
-            window._hyperedgeDeepDiveContext = hyperedgeContext;
-
-            // Trigger the structured scholar deep dive
-            showToast('Starting deep dive analysis...', 'info');
-            setTimeout(() => {
-                // The deep dive function will pick up selectedNodes
-                const deepDiveBtn = document.getElementById('structured-scholar-btn');
-                if (deepDiveBtn) {
-                    deepDiveBtn.click();
-                } else {
-                    // Fallback: call the function directly if button not found
-                    if (typeof structuredScholarDeepDive === 'function') {
-                        structuredScholarDeepDive();
-                    } else {
-                        showToast('Deep Dive feature not available in current view', 'warning');
-                    }
-                }
-            }, 100);
+            // Trigger the deep dive analysis using handleAnalyzeSelection
+            showToast(`Starting deep dive on ${nodes.length} nodes...`, 'info');
+            handleAnalyzeSelection(nodes);
         }
 
         // =============================================================================
@@ -36741,7 +36754,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 282;
+        const CURRENT_BUILD = 283;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
