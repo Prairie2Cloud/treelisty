@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 284 | 2025-12-04
+    TreeListy v2.17.0 | Build 285 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,16 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 284): 💾 Version Conflict Detection + Unsaved Warning
-    - NEW: When loading JSON, detects if LocalStorage has newer version
-    - NEW: Conflict dialog shows both versions with timestamps and item counts
-    - NEW: User can choose to load file (older) or local (newer) version
-    - NEW: beforeunload warning when closing browser with unsaved changes
-    - NEW: loadTreeData() centralized function for consistent tree loading
+    Changelog (Build 285): 📐 Save & Restore View State
+    - NEW: JSON saves view state (viewMode, zoom, pan for both tree and canvas)
+    - NEW: Loading JSON restores exact view position and zoom level
+    - NEW: Canvas node positions (canvasX/canvasY) already saved per-node
 
+    Previous (Build 284): 💾 Version Conflict Detection + Unsaved Warning
     Previous (Build 283): 🔗 Smart Hyperedge Labels + Fix Deep Dive
     Previous (Build 282): 🔗 Editable Hyperedges + Deep Dive Button
-    Previous (Build 281): 🔧 Remove Share API Keys Feature
 
     Previous (Build 275): 🔧 Debug Host Chat Box + Improved Logging
     - Auto-close Live Sync modal when first guest connects
@@ -2914,8 +2912,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 284 | 2025-12-04">
-                    v2.17.0 • Build 284
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 285 | 2025-12-04">
+                    v2.17.0 • Build 285
                 </div>
             </div>
         </div>
@@ -17611,6 +17609,45 @@ Your response:`;
                 sortTree(null);
             }
 
+            // BUILD 285: Restore view state if saved
+            if (data.viewState) {
+                const vs = data.viewState;
+                console.log('📐 Restoring view state:', vs);
+
+                // Restore tree view zoom/pan
+                if (typeof vs.treeZoom === 'number') zoomLevel = vs.treeZoom;
+                if (typeof vs.treePanX === 'number') panX = vs.treePanX;
+                if (typeof vs.treePanY === 'number') panY = vs.treePanY;
+
+                // Restore canvas zoom/pan
+                if (typeof vs.canvasZoom === 'number') canvasZoom = vs.canvasZoom;
+                if (typeof vs.canvasPanX === 'number') canvasPan.x = vs.canvasPanX;
+                if (typeof vs.canvasPanY === 'number') canvasPan.y = vs.canvasPanY;
+
+                // Apply tree view transform
+                const wrapper = document.getElementById('tree-wrapper');
+                if (wrapper) {
+                    wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
+                }
+                const zoomDisplay = document.getElementById('zoom-display');
+                if (zoomDisplay) {
+                    zoomDisplay.textContent = Math.round(zoomLevel * 100) + '%';
+                }
+
+                // Restore view mode (tree or canvas)
+                if (vs.viewMode && vs.viewMode !== viewMode) {
+                    // Switch to the saved view mode
+                    setTimeout(() => {
+                        const toggleBtn = document.getElementById('view-toggle');
+                        if (toggleBtn && vs.viewMode === 'canvas' && viewMode === 'tree') {
+                            toggleBtn.click();
+                        } else if (toggleBtn && vs.viewMode === 'tree' && viewMode === 'canvas') {
+                            toggleBtn.click();
+                        }
+                    }, 100);
+                }
+            }
+
             // Mark tree manager as having this tree loaded
             if (window.treeManager) {
                 window.treeManager.currentTreeId = data.id;
@@ -17848,6 +17885,17 @@ Your response:`;
 
             save(tree, options = {}) {
                 const { silent = false, forceSaveAs = false } = options;
+
+                // BUILD 285: Capture current view state before saving
+                tree.viewState = {
+                    viewMode: typeof viewMode !== 'undefined' ? viewMode : 'tree',
+                    treeZoom: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
+                    treePanX: typeof panX !== 'undefined' ? panX : 0,
+                    treePanY: typeof panY !== 'undefined' ? panY : 0,
+                    canvasZoom: typeof canvasZoom !== 'undefined' ? canvasZoom : 1,
+                    canvasPanX: typeof canvasPan !== 'undefined' ? canvasPan.x : 0,
+                    canvasPanY: typeof canvasPan !== 'undefined' ? canvasPan.y : 0
+                };
 
                 // Save to LocalStorage for auto-save tracking
                 this.saveToLocalStorage(tree);
@@ -36925,7 +36973,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 284;
+        const CURRENT_BUILD = 285;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
