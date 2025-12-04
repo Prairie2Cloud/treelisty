@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 290 | 2025-12-04
+    TreeListy v2.17.0 | Build 291 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,10 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 290): 🐛 Fix 3D Button Not Appearing
-    - FIX: 3D View button now reliably injects into toolbar
-    - Added DOM ready check and fallback timeout for button injection
+    Changelog (Build 291): 🐛 3D Button Now In HTML
+    - FIX: 3D button added directly to HTML (not dynamically injected)
+    - Button visible immediately, handler added when module loads
 
+    Previous (Build 290): 🐛 Fix 3D Button Not Appearing
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
@@ -2801,6 +2802,7 @@
                     <span id="view-mode-icon">🎨</span>
                     <span id="view-mode-text">Canvas</span>
                 </button>
+                <button class="btn" id="toggle-3d-mode" title="Experimental 3D Visualization" style="background: linear-gradient(135deg, #2b1810, #8b4513); padding: 6px 10px; font-size: 13px;">🧊 3D</button>
                 <button class="btn" id="export-canvas-btn" title="Export Canvas as high-quality PNG image" style="display: none; background: linear-gradient(135deg, #0ea5e9, #06b6d4); padding: 6px 10px; font-size: 13px;">📷</button>
             </div>
 
@@ -2914,8 +2916,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 290 | 2025-12-04">
-                    v2.17.0 • Build 290
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 291 | 2025-12-04">
+                    v2.17.0 • Build 291
                 </div>
             </div>
         </div>
@@ -36975,7 +36977,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 290;
+        const CURRENT_BUILD = 291;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37358,21 +37360,14 @@ RULES:
         colorPalette: [0x5FA463, 0x3B8FCC, 0xD68A2E, 0x8B5CF6, 0xEC4899]
     };
 
-    // --- 1. Inject UI Button ---
-    function injectButton() {
-        const toolbar = document.querySelector('.controls .control-section:first-child');
-        if (!toolbar || document.getElementById('toggle-3d-mode')) return;
+    // --- 1. Initialize 3D Button (button is in HTML, we just add handler) ---
+    function init3DButton() {
+        const btn = document.getElementById('toggle-3d-mode');
+        if (!btn || btn.dataset.initialized) return;
 
-        const btn = document.createElement('button');
-        btn.id = 'toggle-3d-mode';
-        btn.className = 'btn';
-        btn.innerHTML = '🧊 3D View';
-        btn.style.background = 'linear-gradient(135deg, #2b1810, #8b4513)';
-        btn.style.marginLeft = '4px';
-        btn.title = "Experimental 3D Visualization";
-
+        btn.dataset.initialized = 'true';
         btn.addEventListener('click', toggle3DView);
-        toolbar.appendChild(btn);
+        console.log('🧊 3D View button initialized');
     }
 
     // --- 2. Toggle View ---
@@ -37774,16 +37769,15 @@ RULES:
         labelRenderer.render(scene, camera);
     }
 
-    // Inject button on load - ensure DOM is ready
+    // Initialize 3D button handler - ensure DOM is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', injectButton);
+        document.addEventListener('DOMContentLoaded', init3DButton);
     } else {
-        // DOM already loaded, inject immediately
-        injectButton();
+        init3DButton();
     }
 
-    // Also try after a short delay as fallback (for dynamic content)
-    setTimeout(injectButton, 500);
+    // Also try after a short delay as fallback
+    setTimeout(init3DButton, 500);
 
 </script>
 
