@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 306 | 2025-12-04
+    TreeListy v2.17.0 | Build 307 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
-    - Chat bubble now hides when wizard modal is open
-    - Prevents overlap with "Finish & Apply" button
-    - Restores automatically when modal closes
+    Changelog (Build 307): 🐛 TreeBeard Context Fix - children vs phases
+    - Fixed TreeBeard context using wrong property (phases vs children)
+    - TreeBeard now correctly counts project items in interpretCommand()
+    - Works with both legacy 'phases' and current 'children' structures
 
-    Previous (Build 305): 🐛 TreeBeard Empty Project Bug Fix
+    Previous (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
+    Previous (Build 305): 🐛 TreeBeard Empty Project Bug Fix (wizard)
     Previous (Build 304): 🔍 Search Result Navigation Fix
     Previous (Build 303): 🔗 Clickable Hyperedges in 3D
     Previous (Build 302): 🐛 Fix False Update Toast
@@ -2925,8 +2926,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 306 | 2025-12-04">
-                    v2.17.0 • Build 306
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 307 | 2025-12-04">
+                    v2.17.0 • Build 307
                 </div>
             </div>
         </div>
@@ -36068,13 +36069,13 @@ ${transcript}`;
         // ═══════════════════════════════════════════════════════════════
 
         async function interpretCommand(userMessage) {
-            // Get current context
+            // Get current context - check both 'children' and 'phases' for compatibility
+            const phases = typeof capexTree !== 'undefined' ? (capexTree.children || capexTree.phases || []) : [];
             const context = {
                 projectName: typeof capexTree !== 'undefined' ? capexTree.name : 'Unknown',
                 pattern: typeof currentPattern !== 'undefined' ? currentPattern : 'generic',
-                itemCount: typeof capexTree !== 'undefined' && capexTree.phases ?
-                    capexTree.phases.reduce((sum, p) => sum + (p.items?.length || 0), 0) : 0,
-                phaseCount: typeof capexTree !== 'undefined' && capexTree.phases ? capexTree.phases.length : 0,
+                itemCount: phases.reduce((sum, p) => sum + (p.items || p.children || []).length, 0),
+                phaseCount: phases.length,
                 viewMode: document.getElementById('canvas-container')?.classList.contains('active') ? 'canvas' : 'tree',
                 selectedCount: window.selectedCanvasNodes?.length || 0
             };
@@ -37041,7 +37042,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 306;
+        const CURRENT_BUILD = 307;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
