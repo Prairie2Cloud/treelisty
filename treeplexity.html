@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 303 | 2025-12-04
+    TreeListy v2.17.0 | Build 304 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 303): 🔗 Clickable Hyperedges in 3D
-    - Hyperedge tubes now clickable - shows info panel with connected nodes
-    - Hover over hyperedges shows tooltip with label and node count
-    - Hover glow effect on hyperedge tubes
-    - "Edit Hyperedge" button opens editor from 3D view
-    - Hub spheres and labels also clickable for multi-node hyperedges
+    Changelog (Build 304): 🔍 Search Result Navigation Fix
+    - Clicking search result now properly navigates to node
+    - Node is selected and info panel opens automatically
+    - Ancestors expanded to reveal nested nodes
+    - Enhanced visual highlight with box-shadow glow
+    - Smooth scroll to center the found node
 
+    Previous (Build 303): 🔗 Clickable Hyperedges in 3D
     Previous (Build 302): 🐛 Fix False Update Toast
     Previous (Build 301): 🐛 Fix 3D Sort Refresh
     Previous (Build 300): 🎯 Sort-Aware 3D Layouts
@@ -2924,8 +2925,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 303 | 2025-12-04">
-                    v2.17.0 • Build 303
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 304 | 2025-12-04">
+                    v2.17.0 • Build 304
                 </div>
             </div>
         </div>
@@ -19160,30 +19161,18 @@ Return ONLY the JSON array.`
             return text.replace(regex, '<mark style="background: rgba(255, 187, 0, 0.3); padding: 2px 4px; border-radius: 3px; font-weight: 600;">$1</mark>');
         }
 
-        // Highlight node in tree view
+        // Highlight node in tree view and show info panel
         function highlightNode(nodeId) {
+            let foundNode = null;
+
             // Find and expand ancestors to make node visible
             function findAndExpandNode(node, targetId, ancestors = []) {
                 if (node.id === targetId) {
+                    foundNode = node;
                     // Expand all ancestors
                     ancestors.forEach(ancestor => {
                         ancestor.expanded = true;
                     });
-                    render();
-
-                    // Scroll to node after render
-                    setTimeout(() => {
-                        const nodeEl = document.querySelector(`[data-item-id="${nodeId}"]`);
-                        if (nodeEl) {
-                            nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                            // Flash highlight
-                            nodeEl.style.background = 'rgba(99, 102, 241, 0.2)';
-                            nodeEl.style.transition = 'background 0.3s';
-                            setTimeout(() => {
-                                nodeEl.style.background = '';
-                            }, 1500);
-                        }
-                    }, 100);
                     return true;
                 }
 
@@ -19204,6 +19193,40 @@ Return ONLY the JSON array.`
                         break;
                     }
                 }
+            }
+
+            // Also check root
+            if (!foundNode && capexTree.id === nodeId) {
+                foundNode = capexTree;
+            }
+
+            if (foundNode) {
+                // Re-render tree with expanded ancestors
+                render();
+
+                // Show the info panel for this node
+                if (typeof showInfo === 'function') {
+                    showInfo(foundNode);
+                }
+
+                // Select the node
+                selectedNodes = [foundNode];
+
+                // Scroll to node after render
+                setTimeout(() => {
+                    const nodeEl = document.querySelector(`[data-item-id="${nodeId}"]`);
+                    if (nodeEl) {
+                        nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        // Flash highlight
+                        nodeEl.style.background = 'rgba(99, 102, 241, 0.3)';
+                        nodeEl.style.boxShadow = '0 0 0 2px var(--treeplex-primary)';
+                        nodeEl.style.transition = 'all 0.3s';
+                        setTimeout(() => {
+                            nodeEl.style.background = '';
+                            nodeEl.style.boxShadow = '';
+                        }, 2000);
+                    }
+                }, 150);
             }
         }
 
@@ -36995,7 +37018,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 303;
+        const CURRENT_BUILD = 304;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
