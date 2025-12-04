@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 279 | 2025-12-03
+    TreeListy v2.17.0 | Build 280 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 279): 🐛 Fix Guest Presence Registration
+    Changelog (Build 280): 🔄 Auto-Update Notification System
+    Previous (Build 279): 🐛 Fix Guest Presence Registration
     - Use updateDoc instead of setDoc (setDoc merge was silently failing)
     - Guest presence now correctly syncs to Firestore
     - Floating chat auto-shows for both host and guest when 2+ users
@@ -2916,8 +2917,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 279 | 2025-12-03">
-                    v2.17.0 • Build 279
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 280 | 2025-12-03">
+                    v2.17.0 • Build 280
                 </div>
             </div>
         </div>
@@ -36742,6 +36743,162 @@ RULES:
             state: chatState
         };
 
+    })();
+    </script>
+
+    <!-- BUILD 280: Version Check & Auto-Update Notification -->
+    <script>
+    (function() {
+        const CURRENT_BUILD = 280;
+        const CHECK_INTERVAL = 30000; // Check 30 seconds after load
+        const RECHECK_INTERVAL = 300000; // Then every 5 minutes
+
+        let updateToastShown = false;
+
+        async function checkForUpdates() {
+            if (updateToastShown) return;
+
+            try {
+                // Fetch the live HTML with cache-busting
+                const response = await fetch(window.location.pathname + '?_nocache=' + Date.now(), {
+                    cache: 'no-store',
+                    headers: { 'Cache-Control': 'no-cache' }
+                });
+
+                if (!response.ok) return;
+
+                const html = await response.text();
+
+                // Extract build number from header comment: "Build XXX"
+                const match = html.match(/TreeListy v[\d.]+ \| Build (\d+)/);
+                if (!match) return;
+
+                const latestBuild = parseInt(match[1]);
+
+                if (latestBuild > CURRENT_BUILD) {
+                    console.log(`🚀 New version available: Build ${latestBuild} (current: ${CURRENT_BUILD})`);
+                    showUpdateToast(latestBuild);
+                } else {
+                    console.log(`✅ Running latest version: Build ${CURRENT_BUILD}`);
+                }
+            } catch (e) {
+                console.warn('Version check failed:', e);
+            }
+        }
+
+        function showUpdateToast(newBuild) {
+            updateToastShown = true;
+
+            // Create update toast
+            const toast = document.createElement('div');
+            toast.id = 'update-toast';
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                right: 20px;
+                background: linear-gradient(135deg, #10b981, #059669);
+                color: white;
+                padding: 16px 20px;
+                border-radius: 12px;
+                box-shadow: 0 8px 32px rgba(16, 185, 129, 0.4);
+                z-index: 10001;
+                font-family: inherit;
+                animation: slideInRight 0.3s ease-out;
+                max-width: 300px;
+            `;
+
+            toast.innerHTML = `
+                <div style="display: flex; align-items: flex-start; gap: 12px;">
+                    <div style="font-size: 24px;">🚀</div>
+                    <div style="flex: 1;">
+                        <div style="font-weight: 700; font-size: 14px; margin-bottom: 4px;">
+                            New Version Available!
+                        </div>
+                        <div style="font-size: 12px; opacity: 0.9; margin-bottom: 12px;">
+                            Build ${newBuild} is ready (you have Build ${CURRENT_BUILD})
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="window.forceUpdateApp()" style="
+                                padding: 8px 16px;
+                                background: white;
+                                color: #059669;
+                                border: none;
+                                border-radius: 6px;
+                                font-weight: 700;
+                                font-size: 12px;
+                                cursor: pointer;
+                            ">Update Now</button>
+                            <button onclick="this.closest('#update-toast').remove()" style="
+                                padding: 8px 12px;
+                                background: rgba(255,255,255,0.2);
+                                color: white;
+                                border: none;
+                                border-radius: 6px;
+                                font-size: 12px;
+                                cursor: pointer;
+                            ">Later</button>
+                        </div>
+                    </div>
+                    <button onclick="this.closest('#update-toast').remove()" style="
+                        background: none;
+                        border: none;
+                        color: white;
+                        opacity: 0.7;
+                        cursor: pointer;
+                        font-size: 16px;
+                        padding: 0;
+                    ">&times;</button>
+                </div>
+            `;
+
+            // Add animation keyframes if not exists
+            if (!document.getElementById('update-toast-styles')) {
+                const style = document.createElement('style');
+                style.id = 'update-toast-styles';
+                style.textContent = `
+                    @keyframes slideInRight {
+                        from { transform: translateX(100%); opacity: 0; }
+                        to { transform: translateX(0); opacity: 1; }
+                    }
+                `;
+                document.head.appendChild(style);
+            }
+
+            document.body.appendChild(toast);
+        }
+
+        // Force update - bypass all caches
+        window.forceUpdateApp = function() {
+            // Clear service worker cache if exists
+            if ('caches' in window) {
+                caches.keys().then(names => {
+                    names.forEach(name => caches.delete(name));
+                });
+            }
+
+            // Unregister service workers
+            if ('serviceWorker' in navigator) {
+                navigator.serviceWorker.getRegistrations().then(registrations => {
+                    registrations.forEach(reg => reg.unregister());
+                });
+            }
+
+            // Navigate with cache-busting parameter
+            const url = new URL(window.location.href);
+            url.searchParams.set('_v', Date.now());
+            window.location.href = url.toString();
+        };
+
+        // Manual check function (can be called from console)
+        window.checkForUpdates = checkForUpdates;
+
+        // Initial check after page loads
+        setTimeout(checkForUpdates, CHECK_INTERVAL);
+
+        // Periodic rechecks
+        setInterval(checkForUpdates, RECHECK_INTERVAL);
+
+        console.log(`🔄 Version checker active (Build ${CURRENT_BUILD})`);
     })();
     </script>
 
