@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 309 | 2025-12-04
+    TreeListy v2.17.0 | Build 310 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 309): 🔀 Actionable Merge Redundancies
-    - "Find redundancies" now has clickable action buttons
-    - View Group / Next Group navigation
-    - "Delete Others" keeps first, removes duplicates
-    - "Auto-Merge All" one-click cleanup (with undo)
-    - executeAction now supports {message, buttons} returns
+    Changelog (Build 310): 📐 Smart Default View for Large Trees
+    - Trees >30 nodes auto-collapse to root + phases on load
+    - Prevents "invisible tree" issue on large imports
+    - Zoom/pan reset to defaults when no viewState saved
+    - Improves first-load experience for complex trees
 
-    Previous (Build 308): 🔍 Find Redundancies Command
+    Previous (Build 309): 🔀 Actionable Merge Redundancies
     Previous (Build 307): 🐛 TreeBeard Context Fix (children vs phases)
     Previous (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
     Previous (Build 305): 🐛 TreeBeard Empty Project Bug Fix (wizard)
@@ -2930,8 +2929,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 309 | 2025-12-04">
-                    v2.17.0 • Build 309
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 310 | 2025-12-04">
+                    v2.17.0 • Build 310
                 </div>
             </div>
         </div>
@@ -17663,6 +17662,63 @@ Your response:`;
                             toggleBtn.click();
                         }
                     }, 100);
+                }
+            } else {
+                // BUILD 310: Smart default view for large trees without saved viewState
+                // Count total nodes to determine if tree is "large"
+                let nodeCount = 0;
+                function countNodes(node) {
+                    nodeCount++;
+                    (node.children || node.items || node.subItems || []).forEach(countNodes);
+                }
+                countNodes(capexTree);
+
+                console.log(`📊 Loaded tree with ${nodeCount} nodes (no saved viewState)`);
+
+                // For large trees (>30 nodes), collapse to show only root + phases
+                if (nodeCount > 30) {
+                    console.log('🌳 Large tree detected - collapsing for better initial view');
+
+                    // Collapse all nodes recursively
+                    function collapseDeep(node, depth = 0) {
+                        // Keep root expanded, collapse everything else
+                        if (depth > 0) {
+                            node.expanded = false;
+                        }
+                        (node.children || node.items || node.subItems || []).forEach(child => {
+                            collapseDeep(child, depth + 1);
+                        });
+                    }
+
+                    // Keep root expanded, expand phases (depth 1), collapse rest
+                    capexTree.expanded = true;
+                    (capexTree.children || []).forEach(phase => {
+                        phase.expanded = true; // Show phases
+                        // Collapse items within phases
+                        (phase.children || phase.items || []).forEach(item => {
+                            item.expanded = false;
+                            (item.children || item.subItems || []).forEach(sub => {
+                                sub.expanded = false;
+                            });
+                        });
+                    });
+
+                    // Re-render with collapsed state
+                    render();
+                }
+
+                // Reset zoom/pan to defaults
+                zoomLevel = 1.0;
+                panX = 0;
+                panY = 0;
+
+                const wrapper = document.getElementById('tree-wrapper');
+                if (wrapper) {
+                    wrapper.style.transform = `translate(0px, 0px) scale(1)`;
+                }
+                const zoomDisplay = document.getElementById('zoom-display');
+                if (zoomDisplay) {
+                    zoomDisplay.textContent = '100%';
                 }
             }
 
@@ -37313,7 +37369,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 309;
+        const CURRENT_BUILD = 310;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
