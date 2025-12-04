@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 296 | 2025-12-04
+    TreeListy v2.17.0 | Build 297 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 296): 🌌 Knowledge Navigator - Beautiful 3D Universe
-    - NEW: Floating tree title overlay (top-left, screenshot-ready)
-    - NEW: Animated sun root with pulsing corona effect
-    - NEW: Planetary rings orbiting phase nodes
-    - NEW: Pattern-based nebula backgrounds (philosophy=purple, business=blue, etc.)
-    - NEW: Right-click context menu for node editing in 3D
-    - NEW: Expand/collapse children, add/delete nodes from 3D view
+    Changelog (Build 297): 🎯 3D Quick Wins - Dependencies & View State
+    - NEW: Expand All / Collapse All buttons in 3D controls
+    - NEW: Dependencies rendered as dashed arrows with direction
+    - NEW: 3D view state saved to JSON (camera position, expanded nodes)
+    - Restores camera position and expanded state when reopening 3D view
 
-    Previous (Build 295): 🎯 Interactive 3D View + Hyperedge Shapes
+    Previous (Build 296): 🌌 Knowledge Navigator - Beautiful 3D Universe
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
@@ -2920,8 +2918,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 296 | 2025-12-04">
-                    v2.17.0 • Build 296
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 297 | 2025-12-04">
+                    v2.17.0 • Build 297
                 </div>
             </div>
         </div>
@@ -36981,7 +36979,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 296;
+        const CURRENT_BUILD = 297;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37426,6 +37424,9 @@ RULES:
         <button class="btn" id="btn-3d-spin">🔄 Spin</button>
         <button class="btn" id="btn-3d-zoom-in">➕ Zoom In</button>
         <button class="btn" id="btn-3d-zoom-out">➖ Zoom Out</button>
+        <div style="width: 1px; height: 24px; background: rgba(255,255,255,0.2); margin: 0 4px;"></div>
+        <button class="btn" id="btn-3d-expand-all" title="Expand all nodes">📂 Expand All</button>
+        <button class="btn" id="btn-3d-collapse-all" title="Collapse all nodes">📁 Collapse All</button>
         <div style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
             Click: Select | Right-Click: Menu | Drag: Rotate | Scroll: Zoom
         </div>
@@ -37500,7 +37501,8 @@ RULES:
         const isActive = view3D.classList.contains('active');
 
         if (isActive) {
-            // Close 3D
+            // Close 3D - save state first
+            save3DViewState();
             view3D.classList.remove('active');
             treeView.classList.remove('hidden');
             btn.style.border = '1px solid var(--border)';
@@ -37513,6 +37515,8 @@ RULES:
             btn.style.border = '2px solid #fff';
 
             if (!isInitialized) initThreeJS();
+            // Restore state before refresh
+            restore3DViewState();
             // Always refresh data on open
             refresh3DData();
             updateTitle();
@@ -37595,6 +37599,14 @@ RULES:
         });
         document.getElementById('btn-3d-zoom-out').addEventListener('click', () => {
             camera.position.multiplyScalar(1.25);
+        });
+
+        // Expand/Collapse All controls
+        document.getElementById('btn-3d-expand-all').addEventListener('click', () => {
+            expandAllNodes();
+        });
+        document.getElementById('btn-3d-collapse-all').addEventListener('click', () => {
+            collapseAllNodes();
         });
 
         // Raycaster for click detection
@@ -37823,6 +37835,88 @@ RULES:
         selectedMesh = null;
     }
 
+    // Expand all nodes - collect all node IDs
+    function expandAllNodes() {
+        const tree = window.capexTree;
+        if (!tree) return;
+
+        function collectNodeIds(node) {
+            if (node.id) expandedNodes.add(node.id);
+            if (node.children) node.children.forEach(collectNodeIds);
+            if (node.items) node.items.forEach(collectNodeIds);
+            if (node.subItems) node.subItems.forEach(collectNodeIds);
+        }
+
+        collectNodeIds(tree);
+        refresh3DData();
+        save3DViewState();
+        console.log('🧊 Expanded all nodes:', expandedNodes.size);
+    }
+
+    // Collapse all nodes
+    function collapseAllNodes() {
+        expandedNodes.clear();
+        refresh3DData();
+        save3DViewState();
+        console.log('🧊 Collapsed all nodes');
+    }
+
+    // Save 3D view state to tree metadata
+    function save3DViewState() {
+        const tree = window.capexTree;
+        if (!tree || !camera || !controls) return;
+
+        tree.view3DState = {
+            camera: {
+                x: camera.position.x,
+                y: camera.position.y,
+                z: camera.position.z
+            },
+            target: {
+                x: controls.target.x,
+                y: controls.target.y,
+                z: controls.target.z
+            },
+            expandedNodes: Array.from(expandedNodes),
+            autoSpin: autoSpin
+        };
+
+        console.log('🧊 Saved 3D view state');
+    }
+
+    // Restore 3D view state from tree metadata
+    function restore3DViewState() {
+        const tree = window.capexTree;
+        if (!tree || !tree.view3DState || !camera || !controls) return;
+
+        const state = tree.view3DState;
+
+        // Restore camera position
+        if (state.camera) {
+            camera.position.set(state.camera.x, state.camera.y, state.camera.z);
+        }
+
+        // Restore orbit target
+        if (state.target) {
+            controls.target.set(state.target.x, state.target.y, state.target.z);
+        }
+
+        // Restore expanded nodes
+        if (state.expandedNodes && Array.isArray(state.expandedNodes)) {
+            expandedNodes.clear();
+            state.expandedNodes.forEach(id => expandedNodes.add(id));
+        }
+
+        // Restore auto-spin
+        if (typeof state.autoSpin === 'boolean') {
+            autoSpin = state.autoSpin;
+            const spinBtn = document.getElementById('btn-3d-spin');
+            if (spinBtn) spinBtn.style.background = autoSpin ? '#10b981' : '';
+        }
+
+        console.log('🧊 Restored 3D view state');
+    }
+
     function addStarfield() {
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
@@ -38022,6 +38116,108 @@ RULES:
                     }
                 }
             });
+        }
+
+        // --- Render Dependencies (Dashed Arrows) ---
+        renderDependencies(tree);
+    }
+
+    // Render dependencies as dashed arrows
+    function renderDependencies(tree) {
+        // Collect all dependencies from nodes
+        function collectDependencies(node, deps = []) {
+            if (node.dependencies && Array.isArray(node.dependencies)) {
+                node.dependencies.forEach(dep => {
+                    deps.push({
+                        from: dep.sourceId || dep.from,
+                        to: node.id,
+                        label: dep.label || dep.type || ''
+                    });
+                });
+            }
+            // Also check for outgoing dependencies
+            if (node.dependsOn && Array.isArray(node.dependsOn)) {
+                node.dependsOn.forEach(targetId => {
+                    deps.push({
+                        from: node.id,
+                        to: targetId,
+                        label: ''
+                    });
+                });
+            }
+            if (node.children) node.children.forEach(c => collectDependencies(c, deps));
+            if (node.items) node.items.forEach(i => collectDependencies(i, deps));
+            if (node.subItems) node.subItems.forEach(s => collectDependencies(s, deps));
+            return deps;
+        }
+
+        const dependencies = collectDependencies(tree);
+
+        dependencies.forEach(dep => {
+            const fromPos = nodePositions.get(dep.from);
+            const toPos = nodePositions.get(dep.to);
+
+            if (fromPos && toPos) {
+                createDependencyArrow(fromPos, toPos, dep.label);
+            }
+        });
+    }
+
+    // Create a dashed arrow for dependency
+    function createDependencyArrow(start, end, label) {
+        const direction = new THREE.Vector3().subVectors(end, start);
+        const length = direction.length();
+
+        // Create dashed line
+        const points = [];
+        const segments = 20;
+        for (let i = 0; i <= segments; i++) {
+            const t = i / segments;
+            const point = new THREE.Vector3().lerpVectors(start, end, t);
+            // Add slight arc
+            point.y += Math.sin(t * Math.PI) * length * 0.1;
+            points.push(point);
+        }
+
+        const geometry = new THREE.BufferGeometry().setFromPoints(points);
+        const material = new THREE.LineDashedMaterial({
+            color: 0xff9900, // Orange for dependencies
+            dashSize: 15,
+            gapSize: 10,
+            transparent: true,
+            opacity: 0.7
+        });
+
+        const line = new THREE.Line(geometry, material);
+        line.computeLineDistances(); // Required for dashed lines
+        scene.add(line);
+
+        // Add arrowhead at destination
+        const arrowDir = direction.clone().normalize();
+        const arrowLength = 20;
+        const arrowColor = 0xff9900;
+
+        // Position arrowhead slightly before the end point
+        const arrowPos = end.clone().sub(arrowDir.clone().multiplyScalar(15));
+
+        const arrowHelper = new THREE.ArrowHelper(
+            arrowDir,
+            arrowPos,
+            arrowLength,
+            arrowColor,
+            arrowLength * 0.6,
+            arrowLength * 0.4
+        );
+        scene.add(arrowHelper);
+
+        // Add label if provided
+        if (label) {
+            const midPoint = new THREE.Vector3().lerpVectors(start, end, 0.5);
+            midPoint.y += length * 0.1 + 20; // Above the arc
+            const labelSprite = createTextSprite(label, 0xff9900);
+            labelSprite.position.copy(midPoint);
+            labelSprite.scale.set(120, 30, 1);
+            scene.add(labelSprite);
         }
     }
 
