@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 298 | 2025-12-04
+    TreeListy v2.17.0 | Build 299 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 298): ✨ 3D Title Polish
-    - Shortened title to 3 words max with ellipsis
-    - Added left margin to avoid panel overlap
-    - Dramatic space font (Orbitron) with cyan glow effects
-    - Cleaner single-line title for screenshot-ready display
+    Changelog (Build 299): 🖱️ 3D Usability - Hover & Interaction
+    - Node labels now clickable (extended hit area for selection)
+    - Hover magnification effect on nodes (subtle scale animation)
+    - Info tooltip on hover showing node name, type, description
+    - Proximity focus dims distant nodes when hovering
 
+    Previous (Build 298): ✨ 3D Title Polish
     Previous (Build 297): 🎯 3D Quick Wins - Dependencies & View State
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
@@ -2918,8 +2919,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 298 | 2025-12-04">
-                    v2.17.0 • Build 298
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 299 | 2025-12-04">
+                    v2.17.0 • Build 299
                 </div>
             </div>
         </div>
@@ -37339,6 +37340,55 @@ RULES:
         display: none; /* Hidden for cleaner look */
     }
 
+    /* Hover Tooltip */
+    #hover-tooltip-3d {
+        position: absolute;
+        background: rgba(10, 15, 30, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 255, 255, 0.4);
+        border-radius: 10px;
+        padding: 12px 16px;
+        min-width: 180px;
+        max-width: 280px;
+        box-shadow: 0 0 20px rgba(0, 255, 255, 0.3),
+                    0 8px 32px rgba(0, 0, 0, 0.6);
+        z-index: 200;
+        display: none;
+        pointer-events: none;
+        transform: translate(-50%, -100%) translateY(-15px);
+    }
+
+    #hover-tooltip-3d.visible {
+        display: block;
+    }
+
+    #hover-tooltip-name {
+        font-family: 'Orbitron', sans-serif;
+        font-size: 14px;
+        font-weight: 700;
+        color: #00ffff;
+        margin-bottom: 4px;
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
+
+    #hover-tooltip-type {
+        font-size: 10px;
+        color: rgba(255, 255, 255, 0.5);
+        text-transform: uppercase;
+        letter-spacing: 2px;
+        margin-bottom: 6px;
+    }
+
+    #hover-tooltip-desc {
+        font-size: 12px;
+        color: rgba(255, 255, 255, 0.8);
+        line-height: 1.4;
+        max-height: 60px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
     /* 3D Context Menu */
     #context-menu-3d {
         position: absolute;
@@ -37400,6 +37450,13 @@ RULES:
         <div id="title-3d-pattern">Pattern Name</div>
     </div>
 
+    <!-- Hover Tooltip -->
+    <div id="hover-tooltip-3d">
+        <div id="hover-tooltip-name"></div>
+        <div id="hover-tooltip-type"></div>
+        <div id="hover-tooltip-desc"></div>
+    </div>
+
     <!-- Context Menu for Node Editing -->
     <div id="context-menu-3d">
         <div class="context-menu-3d-header">Node Actions</div>
@@ -37453,13 +37510,18 @@ RULES:
     let autoSpin = false;
     const nodePositions = new Map(); // Store positions for drawing lines
     const nodeMeshes = []; // Store mesh references for raycasting
+    const labelSprites = []; // Store label sprites for raycasting
+    const nodeToLabel = new Map(); // Map mesh to its label sprite
     let raycaster, mouse;
     let selectedMesh = null;
     let selectionGlow = null;
+    let hoveredMesh = null; // Currently hovered node
+    let hoverScale = 1; // Animation scale for hover
     let contextMenuNode = null; // Node for context menu actions
     const expandedNodes = new Set(); // Track which nodes are expanded in 3D
     let sunCorona = null; // Animated sun corona
     let coronaTime = 0; // Animation time
+    let hoverTooltip = null; // HTML tooltip element
 
     // --- Configuration ---
     const CONFIG = {
@@ -37621,9 +37683,159 @@ RULES:
         document.addEventListener('click', hideContextMenu);
         initContextMenuHandlers();
 
+        // Mousemove handler for hover effects
+        renderer.domElement.addEventListener('mousemove', onMouseMove);
+        renderer.domElement.addEventListener('mouseleave', onMouseLeave);
+
+        // Get tooltip reference
+        hoverTooltip = document.getElementById('hover-tooltip-3d');
+
         isInitialized = true;
         animate();
         console.log('🧊 Three.js initialized successfully');
+    }
+
+    // Mousemove handler for hover detection
+    function onMouseMove(event) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+
+        // Check both node meshes and label sprites
+        const allClickable = [...nodeMeshes, ...labelSprites];
+        const intersects = raycaster.intersectObjects(allClickable);
+
+        if (intersects.length > 0) {
+            let targetMesh = intersects[0].object;
+
+            // If we hit a label, find its associated mesh
+            if (targetMesh.userData.parentMesh) {
+                targetMesh = targetMesh.userData.parentMesh;
+            }
+
+            if (targetMesh !== hoveredMesh) {
+                // Reset previous hover
+                if (hoveredMesh) {
+                    resetHoverState(hoveredMesh);
+                }
+
+                hoveredMesh = targetMesh;
+                applyHoverState(hoveredMesh);
+                showHoverTooltip(event.clientX, event.clientY, hoveredMesh.userData.nodeData);
+            } else {
+                // Update tooltip position
+                updateTooltipPosition(event.clientX, event.clientY);
+            }
+
+            renderer.domElement.style.cursor = 'pointer';
+        } else {
+            // No intersection
+            if (hoveredMesh) {
+                resetHoverState(hoveredMesh);
+                hoveredMesh = null;
+            }
+            hideHoverTooltip();
+            renderer.domElement.style.cursor = 'default';
+        }
+
+        // Dim distant nodes based on mouse proximity (focus effect)
+        applyProximityFocus();
+    }
+
+    // Mouse leave handler
+    function onMouseLeave() {
+        if (hoveredMesh) {
+            resetHoverState(hoveredMesh);
+            hoveredMesh = null;
+        }
+        hideHoverTooltip();
+        resetProximityFocus();
+    }
+
+    // Apply hover magnification
+    function applyHoverState(mesh) {
+        if (!mesh) return;
+        mesh.userData.originalScale = mesh.scale.clone();
+        mesh.scale.multiplyScalar(1.4); // Magnify by 40%
+
+        // Also scale up the label
+        const label = nodeToLabel.get(mesh);
+        if (label) {
+            label.userData.originalScale = label.scale.clone();
+            label.scale.multiplyScalar(1.3);
+        }
+    }
+
+    // Reset hover state
+    function resetHoverState(mesh) {
+        if (!mesh || !mesh.userData.originalScale) return;
+        mesh.scale.copy(mesh.userData.originalScale);
+
+        const label = nodeToLabel.get(mesh);
+        if (label && label.userData.originalScale) {
+            label.scale.copy(label.userData.originalScale);
+        }
+    }
+
+    // Show hover tooltip
+    function showHoverTooltip(x, y, nodeData) {
+        if (!hoverTooltip || !nodeData) return;
+
+        document.getElementById('hover-tooltip-name').textContent = nodeData.name || 'Unnamed';
+        document.getElementById('hover-tooltip-type').textContent = nodeData.type || 'Node';
+
+        // Get description from various possible fields
+        const desc = nodeData.description || nodeData.summary || nodeData.details || '';
+        document.getElementById('hover-tooltip-desc').textContent = desc ? desc.substring(0, 150) : '';
+
+        hoverTooltip.style.left = x + 'px';
+        hoverTooltip.style.top = y + 'px';
+        hoverTooltip.classList.add('visible');
+    }
+
+    // Update tooltip position
+    function updateTooltipPosition(x, y) {
+        if (!hoverTooltip) return;
+        hoverTooltip.style.left = x + 'px';
+        hoverTooltip.style.top = y + 'px';
+    }
+
+    // Hide hover tooltip
+    function hideHoverTooltip() {
+        if (hoverTooltip) {
+            hoverTooltip.classList.remove('visible');
+        }
+    }
+
+    // Apply proximity-based focus (dim distant nodes)
+    function applyProximityFocus() {
+        if (!hoveredMesh) return;
+
+        const hoverPos = hoveredMesh.position;
+        const focusRadius = 500; // Nodes within this radius stay bright
+
+        nodeMeshes.forEach(mesh => {
+            if (mesh === hoveredMesh || mesh === selectedMesh) return;
+
+            const distance = mesh.position.distanceTo(hoverPos);
+            const opacity = distance < focusRadius ? 1 : Math.max(0.3, 1 - (distance - focusRadius) / 1000);
+
+            if (mesh.material) {
+                mesh.material.opacity = opacity;
+                mesh.material.transparent = true;
+            }
+        });
+    }
+
+    // Reset proximity focus
+    function resetProximityFocus() {
+        nodeMeshes.forEach(mesh => {
+            if (mesh.material && mesh.material.opacity !== undefined) {
+                mesh.material.opacity = 1;
+            }
+        });
     }
 
     // Right-click handler for context menu
@@ -37766,10 +37978,17 @@ RULES:
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(nodeMeshes);
+
+        // Check both node meshes and label sprites for click
+        const allClickable = [...nodeMeshes, ...labelSprites];
+        const intersects = raycaster.intersectObjects(allClickable);
 
         if (intersects.length > 0) {
-            const clickedMesh = intersects[0].object;
+            let clickedMesh = intersects[0].object;
+            // If clicked on a label, get its parent mesh
+            if (clickedMesh.userData.parentMesh) {
+                clickedMesh = clickedMesh.userData.parentMesh;
+            }
             selectNode(clickedMesh);
         }
     }
@@ -37781,7 +38000,8 @@ RULES:
         mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
         raycaster.setFromCamera(mouse, camera);
-        const intersects = raycaster.intersectObjects(nodeMeshes);
+        const allClickable = [...nodeMeshes, ...labelSprites];
+        const intersects = raycaster.intersectObjects(allClickable);
 
         if (intersects.length === 0) {
             // Double-click on empty space - reset to root
@@ -38004,7 +38224,10 @@ RULES:
         // Clear tracking arrays
         nodeMeshes.length = 0;
         nodePositions.clear();
+        labelSprites.length = 0;
+        nodeToLabel.clear();
         clearSelection();
+        hoveredMesh = null;
 
         // Grab Global Tree
         const tree = window.capexTree;
@@ -38415,7 +38638,13 @@ RULES:
         // Add text label sprite
         const label = createTextSprite(data.name, type === 'root' ? 0xffdd44 : colorHex);
         label.position.set(x, y + size + 40, z);
+        label.userData.parentMesh = mesh; // Link label to its node mesh
+        label.userData.nodeData = data; // Store node data on label too
         scene.add(label);
+
+        // Register label for raycasting (clickable labels)
+        labelSprites.push(label);
+        nodeToLabel.set(mesh, label);
     }
 
     // Helper: Create Connection Line
