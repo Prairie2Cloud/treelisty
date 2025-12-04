@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 302 | 2025-12-04
+    TreeListy v2.17.0 | Build 303 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 302): 🐛 Fix False Update Toast
-    - Fixed: CURRENT_BUILD constant now synced with actual build number
-    - No more false "Update Available" toasts when loading files
-    - Users on latest build no longer see spurious update prompts
+    Changelog (Build 303): 🔗 Clickable Hyperedges in 3D
+    - Hyperedge tubes now clickable - shows info panel with connected nodes
+    - Hover over hyperedges shows tooltip with label and node count
+    - Hover glow effect on hyperedge tubes
+    - "Edit Hyperedge" button opens editor from 3D view
+    - Hub spheres and labels also clickable for multi-node hyperedges
 
+    Previous (Build 302): 🐛 Fix False Update Toast
     Previous (Build 301): 🐛 Fix 3D Sort Refresh
     Previous (Build 300): 🎯 Sort-Aware 3D Layouts
     Previous (Build 299): 🖱️ 3D Usability - Hover & Interaction
@@ -2921,8 +2924,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 302 | 2025-12-04">
-                    v2.17.0 • Build 302
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 303 | 2025-12-04">
+                    v2.17.0 • Build 303
                 </div>
             </div>
         </div>
@@ -36992,7 +36995,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 302;
+        const CURRENT_BUILD = 303;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37534,6 +37537,8 @@ RULES:
     let sunCorona = null; // Animated sun corona
     let coronaTime = 0; // Animation time
     let hoverTooltip = null; // HTML tooltip element
+    const hyperedgeMeshes = []; // Store hyperedge tubes for raycasting
+    let selectedHyperedge = null; // Currently selected hyperedge data
 
     // --- Configuration ---
     const CONFIG = {
@@ -37745,12 +37750,26 @@ RULES:
 
         raycaster.setFromCamera(mouse, camera);
 
-        // Check both node meshes and label sprites
-        const allClickable = [...nodeMeshes, ...labelSprites];
+        // Check nodes, labels, AND hyperedges
+        const allClickable = [...nodeMeshes, ...labelSprites, ...hyperedgeMeshes];
         const intersects = raycaster.intersectObjects(allClickable);
 
         if (intersects.length > 0) {
             let targetMesh = intersects[0].object;
+
+            // Check if it's a hyperedge - show hyperedge tooltip
+            if (targetMesh.userData.isHyperedge) {
+                if (targetMesh !== hoveredMesh) {
+                    if (hoveredMesh) resetHoverState(hoveredMesh);
+                    hoveredMesh = targetMesh;
+                    applyHyperedgeHoverState(targetMesh);
+                    showHyperedgeTooltip(event.clientX, event.clientY, targetMesh.userData.edgeData);
+                } else {
+                    updateTooltipPosition(event.clientX, event.clientY);
+                }
+                renderer.domElement.style.cursor = 'pointer';
+                return;
+            }
 
             // If we hit a label, find its associated mesh
             if (targetMesh.userData.parentMesh) {
@@ -37812,7 +37831,21 @@ RULES:
 
     // Reset hover state
     function resetHoverState(mesh) {
-        if (!mesh || !mesh.userData.originalScale) return;
+        if (!mesh) return;
+
+        // Handle hyperedge hover reset
+        if (mesh.userData.isHyperedge && mesh.material) {
+            if (mesh.userData.originalOpacity !== undefined) {
+                mesh.material.opacity = mesh.userData.originalOpacity;
+            } else {
+                mesh.material.opacity = 0.4;
+            }
+            mesh.material.emissiveIntensity = 0.2;
+            return;
+        }
+
+        // Handle node hover reset
+        if (!mesh.userData.originalScale) return;
         mesh.scale.copy(mesh.userData.originalScale);
 
         const label = nodeToLabel.get(mesh);
@@ -37849,6 +37882,138 @@ RULES:
         if (hoverTooltip) {
             hoverTooltip.classList.remove('visible');
         }
+    }
+
+    // Apply hover glow to hyperedge tube
+    function applyHyperedgeHoverState(mesh) {
+        if (!mesh || !mesh.material) return;
+        mesh.userData.originalOpacity = mesh.material.opacity;
+        mesh.material.opacity = 0.8;
+        mesh.material.emissiveIntensity = 0.5;
+    }
+
+    // Show hyperedge tooltip
+    function showHyperedgeTooltip(x, y, edgeData) {
+        if (!hoverTooltip || !edgeData) return;
+
+        const nameEl = document.getElementById('hover-tooltip-name');
+        const typeEl = document.getElementById('hover-tooltip-type');
+        const descEl = document.getElementById('hover-tooltip-desc');
+
+        if (nameEl) nameEl.textContent = edgeData.label || 'Hyperedge';
+        if (typeEl) typeEl.textContent = `🔗 ${edgeData.nodeIds?.length || 0} connected nodes`;
+        if (descEl) descEl.textContent = edgeData.description || 'Click to view/edit';
+
+        hoverTooltip.style.left = x + 'px';
+        hoverTooltip.style.top = y + 'px';
+        hoverTooltip.classList.add('visible');
+    }
+
+    // Select a hyperedge - show info panel
+    function selectHyperedge(mesh) {
+        clearSelection();
+        selectedHyperedge = mesh.userData.edgeData;
+
+        // Highlight all tubes of this hyperedge
+        hyperedgeMeshes.forEach(m => {
+            if (m.userData.edgeData === selectedHyperedge && m.material) {
+                m.material.opacity = 0.9;
+                m.material.emissiveIntensity = 0.6;
+            }
+        });
+
+        // Show hyperedge in info panel
+        showHyperedgeInfoPanel(selectedHyperedge);
+    }
+
+    // Show hyperedge info in the 3D info panel
+    function showHyperedgeInfoPanel(edgeData) {
+        const panel = document.getElementById('info-panel-3d');
+        if (!panel || !edgeData) return;
+
+        // Get node names for display
+        const tree = window.capexTree;
+        const nodeNames = [];
+        if (edgeData.nodeIds && tree) {
+            edgeData.nodeIds.forEach(id => {
+                const node = findNodeById(tree, id);
+                if (node) nodeNames.push(node.name || 'Unnamed');
+            });
+        }
+
+        panel.innerHTML = `
+            <div style="padding: 16px;">
+                <div style="font-size: 11px; color: rgba(255,255,255,0.5); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
+                    🔗 Hyperedge
+                </div>
+                <h3 style="color: #fff; margin: 0 0 12px 0; font-size: 18px;">
+                    ${edgeData.label || 'Unnamed Hyperedge'}
+                </h3>
+                <div style="font-size: 13px; color: rgba(255,255,255,0.7); margin-bottom: 12px;">
+                    ${edgeData.description || 'No description'}
+                </div>
+                <div style="font-size: 12px; color: rgba(255,255,255,0.6); margin-bottom: 8px;">
+                    <strong>Connected Nodes (${nodeNames.length}):</strong>
+                </div>
+                <ul style="margin: 0; padding-left: 20px; font-size: 12px; color: rgba(255,255,255,0.8);">
+                    ${nodeNames.map(n => `<li>${n}</li>`).join('')}
+                </ul>
+                <button onclick="editHyperedgeFrom3D()" style="
+                    margin-top: 16px;
+                    padding: 8px 16px;
+                    background: rgba(78, 205, 196, 0.3);
+                    color: #4ecdc4;
+                    border: 1px solid rgba(78, 205, 196, 0.5);
+                    border-radius: 6px;
+                    cursor: pointer;
+                    font-size: 12px;
+                    width: 100%;
+                ">✏️ Edit Hyperedge</button>
+            </div>
+        `;
+        panel.classList.add('visible');
+    }
+
+    // Edit hyperedge from 3D view
+    window.editHyperedgeFrom3D = function() {
+        if (!selectedHyperedge) return;
+
+        // Close 3D view and open hyperedge editor
+        const view3D = document.getElementById('view-3d');
+        if (view3D) view3D.classList.remove('active');
+
+        // Find and trigger hyperedge edit
+        const tree = window.capexTree;
+        if (tree && tree.hyperedges) {
+            const idx = tree.hyperedges.findIndex(e => e.id === selectedHyperedge.id);
+            if (idx >= 0 && typeof window.editHyperedge === 'function') {
+                window.editHyperedge(idx);
+            }
+        }
+    };
+
+    // Helper: Find node by ID in tree
+    function findNodeById(node, id) {
+        if (node.id === id) return node;
+        if (node.children) {
+            for (const child of node.children) {
+                const found = findNodeById(child, id);
+                if (found) return found;
+            }
+        }
+        if (node.items) {
+            for (const item of node.items) {
+                const found = findNodeById(item, id);
+                if (found) return found;
+            }
+        }
+        if (node.subItems) {
+            for (const sub of node.subItems) {
+                const found = findNodeById(sub, id);
+                if (found) return found;
+            }
+        }
+        return null;
     }
 
     // Apply proximity-based focus (dim distant nodes)
@@ -38012,7 +38177,7 @@ RULES:
         }
     }
 
-    // Handle click on 3D node
+    // Handle click on 3D node or hyperedge
     function onNodeClick(event) {
         // Calculate mouse position in normalized device coordinates
         const rect = renderer.domElement.getBoundingClientRect();
@@ -38021,12 +38186,19 @@ RULES:
 
         raycaster.setFromCamera(mouse, camera);
 
-        // Check both node meshes and label sprites for click
-        const allClickable = [...nodeMeshes, ...labelSprites];
+        // Check nodes, labels, AND hyperedges for click
+        const allClickable = [...nodeMeshes, ...labelSprites, ...hyperedgeMeshes];
         const intersects = raycaster.intersectObjects(allClickable);
 
         if (intersects.length > 0) {
             let clickedMesh = intersects[0].object;
+
+            // Check if it's a hyperedge
+            if (clickedMesh.userData.isHyperedge) {
+                selectHyperedge(clickedMesh);
+                return;
+            }
+
             // If clicked on a label, get its parent mesh
             if (clickedMesh.userData.parentMesh) {
                 clickedMesh = clickedMesh.userData.parentMesh;
@@ -38268,6 +38440,8 @@ RULES:
         nodePositions.clear();
         labelSprites.length = 0;
         nodeToLabel.clear();
+        hyperedgeMeshes.length = 0;
+        selectedHyperedge = null;
         clearSelection();
         hoveredMesh = null;
 
@@ -38516,7 +38690,7 @@ RULES:
 
                         if (positions.length === 2) {
                             // Simple curve between two points
-                            createHyperedgeTube(positions[0], positions[1], colorHex, edge.label);
+                            createHyperedgeTube(positions[0], positions[1], colorHex, edge.label, edge);
                         } else {
                             // Multi-node hyperedge: create central hub and connect all nodes to it
                             const centroid = new THREE.Vector3();
@@ -38533,11 +38707,13 @@ RULES:
                             });
                             const hub = new THREE.Mesh(hubGeometry, hubMaterial);
                             hub.position.copy(centroid);
+                            hub.userData = { isHyperedge: true, edgeData: edge, colorHex: colorHex, isHub: true };
                             scene.add(hub);
+                            hyperedgeMeshes.push(hub); // Hub is also clickable
 
                             // Connect all nodes to the hub
                             positions.forEach(pos => {
-                                createHyperedgeTube(pos, centroid, colorHex);
+                                createHyperedgeTube(pos, centroid, colorHex, null, edge);
                             });
 
                             // Add label at hub if available
@@ -38545,7 +38721,9 @@ RULES:
                                 const labelSprite = createTextSprite(edge.label, colorHex);
                                 labelSprite.position.set(centroid.x, centroid.y + 40, centroid.z);
                                 labelSprite.scale.set(150, 37, 1);
+                                labelSprite.userData = { isHyperedge: true, edgeData: edge, parentHub: hub };
                                 scene.add(labelSprite);
+                                hyperedgeMeshes.push(labelSprite);
                             }
                         }
                     }
@@ -38657,7 +38835,7 @@ RULES:
     }
 
     // Helper: Create hyperedge tube between two points
-    function createHyperedgeTube(start, end, colorHex, label) {
+    function createHyperedgeTube(start, end, colorHex, label, edgeData) {
         // Calculate a graceful arc midpoint
         const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
         const distance = start.distanceTo(end);
@@ -38676,7 +38854,11 @@ RULES:
             emissiveIntensity: 0.2
         });
         const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        tube.userData = { isHyperedge: true, edgeData: edgeData, colorHex: colorHex };
         scene.add(tube);
+
+        // Track for raycasting
+        hyperedgeMeshes.push(tube);
 
         // Add label at midpoint if provided
         if (label) {
@@ -38684,8 +38866,12 @@ RULES:
             labelSprite.position.copy(mid);
             labelSprite.position.y += 30;
             labelSprite.scale.set(150, 37, 1);
+            labelSprite.userData = { isHyperedge: true, edgeData: edgeData, parentTube: tube };
             scene.add(labelSprite);
+            hyperedgeMeshes.push(labelSprite); // Also make label clickable
         }
+
+        return tube;
     }
 
     // Helper: Create text label sprite
