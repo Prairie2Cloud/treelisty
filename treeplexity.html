@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 295 | 2025-12-04
+    TreeListy v2.17.0 | Build 296 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 295): 🎯 Interactive 3D View + Hyperedge Shapes
-    - NEW: Click any node in 3D to select it - orbit pivots around selected node
-    - NEW: Selection opens infographic panel for the selected node
-    - NEW: Hyperedges rendered as colored translucent 3D tube shapes
-    - Visual highlight glow on selected node
+    Changelog (Build 296): 🌌 Knowledge Navigator - Beautiful 3D Universe
+    - NEW: Floating tree title overlay (top-left, screenshot-ready)
+    - NEW: Animated sun root with pulsing corona effect
+    - NEW: Planetary rings orbiting phase nodes
+    - NEW: Pattern-based nebula backgrounds (philosophy=purple, business=blue, etc.)
+    - NEW: Right-click context menu for node editing in 3D
+    - NEW: Expand/collapse children, add/delete nodes from 3D view
 
-    Previous (Build 294): ✨ 3D View Node Labels + Cleanup
+    Previous (Build 295): 🎯 Interactive 3D View + Hyperedge Shapes
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
@@ -2918,8 +2920,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 295 | 2025-12-04">
-                    v2.17.0 • Build 295
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 296 | 2025-12-04">
+                    v2.17.0 • Build 296
                 </div>
             </div>
         </div>
@@ -36979,7 +36981,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 295;
+        const CURRENT_BUILD = 296;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37306,16 +37308,126 @@ RULES:
         border: 1px solid rgba(255,255,255,0.1);
         pointer-events: auto;
     }
+
+    /* Floating Tree Title - Screenshot Ready */
+    #title-3d {
+        position: absolute;
+        top: 30px;
+        left: 30px;
+        pointer-events: none;
+        z-index: 100;
+    }
+
+    #title-3d-name {
+        font-family: 'Inter', -apple-system, sans-serif;
+        font-size: 42px;
+        font-weight: 800;
+        color: #ffffff;
+        text-shadow: 0 0 30px rgba(100, 150, 255, 0.5),
+                     0 0 60px rgba(100, 150, 255, 0.3),
+                     0 4px 8px rgba(0, 0, 0, 0.8);
+        letter-spacing: -1px;
+        margin: 0;
+        line-height: 1.1;
+    }
+
+    #title-3d-pattern {
+        font-family: 'Inter', sans-serif;
+        font-size: 14px;
+        font-weight: 500;
+        color: rgba(255, 255, 255, 0.6);
+        text-transform: uppercase;
+        letter-spacing: 3px;
+        margin-top: 8px;
+        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    }
+
+    /* 3D Context Menu */
+    #context-menu-3d {
+        position: absolute;
+        background: rgba(20, 20, 35, 0.95);
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(100, 150, 255, 0.3);
+        border-radius: 12px;
+        padding: 8px 0;
+        min-width: 200px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5),
+                    0 0 20px rgba(100, 150, 255, 0.2);
+        z-index: 1000;
+        display: none;
+        pointer-events: auto;
+    }
+
+    #context-menu-3d.visible {
+        display: block;
+    }
+
+    .context-menu-3d-item {
+        padding: 10px 16px;
+        color: #fff;
+        font-size: 13px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        transition: background 0.15s;
+    }
+
+    .context-menu-3d-item:hover {
+        background: rgba(100, 150, 255, 0.2);
+    }
+
+    .context-menu-3d-item.danger:hover {
+        background: rgba(255, 100, 100, 0.2);
+    }
+
+    .context-menu-3d-divider {
+        height: 1px;
+        background: rgba(255, 255, 255, 0.1);
+        margin: 6px 0;
+    }
+
+    .context-menu-3d-header {
+        padding: 8px 16px;
+        font-size: 11px;
+        color: rgba(255, 255, 255, 0.4);
+        text-transform: uppercase;
+        letter-spacing: 1px;
+    }
 </style>
 
 <div id="view-3d">
+    <!-- Floating Title Overlay -->
+    <div id="title-3d">
+        <h1 id="title-3d-name">Project Title</h1>
+        <div id="title-3d-pattern">Pattern Name</div>
+    </div>
+
+    <!-- Context Menu for Node Editing -->
+    <div id="context-menu-3d">
+        <div class="context-menu-3d-header">Node Actions</div>
+        <div class="context-menu-3d-item" data-action="edit">✏️ Edit Node</div>
+        <div class="context-menu-3d-item" data-action="expand">📂 Expand Children</div>
+        <div class="context-menu-3d-item" data-action="collapse">📁 Collapse Children</div>
+        <div class="context-menu-3d-divider"></div>
+        <div class="context-menu-3d-item" data-action="add-child">➕ Add Child</div>
+        <div class="context-menu-3d-item" data-action="add-sibling">➕ Add Sibling</div>
+        <div class="context-menu-3d-divider"></div>
+        <div class="context-menu-3d-header">Connections</div>
+        <div class="context-menu-3d-item" data-action="add-hyperedge">🔗 Create Hyperedge</div>
+        <div class="context-menu-3d-item" data-action="add-dependency">↗️ Add Dependency</div>
+        <div class="context-menu-3d-divider"></div>
+        <div class="context-menu-3d-item danger" data-action="delete">🗑️ Delete Node</div>
+    </div>
+
+    <!-- Controls -->
     <div id="controls-3d">
         <button class="btn" id="btn-3d-reset">🏠 Reset</button>
         <button class="btn" id="btn-3d-spin">🔄 Spin</button>
         <button class="btn" id="btn-3d-zoom-in">➕ Zoom In</button>
         <button class="btn" id="btn-3d-zoom-out">➖ Zoom Out</button>
         <div style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
-            Click Node: Select & Pivot | Dbl-Click Empty: Reset | Drag: Rotate | Scroll: Zoom
+            Click: Select | Right-Click: Menu | Drag: Rotate | Scroll: Zoom
         </div>
     </div>
 </div>
@@ -37344,6 +37456,10 @@ RULES:
     let raycaster, mouse;
     let selectedMesh = null;
     let selectionGlow = null;
+    let contextMenuNode = null; // Node for context menu actions
+    const expandedNodes = new Set(); // Track which nodes are expanded in 3D
+    let sunCorona = null; // Animated sun corona
+    let coronaTime = 0; // Animation time
 
     // --- Configuration ---
     const CONFIG = {
@@ -37351,6 +37467,17 @@ RULES:
         verticalSpacing: 80,
         phaseSpacingZ: 600,
         colorPalette: [0x5FA463, 0x3B8FCC, 0xD68A2E, 0x8B5CF6, 0xEC4899]
+    };
+
+    // Pattern-based nebula colors
+    const NEBULA_THEMES = {
+        'philosophy': { primary: 0x4a148c, secondary: 0x7b1fa2, accent: 0xce93d8 },
+        'capex': { primary: 0x0d47a1, secondary: 0x1565c0, accent: 0x64b5f6 },
+        'generic': { primary: 0x1a237e, secondary: 0x283593, accent: 0x7986cb },
+        'sales': { primary: 0x004d40, secondary: 0x00695c, accent: 0x4db6ac },
+        'dialogue': { primary: 0x311b92, secondary: 0x4527a0, accent: 0xb39ddb },
+        'film': { primary: 0x880e4f, secondary: 0xad1457, accent: 0xf48fb1 },
+        'default': { primary: 0x0d1b2a, secondary: 0x1b263b, accent: 0x415a77 }
     };
 
     // --- 1. Initialize 3D Button (button is in HTML, we just add handler) ---
@@ -37377,6 +37504,7 @@ RULES:
             view3D.classList.remove('active');
             treeView.classList.remove('hidden');
             btn.style.border = '1px solid var(--border)';
+            hideContextMenu();
         } else {
             // Open 3D
             view3D.classList.add('active');
@@ -37387,6 +37515,25 @@ RULES:
             if (!isInitialized) initThreeJS();
             // Always refresh data on open
             refresh3DData();
+            updateTitle();
+        }
+    }
+
+    // Update floating title from tree data
+    function updateTitle() {
+        const tree = window.capexTree;
+        if (!tree) return;
+
+        const titleEl = document.getElementById('title-3d-name');
+        const patternEl = document.getElementById('title-3d-pattern');
+
+        if (titleEl) {
+            titleEl.textContent = tree.name || 'Untitled Project';
+        }
+        if (patternEl) {
+            const patternName = tree.pattern || 'generic';
+            const displayName = patternName.charAt(0).toUpperCase() + patternName.slice(1).replace(/-/g, ' ');
+            patternEl.textContent = displayName + ' Pattern';
         }
     }
 
@@ -37458,9 +37605,146 @@ RULES:
         renderer.domElement.addEventListener('click', onNodeClick);
         renderer.domElement.addEventListener('dblclick', onNodeDoubleClick);
 
+        // Right-click context menu
+        renderer.domElement.addEventListener('contextmenu', onNodeRightClick);
+        document.addEventListener('click', hideContextMenu);
+        initContextMenuHandlers();
+
         isInitialized = true;
         animate();
         console.log('🧊 Three.js initialized successfully');
+    }
+
+    // Right-click handler for context menu
+    function onNodeRightClick(event) {
+        event.preventDefault();
+
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeMeshes);
+
+        if (intersects.length > 0) {
+            const clickedMesh = intersects[0].object;
+            contextMenuNode = clickedMesh.userData.nodeData;
+            selectNode(clickedMesh);
+            showContextMenu(event.clientX, event.clientY);
+        } else {
+            hideContextMenu();
+        }
+    }
+
+    // Show context menu at position
+    function showContextMenu(x, y) {
+        const menu = document.getElementById('context-menu-3d');
+        if (!menu) return;
+
+        menu.style.left = x + 'px';
+        menu.style.top = y + 'px';
+        menu.classList.add('visible');
+
+        // Update expand/collapse visibility based on node
+        const expandItem = menu.querySelector('[data-action="expand"]');
+        const collapseItem = menu.querySelector('[data-action="collapse"]');
+
+        if (contextMenuNode) {
+            const hasChildren = (contextMenuNode.children && contextMenuNode.children.length > 0) ||
+                              (contextMenuNode.items && contextMenuNode.items.length > 0) ||
+                              (contextMenuNode.subItems && contextMenuNode.subItems.length > 0);
+
+            if (expandItem) expandItem.style.display = hasChildren ? 'flex' : 'none';
+            if (collapseItem) collapseItem.style.display = hasChildren ? 'flex' : 'none';
+        }
+    }
+
+    // Hide context menu
+    function hideContextMenu() {
+        const menu = document.getElementById('context-menu-3d');
+        if (menu) menu.classList.remove('visible');
+        contextMenuNode = null;
+    }
+
+    // Initialize context menu action handlers
+    function initContextMenuHandlers() {
+        const menu = document.getElementById('context-menu-3d');
+        if (!menu) return;
+
+        menu.addEventListener('click', (e) => {
+            const item = e.target.closest('.context-menu-3d-item');
+            if (!item || !contextMenuNode) return;
+
+            const action = item.dataset.action;
+            handleContextMenuAction(action, contextMenuNode);
+            hideContextMenu();
+        });
+    }
+
+    // Handle context menu action
+    function handleContextMenuAction(action, node) {
+        console.log('🧊 Context action:', action, 'on node:', node.name);
+
+        switch (action) {
+            case 'edit':
+                // Open the info panel for editing
+                if (typeof window.showInfo === 'function') {
+                    window.showInfo(node);
+                }
+                // Also try to focus the edit modal if available
+                if (typeof window.editNode === 'function') {
+                    window.editNode(node.id);
+                }
+                break;
+
+            case 'expand':
+                expandedNodes.add(node.id);
+                refresh3DData();
+                break;
+
+            case 'collapse':
+                expandedNodes.delete(node.id);
+                refresh3DData();
+                break;
+
+            case 'add-child':
+                if (typeof window.addChild === 'function') {
+                    window.addChild(node.id);
+                    setTimeout(() => refresh3DData(), 100);
+                }
+                break;
+
+            case 'add-sibling':
+                if (typeof window.addSibling === 'function') {
+                    window.addSibling(node.id);
+                    setTimeout(() => refresh3DData(), 100);
+                }
+                break;
+
+            case 'add-hyperedge':
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Select another node to create hyperedge', 'info');
+                }
+                // Store first node for hyperedge creation
+                window._hyperedgeStartNode = node.id;
+                break;
+
+            case 'add-dependency':
+                if (typeof window.showToast === 'function') {
+                    window.showToast('Select target node for dependency', 'info');
+                }
+                window._dependencyStartNode = node.id;
+                break;
+
+            case 'delete':
+                if (confirm(`Delete "${node.name}"?`)) {
+                    if (typeof window.deleteNode === 'function') {
+                        window.deleteNode(node.id);
+                        setTimeout(() => refresh3DData(), 100);
+                    }
+                }
+                break;
+        }
     }
 
     // Handle click on 3D node
@@ -37542,23 +37826,84 @@ RULES:
     function addStarfield() {
         const geometry = new THREE.BufferGeometry();
         const vertices = [];
-        for (let i = 0; i < 2000; i++) {
+        const colors = [];
+
+        for (let i = 0; i < 3000; i++) {
             vertices.push(
-                THREE.MathUtils.randFloatSpread(4000),
-                THREE.MathUtils.randFloatSpread(4000),
-                THREE.MathUtils.randFloatSpread(4000)
+                THREE.MathUtils.randFloatSpread(5000),
+                THREE.MathUtils.randFloatSpread(5000),
+                THREE.MathUtils.randFloatSpread(5000)
             );
+            // Vary star colors slightly (white to blue-white)
+            const brightness = 0.3 + Math.random() * 0.7;
+            colors.push(brightness, brightness, brightness + Math.random() * 0.2);
         }
         geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
-        const material = new THREE.PointsMaterial({ color: 0x555555, size: 2 });
+        geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+        const material = new THREE.PointsMaterial({
+            size: 2,
+            vertexColors: true,
+            transparent: true,
+            opacity: 0.8
+        });
         const stars = new THREE.Points(geometry, material);
+        stars.userData.isBackground = true;
         scene.add(stars);
+
+        // Add nebula clouds based on pattern
+        addNebulaClouds();
+    }
+
+    // Add nebula clouds for atmosphere
+    function addNebulaClouds() {
+        const tree = window.capexTree;
+        const pattern = tree?.pattern || 'default';
+        const theme = NEBULA_THEMES[pattern] || NEBULA_THEMES['default'];
+
+        // Create multiple nebula cloud layers
+        for (let i = 0; i < 5; i++) {
+            const nebulaGeometry = new THREE.SphereGeometry(1500 + i * 400, 32, 32);
+            const nebulaMaterial = new THREE.MeshBasicMaterial({
+                color: i % 2 === 0 ? theme.primary : theme.secondary,
+                transparent: true,
+                opacity: 0.03 - i * 0.004,
+                side: THREE.BackSide
+            });
+            const nebula = new THREE.Mesh(nebulaGeometry, nebulaMaterial);
+            nebula.position.set(
+                THREE.MathUtils.randFloatSpread(500),
+                THREE.MathUtils.randFloatSpread(500),
+                THREE.MathUtils.randFloatSpread(1000)
+            );
+            nebula.userData.isBackground = true;
+            scene.add(nebula);
+        }
+
+        // Add accent glow spots
+        for (let i = 0; i < 3; i++) {
+            const glowGeometry = new THREE.SphereGeometry(200 + Math.random() * 300, 16, 16);
+            const glowMaterial = new THREE.MeshBasicMaterial({
+                color: theme.accent,
+                transparent: true,
+                opacity: 0.08
+            });
+            const glow = new THREE.Mesh(glowGeometry, glowMaterial);
+            glow.position.set(
+                THREE.MathUtils.randFloatSpread(2000),
+                THREE.MathUtils.randFloatSpread(1500),
+                THREE.MathUtils.randFloatSpread(2000)
+            );
+            glow.userData.isBackground = true;
+            scene.add(glow);
+        }
     }
 
     // --- 4. The Core Logic: Data to 3D ---
     function refresh3DData() {
-        // Clear existing tree objects (keep stars/lights)
-        scene.children = scene.children.filter(obj => obj.type === 'Points' || obj.isLight);
+        // Clear existing tree objects (keep stars/lights/nebula)
+        scene.children = scene.children.filter(obj => obj.type === 'Points' || obj.isLight || obj.userData?.isBackground);
+        sunCorona = null; // Reset corona reference
         // Clear labels
         const labels = document.querySelectorAll('.node-3d-label');
         labels.forEach(el => el.remove()); // DOM cleanup
@@ -37759,16 +38104,28 @@ RULES:
         nodePositions.set(data.id, position);
 
         // Size based on type
-        const size = type === 'root' ? 25 : type === 'phase' ? 18 : type === 'item' ? 12 : 8;
+        const size = type === 'root' ? 30 : type === 'phase' ? 20 : type === 'item' ? 12 : 8;
 
         // Create glowing sphere
         const geometry = new THREE.SphereGeometry(size, 32, 32);
-        const material = new THREE.MeshPhongMaterial({
-            color: colorHex,
-            emissive: colorHex,
-            emissiveIntensity: 0.3,
-            shininess: 100
-        });
+
+        // Special materials for root (sun) and phases (planets)
+        let material;
+        if (type === 'root') {
+            // Sun - bright yellow/orange with intense glow
+            material = new THREE.MeshBasicMaterial({
+                color: 0xffdd44,
+                transparent: false
+            });
+        } else {
+            material = new THREE.MeshPhongMaterial({
+                color: colorHex,
+                emissive: colorHex,
+                emissiveIntensity: 0.3,
+                shininess: 100
+            });
+        }
+
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.copy(position);
         mesh.userData = { nodeData: data, type: type, colorHex: colorHex };
@@ -37777,25 +38134,93 @@ RULES:
         // Track mesh for raycasting
         nodeMeshes.push(mesh);
 
-        // Add text label sprite
-        const label = createTextSprite(data.name, colorHex);
-        label.position.set(x, y + size + 35, z);
-        scene.add(label);
+        // ROOT: Add animated sun corona
+        if (type === 'root') {
+            // Inner corona glow
+            const coronaGeometry1 = new THREE.SphereGeometry(size * 1.4, 32, 32);
+            const coronaMaterial1 = new THREE.MeshBasicMaterial({
+                color: 0xffaa00,
+                transparent: true,
+                opacity: 0.4,
+                side: THREE.BackSide
+            });
+            const corona1 = new THREE.Mesh(coronaGeometry1, coronaMaterial1);
+            corona1.position.copy(position);
+            scene.add(corona1);
 
-        // Add outer glow ring for phases and root
-        if (type === 'phase' || type === 'root') {
-            const ringGeometry = new THREE.RingGeometry(size * 1.5, size * 2, 32);
+            // Outer corona glow (animated)
+            const coronaGeometry2 = new THREE.SphereGeometry(size * 2, 32, 32);
+            const coronaMaterial2 = new THREE.MeshBasicMaterial({
+                color: 0xff6600,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.BackSide
+            });
+            sunCorona = new THREE.Mesh(coronaGeometry2, coronaMaterial2);
+            sunCorona.position.copy(position);
+            scene.add(sunCorona);
+
+            // Sun flare ring
+            const flareGeometry = new THREE.RingGeometry(size * 2.5, size * 3.5, 64);
+            const flareMaterial = new THREE.MeshBasicMaterial({
+                color: 0xffcc00,
+                transparent: true,
+                opacity: 0.15,
+                side: THREE.DoubleSide
+            });
+            const flare = new THREE.Mesh(flareGeometry, flareMaterial);
+            flare.position.copy(position);
+            flare.lookAt(camera.position);
+            scene.add(flare);
+        }
+
+        // PHASE: Add planetary rings
+        if (type === 'phase') {
+            // Main planetary ring
+            const ringGeometry = new THREE.RingGeometry(size * 1.8, size * 2.8, 64);
             const ringMaterial = new THREE.MeshBasicMaterial({
                 color: colorHex,
                 transparent: true,
-                opacity: 0.3,
+                opacity: 0.4,
                 side: THREE.DoubleSide
             });
             const ring = new THREE.Mesh(ringGeometry, ringMaterial);
             ring.position.copy(position);
-            ring.lookAt(camera.position);
+            ring.rotation.x = Math.PI / 2.5; // Tilt the ring
+            ring.rotation.z = Math.random() * 0.5; // Slight random tilt
             scene.add(ring);
+
+            // Outer faint ring
+            const outerRingGeometry = new THREE.RingGeometry(size * 3, size * 3.5, 64);
+            const outerRingMaterial = new THREE.MeshBasicMaterial({
+                color: colorHex,
+                transparent: true,
+                opacity: 0.15,
+                side: THREE.DoubleSide
+            });
+            const outerRing = new THREE.Mesh(outerRingGeometry, outerRingMaterial);
+            outerRing.position.copy(position);
+            outerRing.rotation.x = Math.PI / 2.5;
+            outerRing.rotation.z = ring.rotation.z;
+            scene.add(outerRing);
+
+            // Atmospheric glow
+            const atmoGeometry = new THREE.SphereGeometry(size * 1.15, 32, 32);
+            const atmoMaterial = new THREE.MeshBasicMaterial({
+                color: colorHex,
+                transparent: true,
+                opacity: 0.2,
+                side: THREE.BackSide
+            });
+            const atmosphere = new THREE.Mesh(atmoGeometry, atmoMaterial);
+            atmosphere.position.copy(position);
+            scene.add(atmosphere);
         }
+
+        // Add text label sprite
+        const label = createTextSprite(data.name, type === 'root' ? 0xffdd44 : colorHex);
+        label.position.set(x, y + size + 40, z);
+        scene.add(label);
     }
 
     // Helper: Create Connection Line
@@ -37821,6 +38246,15 @@ RULES:
     function animate() {
         requestAnimationFrame(animate);
 
+        // Animate sun corona pulsing
+        if (sunCorona) {
+            coronaTime += 0.02;
+            const pulse = 1 + Math.sin(coronaTime) * 0.15;
+            sunCorona.scale.setScalar(pulse);
+            sunCorona.material.opacity = 0.15 + Math.sin(coronaTime * 1.5) * 0.08;
+        }
+
+        // Auto-spin
         if (autoSpin && controls) {
             controls.autoRotate = true;
             controls.autoRotateSpeed = 2.0;
