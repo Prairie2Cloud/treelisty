@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 304 | 2025-12-04
+    TreeListy v2.17.0 | Build 305 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 304): 🔍 Search Result Navigation Fix
-    - Clicking search result now properly navigates to node
-    - Node is selected and info panel opens automatically
-    - Ancestors expanded to reveal nested nodes
-    - Enhanced visual highlight with box-shadow glow
-    - Smooth scroll to center the found node
+    Changelog (Build 305): 🐛 TreeBeard Empty Project Bug Fix
+    - Fixed TreeBeard reporting "0 phases, 0 items" on populated trees
+    - Tree counting now checks both 'items' and 'children' properties
+    - Subtask counting also checks 'subItems' and 'children'
+    - Correctly identifies tree structure regardless of data format
 
+    Previous (Build 304): 🔍 Search Result Navigation Fix
     Previous (Build 303): 🔗 Clickable Hyperedges in 3D
     Previous (Build 302): 🐛 Fix False Update Toast
     Previous (Build 301): 🐛 Fix 3D Sort Refresh
@@ -2925,8 +2925,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 304 | 2025-12-04">
-                    v2.17.0 • Build 304
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 305 | 2025-12-04">
+                    v2.17.0 • Build 305
                 </div>
             </div>
         </div>
@@ -20051,7 +20051,7 @@ Return ONLY the JSON array.`
             const treeSummary = wizardState.workingTree.name || 'Empty';
             const phaseCount = (wizardState.workingTree.children || []).length;
             const itemCount = (wizardState.workingTree.children || []).reduce((acc, phase) =>
-                acc + (phase.items || []).length, 0);
+                acc + (phase.items || phase.children || []).length, 0);
 
             // Build detailed existing structure summary for enhance mode
             let existingStructure = '';
@@ -20068,16 +20068,18 @@ Return ONLY the JSON array.`
                     if (phase.subtitle) existingStructure += ` (${phase.subtitle})`;
                     existingStructure += `\n`;
 
-                    if (phase.items && phase.items.length > 0) {
-                        phase.items.forEach(item => {
+                    const phaseItems = phase.items || phase.children || [];
+                    if (phaseItems.length > 0) {
+                        phaseItems.forEach(item => {
                             existingStructure += `  - ${item.name}`;
                             if (item.description) {
                                 existingStructure += `: ${item.description.substring(0, 60)}${item.description.length > 60 ? '...' : ''}`;
                             }
                             existingStructure += `\n`;
 
-                            if (item.subtasks && item.subtasks.length > 0) {
-                                existingStructure += `    (${item.subtasks.length} subtasks)\n`;
+                            const itemSubtasks = item.subtasks || item.subItems || item.children || [];
+                            if (itemSubtasks.length > 0) {
+                                existingStructure += `    (${itemSubtasks.length} subtasks)\n`;
                             }
                         });
                     } else {
@@ -37018,7 +37020,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 304;
+        const CURRENT_BUILD = 305;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
