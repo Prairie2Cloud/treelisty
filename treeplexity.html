@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 308 | 2025-12-04
+    TreeListy v2.17.0 | Build 309 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 308): 🔍 Find Redundancies Command
-    - New "find_redundancies" command in TreeBeard
-    - Fuzzy matching detects similar node names
-    - Groups potential duplicates for easy review
-    - Suggests merge strategy to minimize data loss
+    Changelog (Build 309): 🔀 Actionable Merge Redundancies
+    - "Find redundancies" now has clickable action buttons
+    - View Group / Next Group navigation
+    - "Delete Others" keeps first, removes duplicates
+    - "Auto-Merge All" one-click cleanup (with undo)
+    - executeAction now supports {message, buttons} returns
 
+    Previous (Build 308): 🔍 Find Redundancies Command
     Previous (Build 307): 🐛 TreeBeard Context Fix (children vs phases)
     Previous (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
     Previous (Build 305): 🐛 TreeBeard Empty Project Bug Fix (wizard)
@@ -2928,8 +2930,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 308 | 2025-12-04">
-                    v2.17.0 • Build 308
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 309 | 2025-12-04">
+                    v2.17.0 • Build 309
                 </div>
             </div>
         </div>
@@ -35873,7 +35875,7 @@ ${transcript}`;
             },
 
             // ═══════════════════════════════════════════════════════════════
-            // BUILD 308: FIND REDUNDANCIES - AI-powered duplicate detection
+            // BUILD 308/309: FIND REDUNDANCIES - with actionable merge buttons
             // ═══════════════════════════════════════════════════════════════
             'find_redundancies': async () => {
                 // Collect all nodes with their names/descriptions
@@ -35937,26 +35939,200 @@ ${transcript}`;
                     return '✅ No obvious redundancies found! Your tree looks well-organized.\n\nFor deeper analysis, try AI Review (🔍) which can detect conceptual overlaps.';
                 }
 
-                // Format results
-                let result = `🔍 **Found ${groups.length} potential redundancy group(s):**\n\n`;
-                groups.slice(0, 5).forEach((group, i) => {
-                    result += `**Group ${i + 1}:** "${group[0].name}"\n`;
-                    group.forEach(node => {
-                        result += `  • ${node.name}\n    _${node.path}_\n`;
-                    });
-                    result += '\n';
-                });
+                // Store for navigation
+                window.chatRedundancyGroups = groups;
+                window.chatCurrentGroupIndex = 0;
 
-                if (groups.length > 5) {
-                    result += `_...and ${groups.length - 5} more groups_\n\n`;
+                // Format first group
+                const group = groups[0];
+                let result = `🔍 **Found ${groups.length} redundancy group(s)**\n\n`;
+                result += `**Group 1 of ${groups.length}:** "${group[0].name}"\n\n`;
+                group.forEach((node, i) => {
+                    result += `${i + 1}. **${node.name}**\n   _${node.path}_\n\n`;
+                });
+                result += `\n💡 Review these nodes and keep the most detailed one.`;
+
+                return {
+                    message: result,
+                    buttons: [
+                        { label: '👁️ View Group 1', action: 'view_redundancy_group:0' },
+                        { label: '➡️ Next Group', action: 'next_redundancy_group' },
+                        { label: '🔀 Auto-Merge All', action: 'auto_merge_redundancies' }
+                    ]
+                };
+            },
+
+            // View a specific redundancy group
+            'view_redundancy_group': (indexStr) => {
+                const groups = window.chatRedundancyGroups;
+                if (!groups || groups.length === 0) {
+                    return '⚠️ No redundancy groups found. Run "find redundancies" first.';
                 }
 
-                result += `💡 **To merge:** Select similar nodes, delete duplicates (keep most detailed), and consolidate info into the survivor.`;
+                const index = parseInt(indexStr) || 0;
+                if (index < 0 || index >= groups.length) {
+                    return `❌ Invalid group index. Valid range: 0-${groups.length - 1}`;
+                }
 
-                // Store for potential follow-up
+                window.chatCurrentGroupIndex = index;
+                const group = groups[index];
+
+                // Select all nodes in this group in the canvas
+                window.selectedCanvasNodes = group.map(n => {
+                    // Find actual node object by ID
+                    function findNode(tree, id) {
+                        if (tree.id === id) return tree;
+                        for (const child of (tree.children || tree.items || tree.subItems || [])) {
+                            const found = findNode(child, id);
+                            if (found) return found;
+                        }
+                        return null;
+                    }
+                    return findNode(capexTree, n.id);
+                }).filter(Boolean);
+
+                let result = `📋 **Group ${index + 1} of ${groups.length}:** "${group[0].name}"\n\n`;
+                group.forEach((node, i) => {
+                    const descPreview = node.description ? node.description.substring(0, 80) + '...' : '(no description)';
+                    result += `${i + 1}. **${node.name}**\n   ${descPreview}\n   _${node.path}_\n\n`;
+                });
+
+                result += `\n✅ ${group.length} nodes selected in canvas. Review and delete duplicates.`;
+
+                const buttons = [
+                    { label: `🔍 Find "${group[0].name}"`, action: `find_node:${group[0].name}` }
+                ];
+                if (index > 0) buttons.push({ label: '⬅️ Prev', action: `view_redundancy_group:${index - 1}` });
+                if (index < groups.length - 1) buttons.push({ label: '➡️ Next', action: `view_redundancy_group:${index + 1}` });
+                buttons.push({ label: '🗑️ Delete Others', action: `merge_keep_first:${index}` });
+
+                return { message: result, buttons };
+            },
+
+            // Navigate to next redundancy group
+            'next_redundancy_group': () => {
+                const groups = window.chatRedundancyGroups;
+                if (!groups || groups.length === 0) {
+                    return '⚠️ No redundancy groups. Run "find redundancies" first.';
+                }
+
+                const current = window.chatCurrentGroupIndex || 0;
+                const next = (current + 1) % groups.length;
+                return COMMAND_REGISTRY['view_redundancy_group'](next.toString());
+            },
+
+            // Merge: keep first node, delete others in group
+            'merge_keep_first': (indexStr) => {
+                const groups = window.chatRedundancyGroups;
+                if (!groups || groups.length === 0) {
+                    return '⚠️ No redundancy groups. Run "find redundancies" first.';
+                }
+
+                const index = parseInt(indexStr) || 0;
+                const group = groups[index];
+                if (!group || group.length < 2) {
+                    return '❌ Invalid group.';
+                }
+
+                // Keep first, delete the rest
+                const keeper = group[0];
+                const toDelete = group.slice(1);
+                let deletedCount = 0;
+
+                // Save state before deletion
+                if (typeof saveState === 'function') {
+                    saveState('Merge redundancies - keep ' + keeper.name);
+                }
+
+                toDelete.forEach(nodeInfo => {
+                    // Find and delete node
+                    function deleteFromTree(parent, targetId) {
+                        const childArrays = ['children', 'items', 'subItems'];
+                        for (const prop of childArrays) {
+                            if (parent[prop]) {
+                                const idx = parent[prop].findIndex(c => c.id === targetId);
+                                if (idx !== -1) {
+                                    parent[prop].splice(idx, 1);
+                                    deletedCount++;
+                                    return true;
+                                }
+                                for (const child of parent[prop]) {
+                                    if (deleteFromTree(child, targetId)) return true;
+                                }
+                            }
+                        }
+                        return false;
+                    }
+                    deleteFromTree(capexTree, nodeInfo.id);
+                });
+
+                // Re-render
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                // Remove this group from the list
+                groups.splice(index, 1);
                 window.chatRedundancyGroups = groups;
 
-                return result;
+                const result = `✅ Merged! Kept "${keeper.name}", deleted ${deletedCount} duplicate(s).\n\n${groups.length} groups remaining.`;
+
+                if (groups.length > 0) {
+                    return {
+                        message: result,
+                        buttons: [
+                            { label: '➡️ Next Group', action: 'view_redundancy_group:0' },
+                            { label: '🔀 Auto-Merge All', action: 'auto_merge_redundancies' }
+                        ]
+                    };
+                }
+                return result + '\n\n🎉 All redundancies resolved!';
+            },
+
+            // Auto-merge all redundancy groups (keeps first in each)
+            'auto_merge_redundancies': () => {
+                const groups = window.chatRedundancyGroups;
+                if (!groups || groups.length === 0) {
+                    return '⚠️ No redundancy groups. Run "find redundancies" first.';
+                }
+
+                if (typeof saveState === 'function') {
+                    saveState('Auto-merge all redundancies');
+                }
+
+                let totalDeleted = 0;
+                const kept = [];
+
+                groups.forEach(group => {
+                    kept.push(group[0].name);
+                    group.slice(1).forEach(nodeInfo => {
+                        function deleteFromTree(parent, targetId) {
+                            const childArrays = ['children', 'items', 'subItems'];
+                            for (const prop of childArrays) {
+                                if (parent[prop]) {
+                                    const idx = parent[prop].findIndex(c => c.id === targetId);
+                                    if (idx !== -1) {
+                                        parent[prop].splice(idx, 1);
+                                        totalDeleted++;
+                                        return true;
+                                    }
+                                    for (const child of parent[prop]) {
+                                        if (deleteFromTree(child, targetId)) return true;
+                                    }
+                                }
+                            }
+                            return false;
+                        }
+                        deleteFromTree(capexTree, nodeInfo.id);
+                    });
+                });
+
+                // Re-render
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                window.chatRedundancyGroups = [];
+
+                return `🎉 **Auto-merge complete!**\n\nDeleted ${totalDeleted} duplicate nodes across ${groups.length} groups.\n\nKept: ${kept.slice(0, 5).join(', ')}${kept.length > 5 ? ` ...and ${kept.length - 5} more` : ''}\n\n💡 Use Undo if you need to revert.`;
             }
         };
 
@@ -36582,7 +36758,12 @@ RULES:
                 try {
                     const result = await command(commandParam);
                     if (result) {
-                        addMessage(result, 'assistant');
+                        // BUILD 309: Support commands returning {message, buttons}
+                        if (typeof result === 'object' && result.message) {
+                            addMessage(result.message, 'assistant', result.buttons || null);
+                        } else {
+                            addMessage(result, 'assistant');
+                        }
                     }
                 } catch (error) {
                     addMessage(`❌ Error: ${error.message}`, 'error');
@@ -37132,7 +37313,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 308;
+        const CURRENT_BUILD = 309;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
