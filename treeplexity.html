@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 299 | 2025-12-04
+    TreeListy v2.17.0 | Build 300 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 299): 🖱️ 3D Usability - Hover & Interaction
-    - Node labels now clickable (extended hit area for selection)
-    - Hover magnification effect on nodes (subtle scale animation)
-    - Info tooltip on hover showing node name, type, description
-    - Proximity focus dims distant nodes when hovering
+    Changelog (Build 300): 🎯 Sort-Aware 3D Layouts
+    - Sort selection now radically changes 3D layout:
+      • Helix (default): Original spiral layout when no sort
+      • Tower: Numeric sorts arrange by value (higher = taller)
+      • Cluster: Category sorts group items into spatial clusters
+      • Timeline: Date sorts arrange along time axis
+    - Each layout transforms the space exploration experience
 
+    Previous (Build 299): 🖱️ 3D Usability - Hover & Interaction
     Previous (Build 298): ✨ 3D Title Polish
     Previous (Build 297): 🎯 3D Quick Wins - Dependencies & View State
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
@@ -2919,8 +2922,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 299 | 2025-12-04">
-                    v2.17.0 • Build 299
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 300 | 2025-12-04">
+                    v2.17.0 • Build 300
                 </div>
             </div>
         </div>
@@ -34216,6 +34219,12 @@ STRATEGIES:
 
                 renderCanvas();
                 console.log('Canvas sorted by:', sortConfig, '- Canvas layout updated and repositioned');
+            } else if (viewMode === '3d') {
+                // Refresh 3D view with new sort-based layout
+                if (typeof window.refresh3DData === 'function') {
+                    window.refresh3DData();
+                    console.log('3D sorted by:', sortConfig, '- 3D layout transformed');
+                }
             } else {
                 render();
                 console.log('Tree sorted by:', sortConfig, '- Visual layout updated');
@@ -37542,6 +37551,36 @@ RULES:
         'default': { primary: 0x0d1b2a, secondary: 0x1b263b, accent: 0x415a77 }
     };
 
+    // Determine 3D layout mode based on sort configuration
+    function determineLayoutMode(sortConfig) {
+        if (!sortConfig || !sortConfig.field) return 'helix'; // Default
+
+        const type = sortConfig.type || 'string';
+        const field = sortConfig.field.toLowerCase();
+
+        // Check for date fields
+        if (type === 'date' || field.includes('date') || field.includes('time') ||
+            field === 'created' || field === 'modified' || field === 'deadline') {
+            return 'timeline';
+        }
+
+        // Check for numeric fields
+        if (type === 'number' || type === 'currency' || type === 'percentage' ||
+            field.includes('cost') || field.includes('price') || field.includes('amount') ||
+            field.includes('budget') || field.includes('value') || field.includes('score') ||
+            field.includes('priority') || field.includes('rank') || field.includes('rating')) {
+            return 'tower';
+        }
+
+        // Check for boolean - use cluster
+        if (type === 'boolean') {
+            return 'cluster';
+        }
+
+        // Default to cluster for string/category fields
+        return 'cluster';
+    }
+
     // --- 1. Initialize 3D Button (button is in HTML, we just add handler) ---
     function init3DButton() {
         const btn = document.getElementById('toggle-3d-mode');
@@ -38236,54 +38275,225 @@ RULES:
         // --- Render Root ---
         createNode(tree, 0, 0, 0, 0xffffff, 'root');
 
-        // --- Render Phases & Items (Helix Layout) ---
+        // --- Determine Layout Mode based on Sort ---
+        const sortConfig = window.currentSortConfig;
+        const layoutMode = determineLayoutMode(sortConfig);
+
+        // --- Render Phases & Items based on Layout Mode ---
         if (tree.children) {
             let globalItemIndex = 0;
+            let allItems = []; // Collect all items for sorted layouts
 
-            tree.children.forEach((phase, pIdx) => {
-                const phaseColor = CONFIG.colorPalette[pIdx % CONFIG.colorPalette.length];
-                const phaseZ = (pIdx + 1) * CONFIG.phaseSpacingZ; // Phases spaced by depth
+            // Collect all items with their phase info for sorted layouts
+            if (layoutMode !== 'helix') {
+                tree.children.forEach((phase, pIdx) => {
+                    const phaseColor = CONFIG.colorPalette[pIdx % CONFIG.colorPalette.length];
+                    if (phase.items) {
+                        phase.items.forEach(item => {
+                            allItems.push({ item, phase, pIdx, phaseColor });
+                        });
+                    }
+                });
+            }
 
-                // Render Phase Marker (Central Pillar)
-                createNode(phase, 0, 0, phaseZ, phaseColor, 'phase');
+            if (layoutMode === 'helix') {
+                // DEFAULT: Original Helix Layout
+                tree.children.forEach((phase, pIdx) => {
+                    const phaseColor = CONFIG.colorPalette[pIdx % CONFIG.colorPalette.length];
+                    const phaseZ = (pIdx + 1) * CONFIG.phaseSpacingZ;
 
-                // Draw line from Root to Phase 0, or Phase N to Phase N+1
-                const prevPos = pIdx === 0 ? new THREE.Vector3(0,0,0) : new THREE.Vector3(0,0, pIdx * CONFIG.phaseSpacingZ);
-                createConnection(prevPos, new THREE.Vector3(0,0, phaseZ), 0x555555, 1);
+                    createNode(phase, 0, 0, phaseZ, phaseColor, 'phase');
 
-                // Render Items in Helix
-                if (phase.items) {
-                    phase.items.forEach((item, iIdx) => {
-                        const angle = globalItemIndex * 0.8; // Spiral tightness
-                        const radius = CONFIG.helixRadius;
+                    const prevPos = pIdx === 0 ? new THREE.Vector3(0,0,0) : new THREE.Vector3(0,0, pIdx * CONFIG.phaseSpacingZ);
+                    createConnection(prevPos, new THREE.Vector3(0,0, phaseZ), 0x555555, 1);
 
-                        const x = Math.cos(angle) * radius;
-                        const y = (iIdx * CONFIG.verticalSpacing) - ((phase.items.length * CONFIG.verticalSpacing)/2); // Center vertically
-                        const z = phaseZ + (Math.sin(angle) * 100); // Slight z-wobble for depth
+                    if (phase.items) {
+                        phase.items.forEach((item, iIdx) => {
+                            const angle = globalItemIndex * 0.8;
+                            const radius = CONFIG.helixRadius;
+                            const x = Math.cos(angle) * radius;
+                            const y = (iIdx * CONFIG.verticalSpacing) - ((phase.items.length * CONFIG.verticalSpacing)/2);
+                            const z = phaseZ + (Math.sin(angle) * 100);
 
-                        createNode(item, x, y, z, phaseColor, 'item');
+                            createNode(item, x, y, z, phaseColor, 'item');
+                            createConnection(new THREE.Vector3(0,0,phaseZ), new THREE.Vector3(x,y,z), phaseColor, 0.3);
 
-                        // Connect to Phase Center
-                        createConnection(new THREE.Vector3(0,0,phaseZ), new THREE.Vector3(x,y,z), phaseColor, 0.3);
+                            renderSubtasks(item, x, y, z, phaseColor);
+                            globalItemIndex++;
+                        });
+                    }
+                });
 
-                        // --- Subtasks (Orbiting Satellites) ---
-                        if (item.subItems) {
-                            item.subItems.forEach((sub, sIdx) => {
-                                const subRadius = 120;
-                                const subAngle = (sIdx / item.subItems.length) * Math.PI * 2;
-                                const sx = x + Math.cos(subAngle) * subRadius;
-                                const sy = y + Math.sin(subAngle) * subRadius;
-                                const sz = z + 50; // Pop out
+            } else if (layoutMode === 'tower') {
+                // NUMERIC SORT: Tower/Skyscraper Layout - Y position = value
+                const field = sortConfig.field;
+                const values = allItems.map(a => parseFloat(a.item[field]) || 0);
+                const maxVal = Math.max(...values, 1);
+                const minVal = Math.min(...values, 0);
+                const range = maxVal - minVal || 1;
 
-                                createNode(sub, sx, sy, sz, phaseColor, 'subtask');
-                                createConnection(new THREE.Vector3(x,y,z), new THREE.Vector3(sx,sy,sz), phaseColor, 0.2);
-                            });
-                        }
+                // Render phases as rings at base
+                tree.children.forEach((phase, pIdx) => {
+                    const phaseColor = CONFIG.colorPalette[pIdx % CONFIG.colorPalette.length];
+                    const ringAngle = (pIdx / tree.children.length) * Math.PI * 2;
+                    const ringRadius = 300;
+                    const px = Math.cos(ringAngle) * ringRadius;
+                    const pz = Math.sin(ringAngle) * ringRadius;
+                    createNode(phase, px, -200, pz, phaseColor, 'phase');
+                    createConnection(new THREE.Vector3(0,0,0), new THREE.Vector3(px,-200,pz), 0x555555, 0.5);
+                });
 
-                        globalItemIndex++;
+                // Items arranged by value - higher value = higher position
+                allItems.forEach((a, idx) => {
+                    const val = parseFloat(a.item[field]) || 0;
+                    const normalizedY = ((val - minVal) / range) * 800 - 200; // -200 to 600
+                    const angle = (idx / allItems.length) * Math.PI * 2;
+                    const radius = 200 + (normalizedY + 200) * 0.3; // Wider at top
+                    const x = Math.cos(angle) * radius;
+                    const z = Math.sin(angle) * radius;
+
+                    createNode(a.item, x, normalizedY, z, a.phaseColor, 'item');
+
+                    // Connect to center pillar at same height
+                    createConnection(new THREE.Vector3(0, normalizedY, 0), new THREE.Vector3(x, normalizedY, z), a.phaseColor, 0.2);
+
+                    renderSubtasks(a.item, x, normalizedY, z, a.phaseColor);
+                });
+
+                // Add central pillar
+                const pillarGeometry = new THREE.CylinderGeometry(5, 5, 1000, 16);
+                const pillarMaterial = new THREE.MeshBasicMaterial({ color: 0x444444, transparent: true, opacity: 0.3 });
+                const pillar = new THREE.Mesh(pillarGeometry, pillarMaterial);
+                pillar.position.set(0, 200, 0);
+                scene.add(pillar);
+
+            } else if (layoutMode === 'cluster') {
+                // CATEGORY SORT: Cluster Layout - Group by value
+                const field = sortConfig.field;
+                const groups = {};
+
+                allItems.forEach(a => {
+                    const key = String(a.item[field] || 'Unknown');
+                    if (!groups[key]) groups[key] = [];
+                    groups[key].push(a);
+                });
+
+                const groupKeys = Object.keys(groups);
+                const groupColors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3, 0xaa96da, 0xf38181, 0x6c5ce7, 0x00b894];
+
+                // Render phases in center ring
+                tree.children.forEach((phase, pIdx) => {
+                    const phaseColor = CONFIG.colorPalette[pIdx % CONFIG.colorPalette.length];
+                    const angle = (pIdx / tree.children.length) * Math.PI * 2;
+                    const px = Math.cos(angle) * 150;
+                    const pz = Math.sin(angle) * 150;
+                    createNode(phase, px, 0, pz, phaseColor, 'phase');
+                    createConnection(new THREE.Vector3(0,0,0), new THREE.Vector3(px,0,pz), 0x555555, 0.5);
+                });
+
+                // Each group gets its own cluster sphere in space
+                groupKeys.forEach((key, gIdx) => {
+                    const groupItems = groups[key];
+                    const groupAngle = (gIdx / groupKeys.length) * Math.PI * 2;
+                    const groupRadius = 600;
+                    const groupColor = groupColors[gIdx % groupColors.length];
+
+                    // Group center position
+                    const gx = Math.cos(groupAngle) * groupRadius;
+                    const gz = Math.sin(groupAngle) * groupRadius;
+                    const gy = 0;
+
+                    // Create group marker (larger translucent sphere)
+                    const groupGeometry = new THREE.SphereGeometry(80, 32, 32);
+                    const groupMaterial = new THREE.MeshBasicMaterial({
+                        color: groupColor,
+                        transparent: true,
+                        opacity: 0.15
                     });
-                }
-            });
+                    const groupSphere = new THREE.Mesh(groupGeometry, groupMaterial);
+                    groupSphere.position.set(gx, gy, gz);
+                    scene.add(groupSphere);
+
+                    // Add group label
+                    const groupLabel = createTextSprite(key, groupColor);
+                    groupLabel.position.set(gx, gy + 120, gz);
+                    groupLabel.scale.set(250, 60, 1);
+                    scene.add(groupLabel);
+
+                    // Connect group to root
+                    createConnection(new THREE.Vector3(0,0,0), new THREE.Vector3(gx, gy, gz), groupColor, 0.15);
+
+                    // Arrange items within the group cluster
+                    groupItems.forEach((a, iIdx) => {
+                        const itemAngle = (iIdx / groupItems.length) * Math.PI * 2;
+                        const itemRadius = 60 + groupItems.length * 8;
+                        const ix = gx + Math.cos(itemAngle) * itemRadius;
+                        const iy = gy + (Math.random() - 0.5) * 100;
+                        const iz = gz + Math.sin(itemAngle) * itemRadius;
+
+                        createNode(a.item, ix, iy, iz, a.phaseColor, 'item');
+                        createConnection(new THREE.Vector3(gx, gy, gz), new THREE.Vector3(ix, iy, iz), a.phaseColor, 0.2);
+
+                        renderSubtasks(a.item, ix, iy, iz, a.phaseColor);
+                    });
+                });
+
+            } else if (layoutMode === 'timeline') {
+                // DATE SORT: Timeline Layout - Z position = time
+                const field = sortConfig.field;
+                const dates = allItems.map(a => new Date(a.item[field] || 0).getTime());
+                const minDate = Math.min(...dates);
+                const maxDate = Math.max(...dates);
+                const dateRange = maxDate - minDate || 1;
+
+                // Render phases as waypoints along timeline
+                tree.children.forEach((phase, pIdx) => {
+                    const phaseColor = CONFIG.colorPalette[pIdx % CONFIG.colorPalette.length];
+                    const phaseZ = (pIdx / tree.children.length) * 1500 - 500;
+                    createNode(phase, 0, 100, phaseZ, phaseColor, 'phase');
+                });
+
+                // Items arranged along Z-axis by date
+                allItems.forEach((a, idx) => {
+                    const dateVal = new Date(a.item[field] || 0).getTime();
+                    const normalizedZ = ((dateVal - minDate) / dateRange) * 1500 - 500;
+                    const angle = idx * 0.5;
+                    const radius = 250;
+                    const x = Math.cos(angle) * radius;
+                    const y = Math.sin(angle) * 80;
+
+                    createNode(a.item, x, y, normalizedZ, a.phaseColor, 'item');
+
+                    // Connect to timeline axis
+                    createConnection(new THREE.Vector3(0, 0, normalizedZ), new THREE.Vector3(x, y, normalizedZ), a.phaseColor, 0.2);
+
+                    renderSubtasks(a.item, x, y, normalizedZ, a.phaseColor);
+                });
+
+                // Add timeline axis
+                const axisGeometry = new THREE.CylinderGeometry(3, 3, 1600, 8);
+                const axisMaterial = new THREE.MeshBasicMaterial({ color: 0x666666, transparent: true, opacity: 0.5 });
+                const axis = new THREE.Mesh(axisGeometry, axisMaterial);
+                axis.rotation.x = Math.PI / 2;
+                axis.position.set(0, 0, 250);
+                scene.add(axis);
+            }
+        }
+
+        // Helper: Render subtasks for an item
+        function renderSubtasks(item, x, y, z, phaseColor) {
+            if (item.subItems) {
+                item.subItems.forEach((sub, sIdx) => {
+                    const subRadius = 120;
+                    const subAngle = (sIdx / item.subItems.length) * Math.PI * 2;
+                    const sx = x + Math.cos(subAngle) * subRadius;
+                    const sy = y + Math.sin(subAngle) * subRadius;
+                    const sz = z + 50;
+
+                    createNode(sub, sx, sy, sz, phaseColor, 'subtask');
+                    createConnection(new THREE.Vector3(x,y,z), new THREE.Vector3(sx,sy,sz), phaseColor, 0.2);
+                });
+            }
         }
 
         // --- Render Hyperedges (3D Tube Shapes) ---
@@ -38701,6 +38911,9 @@ RULES:
 
     // Also try after a short delay as fallback
     setTimeout(init3DButton, 500);
+
+    // Expose refresh3DData to global scope for sort integration
+    window.refresh3DData = refresh3DData;
 
 })(); // End IIFE
 </script>
