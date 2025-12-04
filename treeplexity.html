@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 283 | 2025-12-04
+    TreeListy v2.17.0 | Build 284 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 283): 🔗 Smart Hyperedge Labels + Fix Deep Dive
-    - FIX: Hyperedge labels now derive from description (<5 words) instead of "Unnamed"
-    - FIX: Deep Dive from hyperedge modal now works (uses handleAnalyzeSelection)
-    - NEW: getHyperedgeDisplayLabel() - smart label derivation from description/type
+    Changelog (Build 284): 💾 Version Conflict Detection + Unsaved Warning
+    - NEW: When loading JSON, detects if LocalStorage has newer version
+    - NEW: Conflict dialog shows both versions with timestamps and item counts
+    - NEW: User can choose to load file (older) or local (newer) version
+    - NEW: beforeunload warning when closing browser with unsaved changes
+    - NEW: loadTreeData() centralized function for consistent tree loading
 
+    Previous (Build 283): 🔗 Smart Hyperedge Labels + Fix Deep Dive
     Previous (Build 282): 🔗 Editable Hyperedges + Deep Dive Button
     Previous (Build 281): 🔧 Remove Share API Keys Feature
-    Previous (Build 280): 🔄 Auto-Update Notification System
 
     Previous (Build 275): 🔧 Debug Host Chat Box + Improved Logging
     - Auto-close Live Sync modal when first guest connects
@@ -2912,8 +2914,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 283 | 2025-12-04">
-                    v2.17.0 • Build 283
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 284 | 2025-12-04">
+                    v2.17.0 • Build 284
                 </div>
             </div>
         </div>
@@ -17559,6 +17561,175 @@ Your response:`;
         }
 
         // =============================================================================
+        // BUILD 284: LOAD TREE DATA FUNCTION - Centralized tree loading
+        // =============================================================================
+
+        /**
+         * Load tree data into capexTree and update UI
+         * Used by JSON upload, version conflict resolution, and other loaders
+         */
+        function loadTreeData(data) {
+            // Replace the tree data
+            Object.assign(capexTree, data);
+
+            // Restore pattern if saved
+            if (capexTree.pattern) {
+                // Handle both string and object formats
+                if (typeof capexTree.pattern === 'string') {
+                    currentPattern = capexTree.pattern;
+                } else if (capexTree.pattern.key) {
+                    currentPattern = getPatternKey(capexTree.pattern);
+                    if (currentPattern === 'custom' && capexTree.pattern.labels) {
+                        customPatternNames = capexTree.pattern.labels;
+                    }
+                }
+
+                const patternSelect = document.getElementById('pattern-select');
+                if (patternSelect) {
+                    patternSelect.value = currentPattern;
+                }
+
+                console.log('Pattern loaded from file:', currentPattern);
+                updateSortDropdown();
+
+                if (typeof updateClusterByOptions === 'function') {
+                    updateClusterByOptions();
+                }
+            } else {
+                console.log('No pattern in file, using current:', currentPattern);
+                updateSortDropdown();
+
+                if (typeof updateClusterByOptions === 'function') {
+                    updateClusterByOptions();
+                }
+            }
+
+            render();
+
+            // Apply default sort for filesystem pattern
+            if (currentPattern === 'filesystem') {
+                sortTree(null);
+            }
+
+            // Mark tree manager as having this tree loaded
+            if (window.treeManager) {
+                window.treeManager.currentTreeId = data.id;
+                window.treeManager.hasUnsavedChanges = false;
+            }
+        }
+
+        /**
+         * BUILD 284: Show version conflict dialog
+         * When loading a file that has a newer version in LocalStorage
+         */
+        function showVersionConflictDialog(options) {
+            const { treeId, treeName, fileData, fileDate, localData, localDate, localItemCount } = options;
+
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+
+            // Count items in file
+            let fileItemCount = 0;
+            if (fileData.children) {
+                fileData.children.forEach(phase => {
+                    if (phase.items) {
+                        fileItemCount += phase.items.length;
+                        phase.items.forEach(item => {
+                            if (item.subItems) fileItemCount += item.subItems.length;
+                        });
+                    }
+                });
+            }
+
+            modalBody.innerHTML = `
+                <div style="padding: 30px; max-width: 550px;">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                        <div style="font-size: 48px;">⚠️</div>
+                        <div>
+                            <h3 style="color: #F59E0B; margin-bottom: 4px;">Newer Version Found Locally</h3>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                "${treeName}" has a more recent version in your browser
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                        <!-- File Version -->
+                        <div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
+                            <div style="font-size: 11px; color: rgba(239, 68, 68, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📁 File Version (Older)</div>
+                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">Modified: ${fileDate}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${fileItemCount} items</div>
+                        </div>
+
+                        <!-- Local Version -->
+                        <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
+                            <div style="font-size: 11px; color: rgba(16, 185, 129, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">💾 Local Version (Newer)</div>
+                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">Modified: ${localDate}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${localItemCount} items</div>
+                        </div>
+                    </div>
+
+                    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; line-height: 1.6;">
+                        Your browser has auto-saved changes that aren't in the file you're loading.
+                        Which version would you like to use?
+                    </p>
+
+                    <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+                        <button onclick="document.getElementById('modal').style.display='none'"
+                            style="padding: 10px 20px; background: rgba(107, 114, 128, 0.2); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            Cancel
+                        </button>
+                        <button onclick="loadVersionChoice('file')"
+                            style="padding: 10px 20px; background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            📁 Load File (Older)
+                        </button>
+                        <button onclick="loadVersionChoice('local', '${treeId}')"
+                            style="padding: 10px 20px; background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            💾 Load Local (Newer)
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Store file data for potential loading
+            window._pendingFileData = fileData;
+
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * BUILD 284: Handle version choice from conflict dialog
+         */
+        function loadVersionChoice(choice, treeId) {
+            document.getElementById('modal').style.display = 'none';
+
+            if (choice === 'file') {
+                // Load the file version from stored pending data
+                const data = window._pendingFileData;
+                if (data) {
+                    loadTreeData(data);
+                    showToast(`Loaded file version: ${data.name || 'Tree'}`, 'success');
+                }
+            } else if (choice === 'local') {
+                // Load from LocalStorage
+                const localTree = localStorage.getItem(`treelisty:tree:${treeId}`);
+                if (localTree) {
+                    try {
+                        const data = JSON.parse(localTree);
+                        migrateTree(data);
+                        loadTreeData(data);
+                        showToast(`Loaded local version: ${data.name || 'Tree'}`, 'success');
+                    } catch (err) {
+                        showToast('Failed to load local version', 'error');
+                    }
+                }
+            }
+
+            // Cleanup
+            window._pendingFileData = null;
+        }
+
+        // =============================================================================
         // TREE MANAGER - Save/Load with Auto-Save & Organized Folders
         // =============================================================================
 
@@ -17796,6 +17967,16 @@ Your response:`;
         window.treeManager = treeManager;
         window.addEventListener('DOMContentLoaded', () => {
             treeManager.initialize();
+        });
+
+        // BUILD 284: Warn user before closing if there are unsaved changes
+        window.addEventListener('beforeunload', (e) => {
+            if (treeManager.hasUnsavedChanges) {
+                const message = 'You have unsaved changes. Are you sure you want to leave?';
+                e.preventDefault();
+                e.returnValue = message;
+                return message;
+            }
         });
 
         // Enhanced save function
@@ -18639,60 +18820,50 @@ Return ONLY the JSON array.`
                 reader.onload = (event) => {
                     try {
                         const data = JSON.parse(event.target.result);
-                        
+
                         // Migrate tree to current schema (Cognitive Citadel Foundation)
                         migrateTree(data);
-                        
+
                         // Validate basic structure
                         if (data.id && data.children) {
-                            // Replace the tree data
-                            Object.assign(capexTree, data);
+                            // BUILD 284: Check for newer LocalStorage version
+                            const treeId = data.id || 'default';
+                            const localStorageKey = `treelisty:tree:${treeId}`;
+                            const localMetaKey = `treelisty:meta:${treeId}`;
+                            const localTree = localStorage.getItem(localStorageKey);
+                            const localMeta = localStorage.getItem(localMetaKey);
 
-                            // Restore pattern if saved
-                            if (capexTree.pattern) {
-                                // Handle both string and object formats
-                                if (typeof capexTree.pattern === 'string') {
-                                    currentPattern = capexTree.pattern;
-                                } else if (capexTree.pattern.key) {
-                                    currentPattern = getPatternKey(capexTree.pattern);
-                                    if (currentPattern === 'custom' && capexTree.pattern.labels) {
-                                        customPatternNames = capexTree.pattern.labels;
+                            if (localTree && localMeta) {
+                                try {
+                                    const localMetaData = JSON.parse(localMeta);
+                                    const fileLastModified = data.metadata?.lastModified || data.lastModified || 0;
+                                    const localLastModified = localMetaData.lastModified || 0;
+
+                                    // If local version is newer, show conflict dialog
+                                    if (localLastModified > fileLastModified) {
+                                        const localDate = new Date(localLastModified).toLocaleString();
+                                        const fileDate = fileLastModified ? new Date(fileLastModified).toLocaleString() : 'Unknown';
+
+                                        showVersionConflictDialog({
+                                            treeId,
+                                            treeName: data.name || 'Untitled',
+                                            fileData: data,
+                                            fileDate,
+                                            localData: JSON.parse(localTree),
+                                            localDate,
+                                            localItemCount: localMetaData.itemCount || 0
+                                        });
+                                        e.target.value = '';
+                                        return; // Don't load file yet - wait for user choice
                                     }
-                                }
-
-                                const patternSelect = document.getElementById('pattern-select');
-                                if (patternSelect) {
-                                    patternSelect.value = currentPattern;
-                                }
-
-                                console.log('Pattern loaded from file:', currentPattern);
-
-                                // Update sort dropdown immediately after setting pattern
-                                updateSortDropdown();
-
-                                // Update cluster-by dropdown for loaded pattern
-                                if (typeof updateClusterByOptions === 'function') {
-                                    updateClusterByOptions();
-                                }
-                            } else {
-                                // No pattern in file - use current pattern
-                                console.log('No pattern in file, using current:', currentPattern);
-                                updateSortDropdown();
-
-                                // Update cluster-by dropdown for current pattern
-                                if (typeof updateClusterByOptions === 'function') {
-                                    updateClusterByOptions();
+                                } catch (parseErr) {
+                                    console.warn('Could not parse local metadata:', parseErr);
                                 }
                             }
 
-                            render();
-
-                            // Apply default sort for filesystem pattern (folders first + alphabetical)
-                            if (currentPattern === 'filesystem') {
-                                sortTree(null); // This will trigger the default filesystem sort
-                            }
-
-                            alert('JSON loaded successfully!');
+                            // No conflict - proceed with loading
+                            loadTreeData(data);
+                            showToast(`Loaded: ${data.name || 'Tree'}`, 'success');
                         } else {
                             alert('Invalid JSON structure. Must have "id" and "children" properties.');
                         }
@@ -36754,7 +36925,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 283;
+        const CURRENT_BUILD = 284;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
