@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 293 | 2025-12-04
+    TreeListy v2.17.0 | Build 294 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 293): 🐛 Fix 3D Rendering
-    - FIX: Switch to Three.js r128 for better compatibility
-    - FIX: Removed CSS2DRenderer (causing errors), use glowing spheres
-    - FIX: Added proper scene background and camera lookAt
-    - Added console logging for debugging
+    Changelog (Build 294): ✨ 3D View Node Labels + Cleanup
+    - NEW: Node labels in 3D View using canvas-based text sprites
+    - REMOVED: Fly Mode (standard 3D manipulation via OrbitControls is sufficient)
+    - Labels positioned above nodes with colored borders matching node color
 
-    Previous (Build 292): 🐛 Fix Three.js Loading (CDN)
+    Previous (Build 293): 🐛 Fix 3D Rendering
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
@@ -2918,8 +2917,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 293 | 2025-12-04">
-                    v2.17.0 • Build 293
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 294 | 2025-12-04">
+                    v2.17.0 • Build 294
                 </div>
             </div>
         </div>
@@ -36979,7 +36978,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 293;
+        const CURRENT_BUILD = 294;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37314,8 +37313,7 @@ RULES:
         <button class="btn" id="btn-3d-spin">🔄 Spin</button>
         <button class="btn" id="btn-3d-zoom-in">➕ Zoom In</button>
         <button class="btn" id="btn-3d-zoom-out">➖ Zoom Out</button>
-        <button class="btn" id="btn-3d-fly">🚀 Fly Mode</button>
-        <div id="controls-3d-hint" style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
+        <div style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
             Left Drag: Rotate | Right Drag: Pan | Scroll: Zoom
         </div>
     </div>
@@ -37340,20 +37338,7 @@ RULES:
     let camera, scene, renderer, controls;
     let isInitialized = false;
     let autoSpin = false;
-    let flyMode = false;
     const nodePositions = new Map(); // Store positions for drawing lines
-
-    // Fly mode controls (mouse-based)
-    const flyState = {
-        isDragging: false,
-        isRightDragging: false,
-        lastMouseX: 0,
-        lastMouseY: 0,
-        yaw: 0,      // Horizontal rotation
-        pitch: 0,    // Vertical rotation
-        flySpeed: 15,
-        lookSensitivity: 0.003
-    };
 
     // --- Configuration ---
     const CONFIG = {
@@ -37460,118 +37445,9 @@ RULES:
             camera.position.multiplyScalar(1.25);
         });
 
-        // Fly mode toggle
-        const flyBtn = document.getElementById('btn-3d-fly');
-        const hint = document.getElementById('controls-3d-hint');
-        flyBtn.addEventListener('click', () => {
-            flyMode = !flyMode;
-            flyBtn.style.background = flyMode ? '#f59e0b' : '';
-            if (flyMode) {
-                controls.enabled = false; // Disable orbit controls in fly mode
-                hint.textContent = 'Fly Mode: Drag to look | Scroll to fly forward/back | Right-drag to strafe';
-            } else {
-                controls.enabled = true;
-                hint.textContent = 'Left Drag: Rotate | Right Drag: Pan | Scroll: Zoom';
-                // Reset fly state
-                flyState.isDragging = false;
-                flyState.isRightDragging = false;
-            }
-        });
-
-        // Mouse controls for fly mode
-        const flyContainer = document.getElementById('view-3d');
-
-        flyContainer.addEventListener('mousedown', (e) => {
-            if (!flyMode) return;
-            if (e.button === 0) { // Left click
-                flyState.isDragging = true;
-                flyState.lastMouseX = e.clientX;
-                flyState.lastMouseY = e.clientY;
-            } else if (e.button === 2) { // Right click
-                flyState.isRightDragging = true;
-                flyState.lastMouseX = e.clientX;
-                flyState.lastMouseY = e.clientY;
-            }
-        });
-
-        container.addEventListener('mousemove', (e) => {
-            if (!flyMode || !camera) return;
-
-            if (flyState.isDragging) {
-                // Look around (rotate camera direction)
-                const deltaX = e.clientX - flyState.lastMouseX;
-                const deltaY = e.clientY - flyState.lastMouseY;
-
-                flyState.yaw -= deltaX * flyState.lookSensitivity;
-                flyState.pitch -= deltaY * flyState.lookSensitivity;
-
-                // Clamp pitch to avoid flipping
-                flyState.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, flyState.pitch));
-
-                // Update camera rotation
-                const direction = new THREE.Vector3();
-                direction.x = Math.cos(flyState.pitch) * Math.sin(flyState.yaw);
-                direction.y = Math.sin(flyState.pitch);
-                direction.z = Math.cos(flyState.pitch) * Math.cos(flyState.yaw);
-
-                const target = camera.position.clone().add(direction);
-                camera.lookAt(target);
-
-                flyState.lastMouseX = e.clientX;
-                flyState.lastMouseY = e.clientY;
-            }
-
-            if (flyState.isRightDragging) {
-                // Strafe (move sideways/up-down)
-                const deltaX = e.clientX - flyState.lastMouseX;
-                const deltaY = e.clientY - flyState.lastMouseY;
-
-                const direction = new THREE.Vector3();
-                camera.getWorldDirection(direction);
-
-                const right = new THREE.Vector3();
-                right.crossVectors(direction, camera.up).normalize();
-
-                // Move right/left based on horizontal mouse movement
-                camera.position.addScaledVector(right, -deltaX * 0.5);
-                // Move up/down based on vertical mouse movement
-                camera.position.y += deltaY * 0.5;
-
-                flyState.lastMouseX = e.clientX;
-                flyState.lastMouseY = e.clientY;
-            }
-        });
-
-        flyContainer.addEventListener('mouseup', (e) => {
-            if (e.button === 0) flyState.isDragging = false;
-            if (e.button === 2) flyState.isRightDragging = false;
-        });
-
-        flyContainer.addEventListener('mouseleave', () => {
-            flyState.isDragging = false;
-            flyState.isRightDragging = false;
-        });
-
-        // Scroll to fly forward/backward in fly mode
-        flyContainer.addEventListener('wheel', (e) => {
-            if (!flyMode || !camera) return;
-            e.preventDefault();
-
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
-
-            // Scroll up = fly forward, scroll down = fly backward
-            const speed = flyState.flySpeed * (e.deltaY > 0 ? -1 : 1);
-            camera.position.addScaledVector(direction, speed);
-        }, { passive: false });
-
-        // Prevent context menu in fly mode
-        flyContainer.addEventListener('contextmenu', (e) => {
-            if (flyMode) e.preventDefault();
-        });
-
         isInitialized = true;
         animate();
+        console.log('🧊 Three.js initialized successfully');
     }
 
     function addStarfield() {
@@ -37690,6 +37566,47 @@ RULES:
         }
     }
 
+    // Helper: Create text label sprite
+    function createTextSprite(text, colorHex) {
+        const canvas = document.createElement('canvas');
+        const context = canvas.getContext('2d');
+        canvas.width = 512;
+        canvas.height = 128;
+
+        // Background
+        context.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        context.roundRect(0, 0, canvas.width, canvas.height, 10);
+        context.fill();
+
+        // Border
+        context.strokeStyle = '#' + colorHex.toString(16).padStart(6, '0');
+        context.lineWidth = 4;
+        context.roundRect(2, 2, canvas.width - 4, canvas.height - 4, 8);
+        context.stroke();
+
+        // Text
+        context.font = 'bold 36px Arial';
+        context.fillStyle = '#ffffff';
+        context.textAlign = 'center';
+        context.textBaseline = 'middle';
+
+        // Truncate text if too long
+        let displayText = text || 'Unnamed';
+        if (displayText.length > 25) {
+            displayText = displayText.substring(0, 22) + '...';
+        }
+        context.fillText(displayText, canvas.width / 2, canvas.height / 2);
+
+        const texture = new THREE.CanvasTexture(canvas);
+        const spriteMaterial = new THREE.SpriteMaterial({
+            map: texture,
+            transparent: true
+        });
+        const sprite = new THREE.Sprite(spriteMaterial);
+        sprite.scale.set(200, 50, 1);
+        return sprite;
+    }
+
     // Helper: Create Visual Node
     function createNode(data, x, y, z, colorHex, type) {
         const position = new THREE.Vector3(x, y, z);
@@ -37711,7 +37628,12 @@ RULES:
         mesh.userData = { nodeData: data, type: type };
         scene.add(mesh);
 
-        // Add outer glow ring for phases
+        // Add text label sprite
+        const label = createTextSprite(data.name, colorHex);
+        label.position.set(x, y + size + 35, z);
+        scene.add(label);
+
+        // Add outer glow ring for phases and root
         if (type === 'phase' || type === 'root') {
             const ringGeometry = new THREE.RingGeometry(size * 1.5, size * 2, 32);
             const ringMaterial = new THREE.MeshBasicMaterial({
@@ -37750,9 +37672,7 @@ RULES:
     function animate() {
         requestAnimationFrame(animate);
 
-        // Fly mode uses mouse events (no per-frame keyboard logic needed)
-
-        if (autoSpin && controls && !flyMode) {
+        if (autoSpin && controls) {
             controls.autoRotate = true;
             controls.autoRotateSpeed = 2.0;
         } else if (controls) {
