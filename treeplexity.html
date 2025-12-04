@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 277 | 2025-12-03
+    TreeListy v2.17.0 | Build 278 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 277): 🔍 Debug Guest Registration
-    - Added verbose logging to registerAsConnected()
-    - Verifies write by reading back after setDoc
-    - This will show if guest's presence actually persists
+    Changelog (Build 278): 🔍 Deep Debug Guest Presence
+    - Use updateDoc instead of setDoc for clearer errors
+    - Read document BEFORE update to verify it exists
+    - Check if host's presence is visible to guest
+    - Add 500ms delay before verification read
+    - Show if guest's own presence was persisted
 
-    Previous (Build 276): 🔍 Deep Debug Snapshot Data
+    Previous (Build 277): 🔍 Debug Guest Registration
 
     Previous (Build 275): 🔧 Debug Host Chat Box + Improved Logging
     - Auto-close Live Sync modal when first guest connects
@@ -2732,7 +2734,7 @@
     <script type="module">
         import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
         import { getAuth, signInAnonymously, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';
-        import { getFirestore, doc, setDoc, onSnapshot, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
+        import { getFirestore, doc, setDoc, updateDoc, onSnapshot, serverTimestamp, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
 
         // Firebase configuration
         const firebaseConfig = {
@@ -2760,6 +2762,7 @@
         window.firebaseOnSnapshot = onSnapshot;
         window.firebaseServerTimestamp = serverTimestamp;
         window.firebaseGetDoc = getDoc;
+        window.firebaseUpdateDoc = updateDoc;
         window.firebaseReady = true;
 
         console.log('🔥 Firebase initialized');
@@ -2914,8 +2917,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 277 | 2025-12-03">
-                    v2.17.0 • Build 277
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 278 | 2025-12-03">
+                    v2.17.0 • Build 278
                 </div>
             </div>
         </div>
@@ -22382,39 +22385,57 @@ https://treelisty.netlify.app`;
                 console.log('🔥 Subscribed to room:', roomId);
             }
 
-            // BUILD 265/268/277: Register user as connected to room
-            // Uses dot notation to properly merge nested user data without overwriting others
+            // BUILD 265/268/278: Register user as connected to room
+            // Uses updateDoc with dot notation to properly merge nested user data
             async function registerAsConnected(roomId) {
                 if (!firebaseSyncState.userId) {
-                    console.error('🔥 BUILD 277: registerAsConnected called but no userId!');
+                    console.error('🔥 BUILD 278: registerAsConnected called but no userId!');
                     return;
                 }
 
-                console.log('🔥 BUILD 277: registerAsConnected starting for room:', roomId, 'user:', firebaseSyncState.userId.substring(0, 8));
+                console.log('🔥 BUILD 278: registerAsConnected starting for room:', roomId, 'user:', firebaseSyncState.userId.substring(0, 8));
 
                 try {
                     const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
 
-                    // BUILD 268: Use dot notation to add user without overwriting others
+                    // BUILD 278: First verify document exists
+                    const checkSnap = await window.firebaseGetDoc(roomRef);
+                    if (!checkSnap.exists()) {
+                        console.error('🔥 BUILD 278: Room document does NOT exist!', roomId);
+                        return;
+                    }
+                    console.log('🔥 BUILD 278: Room exists, current connectedUsers:',
+                        Object.keys(checkSnap.data().connectedUsers || {}).map(id => id.substring(0, 8)));
+
+                    // BUILD 268/278: Use dot notation to add user without overwriting others
                     const updateData = {};
                     updateData[`connectedUsers.${firebaseSyncState.userId}`] = {
                         name: firebaseSyncState.myDisplayName || 'User',
                         joinedAt: Date.now()
                     };
 
-                    console.log('🔥 BUILD 277: Updating connectedUsers with:', JSON.stringify(updateData));
-                    await window.firebaseSetDoc(roomRef, updateData, { merge: true });
-                    console.log('🔥 BUILD 277: Successfully registered as connected:', firebaseSyncState.userId.substring(0, 8));
+                    console.log('🔥 BUILD 278: Calling updateDoc with:', JSON.stringify(updateData));
 
-                    // BUILD 277: Verify the write by reading back
+                    // BUILD 278: Use updateDoc instead of setDoc - will throw if doc doesn't exist
+                    await window.firebaseUpdateDoc(roomRef, updateData);
+                    console.log('🔥 BUILD 278: updateDoc completed successfully');
+
+                    // BUILD 278: Verify the write by reading back after small delay
+                    await new Promise(r => setTimeout(r, 500));
                     const verifySnap = await window.firebaseGetDoc(roomRef);
                     if (verifySnap.exists()) {
                         const verifyData = verifySnap.data();
                         const userCount = verifyData.connectedUsers ? Object.keys(verifyData.connectedUsers).length : 0;
-                        console.log('🔥 BUILD 277: Verified connectedUsers count:', userCount, 'ids:', Object.keys(verifyData.connectedUsers || {}).map(id => id.substring(0, 8)));
+                        const userIds = Object.keys(verifyData.connectedUsers || {}).map(id => id.substring(0, 8));
+                        console.log('🔥 BUILD 278: Verified connectedUsers count:', userCount, 'ids:', userIds);
+
+                        // Check if our user is in the list
+                        const myShortId = firebaseSyncState.userId.substring(0, 8);
+                        const myPresenceFound = userIds.includes(myShortId);
+                        console.log('🔥 BUILD 278: My presence found?', myPresenceFound, '(looking for', myShortId + ')');
                     }
                 } catch (e) {
-                    console.error('🔥 BUILD 277: Failed to register as connected:', e);
+                    console.error('🔥 BUILD 278: Failed to register as connected:', e.message, e.code);
                 }
             }
 
