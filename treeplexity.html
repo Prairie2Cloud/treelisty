@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 291 | 2025-12-04
+    TreeListy v2.17.0 | Build 292 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 291): 🐛 3D Button Now In HTML
-    - FIX: 3D button added directly to HTML (not dynamically injected)
-    - Button visible immediately, handler added when module loads
+    Changelog (Build 292): 🐛 Fix Three.js Loading (CDN)
+    - FIX: Switch from ES modules to CDN script tags for Three.js
+    - FIX: Fixed duplicate variable declaration bug
+    - Three.js, OrbitControls, CSS2DRenderer now load via global CDN
 
-    Previous (Build 290): 🐛 Fix 3D Button Not Appearing
+    Previous (Build 291): 🐛 3D Button Now In HTML
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
@@ -2916,8 +2917,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 291 | 2025-12-04">
-                    v2.17.0 • Build 291
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 292 | 2025-12-04">
+                    v2.17.0 • Build 292
                 </div>
             </div>
         </div>
@@ -36977,7 +36978,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 291;
+        const CURRENT_BUILD = 292;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37319,19 +37320,21 @@ RULES:
     </div>
 </div>
 
-<script type="importmap">
-    {
-        "imports": {
-            "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
-            "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
-        }
-    }
-</script>
+<!-- Three.js via CDN (global) -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/0.160.0/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/controls/OrbitControls.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/three@0.160.0/examples/js/renderers/CSS2DRenderer.js"></script>
 
-<script type="module">
-    import * as THREE from 'three';
-    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-    import { CSS2DRenderer, CSS2DObject } from 'three/addons/renderers/CSS2DRenderer.js';
+<script>
+(function() {
+    'use strict';
+
+    // Check if Three.js loaded
+    if (typeof THREE === 'undefined') {
+        console.error('🧊 Three.js failed to load');
+        return;
+    }
+    console.log('🧊 Three.js loaded successfully');
 
     // --- State ---
     let camera, scene, renderer, labelRenderer, controls;
@@ -37416,7 +37419,7 @@ RULES:
         container.appendChild(renderer.domElement);
 
         // CSS2D Renderer (Text Labels)
-        labelRenderer = new CSS2DRenderer();
+        labelRenderer = new THREE.CSS2DRenderer();
         labelRenderer.setSize(window.innerWidth, window.innerHeight);
         labelRenderer.domElement.style.position = 'absolute';
         labelRenderer.domElement.style.top = '0px';
@@ -37424,7 +37427,7 @@ RULES:
         container.appendChild(labelRenderer.domElement);
 
         // Controls
-        controls = new OrbitControls(camera, labelRenderer.domElement);
+        controls = new THREE.OrbitControls(camera, labelRenderer.domElement);
         controls.enableDamping = true;
         controls.dampingFactor = 0.05;
         controls.maxDistance = 3000;
@@ -37477,9 +37480,9 @@ RULES:
         });
 
         // Mouse controls for fly mode
-        const container = document.getElementById('view-3d');
+        const flyContainer = document.getElementById('view-3d');
 
-        container.addEventListener('mousedown', (e) => {
+        flyContainer.addEventListener('mousedown', (e) => {
             if (!flyMode) return;
             if (e.button === 0) { // Left click
                 flyState.isDragging = true;
@@ -37540,18 +37543,18 @@ RULES:
             }
         });
 
-        container.addEventListener('mouseup', (e) => {
+        flyContainer.addEventListener('mouseup', (e) => {
             if (e.button === 0) flyState.isDragging = false;
             if (e.button === 2) flyState.isRightDragging = false;
         });
 
-        container.addEventListener('mouseleave', () => {
+        flyContainer.addEventListener('mouseleave', () => {
             flyState.isDragging = false;
             flyState.isRightDragging = false;
         });
 
         // Scroll to fly forward/backward in fly mode
-        container.addEventListener('wheel', (e) => {
+        flyContainer.addEventListener('wheel', (e) => {
             if (!flyMode || !camera) return;
             e.preventDefault();
 
@@ -37564,7 +37567,7 @@ RULES:
         }, { passive: false });
 
         // Prevent context menu in fly mode
-        container.addEventListener('contextmenu', (e) => {
+        flyContainer.addEventListener('contextmenu', (e) => {
             if (flyMode) e.preventDefault();
         });
 
@@ -37727,7 +37730,7 @@ RULES:
             if(window.handleEdit) window.handleEdit();
         });
 
-        const label = new CSS2DObject(div);
+        const label = new THREE.CSS2DObject(div);
         label.position.copy(position);
         scene.add(label);
     }
@@ -37779,6 +37782,7 @@ RULES:
     // Also try after a short delay as fallback
     setTimeout(init3DButton, 500);
 
+})(); // End IIFE
 </script>
 
 </body>
