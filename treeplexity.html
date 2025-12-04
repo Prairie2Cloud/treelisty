@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 273 | 2025-12-03
+    TreeListy v2.17.0 | Build 274 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 273): 🔧 Fix Host Not Detecting Guest Join
-    - FIX: Process presence updates BEFORE early return checks
-    - Root cause: lastUpdatedBy check was skipping connectedUsers processing
-    - Now host properly sees floating chat when guest joins
+    Changelog (Build 274): 🔧 Fix Guest Not Receiving Host Messages
+    - FIX: Process chat messages BEFORE early return checks (like presence)
+    - Extracted updateChatUI() function for cleaner processing
+    - Chat now syncs reliably between host and guest in both directions
+
+    Previous (Build 273): 🔧 Fix Host Not Detecting Guest Join
+    - Process presence updates before early returns
 
     Previous (Build 272): 💬 Floating Draggable Collab Chat
-    - Floating chat draggable, auto-shows for both host & guest
-
-    Previous (Build 271): 🔧 Fix runForceDirectedLayout undefined error
     - Auto-close Live Sync modal when first guest connects
     - Floating chat box with API key sharing
     - Session keys for guests that clear on leave
@@ -2915,8 +2915,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 273 | 2025-12-03">
-                    v2.17.0 • Build 273
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 274 | 2025-12-03">
+                    v2.17.0 • Build 274
                 </div>
             </div>
         </div>
@@ -22283,6 +22283,12 @@ https://treelisty.netlify.app`;
                         updateCollaboratorsUI(data.connectedUsers);
                     }
 
+                    // BUILD 274: ALWAYS process chat messages regardless of who triggered
+                    // This fixes the bug where guest doesn't receive host messages
+                    if (data.chatMessages && Array.isArray(data.chatMessages)) {
+                        updateChatUI(data.chatMessages);
+                    }
+
                     // Skip tree updates if we just pushed this update
                     if (firebaseSyncState.ignoreNextUpdate) {
                         firebaseSyncState.ignoreNextUpdate = false;
@@ -22356,43 +22362,7 @@ https://treelisty.netlify.app`;
                         }
                     }
 
-                    // BUILD 265/268: Handle chat messages - update both modal and floating chat
-                    if (data.chatMessages && Array.isArray(data.chatMessages)) {
-                        // Update modal chat
-                        const container = document.getElementById('sync-chat-messages');
-                        if (container) {
-                            container.innerHTML = '';
-                            if (data.chatMessages.length === 0) {
-                                container.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 30px 0;">No messages yet</div>';
-                            } else {
-                                data.chatMessages.forEach(msg => {
-                                    // Add to modal chat (inline to avoid double-adding to floating)
-                                    const isMe = msg.userId === firebaseSyncState.userId?.substring(0, 8);
-                                    const msgEl = document.createElement('div');
-                                    msgEl.style.cssText = `margin-bottom: 6px; ${isMe ? 'text-align: right;' : ''}`;
-                                    msgEl.innerHTML = `
-                                        <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'};">${msg.name || 'User'}:</span>
-                                        <span style="color: var(--text-primary);">${msg.text}</span>
-                                    `;
-                                    container.appendChild(msgEl);
-                                });
-                                container.scrollTop = container.scrollHeight;
-                            }
-                        }
-
-                        // BUILD 268: Update floating chat too
-                        const floatingContainer = document.getElementById('floating-chat-messages');
-                        if (floatingContainer) {
-                            floatingContainer.innerHTML = '';
-                            if (data.chatMessages.length === 0) {
-                                floatingContainer.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 50px 0; font-size: 12px;">No messages yet</div>';
-                            } else {
-                                data.chatMessages.forEach(msg => addMessageToFloatingChat(msg));
-                            }
-                        }
-                    }
-
-                    // BUILD 265/273: Connected users now handled at top of snapshot (before early returns)
+                    // BUILD 274: Chat messages and connected users now handled at top of snapshot (before early returns)
                 }, (error) => {
                     console.error('🔥 Snapshot error:', error);
                     showToast('❌ Sync error: ' + error.message, 'error');
@@ -23127,6 +23097,41 @@ https://treelisty.netlify.app`;
 
                 // Track previous count for next update
                 floatingChatState.previousUserCount = count;
+            }
+
+            // BUILD 274: Update chat UI (both modal and floating) - extracted for early processing
+            function updateChatUI(chatMessages) {
+                // Update modal chat (if element still exists - was removed in Build 272)
+                const modalContainer = document.getElementById('sync-chat-messages');
+                if (modalContainer) {
+                    modalContainer.innerHTML = '';
+                    if (chatMessages.length === 0) {
+                        modalContainer.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 30px 0;">No messages yet</div>';
+                    } else {
+                        chatMessages.forEach(msg => {
+                            const isMe = msg.userId === firebaseSyncState.userId?.substring(0, 8);
+                            const msgEl = document.createElement('div');
+                            msgEl.style.cssText = `margin-bottom: 6px; ${isMe ? 'text-align: right;' : ''}`;
+                            msgEl.innerHTML = `
+                                <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'};">${msg.name || 'User'}:</span>
+                                <span style="color: var(--text-primary);">${msg.text}</span>
+                            `;
+                            modalContainer.appendChild(msgEl);
+                        });
+                        modalContainer.scrollTop = modalContainer.scrollHeight;
+                    }
+                }
+
+                // Update floating chat
+                const floatingContainer = document.getElementById('floating-chat-messages');
+                if (floatingContainer) {
+                    floatingContainer.innerHTML = '';
+                    if (chatMessages.length === 0) {
+                        floatingContainer.innerHTML = '<div style="color: var(--text-secondary); text-align: center; padding: 50px 0; font-size: 12px;">No messages yet</div>';
+                    } else {
+                        chatMessages.forEach(msg => addMessageToFloatingChat(msg));
+                    }
+                }
             }
 
             window.initFirebaseAuthIfNeeded = async function() {
