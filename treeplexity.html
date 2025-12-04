@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 311 | 2025-12-04
+    TreeListy v2.17.0 | Build 312 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 311): 🐛 Fix Tree View Not Rendering for Large Trees
-    - Fixed viewState transform being applied to wrong element ID
-    - Fixed node counting for trees with mixed children/items/subItems
-    - Correct element ID: tree-transform-wrapper (not tree-wrapper)
-    - Philosophy pattern trees now render correctly in Tree View
+    Changelog (Build 312): 🐛 Fix Filesystem Tree View Rendering
+    - Fixed filesystem items (folders) not showing expand toggle
+    - Added children check to hasChildren for filesystem items
+    - Reset scroll position to top-left on tree load (no viewState)
+    - Large filesystem trees (Google Drive) now render correctly
 
-    Previous (Build 310): 📐 Smart Default View for Large Trees
+    Previous (Build 311): 🐛 Fix Tree View Not Rendering for Large Trees
     Previous (Build 307): 🐛 TreeBeard Context Fix (children vs phases)
     Previous (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
     Previous (Build 305): 🐛 TreeBeard Empty Project Bug Fix (wizard)
@@ -2929,8 +2929,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 311 | 2025-12-04">
-                    v2.17.0 • Build 311
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 312 | 2025-12-04">
+                    v2.17.0 • Build 312
                 </div>
             </div>
         </div>
@@ -13664,7 +13664,7 @@ function hidePatternDescription() {
                         `;
                     } else {
                         // Item/Subtask - file or folder
-                        const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0);
+                        const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0) || (node.children && node.children.length > 0);
                         // Build contributor badge HTML if contributor exists
                         const fsContributorBadge = node.contributor ? `<span class="contributor-badge" title="Last edited by ${node.contributor}${node.contributorTimestamp ? ' on ' + new Date(node.contributorTimestamp).toLocaleDateString() : ''}">👤 ${node.contributor}</span>` : '';
                         const fsCollabIndicator = node.collabComments ? `<span class="collab-indicator" title="${node.collabComments.substring(0, 100)}${node.collabComments.length > 100 ? '...' : ''}">💬</span>` : '';
@@ -17720,6 +17720,13 @@ Your response:`;
                 const zoomDisplay = document.getElementById('zoom-display');
                 if (zoomDisplay) {
                     zoomDisplay.textContent = '100%';
+                }
+
+                // BUILD 312: Reset scroll position to show tree from top-left
+                const treeContainer = document.getElementById('tree-container');
+                if (treeContainer) {
+                    treeContainer.scrollTop = 0;
+                    treeContainer.scrollLeft = 0;
                 }
             }
 
@@ -37370,7 +37377,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 311;
+        const CURRENT_BUILD = 312;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
