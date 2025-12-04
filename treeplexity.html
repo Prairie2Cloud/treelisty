@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 281 | 2025-12-04
+    TreeListy v2.17.0 | Build 282 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 281): 🔧 Remove Share API Keys Feature
-    - Removed Share API Keys button from floating chat
-    - Removed API Key Sharing toggle from Live Collab Modal
-    - Guests now enter their own API keys manually via Settings
-    - Simplified chat to focus on collaboration messaging
+    Changelog (Build 282): 🔗 Editable Hyperedges + Deep Dive + Fix Undefined Labels
+    - FIX: Hyperedge labels no longer show "undefined" - defaults to "Unnamed Hyperedge"
+    - NEW: Edit button on hyperedge info modal - edit label and description
+    - NEW: Deep Dive button - analyze hyperedge relationship with AI in tree context
+    - NEW: deepDiveHyperedge() function for contextual hyperedge analysis
 
+    Previous (Build 281): 🔧 Remove Share API Keys Feature
     Previous (Build 280): 🔄 Auto-Update Notification System
     Previous (Build 279): 🐛 Fix Guest Presence Registration
 
@@ -2912,8 +2913,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 281 | 2025-12-04">
-                    v2.17.0 • Build 281
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 282 | 2025-12-04">
+                    v2.17.0 • Build 282
                 </div>
             </div>
         </div>
@@ -9060,7 +9061,7 @@ Focus on logical structure and content organization best practices.`;
                     label.setAttribute('font-weight', 'bold');
                     label.style.cursor = 'pointer';
                     label.style.textShadow = '0 0 6px rgba(0,0,0,0.8)';
-                    label.textContent = hyperedge.label;
+                    label.textContent = hyperedge.label || 'Unnamed Hyperedge';
                     label.addEventListener('click', (e) => {
                         e.stopPropagation();
                         showHyperedgeInfo(hyperedge);
@@ -9365,7 +9366,7 @@ Focus on logical structure and content organization best practices.`;
                     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
                         <div style="font-size: 48px;">🔗</div>
                         <div>
-                            <h3 style="color: var(--treeplex-primary); margin-bottom: 4px;">${hyperedge.label}</h3>
+                            <h3 style="color: var(--treeplex-primary); margin-bottom: 4px;">${hyperedge.label || 'Unnamed Hyperedge'}</h3>
                             <div style="font-size: 12px; color: var(--text-secondary);">
                                 ${hyperedge.type} hyperedge • ${hyperedge.nodeIds?.length || 0} connected nodes
                             </div>
@@ -9411,10 +9412,18 @@ Focus on logical structure and content organization best practices.`;
 
                     ${philosophySection}
 
-                    <div style="margin-top: 24px; display: flex; gap: 12px; justify-content: flex-end;">
+                    <div style="margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end;">
                         <button onclick="deleteHyperedgeWithConfirm('${hyperedge.id}')"
                             style="padding: 10px 20px; background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
                             🗑️ Delete
+                        </button>
+                        <button onclick="editHyperedge('${hyperedge.id}')"
+                            style="padding: 10px 20px; background: rgba(59, 130, 246, 0.2); color: #3B82F6; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            ✏️ Edit
+                        </button>
+                        <button onclick="deepDiveHyperedge('${hyperedge.id}')"
+                            style="padding: 10px 20px; background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            🎓 Deep Dive
                         </button>
                         <button onclick="document.getElementById('modal').style.display='none'; focusOnHyperedge('${hyperedge.id}')"
                             style="padding: 10px 20px; background: rgba(139, 92, 246, 0.2); color: #8B5CF6; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
@@ -9439,6 +9448,180 @@ Focus on logical structure and content organization best practices.`;
                 window.deleteHyperedge(hyperedgeId);
                 document.getElementById('modal').style.display = 'none';
             }
+        }
+
+        /**
+         * BUILD 282: Edit hyperedge label and description
+         */
+        function editHyperedge(hyperedgeId) {
+            if (!capexTree.hyperedges) return;
+            const hyperedge = capexTree.hyperedges.find(h => h.id === hyperedgeId);
+            if (!hyperedge) {
+                showToast('Hyperedge not found', 'error');
+                return;
+            }
+
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+
+            modalBody.innerHTML = `
+                <div style="padding: 30px; max-width: 500px;">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+                        <div style="font-size: 48px;">✏️</div>
+                        <div>
+                            <h3 style="color: var(--treeplex-primary); margin-bottom: 4px;">Edit Hyperedge</h3>
+                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                Update the label and description
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Label</label>
+                        <input type="text" id="edit-hyperedge-label" value="${(hyperedge.label || '').replace(/"/g, '&quot;')}"
+                            style="width: 100%; padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 14px;"
+                            placeholder="e.g., Dialectical Opposition, Causal Link">
+                    </div>
+
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Description</label>
+                        <textarea id="edit-hyperedge-description" rows="3"
+                            style="width: 100%; padding: 10px 12px; background: var(--bg-secondary); border: 1px solid var(--border-color); border-radius: 6px; color: var(--text-primary); font-size: 14px; resize: vertical;"
+                            placeholder="Describe the relationship between the connected nodes...">${(hyperedge.description || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</textarea>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button onclick="showHyperedgeInfo(capexTree.hyperedges.find(h => h.id === '${hyperedgeId}'))"
+                            style="padding: 10px 20px; background: rgba(107, 114, 128, 0.2); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            Cancel
+                        </button>
+                        <button onclick="saveHyperedgeEdit('${hyperedgeId}')"
+                            style="padding: 10px 20px; background: var(--treeplex-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
+                            Save Changes
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Focus the label input
+            setTimeout(() => {
+                const labelInput = document.getElementById('edit-hyperedge-label');
+                if (labelInput) labelInput.focus();
+            }, 100);
+        }
+
+        /**
+         * BUILD 282: Save hyperedge edits
+         */
+        function saveHyperedgeEdit(hyperedgeId) {
+            if (!capexTree.hyperedges) return;
+            const hyperedge = capexTree.hyperedges.find(h => h.id === hyperedgeId);
+            if (!hyperedge) {
+                showToast('Hyperedge not found', 'error');
+                return;
+            }
+
+            const labelInput = document.getElementById('edit-hyperedge-label');
+            const descInput = document.getElementById('edit-hyperedge-description');
+
+            const newLabel = labelInput?.value.trim() || 'Unnamed Hyperedge';
+            const newDesc = descInput?.value.trim() || '';
+
+            // Update hyperedge
+            hyperedge.label = newLabel;
+            hyperedge.description = newDesc;
+
+            // Save state and re-render
+            saveState('Edit hyperedge');
+            renderCanvas();
+            drawHyperedges();
+
+            // Show updated info modal
+            showHyperedgeInfo(hyperedge);
+            showToast('Hyperedge updated', 'success');
+        }
+
+        /**
+         * BUILD 282: Deep dive into a hyperedge relationship using AI
+         * Analyzes the connected nodes in the context of the current tree
+         */
+        function deepDiveHyperedge(hyperedgeId) {
+            if (!capexTree.hyperedges) return;
+            const hyperedge = capexTree.hyperedges.find(h => h.id === hyperedgeId);
+            if (!hyperedge) {
+                showToast('Hyperedge not found', 'error');
+                return;
+            }
+
+            // Find all nodes in this hyperedge
+            const nodeIds = hyperedge.nodeIds || [];
+            if (nodeIds.length < 2) {
+                showToast('Hyperedge needs at least 2 nodes for deep dive', 'error');
+                return;
+            }
+
+            // Gather nodes from the tree
+            const nodes = [];
+            function findNode(item) {
+                if (nodeIds.includes(item.id)) {
+                    nodes.push(item);
+                }
+                if (item.subItems) {
+                    item.subItems.forEach(findNode);
+                }
+            }
+            capexTree.children.forEach(phase => {
+                if (nodeIds.includes(phase.id)) {
+                    nodes.push(phase);
+                }
+                phase.items?.forEach(findNode);
+            });
+
+            if (nodes.length < 2) {
+                showToast('Could not find enough nodes for deep dive', 'error');
+                return;
+            }
+
+            // Select these nodes and trigger deep dive
+            selectedNodes = nodes.map(n => n.id);
+            document.getElementById('modal').style.display = 'none';
+
+            // Build context about the existing hyperedge
+            const hyperedgeContext = `
+This analysis is for an existing hyperedge relationship:
+- Label: ${hyperedge.label || 'Unnamed'}
+- Type: ${hyperedge.type || 'general'}
+- Description: ${hyperedge.description || 'None'}
+${hyperedge.metadata?.philosophyFields ? `
+Existing Philosophy Analysis:
+- Dialectical Relation: ${hyperedge.metadata.philosophyFields.dialecticalRelation || 'Unknown'}
+- Argumentative Flow: ${hyperedge.metadata.philosophyFields.argumentativeFlow || 'Unknown'}
+- Conceptual Bridge: ${hyperedge.metadata.philosophyFields.conceptualBridge || 'Unknown'}
+` : ''}
+
+Please provide a deeper analysis of this relationship in the context of the current tree: "${capexTree.name}"
+Focus on exploring nuances, implications, and connections that weren't covered in the initial analysis.
+`;
+
+            // Store context for the deep dive function to use
+            window._hyperedgeDeepDiveContext = hyperedgeContext;
+
+            // Trigger the structured scholar deep dive
+            showToast('Starting deep dive analysis...', 'info');
+            setTimeout(() => {
+                // The deep dive function will pick up selectedNodes
+                const deepDiveBtn = document.getElementById('structured-scholar-btn');
+                if (deepDiveBtn) {
+                    deepDiveBtn.click();
+                } else {
+                    // Fallback: call the function directly if button not found
+                    if (typeof structuredScholarDeepDive === 'function') {
+                        structuredScholarDeepDive();
+                    } else {
+                        showToast('Deep Dive feature not available in current view', 'warning');
+                    }
+                }
+            }, 100);
         }
 
         // =============================================================================
@@ -36558,7 +36741,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 281;
+        const CURRENT_BUILD = 282;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
