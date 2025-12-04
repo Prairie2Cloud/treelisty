@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 278 | 2025-12-03
+    TreeListy v2.17.0 | Build 279 | 2025-12-03
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 278): 🔍 Deep Debug Guest Presence
-    - Use updateDoc instead of setDoc for clearer errors
-    - Read document BEFORE update to verify it exists
-    - Check if host's presence is visible to guest
-    - Add 500ms delay before verification read
-    - Show if guest's own presence was persisted
+    Changelog (Build 279): 🐛 Fix Guest Presence Registration
+    - Use updateDoc instead of setDoc (setDoc merge was silently failing)
+    - Guest presence now correctly syncs to Firestore
+    - Floating chat auto-shows for both host and guest when 2+ users
+    - Cleaned up verbose debug logging
 
-    Previous (Build 277): 🔍 Debug Guest Registration
+    Previous (Build 278): 🔍 Deep Debug Guest Presence
 
     Previous (Build 275): 🔧 Debug Host Chat Box + Improved Logging
     - Auto-close Live Sync modal when first guest connects
@@ -2917,8 +2916,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 278 | 2025-12-03">
-                    v2.17.0 • Build 278
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 279 | 2025-12-03">
+                    v2.17.0 • Build 279
                 </div>
             </div>
         </div>
@@ -22279,16 +22278,7 @@ https://treelisty.netlify.app`;
 
                     const data = doc.data();
 
-                    // BUILD 276: Log ALL snapshot data to debug presence issues
-                    console.log('🔥 BUILD 276 Snapshot fired:', {
-                        hasConnectedUsers: !!data.connectedUsers,
-                        connectedUsersCount: data.connectedUsers ? Object.keys(data.connectedUsers).length : 0,
-                        connectedUserIds: data.connectedUsers ? Object.keys(data.connectedUsers).map(id => id.substring(0, 8)) : [],
-                        lastUpdatedBy: data.lastUpdatedBy?.substring(0, 8),
-                        myId: firebaseSyncState.userId?.substring(0, 8)
-                    });
-
-                    // BUILD 273: ALWAYS process presence updates regardless of who triggered
+                    // BUILD 273/279: ALWAYS process presence updates regardless of who triggered
                     // This fixes the bug where host doesn't see guest join because lastUpdatedBy was host
                     if (data.connectedUsers) {
                         updateCollaboratorsUI(data.connectedUsers);
@@ -22385,57 +22375,26 @@ https://treelisty.netlify.app`;
                 console.log('🔥 Subscribed to room:', roomId);
             }
 
-            // BUILD 265/268/278: Register user as connected to room
-            // Uses updateDoc with dot notation to properly merge nested user data
+            // BUILD 279: Register user as connected to room
+            // Uses updateDoc (not setDoc) with dot notation - setDoc merge was silently failing
             async function registerAsConnected(roomId) {
-                if (!firebaseSyncState.userId) {
-                    console.error('🔥 BUILD 278: registerAsConnected called but no userId!');
-                    return;
-                }
-
-                console.log('🔥 BUILD 278: registerAsConnected starting for room:', roomId, 'user:', firebaseSyncState.userId.substring(0, 8));
+                if (!firebaseSyncState.userId) return;
 
                 try {
                     const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
 
-                    // BUILD 278: First verify document exists
-                    const checkSnap = await window.firebaseGetDoc(roomRef);
-                    if (!checkSnap.exists()) {
-                        console.error('🔥 BUILD 278: Room document does NOT exist!', roomId);
-                        return;
-                    }
-                    console.log('🔥 BUILD 278: Room exists, current connectedUsers:',
-                        Object.keys(checkSnap.data().connectedUsers || {}).map(id => id.substring(0, 8)));
-
-                    // BUILD 268/278: Use dot notation to add user without overwriting others
+                    // Use dot notation to add user without overwriting others
                     const updateData = {};
                     updateData[`connectedUsers.${firebaseSyncState.userId}`] = {
                         name: firebaseSyncState.myDisplayName || 'User',
                         joinedAt: Date.now()
                     };
 
-                    console.log('🔥 BUILD 278: Calling updateDoc with:', JSON.stringify(updateData));
-
-                    // BUILD 278: Use updateDoc instead of setDoc - will throw if doc doesn't exist
+                    // BUILD 278/279: Use updateDoc instead of setDoc - setDoc with merge was silently failing
                     await window.firebaseUpdateDoc(roomRef, updateData);
-                    console.log('🔥 BUILD 278: updateDoc completed successfully');
-
-                    // BUILD 278: Verify the write by reading back after small delay
-                    await new Promise(r => setTimeout(r, 500));
-                    const verifySnap = await window.firebaseGetDoc(roomRef);
-                    if (verifySnap.exists()) {
-                        const verifyData = verifySnap.data();
-                        const userCount = verifyData.connectedUsers ? Object.keys(verifyData.connectedUsers).length : 0;
-                        const userIds = Object.keys(verifyData.connectedUsers || {}).map(id => id.substring(0, 8));
-                        console.log('🔥 BUILD 278: Verified connectedUsers count:', userCount, 'ids:', userIds);
-
-                        // Check if our user is in the list
-                        const myShortId = firebaseSyncState.userId.substring(0, 8);
-                        const myPresenceFound = userIds.includes(myShortId);
-                        console.log('🔥 BUILD 278: My presence found?', myPresenceFound, '(looking for', myShortId + ')');
-                    }
+                    console.log('🔥 Registered as connected:', firebaseSyncState.userId.substring(0, 8));
                 } catch (e) {
-                    console.error('🔥 BUILD 278: Failed to register as connected:', e.message, e.code);
+                    console.error('🔥 Failed to register as connected:', e.message);
                 }
             }
 
@@ -22852,20 +22811,16 @@ https://treelisty.netlify.app`;
                 }
             };
 
-            // BUILD 268/275: Show floating chat box
+            // BUILD 279: Show floating chat box
             function showFloatingChat() {
                 const chatBox = document.getElementById('floating-collab-chat');
-                console.log('🔥 BUILD 275 showFloatingChat called, chatBox:', !!chatBox);
                 if (chatBox) {
                     chatBox.style.display = 'block';
-                    console.log('🔥 BUILD 275: Floating chat now visible');
                     // Show API key share button for host
                     const shareSection = document.getElementById('floating-share-keys-section');
                     if (shareSection && floatingChatState.isHost) {
                         shareSection.style.display = 'block';
                     }
-                } else {
-                    console.error('🔥 BUILD 275: floating-collab-chat element NOT FOUND!');
                 }
             }
 
@@ -23109,36 +23064,20 @@ https://treelisty.netlify.app`;
                 // BUILD 268: Also update floating chat
                 updateFloatingCollabList(connectedUsers);
 
-                // BUILD 275: Auto-show floating chat when 2+ users in room (for BOTH host and guest)
+                // BUILD 279: Auto-show floating chat when 2+ users in room (for BOTH host and guest)
                 const otherUsers = users.filter(([id]) => id !== firebaseSyncState.userId);
                 const chatBox = document.getElementById('floating-collab-chat');
                 const isFloatingChatVisible = chatBox && chatBox.style.display !== 'none';
 
-                console.log('🔥 BUILD 275 Presence update:', {
-                    totalUsers: count,
-                    otherUsers: otherUsers.length,
-                    previousCount: floatingChatState.previousUserCount,
-                    isHost: floatingChatState.isHost,
-                    isFloatingChatVisible,
-                    myUserId: firebaseSyncState.userId?.substring(0, 8),
-                    chatBoxExists: !!chatBox
-                });
-
                 // Auto-show floating chat when there are 2+ users (both host and guest)
                 if (count >= 2) {
-                    console.log('🔥 BUILD 275: 2+ users in room, ensuring chat is visible');
-
                     // Always ensure floating chat is shown (idempotent)
                     if (!isFloatingChatVisible) {
-                        console.log('🔥 BUILD 275: Chat was hidden, showing now');
-
                         // Close the modal for host
                         if (floatingChatState.isHost) {
                             const modal = document.getElementById('live-sync-modal');
                             if (modal) modal.style.display = 'none';
                         }
-
-                        // Show floating chat
                         showFloatingChat();
                     }
 
