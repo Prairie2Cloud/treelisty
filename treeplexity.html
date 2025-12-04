@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 289 | 2025-12-04
+    TreeListy v2.17.0 | Build 290 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 289): 🖱️ Mouse-Based 3D Fly Mode
-    - FIX: Fly Mode now uses mouse controls (not keyboard)
-    - Left-drag: Look around (rotate camera direction)
-    - Scroll wheel: Fly forward/backward
-    - Right-drag: Strafe sideways and up/down
-    - Dynamic hint text updates when toggling Fly Mode
+    Changelog (Build 290): 🐛 Fix 3D Button Not Appearing
+    - FIX: 3D View button now reliably injects into toolbar
+    - Added DOM ready check and fallback timeout for button injection
 
+    Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
     Previous (Build 285): 📐 Save & Restore View State
@@ -2916,8 +2914,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 289 | 2025-12-04">
-                    v2.17.0 • Build 289
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 290 | 2025-12-04">
+                    v2.17.0 • Build 290
                 </div>
             </div>
         </div>
@@ -36977,7 +36975,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 289;
+        const CURRENT_BUILD = 290;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37776,8 +37774,16 @@ RULES:
         labelRenderer.render(scene, camera);
     }
 
-    // Inject button on load
-    injectButton();
+    // Inject button on load - ensure DOM is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', injectButton);
+    } else {
+        // DOM already loaded, inject immediately
+        injectButton();
+    }
+
+    // Also try after a short delay as fallback (for dynamic content)
+    setTimeout(injectButton, 500);
 
 </script>
 
