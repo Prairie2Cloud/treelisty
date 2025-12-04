@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 297 | 2025-12-04
+    TreeListy v2.17.0 | Build 298 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 297): 🎯 3D Quick Wins - Dependencies & View State
-    - NEW: Expand All / Collapse All buttons in 3D controls
-    - NEW: Dependencies rendered as dashed arrows with direction
-    - NEW: 3D view state saved to JSON (camera position, expanded nodes)
-    - Restores camera position and expanded state when reopening 3D view
+    Changelog (Build 298): ✨ 3D Title Polish
+    - Shortened title to 3 words max with ellipsis
+    - Added left margin to avoid panel overlap
+    - Dramatic space font (Orbitron) with cyan glow effects
+    - Cleaner single-line title for screenshot-ready display
 
-    Previous (Build 296): 🌌 Knowledge Navigator - Beautiful 3D Universe
+    Previous (Build 297): 🎯 3D Quick Wins - Dependencies & View State
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
@@ -2918,8 +2918,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 297 | 2025-12-04">
-                    v2.17.0 • Build 297
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 298 | 2025-12-04">
+                    v2.17.0 • Build 298
                 </div>
             </div>
         </div>
@@ -36979,7 +36979,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 297;
+        const CURRENT_BUILD = 298;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37308,36 +37308,35 @@ RULES:
     }
 
     /* Floating Tree Title - Screenshot Ready */
+    @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@700;900&display=swap');
+
     #title-3d {
         position: absolute;
         top: 30px;
-        left: 30px;
+        left: 80px; /* More margin to avoid panel overlap */
         pointer-events: none;
         z-index: 100;
     }
 
     #title-3d-name {
-        font-family: 'Inter', -apple-system, sans-serif;
-        font-size: 42px;
-        font-weight: 800;
-        color: #ffffff;
-        text-shadow: 0 0 30px rgba(100, 150, 255, 0.5),
-                     0 0 60px rgba(100, 150, 255, 0.3),
-                     0 4px 8px rgba(0, 0, 0, 0.8);
-        letter-spacing: -1px;
+        font-family: 'Orbitron', 'Inter', sans-serif;
+        font-size: 48px;
+        font-weight: 900;
+        color: #00ffff;
+        text-shadow:
+            0 0 10px rgba(0, 255, 255, 0.8),
+            0 0 30px rgba(0, 255, 255, 0.6),
+            0 0 60px rgba(0, 255, 255, 0.4),
+            0 0 100px rgba(0, 255, 255, 0.2),
+            0 4px 8px rgba(0, 0, 0, 0.9);
+        letter-spacing: 4px;
+        text-transform: uppercase;
         margin: 0;
         line-height: 1.1;
     }
 
     #title-3d-pattern {
-        font-family: 'Inter', sans-serif;
-        font-size: 14px;
-        font-weight: 500;
-        color: rgba(255, 255, 255, 0.6);
-        text-transform: uppercase;
-        letter-spacing: 3px;
-        margin-top: 8px;
-        text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+        display: none; /* Hidden for cleaner look */
     }
 
     /* 3D Context Menu */
@@ -37523,21 +37522,21 @@ RULES:
         }
     }
 
-    // Update floating title from tree data
+    // Update floating title from tree data - max 3 words
     function updateTitle() {
         const tree = window.capexTree;
         if (!tree) return;
 
         const titleEl = document.getElementById('title-3d-name');
-        const patternEl = document.getElementById('title-3d-pattern');
 
         if (titleEl) {
-            titleEl.textContent = tree.name || 'Untitled Project';
-        }
-        if (patternEl) {
-            const patternName = tree.pattern || 'generic';
-            const displayName = patternName.charAt(0).toUpperCase() + patternName.slice(1).replace(/-/g, ' ');
-            patternEl.textContent = displayName + ' Pattern';
+            let name = tree.name || 'Untitled';
+            // Truncate to 3 words max
+            const words = name.split(/\s+/);
+            if (words.length > 3) {
+                name = words.slice(0, 3).join(' ') + '…';
+            }
+            titleEl.textContent = name;
         }
     }
 
