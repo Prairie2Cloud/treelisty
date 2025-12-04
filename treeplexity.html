@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 310 | 2025-12-04
+    TreeListy v2.17.0 | Build 311 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 310): 📐 Smart Default View for Large Trees
-    - Trees >30 nodes auto-collapse to root + phases on load
-    - Prevents "invisible tree" issue on large imports
-    - Zoom/pan reset to defaults when no viewState saved
-    - Improves first-load experience for complex trees
+    Changelog (Build 311): 🐛 Fix Tree View Not Rendering for Large Trees
+    - Fixed viewState transform being applied to wrong element ID
+    - Fixed node counting for trees with mixed children/items/subItems
+    - Correct element ID: tree-transform-wrapper (not tree-wrapper)
+    - Philosophy pattern trees now render correctly in Tree View
 
-    Previous (Build 309): 🔀 Actionable Merge Redundancies
+    Previous (Build 310): 📐 Smart Default View for Large Trees
     Previous (Build 307): 🐛 TreeBeard Context Fix (children vs phases)
     Previous (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
     Previous (Build 305): 🐛 TreeBeard Empty Project Bug Fix (wizard)
@@ -2929,8 +2929,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 310 | 2025-12-04">
-                    v2.17.0 • Build 310
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 311 | 2025-12-04">
+                    v2.17.0 • Build 311
                 </div>
             </div>
         </div>
@@ -17642,7 +17642,7 @@ Your response:`;
                 if (typeof vs.canvasPanY === 'number') canvasPan.y = vs.canvasPanY;
 
                 // Apply tree view transform
-                const wrapper = document.getElementById('tree-wrapper');
+                const wrapper = document.getElementById('tree-transform-wrapper');
                 if (wrapper) {
                     wrapper.style.transform = `translate(${panX}px, ${panY}px) scale(${zoomLevel})`;
                 }
@@ -17669,7 +17669,10 @@ Your response:`;
                 let nodeCount = 0;
                 function countNodes(node) {
                     nodeCount++;
-                    (node.children || node.items || node.subItems || []).forEach(countNodes);
+                    // Check all child properties - must check length to avoid empty arrays
+                    if (node.children && node.children.length > 0) node.children.forEach(countNodes);
+                    if (node.items && node.items.length > 0) node.items.forEach(countNodes);
+                    if (node.subItems && node.subItems.length > 0) node.subItems.forEach(countNodes);
                 }
                 countNodes(capexTree);
 
@@ -17679,25 +17682,23 @@ Your response:`;
                 if (nodeCount > 30) {
                     console.log('🌳 Large tree detected - collapsing for better initial view');
 
-                    // Collapse all nodes recursively
-                    function collapseDeep(node, depth = 0) {
-                        // Keep root expanded, collapse everything else
-                        if (depth > 0) {
-                            node.expanded = false;
-                        }
-                        (node.children || node.items || node.subItems || []).forEach(child => {
-                            collapseDeep(child, depth + 1);
-                        });
+                    // Collapse all nodes recursively, getting children from the right property
+                    function getChildren(node) {
+                        // Check items first (used by philosophy pattern), then children
+                        if (node.items && node.items.length > 0) return node.items;
+                        if (node.children && node.children.length > 0) return node.children;
+                        if (node.subItems && node.subItems.length > 0) return node.subItems;
+                        return [];
                     }
 
                     // Keep root expanded, expand phases (depth 1), collapse rest
                     capexTree.expanded = true;
-                    (capexTree.children || []).forEach(phase => {
+                    getChildren(capexTree).forEach(phase => {
                         phase.expanded = true; // Show phases
                         // Collapse items within phases
-                        (phase.children || phase.items || []).forEach(item => {
+                        getChildren(phase).forEach(item => {
                             item.expanded = false;
-                            (item.children || item.subItems || []).forEach(sub => {
+                            getChildren(item).forEach(sub => {
                                 sub.expanded = false;
                             });
                         });
@@ -17712,7 +17713,7 @@ Your response:`;
                 panX = 0;
                 panY = 0;
 
-                const wrapper = document.getElementById('tree-wrapper');
+                const wrapper = document.getElementById('tree-transform-wrapper');
                 if (wrapper) {
                     wrapper.style.transform = `translate(0px, 0px) scale(1)`;
                 }
@@ -37369,7 +37370,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 310;
+        const CURRENT_BUILD = 311;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
