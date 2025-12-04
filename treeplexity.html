@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 307 | 2025-12-04
+    TreeListy v2.17.0 | Build 308 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 307): 🐛 TreeBeard Context Fix - children vs phases
-    - Fixed TreeBeard context using wrong property (phases vs children)
-    - TreeBeard now correctly counts project items in interpretCommand()
-    - Works with both legacy 'phases' and current 'children' structures
+    Changelog (Build 308): 🔍 Find Redundancies Command
+    - New "find_redundancies" command in TreeBeard
+    - Fuzzy matching detects similar node names
+    - Groups potential duplicates for easy review
+    - Suggests merge strategy to minimize data loss
 
+    Previous (Build 307): 🐛 TreeBeard Context Fix (children vs phases)
     Previous (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
     Previous (Build 305): 🐛 TreeBeard Empty Project Bug Fix (wizard)
     Previous (Build 304): 🔍 Search Result Navigation Fix
@@ -2926,8 +2928,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 307 | 2025-12-04">
-                    v2.17.0 • Build 307
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 308 | 2025-12-04">
+                    v2.17.0 • Build 308
                 </div>
             </div>
         </div>
@@ -35290,9 +35292,9 @@ ${transcript}`;
             'project_info': () => {
                 const name = typeof capexTree !== 'undefined' ? capexTree.name : 'Unknown';
                 const pattern = typeof currentPattern !== 'undefined' ? currentPattern : 'generic';
-                const phases = typeof capexTree !== 'undefined' && capexTree.phases ? capexTree.phases.length : 0;
-                const items = typeof capexTree !== 'undefined' && capexTree.phases ?
-                    capexTree.phases.reduce((sum, p) => sum + (p.items?.length || 0), 0) : 0;
+                const phaseList = typeof capexTree !== 'undefined' ? (capexTree.children || capexTree.phases || []) : [];
+                const phases = phaseList.length;
+                const items = phaseList.reduce((sum, p) => sum + (p.items || p.children || []).length, 0);
                 return `📋 **Project:** ${name}\n**Pattern:** ${pattern}\n**Phases:** ${phases}\n**Items:** ${items}`;
             },
 
@@ -35868,6 +35870,93 @@ ${transcript}`;
                 URL.revokeObjectURL(url);
 
                 return '💾 Prompt saved as text file!';
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 308: FIND REDUNDANCIES - AI-powered duplicate detection
+            // ═══════════════════════════════════════════════════════════════
+            'find_redundancies': async () => {
+                // Collect all nodes with their names/descriptions
+                const allNodes = [];
+                function collectNodes(node, path = []) {
+                    const currentPath = [...path, node.name || node.title || 'Unnamed'];
+                    allNodes.push({
+                        id: node.id,
+                        name: node.name || node.title || '',
+                        description: node.description || '',
+                        path: currentPath.join(' → ')
+                    });
+                    (node.children || node.items || node.subItems || []).forEach(child => {
+                        collectNodes(child, currentPath);
+                    });
+                }
+                collectNodes(capexTree);
+
+                if (allNodes.length < 3) {
+                    return '⚠️ Your tree has very few nodes. Add more content first!';
+                }
+
+                // Group by similar names using fuzzy matching
+                const groups = [];
+                const used = new Set();
+
+                for (let i = 0; i < allNodes.length; i++) {
+                    if (used.has(i)) continue;
+                    const node = allNodes[i];
+                    const similar = [node];
+                    const words1 = node.name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+                    for (let j = i + 1; j < allNodes.length; j++) {
+                        if (used.has(j)) continue;
+                        const other = allNodes[j];
+                        const words2 = other.name.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+
+                        // Check for word overlap (3+ chars)
+                        const overlap = words1.filter(w => words2.includes(w) || other.name.toLowerCase().includes(w));
+                        const overlapRatio = words1.length > 0 ? overlap.length / Math.max(words1.length, words2.length) : 0;
+
+                        // Also check for substring match
+                        const nameA = node.name.toLowerCase().replace(/[^a-z]/g, '');
+                        const nameB = other.name.toLowerCase().replace(/[^a-z]/g, '');
+                        const isSubstring = nameA.length > 5 && nameB.length > 5 &&
+                            (nameA.includes(nameB) || nameB.includes(nameA));
+
+                        if (overlapRatio >= 0.5 || isSubstring) {
+                            similar.push(other);
+                            used.add(j);
+                        }
+                    }
+
+                    if (similar.length > 1) {
+                        groups.push(similar);
+                        used.add(i);
+                    }
+                }
+
+                if (groups.length === 0) {
+                    return '✅ No obvious redundancies found! Your tree looks well-organized.\n\nFor deeper analysis, try AI Review (🔍) which can detect conceptual overlaps.';
+                }
+
+                // Format results
+                let result = `🔍 **Found ${groups.length} potential redundancy group(s):**\n\n`;
+                groups.slice(0, 5).forEach((group, i) => {
+                    result += `**Group ${i + 1}:** "${group[0].name}"\n`;
+                    group.forEach(node => {
+                        result += `  • ${node.name}\n    _${node.path}_\n`;
+                    });
+                    result += '\n';
+                });
+
+                if (groups.length > 5) {
+                    result += `_...and ${groups.length - 5} more groups_\n\n`;
+                }
+
+                result += `💡 **To merge:** Select similar nodes, delete duplicates (keep most detailed), and consolidate info into the survivor.`;
+
+                // Store for potential follow-up
+                window.chatRedundancyGroups = groups;
+
+                return result;
             }
         };
 
@@ -36131,6 +36220,7 @@ NODE EDITING:
 AI FEATURES:
 - ai_enhance_field:{field} → AI-improve specific field (description, thesis, etc.)
 - enhance_selected / deep_dive / generate_image
+- find_redundancies → Analyze tree for duplicate/similar nodes and suggest merges
 
 TREE OPERATIONS:
 - add_phase / expand_all / collapse_all
@@ -37042,7 +37132,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 307;
+        const CURRENT_BUILD = 308;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
