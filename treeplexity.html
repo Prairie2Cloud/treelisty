@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 280 | 2025-12-03
+    TreeListy v2.17.0 | Build 281 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 280): 🔄 Auto-Update Notification System
-    Previous (Build 279): 🐛 Fix Guest Presence Registration
-    - Use updateDoc instead of setDoc (setDoc merge was silently failing)
-    - Guest presence now correctly syncs to Firestore
-    - Floating chat auto-shows for both host and guest when 2+ users
-    - Cleaned up verbose debug logging
+    Changelog (Build 281): 🔧 Remove Share API Keys Feature
+    - Removed Share API Keys button from floating chat
+    - Removed API Key Sharing toggle from Live Collab Modal
+    - Guests now enter their own API keys manually via Settings
+    - Simplified chat to focus on collaboration messaging
 
-    Previous (Build 278): 🔍 Deep Debug Guest Presence
+    Previous (Build 280): 🔄 Auto-Update Notification System
+    Previous (Build 279): 🐛 Fix Guest Presence Registration
 
     Previous (Build 275): 🔧 Debug Host Chat Box + Improved Logging
     - Auto-close Live Sync modal when first guest connects
@@ -33,11 +33,6 @@
     - Session keys for guests that clear on leave
 
     Previous (Build 267): 🔧 Fix Double Room Creation + Deploy Functions
-    - FIX: Prevent double room creation on rapid clicks
-    - DEPLOY: Added gdrive-proxy function (was missing from repo)
-    - DEPLOY: Added collab-session function (was missing from repo)
-
-    Previous (Build 264): 🔑 Unified Live Sync + API Key Sharing
     - Migrated API key sharing from Watch Mode to Firebase Live Sync modal
     - Removed deprecated Watch Mode
 
@@ -2917,8 +2912,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 280 | 2025-12-03">
-                    v2.17.0 • Build 280
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 281 | 2025-12-04">
+                    v2.17.0 • Build 281
                 </div>
             </div>
         </div>
@@ -4379,24 +4374,7 @@ The AI will analyze the structure and convert it to a tree."
                     </div>
 
                     <!-- BUILD 272: Team Chat removed from modal - now in floating chat window -->
-
-                    <!-- API Key Sharing Toggle -->
-                    <div id="api-key-section" style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1)); padding: 12px; border-radius: 8px; border: 1px solid rgba(251, 191, 36, 0.3); margin-bottom: 12px;">
-                        <div style="display: flex; align-items: center; justify-content: space-between;">
-                            <div style="display: flex; align-items: center; gap: 8px;">
-                                <span style="font-size: 16px;">🔑</span>
-                                <div>
-                                    <div style="font-weight: 600; font-size: 12px; color: #f59e0b;">Share Your API Keys</div>
-                                    <div id="api-key-status" style="font-size: 11px; color: var(--text-secondary);">Guests will need their own keys</div>
-                                </div>
-                            </div>
-                            <label style="position: relative; display: inline-block; width: 48px; height: 26px; cursor: pointer;">
-                                <input type="checkbox" id="api-key-toggle" onchange="window.toggleApiKeySharing(this.checked)" style="opacity: 0; width: 0; height: 0;">
-                                <span style="position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #374151; border-radius: 26px; transition: .3s;"></span>
-                                <span id="api-toggle-knob" style="position: absolute; content: ''; height: 20px; width: 20px; left: 3px; bottom: 3px; background-color: white; border-radius: 50%; transition: .3s;"></span>
-                            </label>
-                        </div>
-                    </div>
+                    <!-- BUILD 281: API Key Sharing UI removed - guests enter keys manually -->
 
                     <!-- Actions -->
                     <div style="display: flex; gap: 8px;">
@@ -4464,12 +4442,6 @@ The AI will analyze the structure and convert it to a tree."
                     style="flex: 1; padding: 8px 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); font-size: 12px;"
                     onkeypress="if(event.key==='Enter') window.sendFloatingChatMessage()">
                 <button onclick="window.sendFloatingChatMessage()" style="padding: 8px 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 12px;">Send</button>
-            </div>
-            <!-- Share API Keys Button (Host Only) -->
-            <div id="floating-share-keys-section" style="display: none; padding: 10px 12px; border-top: 1px solid var(--border); background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));">
-                <button onclick="window.shareApiKeysInChat()" style="width: 100%; padding: 10px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 12px;">
-                    🔑 Share API Keys with Team (4-hour session)
-                </button>
             </div>
             <!-- Session Controls -->
             <div style="padding: 8px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px;">
@@ -22590,53 +22562,7 @@ https://treelisty.netlify.app`;
                 window.open(`mailto:?subject=${subject}&body=${body}`, '_blank');
             };
 
-            // BUILD 265/266: Toggle API key sharing
-            window.toggleApiKeySharing = async function(enabled) {
-                const statusEl = document.getElementById('api-key-status');
-                const toggleKnob = document.getElementById('api-toggle-knob');
-                const toggleTrack = toggleKnob?.parentElement?.querySelector('span:first-of-type');
-
-                if (enabled) {
-                    // Visual feedback immediately
-                    if (toggleKnob) toggleKnob.style.transform = 'translateX(22px)';
-                    if (toggleTrack) toggleTrack.style.backgroundColor = '#10b981';
-                    if (statusEl) {
-                        statusEl.textContent = 'Enabling...';
-                        statusEl.style.color = '#f59e0b';
-                    }
-
-                    // Call existing startHostSession - this updates the invite link
-                    try {
-                        await window.startHostSession();
-                        if (statusEl) {
-                            statusEl.textContent = 'Guests can use your AI features';
-                            statusEl.style.color = '#10b981';
-                        }
-                    } catch (e) {
-                        // Revert toggle on error
-                        if (toggleKnob) toggleKnob.style.transform = 'translateX(0)';
-                        if (toggleTrack) toggleTrack.style.backgroundColor = '#374151';
-                        const checkbox = document.getElementById('api-key-toggle');
-                        if (checkbox) checkbox.checked = false;
-                        if (statusEl) {
-                            statusEl.textContent = 'Failed to enable';
-                            statusEl.style.color = '#ef4444';
-                        }
-                    }
-                } else {
-                    // Visual feedback immediately
-                    if (toggleKnob) toggleKnob.style.transform = 'translateX(0)';
-                    if (toggleTrack) toggleTrack.style.backgroundColor = '#374151';
-
-                    // End API key sharing - this restores the invite link
-                    await window.endHostSession();
-
-                    if (statusEl) {
-                        statusEl.textContent = 'Guests will need their own keys';
-                        statusEl.style.color = 'var(--text-secondary)';
-                    }
-                }
-            };
+            // BUILD 281: toggleApiKeySharing removed - guests enter keys manually
 
             // BUILD 265: Send chat message
             window.sendSyncChatMessage = async function() {
@@ -22817,11 +22743,6 @@ https://treelisty.netlify.app`;
                 const chatBox = document.getElementById('floating-collab-chat');
                 if (chatBox) {
                     chatBox.style.display = 'block';
-                    // Show API key share button for host
-                    const shareSection = document.getElementById('floating-share-keys-section');
-                    if (shareSection && floatingChatState.isHost) {
-                        shareSection.style.display = 'block';
-                    }
                 }
             }
 
@@ -22853,67 +22774,9 @@ https://treelisty.netlify.app`;
                 }
             };
 
-            // BUILD 268: Share API keys via chat
-            window.shareApiKeysInChat = async function() {
-                // Get the host's API keys
-                const claudeKey = localStorage.getItem('anthropic_api_key');
-                const geminiKey = localStorage.getItem('gemini_api_key');
-                const openaiKey = localStorage.getItem('openai_api_key');
+            // BUILD 281: shareApiKeysInChat removed - guests enter keys manually via chat
 
-                if (!claudeKey && !geminiKey && !openaiKey) {
-                    showToast('No API keys configured to share', 'warning');
-                    return;
-                }
-
-                try {
-                    // Create a session via collab-session function
-                    const response = await fetch('/.netlify/functions/collab-session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'create',
-                            hostName: firebaseSyncState.myDisplayName || 'Host',
-                            apiKeys: {
-                                ...(claudeKey && { claude: claudeKey }),
-                                ...(geminiKey && { gemini: geminiKey }),
-                                ...(openaiKey && { openai: openaiKey })
-                            }
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (data.sessionToken) {
-                        // Send the session token in chat
-                        const expiresIn = '4 hours';
-                        const keyTypes = [claudeKey && 'Claude', geminiKey && 'Gemini', openaiKey && 'ChatGPT'].filter(Boolean).join(', ');
-
-                        // Send a special message with the token
-                        const message = `🔑 API Keys shared! Token: ${data.sessionToken.substring(0, 20)}... | Keys: ${keyTypes} | Expires: ${expiresIn}`;
-
-                        // Store full token in a data attribute so guests can copy
-                        const specialMsg = {
-                            type: 'api_keys',
-                            token: data.sessionToken,
-                            keyTypes: keyTypes,
-                            expiresAt: data.expiresAt
-                        };
-
-                        // Send as chat message with metadata
-                        if (window.sendSyncChatMessageText) {
-                            window.sendSyncChatMessageText(message, specialMsg);
-                        }
-
-                        showToast('🔑 API keys shared with team!', 'success');
-                    } else {
-                        showToast('Failed to create key session: ' + (data.error || 'Unknown error'), 'error');
-                    }
-                } catch (error) {
-                    console.error('Failed to share API keys:', error);
-                    showToast('Failed to share keys: ' + error.message, 'error');
-                }
-            };
-
-            // BUILD 268: Update floating chat with new message
+            // BUILD 268/281: Update floating chat with new message (API key special handling removed)
             function addMessageToFloatingChat(msg) {
                 const container = document.getElementById('floating-chat-messages');
                 if (!container) return;
@@ -22926,24 +22789,10 @@ https://treelisty.netlify.app`;
                 const msgEl = document.createElement('div');
                 msgEl.style.cssText = `margin-bottom: 6px; ${isMe ? 'text-align: right;' : ''}`;
 
-                // Check if this is an API key share message
-                if (msg.text && msg.text.includes('🔑 API Keys shared!') && msg.metadata?.token && !isMe) {
-                    // For guests: show a clickable message to apply keys
-                    msgEl.innerHTML = `
-                        <div style="background: linear-gradient(135deg, rgba(251, 191, 36, 0.2), rgba(245, 158, 11, 0.2)); padding: 8px; border-radius: 6px; border: 1px solid rgba(251, 191, 36, 0.4);">
-                            <div style="font-weight: 600; color: #f59e0b; font-size: 11px;">🔑 ${msg.name} shared API keys</div>
-                            <div style="font-size: 10px; color: var(--text-secondary); margin: 4px 0;">Keys: ${msg.metadata.keyTypes}</div>
-                            <button onclick="window.applySharedApiKeys('${msg.metadata.token}')" style="width: 100%; padding: 6px; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 4px; color: white; cursor: pointer; font-size: 11px; font-weight: 600; margin-top: 4px;">
-                                Apply Keys to My Session
-                            </button>
-                        </div>
-                    `;
-                } else {
-                    msgEl.innerHTML = `
-                        <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'}; font-size: 11px;">${msg.name || 'User'}:</span>
-                        <span style="color: var(--text-primary); font-size: 11px;">${msg.text}</span>
-                    `;
-                }
+                msgEl.innerHTML = `
+                    <span style="font-weight: 600; color: ${isMe ? '#10b981' : '#6366f1'}; font-size: 11px;">${msg.name || 'User'}:</span>
+                    <span style="color: var(--text-primary); font-size: 11px;">${msg.text}</span>
+                `;
 
                 container.appendChild(msgEl);
                 container.scrollTop = container.scrollHeight;
@@ -22959,47 +22808,7 @@ https://treelisty.netlify.app`;
                 }
             }
 
-            // BUILD 268: Apply shared API keys (for guests)
-            window.applySharedApiKeys = async function(sessionToken) {
-                try {
-                    const response = await fetch('/.netlify/functions/collab-session', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            action: 'validate',
-                            sessionToken: sessionToken
-                        })
-                    });
-
-                    const data = await response.json();
-                    if (data.valid && data.apiKeys) {
-                        // Apply keys to localStorage (session-only - will be cleared)
-                        if (data.apiKeys.claude) {
-                            localStorage.setItem('anthropic_api_key', data.apiKeys.claude);
-                            sessionStorage.setItem('session_api_keys', 'true'); // Mark as session keys
-                        }
-                        if (data.apiKeys.gemini) {
-                            localStorage.setItem('gemini_api_key', data.apiKeys.gemini);
-                            sessionStorage.setItem('session_api_keys', 'true');
-                        }
-                        if (data.apiKeys.openai) {
-                            localStorage.setItem('openai_api_key', data.apiKeys.openai);
-                            sessionStorage.setItem('session_api_keys', 'true');
-                        }
-
-                        const remainingMins = Math.round(data.remainingMs / 60000);
-                        showToast(`🔑 API keys applied! Valid for ~${remainingMins} minutes`, 'success');
-
-                        // Update any API key indicators in UI
-                        updateApiKeyIndicators();
-                    } else {
-                        showToast('Session expired or invalid', 'error');
-                    }
-                } catch (error) {
-                    console.error('Failed to apply API keys:', error);
-                    showToast('Failed to apply keys: ' + error.message, 'error');
-                }
-            };
+            // BUILD 281: applySharedApiKeys removed - guests enter API keys manually
 
             // BUILD 268: Update floating chat collaborators list
             function updateFloatingCollabList(connectedUsers) {
@@ -36749,7 +36558,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 280;
+        const CURRENT_BUILD = 281;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
