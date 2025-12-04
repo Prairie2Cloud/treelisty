@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 294 | 2025-12-04
+    TreeListy v2.17.0 | Build 295 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 294): ✨ 3D View Node Labels + Cleanup
-    - NEW: Node labels in 3D View using canvas-based text sprites
-    - REMOVED: Fly Mode (standard 3D manipulation via OrbitControls is sufficient)
-    - Labels positioned above nodes with colored borders matching node color
+    Changelog (Build 295): 🎯 Interactive 3D View + Hyperedge Shapes
+    - NEW: Click any node in 3D to select it - orbit pivots around selected node
+    - NEW: Selection opens infographic panel for the selected node
+    - NEW: Hyperedges rendered as colored translucent 3D tube shapes
+    - Visual highlight glow on selected node
 
-    Previous (Build 293): 🐛 Fix 3D Rendering
+    Previous (Build 294): ✨ 3D View Node Labels + Cleanup
     Previous (Build 289): 🖱️ Mouse-Based 3D Fly Mode
     Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
@@ -2917,8 +2918,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 294 | 2025-12-04">
-                    v2.17.0 • Build 294
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 295 | 2025-12-04">
+                    v2.17.0 • Build 295
                 </div>
             </div>
         </div>
@@ -36978,7 +36979,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 294;
+        const CURRENT_BUILD = 295;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37314,7 +37315,7 @@ RULES:
         <button class="btn" id="btn-3d-zoom-in">➕ Zoom In</button>
         <button class="btn" id="btn-3d-zoom-out">➖ Zoom Out</button>
         <div style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
-            Left Drag: Rotate | Right Drag: Pan | Scroll: Zoom
+            Click Node: Select & Pivot | Dbl-Click Empty: Reset | Drag: Rotate | Scroll: Zoom
         </div>
     </div>
 </div>
@@ -37339,6 +37340,10 @@ RULES:
     let isInitialized = false;
     let autoSpin = false;
     const nodePositions = new Map(); // Store positions for drawing lines
+    const nodeMeshes = []; // Store mesh references for raycasting
+    let raycaster, mouse;
+    let selectedMesh = null;
+    let selectionGlow = null;
 
     // --- Configuration ---
     const CONFIG = {
@@ -37445,9 +37450,93 @@ RULES:
             camera.position.multiplyScalar(1.25);
         });
 
+        // Raycaster for click detection
+        raycaster = new THREE.Raycaster();
+        mouse = new THREE.Vector2();
+
+        // Click handler for node selection
+        renderer.domElement.addEventListener('click', onNodeClick);
+        renderer.domElement.addEventListener('dblclick', onNodeDoubleClick);
+
         isInitialized = true;
         animate();
         console.log('🧊 Three.js initialized successfully');
+    }
+
+    // Handle click on 3D node
+    function onNodeClick(event) {
+        // Calculate mouse position in normalized device coordinates
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeMeshes);
+
+        if (intersects.length > 0) {
+            const clickedMesh = intersects[0].object;
+            selectNode(clickedMesh);
+        }
+    }
+
+    // Double-click to reset to root
+    function onNodeDoubleClick(event) {
+        const rect = renderer.domElement.getBoundingClientRect();
+        mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+        mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
+
+        raycaster.setFromCamera(mouse, camera);
+        const intersects = raycaster.intersectObjects(nodeMeshes);
+
+        if (intersects.length === 0) {
+            // Double-click on empty space - reset to root
+            controls.target.set(0, 0, 0);
+            clearSelection();
+        }
+    }
+
+    // Select a node: change orbit target, highlight, show info panel
+    function selectNode(mesh) {
+        // Clear previous selection glow
+        clearSelection();
+
+        selectedMesh = mesh;
+        const position = mesh.position.clone();
+        const nodeData = mesh.userData.nodeData;
+
+        // Set orbit controls to pivot around this node
+        controls.target.copy(position);
+
+        // Create selection glow
+        const glowSize = mesh.geometry.parameters.radius * 2.5;
+        const glowGeometry = new THREE.SphereGeometry(glowSize, 32, 32);
+        const glowMaterial = new THREE.MeshBasicMaterial({
+            color: 0x00ffff,
+            transparent: true,
+            opacity: 0.3,
+            side: THREE.BackSide
+        });
+        selectionGlow = new THREE.Mesh(glowGeometry, glowMaterial);
+        selectionGlow.position.copy(position);
+        scene.add(selectionGlow);
+
+        // Show infographic panel for this node
+        if (nodeData && typeof window.showInfo === 'function') {
+            window.showInfo(nodeData);
+        }
+
+        console.log('🧊 Selected node:', nodeData?.name || 'Unknown');
+    }
+
+    // Clear selection highlight
+    function clearSelection() {
+        if (selectionGlow) {
+            scene.remove(selectionGlow);
+            selectionGlow.geometry.dispose();
+            selectionGlow.material.dispose();
+            selectionGlow = null;
+        }
+        selectedMesh = null;
     }
 
     function addStarfield() {
@@ -37474,11 +37563,14 @@ RULES:
         const labels = document.querySelectorAll('.node-3d-label');
         labels.forEach(el => el.remove()); // DOM cleanup
 
+        // Clear tracking arrays
+        nodeMeshes.length = 0;
+        nodePositions.clear();
+        clearSelection();
+
         // Grab Global Tree
         const tree = window.capexTree;
         if (!tree) return;
-
-        nodePositions.clear();
 
         // --- Render Root ---
         createNode(tree, 0, 0, 0, 0xffffff, 'root');
@@ -37533,36 +37625,90 @@ RULES:
             });
         }
 
-        // --- Render Hyperedges (Curves) ---
+        // --- Render Hyperedges (3D Tube Shapes) ---
         if (tree.hyperedges) {
-            tree.hyperedges.forEach(edge => {
-                const color = 0xffffff; // Default white glow for hyperedges
+            const hyperedgeColors = [0xff6b6b, 0x4ecdc4, 0xffe66d, 0x95e1d3, 0xf38181, 0xaa96da];
+
+            tree.hyperedges.forEach((edge, edgeIndex) => {
+                // Use edge color or assign from palette
+                const colorHex = edge.color ? parseInt(edge.color.replace('#', ''), 16) : hyperedgeColors[edgeIndex % hyperedgeColors.length];
+
                 if (edge.nodeIds && edge.nodeIds.length >= 2) {
                     const positions = edge.nodeIds.map(id => nodePositions.get(id)).filter(p => p);
 
                     if (positions.length >= 2) {
-                        // Draw bezier curve between first and last (simplified for PoC)
-                        const start = positions[0];
-                        const end = positions[positions.length - 1];
+                        // For 2 nodes, draw a single curved tube
+                        // For 3+ nodes, draw tubes connecting all nodes through a central hub
 
-                        // Calculate a high arc midpoint
-                        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
-                        mid.y += 400; // Arc height
+                        if (positions.length === 2) {
+                            // Simple curve between two points
+                            createHyperedgeTube(positions[0], positions[1], colorHex, edge.label);
+                        } else {
+                            // Multi-node hyperedge: create central hub and connect all nodes to it
+                            const centroid = new THREE.Vector3();
+                            positions.forEach(p => centroid.add(p));
+                            centroid.divideScalar(positions.length);
+                            centroid.y += 150; // Lift the hub above
 
-                        const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
-                        const points = curve.getPoints(50);
-                        const geometry = new THREE.BufferGeometry().setFromPoints(points);
-                        const material = new THREE.LineBasicMaterial({
-                            color: color,
-                            opacity: 0.6,
-                            transparent: true,
-                            linewidth: 2
-                        });
-                        const curveObject = new THREE.Line(geometry, material);
-                        scene.add(curveObject);
+                            // Create central hub sphere
+                            const hubGeometry = new THREE.SphereGeometry(15, 16, 16);
+                            const hubMaterial = new THREE.MeshBasicMaterial({
+                                color: colorHex,
+                                transparent: true,
+                                opacity: 0.6
+                            });
+                            const hub = new THREE.Mesh(hubGeometry, hubMaterial);
+                            hub.position.copy(centroid);
+                            scene.add(hub);
+
+                            // Connect all nodes to the hub
+                            positions.forEach(pos => {
+                                createHyperedgeTube(pos, centroid, colorHex);
+                            });
+
+                            // Add label at hub if available
+                            if (edge.label) {
+                                const labelSprite = createTextSprite(edge.label, colorHex);
+                                labelSprite.position.set(centroid.x, centroid.y + 40, centroid.z);
+                                labelSprite.scale.set(150, 37, 1);
+                                scene.add(labelSprite);
+                            }
+                        }
                     }
                 }
             });
+        }
+    }
+
+    // Helper: Create hyperedge tube between two points
+    function createHyperedgeTube(start, end, colorHex, label) {
+        // Calculate a graceful arc midpoint
+        const mid = new THREE.Vector3().addVectors(start, end).multiplyScalar(0.5);
+        const distance = start.distanceTo(end);
+        mid.y += distance * 0.3; // Arc proportional to distance
+
+        const curve = new THREE.QuadraticBezierCurve3(start, mid, end);
+
+        // Create tube geometry along the curve
+        const tubeGeometry = new THREE.TubeGeometry(curve, 32, 8, 8, false);
+        const tubeMaterial = new THREE.MeshPhongMaterial({
+            color: colorHex,
+            transparent: true,
+            opacity: 0.4,
+            side: THREE.DoubleSide,
+            emissive: colorHex,
+            emissiveIntensity: 0.2
+        });
+        const tube = new THREE.Mesh(tubeGeometry, tubeMaterial);
+        scene.add(tube);
+
+        // Add label at midpoint if provided
+        if (label) {
+            const labelSprite = createTextSprite(label, colorHex);
+            labelSprite.position.copy(mid);
+            labelSprite.position.y += 30;
+            labelSprite.scale.set(150, 37, 1);
+            scene.add(labelSprite);
         }
     }
 
@@ -37625,8 +37771,11 @@ RULES:
         });
         const mesh = new THREE.Mesh(geometry, material);
         mesh.position.copy(position);
-        mesh.userData = { nodeData: data, type: type };
+        mesh.userData = { nodeData: data, type: type, colorHex: colorHex };
         scene.add(mesh);
+
+        // Track mesh for raycasting
+        nodeMeshes.push(mesh);
 
         // Add text label sprite
         const label = createTextSprite(data.name, colorHex);
