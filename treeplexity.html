@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 286 | 2025-12-04
+    TreeListy v2.17.0 | Build 287 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 286): 🧊 3D View PoC (Experimental)
-    - NEW: 3D Helix visualization using Three.js
-    - NEW: CSS2D labels for node information
-    - NEW: OrbitControls for camera navigation
-    - NEW: Auto-spin feature toggle
-    - NEW: Click nodes to show info, double-click to edit
+    Changelog (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
+    - NEW: Fly Mode - WASD/Arrow keys to fly through the tree
+    - NEW: Zoom In/Out buttons for easy zoom control
+    - NEW: Space bar = fly up, Shift = fly down
+    - NEW: Visual feedback on active buttons (Spin/Fly Mode)
+    - FIX: Version checker now correctly reports Build 287
 
+    Previous (Build 286): 🧊 3D View PoC (Experimental)
     Previous (Build 285): 📐 Save & Restore View State
     Previous (Build 284): 💾 Version Conflict Detection + Unsaved Warning
     Previous (Build 283): 🔗 Smart Hyperedge Labels + Fix Deep Dive
@@ -2914,8 +2915,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 286 | 2025-12-04">
-                    v2.17.0 • Build 286
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 287 | 2025-12-04">
+                    v2.17.0 • Build 287
                 </div>
             </div>
         </div>
@@ -36975,7 +36976,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 285;
+        const CURRENT_BUILD = 287;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37306,10 +37307,13 @@ RULES:
 
 <div id="view-3d">
     <div id="controls-3d">
-        <button class="btn" id="btn-3d-reset">🏠 Reset View</button>
-        <button class="btn" id="btn-3d-spin">🔄 Auto Spin</button>
-        <div style="color: #888; font-size: 12px; align-self: center; margin-left: 10px;">
-            Left Click: Rotate | Right Click: Pan | Scroll: Zoom
+        <button class="btn" id="btn-3d-reset">🏠 Reset</button>
+        <button class="btn" id="btn-3d-spin">🔄 Spin</button>
+        <button class="btn" id="btn-3d-zoom-in">➕ Zoom In</button>
+        <button class="btn" id="btn-3d-zoom-out">➖ Zoom Out</button>
+        <button class="btn" id="btn-3d-fly">🚀 Fly Mode</button>
+        <div style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
+            Mouse: Rotate/Pan/Zoom | WASD/Arrows: Fly | Space: Up | Shift: Down
         </div>
     </div>
 </div>
@@ -37332,7 +37336,19 @@ RULES:
     let camera, scene, renderer, labelRenderer, controls;
     let isInitialized = false;
     let autoSpin = false;
+    let flyMode = false;
     const nodePositions = new Map(); // Store positions for drawing lines
+
+    // Fly mode controls
+    const flyState = {
+        forward: false,
+        backward: false,
+        left: false,
+        right: false,
+        up: false,
+        down: false,
+        speed: 8
+    };
 
     // --- Configuration ---
     const CONFIG = {
@@ -37436,10 +37452,104 @@ RULES:
         });
         document.getElementById('btn-3d-spin').addEventListener('click', () => {
             autoSpin = !autoSpin;
+            document.getElementById('btn-3d-spin').style.background = autoSpin ? '#10b981' : '';
         });
+
+        // Zoom controls
+        document.getElementById('btn-3d-zoom-in').addEventListener('click', () => {
+            camera.position.multiplyScalar(0.8);
+        });
+        document.getElementById('btn-3d-zoom-out').addEventListener('click', () => {
+            camera.position.multiplyScalar(1.25);
+        });
+
+        // Fly mode toggle
+        const flyBtn = document.getElementById('btn-3d-fly');
+        flyBtn.addEventListener('click', () => {
+            flyMode = !flyMode;
+            flyBtn.style.background = flyMode ? '#f59e0b' : '';
+            if (flyMode) {
+                controls.enabled = false; // Disable orbit controls in fly mode
+            } else {
+                controls.enabled = true;
+                // Reset fly state
+                flyState.forward = flyState.backward = flyState.left = flyState.right = flyState.up = flyState.down = false;
+            }
+        });
+
+        // Keyboard controls for fly mode
+        window.addEventListener('keydown', handleKeyDown);
+        window.addEventListener('keyup', handleKeyUp);
 
         isInitialized = true;
         animate();
+    }
+
+    // Keyboard handlers for fly mode
+    function handleKeyDown(e) {
+        if (!flyMode) return;
+        const view3D = document.getElementById('view-3d');
+        if (!view3D.classList.contains('active')) return;
+
+        switch (e.code) {
+            case 'KeyW':
+            case 'ArrowUp':
+                flyState.forward = true;
+                e.preventDefault();
+                break;
+            case 'KeyS':
+            case 'ArrowDown':
+                flyState.backward = true;
+                e.preventDefault();
+                break;
+            case 'KeyA':
+            case 'ArrowLeft':
+                flyState.left = true;
+                e.preventDefault();
+                break;
+            case 'KeyD':
+            case 'ArrowRight':
+                flyState.right = true;
+                e.preventDefault();
+                break;
+            case 'Space':
+                flyState.up = true;
+                e.preventDefault();
+                break;
+            case 'ShiftLeft':
+            case 'ShiftRight':
+                flyState.down = true;
+                e.preventDefault();
+                break;
+        }
+    }
+
+    function handleKeyUp(e) {
+        switch (e.code) {
+            case 'KeyW':
+            case 'ArrowUp':
+                flyState.forward = false;
+                break;
+            case 'KeyS':
+            case 'ArrowDown':
+                flyState.backward = false;
+                break;
+            case 'KeyA':
+            case 'ArrowLeft':
+                flyState.left = false;
+                break;
+            case 'KeyD':
+            case 'ArrowRight':
+                flyState.right = false;
+                break;
+            case 'Space':
+                flyState.up = false;
+                break;
+            case 'ShiftLeft':
+            case 'ShiftRight':
+                flyState.down = false;
+                break;
+        }
     }
 
     function addStarfield() {
@@ -37625,6 +37735,39 @@ RULES:
 
     function animate() {
         requestAnimationFrame(animate);
+
+        // Handle fly mode movement
+        if (flyMode && camera) {
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+
+            // Forward/backward - move along camera direction
+            if (flyState.forward) {
+                camera.position.addScaledVector(direction, flyState.speed);
+            }
+            if (flyState.backward) {
+                camera.position.addScaledVector(direction, -flyState.speed);
+            }
+
+            // Left/right strafe - perpendicular to camera direction
+            const right = new THREE.Vector3();
+            right.crossVectors(direction, camera.up).normalize();
+            if (flyState.right) {
+                camera.position.addScaledVector(right, flyState.speed);
+            }
+            if (flyState.left) {
+                camera.position.addScaledVector(right, -flyState.speed);
+            }
+
+            // Up/down
+            if (flyState.up) {
+                camera.position.y += flyState.speed;
+            }
+            if (flyState.down) {
+                camera.position.y -= flyState.speed;
+            }
+        }
+
         if (autoSpin && controls) {
             controls.autoRotate = true;
             controls.update();
