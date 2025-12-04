@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 315 | 2025-12-04
+    TreeListy v2.17.0 | Build 316 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 315): 🧠 Wiser TreeBeard - Deep Knowledge Injection
-    - TreeBeard now knows all 17 patterns and their unique fields
-    - Understands tree structure (Root→Phases→Items→Subtasks)
-    - Knows about Hyperedges, collaboration, AI features
-    - Can give practical tips (Ctrl+Z, find_redundancies, etc.)
-    - Better recommendations for which AI feature to use
+    Changelog (Build 316): 🧠 Wiser AI Prompts - Context Injection
+    - All AI providers (Claude, Gemini, ChatGPT) now receive TreeListy context
+    - Deep Dive (Philosophy) knows tree structure, pattern fields, hyperedges
+    - Deep Dive (Generic) knows RAID methodology + TreeListy patterns
+    - Default system prompts include 4-level hierarchy and 17 patterns
+    - Better JSON output for seamless tree integration
 
+    Previous (Build 315): 🧠 Wiser TreeBeard - Deep Knowledge Injection
     Previous (Build 314): 📐 Fix Tree View Zoom Reset Position
     Previous (Build 307): 🐛 TreeBeard Context Fix (children vs phases)
     Previous (Build 306): 🎨 UI Z-Index Fix - Chat Bubble Overlap
@@ -2930,8 +2931,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 315 | 2025-12-04">
-                    v2.17.0 • Build 315
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 316 | 2025-12-04">
+                    v2.17.0 • Build 316
                 </div>
             </div>
         </div>
@@ -6301,11 +6302,21 @@ Do not ask permission—just provide the critique, then help.
         async function callGeminiDirectAPI(prompt, systemPrompt, maxTokens, apiKey) {
             console.log('🚀 Direct API: Calling Google Gemini directly');
 
+            // Enhanced default prompt with TreeListy context for Gemini
+            const geminiDefaultPrompt = `You are an expert project analyst within TreeListy, a hierarchical project decomposition tool.
+
+TREELISTY CONTEXT:
+- 4-level hierarchy: Root → Phases (children) → Items (items) → Subtasks (subItems)
+- 17 patterns: generic, philosophy, sales, thesis, roadmap, book, event, fitness, strategy, course, prompting, film, veo3, sora2, dialogue, familytree, filesystem
+- Each pattern has unique fields for domain-specific data`;
+
+            const effectiveSystemPrompt = systemPrompt || geminiDefaultPrompt;
+
             // Gemini API format is different from Claude
             const geminiRequest = {
                 contents: [{
                     parts: [{
-                        text: (systemPrompt ? systemPrompt + '\n\n' : '') + prompt
+                        text: (effectiveSystemPrompt ? effectiveSystemPrompt + '\n\n' : '') + prompt
                     }]
                 }],
                 generationConfig: {
@@ -6352,6 +6363,14 @@ Do not ask permission—just provide the critique, then help.
             console.log('🚀 Direct API: Calling OpenAI ChatGPT directly');
 
             // OpenAI API format
+            // Enhanced default prompt with TreeListy context for OpenAI
+            const openaiDefaultPrompt = `You are an expert project analyst within TreeListy, a hierarchical project decomposition tool.
+
+TREELISTY CONTEXT:
+- 4-level hierarchy: Root → Phases (children) → Items (items) → Subtasks (subItems)
+- 17 patterns: generic, philosophy, sales, thesis, roadmap, book, event, fitness, strategy, course, prompting, film, veo3, sora2, dialogue, familytree, filesystem
+- Each pattern has unique fields for domain-specific data`;
+
             const openaiRequest = {
                 model: 'gpt-4o', // Using GPT-4o (latest optimized model)
                 max_tokens: maxTokens,
@@ -6359,7 +6378,7 @@ Do not ask permission—just provide the critique, then help.
                 messages: [
                     {
                         role: 'system',
-                        content: systemPrompt || 'You are an expert project analyst specializing in breaking down complex projects into manageable components.'
+                        content: systemPrompt || openaiDefaultPrompt
                     },
                     {
                         role: 'user',
@@ -6483,7 +6502,15 @@ Do not ask permission—just provide the critique, then help.
 
             // Apply AI Tuner persona settings to system prompt
             const aiConfig = getAIConfig(); // Get AI config for temperature
-            const finalSystemPrompt = applyPersonaTuning(systemPrompt || 'You are an expert project analyst specializing in breaking down complex projects into manageable components.');
+            // Enhanced default prompt with TreeListy context
+            const defaultSystemPrompt = `You are an expert project analyst specializing in breaking down complex projects into manageable components within TreeListy.
+
+TREELISTY CONTEXT:
+- TreeListy uses a 4-level hierarchy: Root → Phases (children) → Items (items) → Subtasks (subItems)
+- 17 specialized patterns available: generic, philosophy, sales, thesis, roadmap, book, event, fitness, strategy, course, prompting, film, veo3, sora2, dialogue, familytree, filesystem
+- Each pattern has unique fields (e.g., philosophy has speaker, premises, objections; sales has dealValue, probability, closeDate)
+- Output JSON must match this structure for proper integration into the tree`;
+            const finalSystemPrompt = applyPersonaTuning(systemPrompt || defaultSystemPrompt);
 
             const requestData = {
                 model: AI_CONFIG.model,
@@ -18657,7 +18684,22 @@ Your response:`;
 
             if (isPhilosophy) {
                 return {
-                    system: `You are a philosophy professor using the "Structured Scholar" technique for deep textual analysis.
+                    system: `You are a philosophy professor using the "Structured Scholar" technique for deep textual analysis within TreeListy, a hierarchical project decomposition tool.
+
+═══════════════════════════════════════════════════════════════════════════
+TREELISTY CONTEXT (Important for output structure)
+═══════════════════════════════════════════════════════════════════════════
+
+TREE STRUCTURE: Root → Phases (children) → Items (items) → Subtasks (subItems)
+- Each node has: id, name, type, icon, description, and pattern-specific fields
+- Philosophy pattern fields: speaker, premises, objections, keyTerms, textualReference, argumentType
+- SubItems appear as collapsible nested content under their parent item
+- Multiple nodes can be connected via Hyperedges to show cross-cutting relationships
+
+PURPOSE: Your enriched output will be integrated back into the tree, adding depth and scholarly rigor to the user's philosophical analysis. The subItems you generate become visible nested content.
+
+═══════════════════════════════════════════════════════════════════════════
+
 Your expertise includes: identifying hidden premises, reconstructing arguments, citing secondary sources, anticipating objections, and ANALYZING RELATIONSHIPS between philosophical claims.
 
 You will receive JSON data for philosophical nodes to analyze. Your tasks:
@@ -18729,7 +18771,21 @@ Return ONLY the JSON object, no other text.`
             } else {
                 // Generic pattern - McKinsey-style structured analysis
                 return {
-                    system: `You are a senior management consultant with 15 years at McKinsey & Company specializing in project risk assessment and work breakdown structures.
+                    system: `You are a senior management consultant with 15 years at McKinsey & Company specializing in project risk assessment and work breakdown structures within TreeListy, a hierarchical project decomposition tool.
+
+═══════════════════════════════════════════════════════════════════════════
+TREELISTY CONTEXT (Important for output structure)
+═══════════════════════════════════════════════════════════════════════════
+
+TREE STRUCTURE: Root → Phases (children) → Items (items) → Subtasks (subItems)
+- Each node has: id, name, type, icon, description, and pattern-specific fields
+- Generic pattern fields: cost, leadTime, dependencies
+- SubItems appear as collapsible nested content under their parent item
+- TreeListy supports 17 patterns including: Sales Pipeline, Product Roadmap, Course, Book, Film Production, and more
+
+PURPOSE: Your enriched output will be integrated back into the tree, adding depth and rigor to the user's project analysis. The subItems you generate become visible nested content that can be further expanded.
+
+═══════════════════════════════════════════════════════════════════════════
 
 Your expertise includes: RAID analysis (Risks, Assumptions, Issues, Dependencies), RACI matrix construction, Critical Path Method, stakeholder impact assessment, and ANALYZING INTERDEPENDENCIES between project components.
 
@@ -37464,7 +37520,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 315;
+        const CURRENT_BUILD = 316;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
