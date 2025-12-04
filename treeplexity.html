@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 300 | 2025-12-04
+    TreeListy v2.17.0 | Build 301 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 300): 🎯 Sort-Aware 3D Layouts
-    - Sort selection now radically changes 3D layout:
-      • Helix (default): Original spiral layout when no sort
-      • Tower: Numeric sorts arrange by value (higher = taller)
-      • Cluster: Category sorts group items into spatial clusters
-      • Timeline: Date sorts arrange along time axis
-    - Each layout transforms the space exploration experience
+    Changelog (Build 301): 🐛 Fix 3D Sort Refresh
+    - Fixed: Sort changes now immediately refresh 3D layout
+    - 3D view detection uses classList.contains('active') instead of viewMode
+    - Sort in 3D now triggers instant layout transformation
 
+    Previous (Build 300): 🎯 Sort-Aware 3D Layouts
     Previous (Build 299): 🖱️ 3D Usability - Hover & Interaction
     Previous (Build 298): ✨ 3D Title Polish
     Previous (Build 297): 🎯 3D Quick Wins - Dependencies & View State
@@ -2922,8 +2920,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 300 | 2025-12-04">
-                    v2.17.0 • Build 300
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 301 | 2025-12-04">
+                    v2.17.0 • Build 301
                 </div>
             </div>
         </div>
@@ -34207,7 +34205,17 @@ STRATEGIES:
             }
 
             // Re-render to show sorted tree with new visual order
-            if (viewMode === 'canvas') {
+            // Check if 3D view is active (it's an overlay, not a viewMode value)
+            const view3D = document.getElementById('view-3d');
+            const is3DActive = view3D && view3D.classList.contains('active');
+
+            if (is3DActive) {
+                // Refresh 3D view with new sort-based layout
+                if (typeof window.refresh3DData === 'function') {
+                    window.refresh3DData();
+                    console.log('3D sorted by:', sortConfig, '- 3D layout transformed');
+                }
+            } else if (viewMode === 'canvas') {
                 // Clear canvas coordinates to force re-positioning in new sorted order
                 capexTree.children.forEach(phase => {
                     const nodeList = phase.items || phase.children || [];
@@ -34219,12 +34227,6 @@ STRATEGIES:
 
                 renderCanvas();
                 console.log('Canvas sorted by:', sortConfig, '- Canvas layout updated and repositioned');
-            } else if (viewMode === '3d') {
-                // Refresh 3D view with new sort-based layout
-                if (typeof window.refresh3DData === 'function') {
-                    window.refresh3DData();
-                    console.log('3D sorted by:', sortConfig, '- 3D layout transformed');
-                }
             } else {
                 render();
                 console.log('Tree sorted by:', sortConfig, '- Visual layout updated');
