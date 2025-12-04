@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 288 | 2025-12-04
+    TreeListy v2.17.0 | Build 289 | 2025-12-04
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 288): 🐛 Canvas View Info Panel Fix
-    - FIX: Clicking nodes with children now shows info panel (was only toggling)
-    - Info panel now displays for ALL nodes in Canvas View
+    Changelog (Build 289): 🖱️ Mouse-Based 3D Fly Mode
+    - FIX: Fly Mode now uses mouse controls (not keyboard)
+    - Left-drag: Look around (rotate camera direction)
+    - Scroll wheel: Fly forward/backward
+    - Right-drag: Strafe sideways and up/down
+    - Dynamic hint text updates when toggling Fly Mode
 
+    Previous (Build 288): 🐛 Canvas View Info Panel Fix
     Previous (Build 287): 🚀 3D Fly Mode + Enhanced Navigation
-    Previous (Build 286): 🧊 3D View PoC (Experimental)
     Previous (Build 285): 📐 Save & Restore View State
     Previous (Build 284): 💾 Version Conflict Detection + Unsaved Warning
     Previous (Build 283): 🔗 Smart Hyperedge Labels + Fix Deep Dive
@@ -2913,8 +2916,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 288 | 2025-12-04">
-                    v2.17.0 • Build 288
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 289 | 2025-12-04">
+                    v2.17.0 • Build 289
                 </div>
             </div>
         </div>
@@ -36974,7 +36977,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 288;
+        const CURRENT_BUILD = 289;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
@@ -37310,8 +37313,8 @@ RULES:
         <button class="btn" id="btn-3d-zoom-in">➕ Zoom In</button>
         <button class="btn" id="btn-3d-zoom-out">➖ Zoom Out</button>
         <button class="btn" id="btn-3d-fly">🚀 Fly Mode</button>
-        <div style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
-            Mouse: Rotate/Pan/Zoom | WASD/Arrows: Fly | Space: Up | Shift: Down
+        <div id="controls-3d-hint" style="color: #888; font-size: 11px; align-self: center; margin-left: 10px;">
+            Left Drag: Rotate | Right Drag: Pan | Scroll: Zoom
         </div>
     </div>
 </div>
@@ -37337,15 +37340,16 @@ RULES:
     let flyMode = false;
     const nodePositions = new Map(); // Store positions for drawing lines
 
-    // Fly mode controls
+    // Fly mode controls (mouse-based)
     const flyState = {
-        forward: false,
-        backward: false,
-        left: false,
-        right: false,
-        up: false,
-        down: false,
-        speed: 8
+        isDragging: false,
+        isRightDragging: false,
+        lastMouseX: 0,
+        lastMouseY: 0,
+        yaw: 0,      // Horizontal rotation
+        pitch: 0,    // Vertical rotation
+        flySpeed: 15,
+        lookSensitivity: 0.003
     };
 
     // --- Configuration ---
@@ -37463,91 +37467,116 @@ RULES:
 
         // Fly mode toggle
         const flyBtn = document.getElementById('btn-3d-fly');
+        const hint = document.getElementById('controls-3d-hint');
         flyBtn.addEventListener('click', () => {
             flyMode = !flyMode;
             flyBtn.style.background = flyMode ? '#f59e0b' : '';
             if (flyMode) {
                 controls.enabled = false; // Disable orbit controls in fly mode
+                hint.textContent = 'Fly Mode: Drag to look | Scroll to fly forward/back | Right-drag to strafe';
             } else {
                 controls.enabled = true;
+                hint.textContent = 'Left Drag: Rotate | Right Drag: Pan | Scroll: Zoom';
                 // Reset fly state
-                flyState.forward = flyState.backward = flyState.left = flyState.right = flyState.up = flyState.down = false;
+                flyState.isDragging = false;
+                flyState.isRightDragging = false;
             }
         });
 
-        // Keyboard controls for fly mode
-        window.addEventListener('keydown', handleKeyDown);
-        window.addEventListener('keyup', handleKeyUp);
+        // Mouse controls for fly mode
+        const container = document.getElementById('view-3d');
+
+        container.addEventListener('mousedown', (e) => {
+            if (!flyMode) return;
+            if (e.button === 0) { // Left click
+                flyState.isDragging = true;
+                flyState.lastMouseX = e.clientX;
+                flyState.lastMouseY = e.clientY;
+            } else if (e.button === 2) { // Right click
+                flyState.isRightDragging = true;
+                flyState.lastMouseX = e.clientX;
+                flyState.lastMouseY = e.clientY;
+            }
+        });
+
+        container.addEventListener('mousemove', (e) => {
+            if (!flyMode || !camera) return;
+
+            if (flyState.isDragging) {
+                // Look around (rotate camera direction)
+                const deltaX = e.clientX - flyState.lastMouseX;
+                const deltaY = e.clientY - flyState.lastMouseY;
+
+                flyState.yaw -= deltaX * flyState.lookSensitivity;
+                flyState.pitch -= deltaY * flyState.lookSensitivity;
+
+                // Clamp pitch to avoid flipping
+                flyState.pitch = Math.max(-Math.PI / 2 + 0.1, Math.min(Math.PI / 2 - 0.1, flyState.pitch));
+
+                // Update camera rotation
+                const direction = new THREE.Vector3();
+                direction.x = Math.cos(flyState.pitch) * Math.sin(flyState.yaw);
+                direction.y = Math.sin(flyState.pitch);
+                direction.z = Math.cos(flyState.pitch) * Math.cos(flyState.yaw);
+
+                const target = camera.position.clone().add(direction);
+                camera.lookAt(target);
+
+                flyState.lastMouseX = e.clientX;
+                flyState.lastMouseY = e.clientY;
+            }
+
+            if (flyState.isRightDragging) {
+                // Strafe (move sideways/up-down)
+                const deltaX = e.clientX - flyState.lastMouseX;
+                const deltaY = e.clientY - flyState.lastMouseY;
+
+                const direction = new THREE.Vector3();
+                camera.getWorldDirection(direction);
+
+                const right = new THREE.Vector3();
+                right.crossVectors(direction, camera.up).normalize();
+
+                // Move right/left based on horizontal mouse movement
+                camera.position.addScaledVector(right, -deltaX * 0.5);
+                // Move up/down based on vertical mouse movement
+                camera.position.y += deltaY * 0.5;
+
+                flyState.lastMouseX = e.clientX;
+                flyState.lastMouseY = e.clientY;
+            }
+        });
+
+        container.addEventListener('mouseup', (e) => {
+            if (e.button === 0) flyState.isDragging = false;
+            if (e.button === 2) flyState.isRightDragging = false;
+        });
+
+        container.addEventListener('mouseleave', () => {
+            flyState.isDragging = false;
+            flyState.isRightDragging = false;
+        });
+
+        // Scroll to fly forward/backward in fly mode
+        container.addEventListener('wheel', (e) => {
+            if (!flyMode || !camera) return;
+            e.preventDefault();
+
+            const direction = new THREE.Vector3();
+            camera.getWorldDirection(direction);
+
+            // Scroll up = fly forward, scroll down = fly backward
+            const speed = flyState.flySpeed * (e.deltaY > 0 ? -1 : 1);
+            camera.position.addScaledVector(direction, speed);
+        }, { passive: false });
+
+        // Prevent context menu in fly mode
+        container.addEventListener('contextmenu', (e) => {
+            if (flyMode) e.preventDefault();
+        });
 
         isInitialized = true;
         animate();
-    }
-
-    // Keyboard handlers for fly mode
-    function handleKeyDown(e) {
-        if (!flyMode) return;
-        const view3D = document.getElementById('view-3d');
-        if (!view3D.classList.contains('active')) return;
-
-        switch (e.code) {
-            case 'KeyW':
-            case 'ArrowUp':
-                flyState.forward = true;
-                e.preventDefault();
-                break;
-            case 'KeyS':
-            case 'ArrowDown':
-                flyState.backward = true;
-                e.preventDefault();
-                break;
-            case 'KeyA':
-            case 'ArrowLeft':
-                flyState.left = true;
-                e.preventDefault();
-                break;
-            case 'KeyD':
-            case 'ArrowRight':
-                flyState.right = true;
-                e.preventDefault();
-                break;
-            case 'Space':
-                flyState.up = true;
-                e.preventDefault();
-                break;
-            case 'ShiftLeft':
-            case 'ShiftRight':
-                flyState.down = true;
-                e.preventDefault();
-                break;
-        }
-    }
-
-    function handleKeyUp(e) {
-        switch (e.code) {
-            case 'KeyW':
-            case 'ArrowUp':
-                flyState.forward = false;
-                break;
-            case 'KeyS':
-            case 'ArrowDown':
-                flyState.backward = false;
-                break;
-            case 'KeyA':
-            case 'ArrowLeft':
-                flyState.left = false;
-                break;
-            case 'KeyD':
-            case 'ArrowRight':
-                flyState.right = false;
-                break;
-            case 'Space':
-                flyState.up = false;
-                break;
-            case 'ShiftLeft':
-            case 'ShiftRight':
-                flyState.down = false;
-                break;
-        }
     }
 
     function addStarfield() {
@@ -37734,42 +37763,12 @@ RULES:
     function animate() {
         requestAnimationFrame(animate);
 
-        // Handle fly mode movement
-        if (flyMode && camera) {
-            const direction = new THREE.Vector3();
-            camera.getWorldDirection(direction);
+        // Fly mode uses mouse events (no per-frame keyboard logic needed)
 
-            // Forward/backward - move along camera direction
-            if (flyState.forward) {
-                camera.position.addScaledVector(direction, flyState.speed);
-            }
-            if (flyState.backward) {
-                camera.position.addScaledVector(direction, -flyState.speed);
-            }
-
-            // Left/right strafe - perpendicular to camera direction
-            const right = new THREE.Vector3();
-            right.crossVectors(direction, camera.up).normalize();
-            if (flyState.right) {
-                camera.position.addScaledVector(right, flyState.speed);
-            }
-            if (flyState.left) {
-                camera.position.addScaledVector(right, -flyState.speed);
-            }
-
-            // Up/down
-            if (flyState.up) {
-                camera.position.y += flyState.speed;
-            }
-            if (flyState.down) {
-                camera.position.y -= flyState.speed;
-            }
-        }
-
-        if (autoSpin && controls) {
+        if (autoSpin && controls && !flyMode) {
             controls.autoRotate = true;
             controls.update();
-        } else if (controls) {
+        } else if (controls && !flyMode) {
             controls.autoRotate = false;
             controls.update();
         }
