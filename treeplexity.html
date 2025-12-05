@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 325 | 2025-12-05
+    TreeListy v2.17.0 | Build 326 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 325): 📅 Meeting Link Collaboration System
-    - NEW: Schedule meeting links for calendar invites (?meeting=MEETXXXX)
-    - NEW: Guests get full tree from Firebase before host arrives
-    - NEW: Waiting room with edit capability + host arrival detection
-    - NEW: Voice prompt toast when 2+ users join
-    - NEW: Auto-backup every 5 minutes + on join/leave
-    - NEW: Meeting Link Modal with settings (guest edits, voice prompt, backup)
+    Changelog (Build 326): 🐛 Fix Meeting Tree Sync
+    - FIX: Guest now gets LATEST tree from sync room when meeting is active
+    - FIX: Only load from meeting document when waiting (before host arrives)
+    - Ensures host and guest always see the same tree in active session
 
+    Previous (Build 325): 📅 Meeting Link Collaboration System
     Previous (Build 324): 🎙️ Voice Chat UX Improvement
     Previous (Build 323): 🐛 Bug fixes - version notification, welcome tree
     Previous (Build 318): ⏱️ Fix Edge Function Timeout - Use Streaming
@@ -2936,8 +2934,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 325 | 2025-12-05">
-                    v2.17.0 • Build 325
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 326 | 2025-12-05">
+                    v2.17.0 • Build 326
                 </div>
             </div>
         </div>
@@ -23599,40 +23597,16 @@ https://treelisty.netlify.app`;
                     meetingState.isHost = isHost;
                     meetingState.currentMeetingId = meetingId;
 
-                    // 4. Load the tree data from meeting
-                    if (meeting.treeData) {
-                        try {
-                            const loadedTree = JSON.parse(meeting.treeData);
-                            window.capexTree = loadedTree;
-
-                            // Update pattern if specified
-                            if (meeting.pattern && window.PATTERNS && window.PATTERNS[meeting.pattern]) {
-                                window.currentPattern = meeting.pattern;
-                                const patternSelect = document.getElementById('pattern-select');
-                                if (patternSelect) patternSelect.value = meeting.pattern;
-                            }
-
-                            // Update tree name display
-                            const treeNameDisplay = document.getElementById('tree-name-display');
-                            if (treeNameDisplay) {
-                                treeNameDisplay.textContent = loadedTree.name || meeting.projectName || 'Meeting Tree';
-                            }
-
-                            console.log('📅 Tree loaded from meeting:', loadedTree.name);
-                        } catch (e) {
-                            console.error('📅 Failed to parse meeting tree:', e);
-                            showToast('❌ Failed to load meeting tree', 'error');
-                            return false;
-                        }
-                    }
-
-                    // 5. Register as participant
+                    // 4. Register as participant
                     await registerMeetingParticipant(meetingId, isHost);
 
-                    // 6. Handle based on current meeting state
+                    // 5. Handle based on current meeting state
+                    // IMPORTANT: If meeting is ACTIVE, get tree from sync room (latest version)
+                    // Only load from meeting document if waiting for host (original tree)
                     if (meeting.state === 'ACTIVE' && meeting.roomId) {
                         // Meeting already active - join the sync room directly
-                        console.log('📅 Meeting active, joining room:', meeting.roomId);
+                        // The sync room has the LATEST tree, so don't load from meeting doc
+                        console.log('📅 Meeting active, joining room for latest tree:', meeting.roomId);
                         await joinSyncRoom(meeting.roomId);
 
                         // Start backup interval if enabled
@@ -23640,16 +23614,45 @@ https://treelisty.netlify.app`;
                             startMeetingBackupInterval();
                         }
 
-                    } else if (isHost) {
-                        // Host arriving - activate the meeting
-                        console.log('📅 Host detected, activating meeting...');
-                        await activateMeeting(meetingId);
-
                     } else {
-                        // Guest arrived before host - show waiting room
-                        console.log('📅 Guest waiting for host...');
-                        showWaitingRoom(meeting);
-                        subscribeMeetingState(meetingId);
+                        // Meeting NOT active yet - load tree from meeting document
+                        // (This is the original tree stored when meeting was created)
+                        if (meeting.treeData) {
+                            try {
+                                const loadedTree = JSON.parse(meeting.treeData);
+                                window.capexTree = loadedTree;
+
+                                // Update pattern if specified
+                                if (meeting.pattern && window.PATTERNS && window.PATTERNS[meeting.pattern]) {
+                                    window.currentPattern = meeting.pattern;
+                                    const patternSelect = document.getElementById('pattern-select');
+                                    if (patternSelect) patternSelect.value = meeting.pattern;
+                                }
+
+                                // Update tree name display
+                                const treeNameDisplay = document.getElementById('tree-name-display');
+                                if (treeNameDisplay) {
+                                    treeNameDisplay.textContent = loadedTree.name || meeting.projectName || 'Meeting Tree';
+                                }
+
+                                console.log('📅 Tree loaded from meeting document:', loadedTree.name);
+                            } catch (e) {
+                                console.error('📅 Failed to parse meeting tree:', e);
+                                showToast('❌ Failed to load meeting tree', 'error');
+                                return false;
+                            }
+                        }
+
+                        if (isHost) {
+                            // Host arriving - activate the meeting
+                            console.log('📅 Host detected, activating meeting...');
+                            await activateMeeting(meetingId);
+                        } else {
+                            // Guest arrived before host - show waiting room
+                            console.log('📅 Guest waiting for host...');
+                            showWaitingRoom(meeting);
+                            subscribeMeetingState(meetingId);
+                        }
                     }
 
                     // 7. Download initial backup if enabled
@@ -38908,7 +38911,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 325;
+        const CURRENT_BUILD = 326;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
