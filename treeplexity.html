@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 322 | 2025-12-05
+    TreeListy v2.17.0 | Build 324 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 322): 🎙️ Voice Chat for Live Collaboration
-    - NEW: One-click voice chat via Jitsi Meet integration
-    - NEW: "🎙️ Voice" button in collaboration chat panel
-    - Opens popup window with shared voice room (same session ID)
-    - Auto-notifies collaborators in text chat when voice starts
-    - No account required, works on all platforms
+    Changelog (Build 324): 🎙️ Voice Chat UX Improvement
+    - FIX: Skip Jitsi Meet prejoin modal - join voice instantly
+    - NEW: Auto-pass display name from collaboration session
+    - NEW: Start with video muted (audio-only by default)
+    - Better UX: no need to enter name or configure settings
 
-    Previous (Build 321): 📋 Meeting Transcript Analysis for CAPEX Append
+    Previous (Build 323): 🐛 Bug fixes - version notification, welcome tree
+    Previous (Build 322): 🎙️ Voice Chat for Live Collaboration
     Previous (Build 318): ⏱️ Fix Edge Function Timeout - Use Streaming
     Previous (Build 317): 🍌 Nano Banana Image Generation
     Previous (Build 316): 🧠 Wiser AI Prompts - Context Injection
@@ -2934,8 +2934,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 322 | 2025-12-05">
-                    v2.17.0 • Build 322
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 324 | 2025-12-05">
+                    v2.17.0 • Build 324
                 </div>
             </div>
         </div>
@@ -23224,6 +23224,7 @@ https://treelisty.netlify.app`;
             window.setCollaboratorName = setCollaboratorName;     // BUILD 256
 
             // BUILD 322: Jitsi Voice Chat Integration
+            // BUILD 324: Skip prejoin modal, pass display name
             window.startVoiceChat = function() {
                 if (!firebaseSyncState.isConnected || !firebaseSyncState.roomId) {
                     showToast('❌ No active collaboration session', 'error');
@@ -23233,7 +23234,14 @@ https://treelisty.netlify.app`;
                 // Create Jitsi Meet room URL using the session ID
                 const roomId = firebaseSyncState.roomId;
                 const jitsiRoomName = `treelisty-${roomId}`;
-                const jitsiUrl = `https://meet.jit.si/${jitsiRoomName}`;
+
+                // Get display name from collaboration session or use default
+                const displayName = firebaseSyncState.myDisplayName || 'TreeListy User';
+                const encodedName = encodeURIComponent(displayName);
+
+                // Skip prejoin page and pass display name via URL config
+                // Also start audio-only (no video) for lighter bandwidth
+                const jitsiUrl = `https://meet.jit.si/${jitsiRoomName}#userInfo.displayName="${encodedName}"&config.prejoinConfig.enabled=false&config.startWithVideoMuted=true`;
 
                 // Open in popup window for better UX
                 const width = 800;
@@ -38159,7 +38167,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 322;
+        const CURRENT_BUILD = 324;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
