@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 321 | 2025-12-05
+    TreeListy v2.17.0 | Build 322 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 321): 📋 Meeting Transcript Analysis for CAPEX Append
-    - NEW: Auto-detect meeting transcripts in append mode (timestamps, "discussed", etc.)
-    - NEW: Extract contacts from transcripts (name, role, company)
-    - NEW: Detect research requests ("research this", "look into", "investigate")
-    - NEW: Smart preview UI showing extracted contacts and research items
-    - NEW: Store research requests and contacts in tree metadata for later action
+    Changelog (Build 322): 🎙️ Voice Chat for Live Collaboration
+    - NEW: One-click voice chat via Jitsi Meet integration
+    - NEW: "🎙️ Voice" button in collaboration chat panel
+    - Opens popup window with shared voice room (same session ID)
+    - Auto-notifies collaborators in text chat when voice starts
+    - No account required, works on all platforms
 
-    Previous (Build 320): 🎯 Optimized Import Prompts for CAPEX & Philosophy
+    Previous (Build 321): 📋 Meeting Transcript Analysis for CAPEX Append
     Previous (Build 318): ⏱️ Fix Edge Function Timeout - Use Streaming
     Previous (Build 317): 🍌 Nano Banana Image Generation
     Previous (Build 316): 🧠 Wiser AI Prompts - Context Injection
@@ -2934,8 +2934,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 321 | 2025-12-05">
-                    v2.17.0 • Build 321
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 322 | 2025-12-05">
+                    v2.17.0 • Build 322
                 </div>
             </div>
         </div>
@@ -4467,7 +4467,9 @@ The AI will analyze the structure and convert it to a tree."
             </div>
             <!-- Session Controls -->
             <div style="padding: 8px 12px; border-top: 1px solid var(--border); display: flex; gap: 6px;">
-                <button onclick="document.getElementById('live-sync-modal').style.display='flex'" style="flex: 1; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 11px;">⚙️ Settings</button>
+                <!-- BUILD 322: Jitsi Voice Chat Button -->
+                <button id="voice-chat-btn" onclick="window.startVoiceChat()" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 11px; font-weight: 600;" title="Start voice chat with collaborators">🎙️ Voice</button>
+                <button onclick="document.getElementById('live-sync-modal').style.display='flex'" style="flex: 1; padding: 8px; background: var(--card-bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text-primary); cursor: pointer; font-size: 11px;">⚙️</button>
                 <button onclick="window.leaveFirebaseSyncRoom()" style="flex: 1; padding: 8px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 11px; font-weight: 600;">Leave</button>
             </div>
         </div>
@@ -23220,6 +23222,46 @@ https://treelisty.netlify.app`;
             window.copyFirebaseRoomId = copyRoomId;
             window.setMyDisplayName = setMyDisplayName;           // BUILD 256
             window.setCollaboratorName = setCollaboratorName;     // BUILD 256
+
+            // BUILD 322: Jitsi Voice Chat Integration
+            window.startVoiceChat = function() {
+                if (!firebaseSyncState.isConnected || !firebaseSyncState.roomId) {
+                    showToast('❌ No active collaboration session', 'error');
+                    return;
+                }
+
+                // Create Jitsi Meet room URL using the session ID
+                const roomId = firebaseSyncState.roomId;
+                const jitsiRoomName = `treelisty-${roomId}`;
+                const jitsiUrl = `https://meet.jit.si/${jitsiRoomName}`;
+
+                // Open in popup window for better UX
+                const width = 800;
+                const height = 600;
+                const left = (screen.width - width) / 2;
+                const top = (screen.height - height) / 2;
+
+                const popup = window.open(
+                    jitsiUrl,
+                    'TreeListy Voice Chat',
+                    `width=${width},height=${height},left=${left},top=${top},resizable=yes,scrollbars=no,status=no,menubar=no,toolbar=no`
+                );
+
+                if (popup) {
+                    showToast('🎙️ Voice chat opened - invite others to join!', 'success');
+
+                    // Also send a chat message so others know voice chat is available
+                    if (typeof sendChatMessage === 'function') {
+                        sendChatMessage(`🎙️ Started voice chat! Click the Voice button to join.`);
+                    }
+                } else {
+                    // Popup blocked - fall back to new tab
+                    window.open(jitsiUrl, '_blank');
+                    showToast('🎙️ Voice chat opened in new tab', 'info');
+                }
+
+                console.log('🎙️ Voice chat started:', jitsiUrl);
+            };
 
             // BUILD 257: Manual JSON save during collaboration
             window.saveCollabJSON = function() {
