@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 320 | 2025-12-05
+    TreeListy v2.17.0 | Build 321 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 320): 🎯 Optimized Import Prompts for CAPEX & Philosophy
-    - NEW: CAPEX-specific import prompts with financial rigor (cost extraction, vendor tracking)
-    - NEW: Enhanced Philosophy prompts with scholarly requirements
-    - IMPROVED: Pattern-specific subtask guidance for both Quick and Deep modes
-    - A/B tested: Claude Sonnet for CAPEX (98%), Claude Opus for Philosophy (90%)
+    Changelog (Build 321): 📋 Meeting Transcript Analysis for CAPEX Append
+    - NEW: Auto-detect meeting transcripts in append mode (timestamps, "discussed", etc.)
+    - NEW: Extract contacts from transcripts (name, role, company)
+    - NEW: Detect research requests ("research this", "look into", "investigate")
+    - NEW: Smart preview UI showing extracted contacts and research items
+    - NEW: Store research requests and contacts in tree metadata for later action
 
-    Previous (Build 319): 🔀 Smart Append - Optimized Models + Deduplication
+    Previous (Build 320): 🎯 Optimized Import Prompts for CAPEX & Philosophy
     Previous (Build 318): ⏱️ Fix Edge Function Timeout - Use Streaming
     Previous (Build 317): 🍌 Nano Banana Image Generation
     Previous (Build 316): 🧠 Wiser AI Prompts - Context Injection
@@ -2933,8 +2934,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 320 | 2025-12-05">
-                    v2.17.0 • Build 320
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 321 | 2025-12-05">
+                    v2.17.0 • Build 321
                 </div>
             </div>
         </div>
@@ -29038,9 +29039,36 @@ RULES:
             }
 
             // Pattern-specific instructions for Quick Mode
-            // BUILD 320: Enhanced pattern-specific prompts based on A/B testing
+            // BUILD 321: Enhanced CAPEX prompts with transcript analysis + research request detection
             let patternSpecialInstructions = '';
             if (pattern === 'capex') {
+                // BUILD 321: Detect if text looks like a meeting transcript
+                const isTranscript = /\[\d{1,2}:\d{2}\]|transcript|meeting notes|discussed|mentioned|can you research|look into|we should check/i.test(text);
+
+                const transcriptExtras = isTranscript ? `
+
+## MEETING TRANSCRIPT MODE (Detected)
+This appears to be a meeting transcript. In addition to extracting CAPEX items:
+
+### EXTRACT CONTACTS
+For any person mentioned with a company/role, add to extractedContacts array:
+- name: Person's full name
+- role: Their title/role if mentioned
+- company: Their company/organization
+- context: How they relate to the project (vendor contact, consultant, etc.)
+
+### DETECT RESEARCH REQUESTS
+Look for phrases like "research this", "look into", "can you check", "we should investigate", "find out about".
+Add these to researchRequests array with:
+- topic: What needs to be researched
+- context: Why it was requested
+- priority: high/medium/low based on urgency indicators
+
+### UPDATE SIGNALS
+If transcript mentions updates to existing items (new pricing, changed timelines, etc.):
+- Include itemUpdates array with: itemName, field, oldValue (if mentioned), newValue
+` : '';
+
                 patternSpecialInstructions = `
 
 ⚠️ CAPEX PATTERN REQUIREMENTS (Financial Rigor):
@@ -29070,7 +29098,7 @@ RULES:
 - software: Licenses, subscriptions, development
 - consulting: Professional services, design, project management
 - contingency: Risk reserves, buffer allocations
-
+${transcriptExtras}
 ⚠️ KEY: NEVER skip cost values. If a range is given ($100K-$150K), use midpoint.
 `;
             } else if (pattern === 'philosophy') {
@@ -29114,10 +29142,29 @@ Include in root metadata: tradition, method, keyTerms, interlocutors, secondaryS
             // =========================================================================
             const allPhasesCollected = [];
             let projectName = '';
+            // BUILD 321: Transcript analysis aggregation
+            const allExtractedContacts = [];
+            const allResearchRequests = [];
+            const allItemUpdates = [];
 
             for (let chunkIndex = 0; chunkIndex < chunks.length; chunkIndex++) {
                 const chunk = chunks[chunkIndex];
                 console.log(`🔄 Processing chunk ${chunkIndex + 1}/${chunks.length} (${chunk.text.length} chars)`);
+
+                // BUILD 321: Detect transcript mode for CAPEX
+                const isTranscript = pattern === 'capex' && /\[\d{1,2}:\d{2}\]|transcript|meeting notes|discussed|mentioned|can you research|look into|we should check/i.test(text);
+
+                // BUILD 321: Additional JSON fields for transcript mode
+                const transcriptJsonFields = isTranscript ? `,
+  "extractedContacts": [
+    { "name": "Person Name", "role": "Title", "company": "Company", "context": "Vendor contact" }
+  ],
+  "researchRequests": [
+    { "topic": "What to research", "context": "Why it matters", "priority": "high/medium/low" }
+  ],
+  "itemUpdates": [
+    { "itemName": "Existing item", "field": "cost", "newValue": "Updated value" }
+  ]` : '';
 
                 // Pattern-aware context for this specific chunk
                 const chunkPrompt = `Extract items for the ${patternConfig.name} pattern from this SPECIFIC SECTION of a larger document (Section ${chunkIndex + 1}/${chunks.length}).
@@ -29166,7 +29213,7 @@ Respond with ONLY valid JSON:
         }
       ]
     }
-  ]
+  ]${transcriptJsonFields}
 }`;
 
                 // BUILD 319: Use optimized model selection based on pattern
@@ -29301,6 +29348,20 @@ Respond with ONLY valid JSON:
                         allPhasesCollected.push(...parsed.phases);
                     }
 
+                    // BUILD 321: Aggregate transcript analysis fields
+                    if (parsed.extractedContacts && parsed.extractedContacts.length > 0) {
+                        console.log(`📇 Chunk ${chunkIndex + 1}: Found ${parsed.extractedContacts.length} contacts`);
+                        allExtractedContacts.push(...parsed.extractedContacts);
+                    }
+                    if (parsed.researchRequests && parsed.researchRequests.length > 0) {
+                        console.log(`🔍 Chunk ${chunkIndex + 1}: Found ${parsed.researchRequests.length} research requests`);
+                        allResearchRequests.push(...parsed.researchRequests);
+                    }
+                    if (parsed.itemUpdates && parsed.itemUpdates.length > 0) {
+                        console.log(`📝 Chunk ${chunkIndex + 1}: Found ${parsed.itemUpdates.length} item updates`);
+                        allItemUpdates.push(...parsed.itemUpdates);
+                    }
+
                 } catch (e) {
                     console.error(`❌ Chunk ${chunkIndex + 1} failed to parse:`, e);
                     console.error('Response (first 500 chars):', response.substring(0, 500));
@@ -29337,10 +29398,27 @@ Respond with ONLY valid JSON:
                 projectName = `${patternConfig.name} Project`;
             }
 
-            return {
+            // BUILD 321: Include transcript analysis data if available
+            const result = {
                 projectName: projectName,
                 phases: mergedPhases
             };
+
+            // Add transcript analysis fields if any were detected
+            if (allExtractedContacts.length > 0) {
+                result.extractedContacts = allExtractedContacts;
+                console.log(`📇 Total contacts extracted: ${allExtractedContacts.length}`);
+            }
+            if (allResearchRequests.length > 0) {
+                result.researchRequests = allResearchRequests;
+                console.log(`🔍 Total research requests: ${allResearchRequests.length}`);
+            }
+            if (allItemUpdates.length > 0) {
+                result.itemUpdates = allItemUpdates;
+                console.log(`📝 Total item updates: ${allItemUpdates.length}`);
+            }
+
+            return result;
         }
 
         // OLD SINGLE-CHUNK FALLBACK (DEPRECATED - keeping for reference)
@@ -30649,12 +30727,66 @@ ${jsonText}`;
             const phaseCount = treeData.phases?.length || 0;
             const itemCount = treeData.phases?.reduce((sum, phase) => sum + (phase.items?.length || 0), 0) || 0;
 
+            // BUILD 321: Check for transcript analysis data
+            const hasTranscriptData = treeData.extractedContacts?.length > 0 ||
+                                      treeData.researchRequests?.length > 0 ||
+                                      treeData.itemUpdates?.length > 0;
+
+            // BUILD 321: Generate transcript analysis section HTML
+            let transcriptSection = '';
+            if (hasTranscriptData) {
+                transcriptSection = `
+                    <div style="margin-top: 20px; border: 2px solid #6366f1; border-radius: 8px; overflow: hidden;">
+                        <div style="background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 12px 16px; font-weight: 600;">
+                            📋 Transcript Analysis
+                        </div>
+                        <div style="padding: 16px; background: var(--bg-secondary);">
+                            ${treeData.extractedContacts?.length > 0 ? `
+                                <div style="margin-bottom: 16px;">
+                                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${treeData.extractedContacts.length}</span>
+                                        📇 Contacts Detected
+                                    </div>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;">
+                                        ${treeData.extractedContacts.slice(0, 4).map(c => `• <strong>${c.name}</strong>${c.role ? ` (${c.role})` : ''}${c.company ? ` - ${c.company}` : ''}`).join('<br>')}
+                                        ${treeData.extractedContacts.length > 4 ? `<br><em>... and ${treeData.extractedContacts.length - 4} more</em>` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${treeData.researchRequests?.length > 0 ? `
+                                <div style="margin-bottom: 16px;">
+                                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="background: #f59e0b; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${treeData.researchRequests.length}</span>
+                                        🔍 Research Requests
+                                    </div>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;">
+                                        ${treeData.researchRequests.map(r => `• <strong>${r.topic}</strong>${r.priority === 'high' ? ' <span style="color: #ef4444; font-size: 11px;">HIGH</span>' : ''}`).join('<br>')}
+                                    </div>
+                                </div>
+                            ` : ''}
+                            ${treeData.itemUpdates?.length > 0 ? `
+                                <div>
+                                    <div style="font-weight: 600; color: var(--text-primary); margin-bottom: 8px; display: flex; align-items: center; gap: 6px;">
+                                        <span style="background: #3b82f6; color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px;">${treeData.itemUpdates.length}</span>
+                                        📝 Item Updates
+                                    </div>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-left: 8px;">
+                                        ${treeData.itemUpdates.slice(0, 3).map(u => `• <strong>${u.itemName}</strong>: ${u.field} → ${u.newValue}`).join('<br>')}
+                                        ${treeData.itemUpdates.length > 3 ? `<br><em>... and ${treeData.itemUpdates.length - 3} more</em>` : ''}
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
             modalBody.innerHTML = `
                 <div style="padding: 20px;">
                     <div style="background: linear-gradient(135deg, #4caf50, #00a67d); color: white; padding: 20px; border-radius: 12px; margin-bottom: 24px; text-align: center;">
                         <div style="font-size: 48px; margin-bottom: 8px;">✨</div>
                         <h2 style="margin-bottom: 8px; font-size: 24px;">${treeData.projectName || 'Analyzed Project'}</h2>
-                        <p style="opacity: 0.9; font-size: 14px;">Pattern: ${PATTERNS[selectedPattern].name}</p>
+                        <p style="opacity: 0.9; font-size: 14px;">Pattern: ${PATTERNS[selectedPattern].name}${hasTranscriptData ? ' • 📋 Transcript Mode' : ''}</p>
                     </div>
 
                     <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; margin-bottom: 24px;">
@@ -30668,7 +30800,7 @@ ${jsonText}`;
                         </div>
                     </div>
 
-                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--bg-secondary);">
+                    <div style="max-height: ${hasTranscriptData ? '200px' : '300px'}; overflow-y: auto; border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--bg-secondary);">
                         <h4 style="margin-bottom: 12px; color: var(--text-primary);">Structure Preview:</h4>
                         ${treeData.phases?.map((phase, i) => `
                             <div style="margin-bottom: 16px;">
@@ -30682,6 +30814,8 @@ ${jsonText}`;
                             </div>
                         `).join('')}
                     </div>
+
+                    ${transcriptSection}
 
                     <div style="margin-top: 20px; padding: 12px 16px; background: rgba(${appendMode ? '76, 175, 80' : '255, 159, 67'}, 0.1); border: 1px solid rgba(${appendMode ? '76, 175, 80' : '255, 159, 67'}, 0.3); border-radius: 6px;">
                         <div style="color: ${appendMode ? '#4caf50' : '#ff9f43'}; font-weight: 600; margin-bottom: 4px;">${appendMode ? '➕ Append Mode' : '⚠️ Replace Mode'}</div>
@@ -31011,6 +31145,18 @@ ${jsonText}`;
                     }
                 });
 
+                // BUILD 321: Store transcript analysis data in tree metadata
+                if (treeData.extractedContacts?.length > 0) {
+                    capexTree.extractedContacts = capexTree.extractedContacts || [];
+                    capexTree.extractedContacts.push(...treeData.extractedContacts);
+                    console.log(`📇 Stored ${treeData.extractedContacts.length} contacts in tree metadata`);
+                }
+                if (treeData.researchRequests?.length > 0) {
+                    capexTree.researchRequests = capexTree.researchRequests || [];
+                    capexTree.researchRequests.push(...treeData.researchRequests);
+                    console.log(`🔍 Stored ${treeData.researchRequests.length} research requests in tree metadata`);
+                }
+
                 // Show success message for append with deduplication stats
                 let message = '✅ Smart Append Complete!\n\n';
                 if (totalAdded > 0) {
@@ -31022,7 +31168,14 @@ ${jsonText}`;
                 if (newPhasesAdded > 0) {
                     message += `📁 ${newPhasesAdded} new phases created\n`;
                 }
-                if (totalAdded === 0 && totalUpdated === 0) {
+                // BUILD 321: Add transcript analysis summary to message
+                if (treeData.extractedContacts?.length > 0) {
+                    message += `📇 ${treeData.extractedContacts.length} contacts detected\n`;
+                }
+                if (treeData.researchRequests?.length > 0) {
+                    message += `🔍 ${treeData.researchRequests.length} research requests captured\n`;
+                }
+                if (totalAdded === 0 && totalUpdated === 0 && !treeData.extractedContacts?.length && !treeData.researchRequests?.length) {
                     message += 'No new content to add - all items already exist in your tree.';
                 }
 
