@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 329 | 2025-12-05
+    TreeListy v2.17.0 | Build 330 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -589,7 +589,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 329,
+            build: 330,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -8235,6 +8235,9 @@ Focus on logical structure and content organization best practices.`;
         let isDraggingSelection = false;
         let selectionDragStart = { x: 0, y: 0 };
 
+        // BUILD 330: Space key for Mac-friendly panning
+        let isSpacePressed = false;
+
         // Expose capexTree to window for Firebase sync (IIFE scope bridge)
         Object.defineProperty(window, 'capexTree', {
             get: function() { return capexTree; },
@@ -8784,7 +8787,7 @@ Focus on logical structure and content organization best practices.`;
                 if (!localStorage.getItem('treelisty-canvas-tips-seen')) {
                     localStorage.setItem('treelisty-canvas-tips-seen', 'true');
                     setTimeout(() => {
-                        showToast('🖱️ Canvas Tips: Wheel to zoom, Middle-click+drag to pan, Left-drag nodes to move. Click ❓ for more!', 'info', 8000);
+                        showToast('🖱️ Canvas Tips: Wheel to zoom, Space+drag to pan (or middle-click), Left-drag nodes to move. Click ❓ for more!', 'info', 8000);
                     }, 500);
                 }
 
@@ -11507,13 +11510,23 @@ Focus on logical structure and content organization best practices.`;
                 }
 
                 // Left mouse button on canvas background - pan
+                // BUILD 330: Also allow Space+Left-drag for Mac trackpad users
                 if (e.button === 0 && (e.target === container || e.target.id === 'canvas')) {
-                    // Clear selection when clicking on empty space
-                    if (selectedNodes.length > 0 && !e.ctrlKey) {
+                    // Clear selection when clicking on empty space (unless holding modifier)
+                    if (selectedNodes.length > 0 && !e.ctrlKey && !e.metaKey && !isSpacePressed) {
                         clearSelection();
                     }
 
                     // Start panning
+                    isPanningCanvas = true;
+                    panStartX = e.clientX;
+                    panStartY = e.clientY;
+                    container.classList.add('grabbing');
+                }
+
+                // BUILD 330: Space+Left-drag also pans (Mac-friendly)
+                if (e.button === 0 && isSpacePressed) {
+                    e.preventDefault();
                     isPanningCanvas = true;
                     panStartX = e.clientX;
                     panStartY = e.clientY;
@@ -11747,6 +11760,26 @@ Focus on logical structure and content organization best practices.`;
                 canvasZoom = Math.max(0.1, Math.min(5, canvasZoom * delta));
                 updateCanvasTransform();
             }, { passive: false });
+
+            // BUILD 330: Space key for Mac-friendly panning (hold Space + drag)
+            document.addEventListener('keydown', (e) => {
+                if (e.code === 'Space' && viewMode === 'canvas') {
+                    // Only if not typing in an input
+                    if (!['INPUT', 'TEXTAREA'].includes(document.activeElement.tagName)) {
+                        isSpacePressed = true;
+                        container.style.cursor = 'grab';
+                    }
+                }
+            });
+
+            document.addEventListener('keyup', (e) => {
+                if (e.code === 'Space') {
+                    isSpacePressed = false;
+                    if (!isPanningCanvas) {
+                        container.style.cursor = '';
+                    }
+                }
+            });
         }
 
         // =====================================================================
@@ -32443,8 +32476,9 @@ ${jsonText}`;
                             <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Left Drag on Node</strong> - Move the node around the canvas</p>
                             <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Right Click</strong> - Context menu (Edit, Share Branch, AI Analysis)</p>
                             <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Mouse Wheel</strong> - Zoom in/out</p>
-                            <p style="font-size: 13px; margin-bottom: 4px; color: #f59e0b;"><strong>⭐ Middle Mouse (Wheel Click) + Drag</strong> - Pan the entire canvas</p>
-                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Ctrl + Click</strong> - Multi-select nodes</p>
+                            <p style="font-size: 13px; margin-bottom: 4px; color: #f59e0b;"><strong>⭐ Space + Drag</strong> - Pan the entire canvas (Mac-friendly!)</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Middle Mouse + Drag</strong> - Pan (alternative for mice with scroll wheel click)</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Ctrl/Cmd + Click</strong> - Multi-select nodes</p>
                             <p style="font-size: 13px; margin-bottom: 0;">• <strong>Left Drag on Empty Space</strong> - Box select multiple nodes</p>
                         </div>
 
@@ -32466,11 +32500,20 @@ ${jsonText}`;
                         </p>
 
                         <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">💡 Canvas Tips</p>
-                        <p style="font-size: 13px; margin-bottom: 0; font-style: italic; color: #f59e0b;">
-                            • <strong>No middle mouse?</strong> Use the zoom/pan controls in toolbar, or try touchpad pinch-to-zoom<br>
+                        <p style="font-size: 13px; margin-bottom: 12px; font-style: italic; color: #f59e0b;">
+                            • <strong>No middle mouse?</strong> Hold <strong>Space</strong> + drag to pan (like Photoshop/Figma!)<br>
                             • <strong>Lost on a big canvas?</strong> Click "Fit" button to see all nodes<br>
                             • <strong>Create hyperedges:</strong> Select multiple nodes → Click "Edges" → Name your connection
                         </p>
+
+                        <p style="font-size: 14px; margin-bottom: 8px; font-weight: 600;">🍎 Mac Users & Trackpads</p>
+                        <div style="background: rgba(255,255,255,0.05); padding: 12px; border-radius: 6px; margin-bottom: 0;">
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Cmd</strong> works everywhere <strong>Ctrl</strong> is mentioned (Cmd+Z undo, Cmd+Click multi-select)</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Space + Drag</strong> - Pan canvas without a middle mouse button</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Two-finger scroll</strong> - Zoom in/out on canvas</p>
+                            <p style="font-size: 13px; margin-bottom: 4px;">• <strong>Two-finger tap</strong> - Right-click context menu</p>
+                            <p style="font-size: 13px; margin-bottom: 0;">• <strong>Pinch gesture</strong> - Works for zoom in Canvas and 3D views</p>
+                        </div>
                     </div>
 
                     <h3 style="color: #f97316; margin-bottom: 16px; font-size: 20px;">🔥 Firebase Live Sync + Voice Chat</h3>
