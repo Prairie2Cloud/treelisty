@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-**Current Version**: v2.11.0 (Build 262)
+**Current Version**: v2.17.0 (Build 322)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -50,15 +50,15 @@ When making changes:
 
 1. **Increment build number** in header comment (line ~9):
    ```
-   TreeListy v2.11.0 | Build XXX | YYYY-MM-DD
+   TreeListy v2.17.0 | Build XXX | YYYY-MM-DD
    ```
 
 2. **Update changelog** in header (lines ~21-26)
 
-3. **Update UI version display** (line ~2188-2189):
+3. **Update UI version display** (line ~2937-2938):
    ```html
-   <div ... title="TreeListy v2.11.0 | Build XXX | YYYY-MM-DD">
-       v2.11.0 • Build XXX
+   <div ... title="TreeListy v2.17.0 | Build XXX | YYYY-MM-DD">
+       v2.17.0 • Build XXX
    </div>
    ```
 
@@ -87,12 +87,12 @@ All 141+ tests should pass.
 treeplexity.html (single file ~1.3MB)
 ├── HTML structure (~2000 lines)
 ├── CSS styles (~3000 lines)
-├── JavaScript (~19000+ lines)
+├── JavaScript (~21000+ lines)
 │   ├── Data model (capexTree object)
-│   ├── Rendering (Tree + Canvas views)
+│   ├── Rendering (Tree + Canvas + 3D views)
 │   ├── AI integration (Claude, Gemini, ChatGPT)
-│   ├── Pattern system (17 patterns)
-│   ├── Collaboration (Branch & Merge)
+│   ├── Pattern system (19 patterns)
+│   ├── Collaboration (Firebase Live Sync + Voice Chat)
 │   └── Import/Export (JSON, Excel, URL)
 └── Netlify function (claude-proxy.js)
 ```
@@ -105,57 +105,78 @@ treeplexity.html (single file ~1.3MB)
 - `viewMode` (not `currentView`) - current view state
 - `capexTree` - main tree data structure
 - `PATTERNS` - pattern definitions object
+- `firebaseSyncState` - collaboration session state
 
 ### Key functions
 - `render()` - re-render tree view
 - `renderCanvas()` - re-render canvas view
+- `render3D()` - re-render 3D view
 - `saveState(description)` - save undo state
 - `showToast(message, type)` - show notification
+- `startVoiceChat()` - launch Jitsi voice room
 
 ---
 
-## Recent Features (Builds 259-262)
+## Recent Features (Builds 318-322)
 
-### Build 262: Dynamic Team Management
-- Contributors identified by unique initials (collision handling)
-- Email-based accountability for team members
-- Project Team section in Project Settings (Host, Collaborators, Contributors)
-- Dynamic contributor buttons replace hardcoded names
+### Build 322: Voice Chat for Collaboration
+- Jitsi Meet integration for live sessions
+- 🎙️ Voice button in collab chat panel
+- Shared room via session ID (no account required)
 
-### Build 261: Imagen 4 Image Generation
-- Google Imagen 4 integration for AI-generated images
-- Multiple visual styles (Whiteboard, Sketch, Infographic, etc.)
-- Configurable aspect ratios and resolutions
-- Nano Banana Pro for enhanced generation
+### Build 321: Meeting Transcript Analysis
+- Auto-detect transcripts (timestamps, "discussed", etc.)
+- Extract contacts (name, role, company)
+- Detect research requests ("research this", "look into")
+- Smart preview UI before import
 
-### Build 260: AI Specialist Context
-- Per-project specialist expertise context
-- Stored in tree metadata, passed to all AI calls
-- Configurable in Project Settings modal
+### Build 320: Optimized Import Prompts
+- CAPEX-specific prompts (financial rigor, vendor tracking)
+- Philosophy-specific prompts (scholarly requirements)
+- A/B tested: Sonnet for CAPEX, Opus for Philosophy
 
-### Build 259: TreeBeard Chat Redesign
-- Expanded chat panel (440x520px)
-- Clean welcome message
-- Removed quick action chips for cleaner UX
+### Build 319: Smart Append + Deduplication
+- Semantic duplicate detection (60% Jaccard threshold)
+- Pattern-aware model selection
+- Intelligently merges vs adds items
+
+### Build 318: Edge Function Streaming
+- Fixed Netlify timeouts with streaming
+- Better reliability for long AI operations
 
 ---
 
-## Collaboration System (Build 185+)
+## 3D View (Builds 296-303)
 
-- `extractSubtree(tree, nodeIds)` - extract nodes for sharing
-- `generateBranchURL(branch)` - create shareable URL
-- `parseBranchFromURL(param)` - decode branch from URL
-- `enterBranchEditMode(branch)` - load branch for editing
-- `performBranchMerge(branch)` - merge changes back
+- `render3D()` - render Three.js 3D visualization
+- **Knowledge Navigator**: Nodes as spheres in 3D space
+- **Interactive**: Hover, click, orbit controls
+- **Sort-Aware**: 3D respects current sort order
 
-**Note**: Multi-collaborator merge is "last write wins" - document this to users.
+---
+
+## Collaboration System (Build 263+)
+
+### Firebase Live Sync
+- `window.createFirebaseSyncRoom()` - create new session
+- `window.joinFirebaseSyncRoom(roomId)` - join session
+- `window.leaveFirebaseSyncRoom()` - leave session
+- `window.firebaseSyncState.roomId` - current session ID
+
+### Voice Chat (Build 322)
+- `window.startVoiceChat()` - open Jitsi Meet popup
+- Uses session ID for room name: `treelisty-{roomId}`
+
+### Transcript Analysis (Build 321)
+- Detected via regex: `/\[\d{1,2}:\d{2}\]|transcript|meeting notes/i`
+- Extracted data stored in `capexTree.extractedContacts` and `capexTree.researchRequests`
 
 ---
 
 ## Extended Documentation
 
 See `docs/AI-CONTEXT.md` for:
-- Full pattern list with fields
+- Full pattern list with fields (19 patterns)
 - Data model details
-- Build history
+- Build history (262-322)
 - Known constraints

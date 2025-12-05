@@ -1,6 +1,6 @@
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.12.0 (Build 262)
+**Version**: 2.17.0 (Build 322)
 **Author**: TreeListy Team
 **Description**: Work with TreeListy hierarchical project trees using natural language and AI
 
@@ -36,62 +36,80 @@ git push origin main
 
 ---
 
-## What's New in v2.12.0 (Builds 259-262)
+## What's New in v2.17.0 (Builds 263-322)
 
-**🧑‍🤝‍🧑 Build 262: Dynamic Team Management**:
-- **Unique Initials**: Contributors identified by auto-generated initials (collision handling)
-- **Email Accountability**: Team members associated with email addresses
-- **Project Team Section**: Host, Collaborators, Contributors in Project Settings
-- **Dynamic Contributor Buttons**: Replace hardcoded names with configurable team
+### 🎙️ Build 322: Voice Chat for Collaboration
+- **Jitsi Meet Integration**: One-click voice chat during live sessions
+- **🎙️ Voice Button**: In collaboration chat panel
+- **Shared Room**: Uses session ID for automatic room matching
+- **No Account Required**: Works on all platforms instantly
 
-**Key Functions (Build 262)**:
-- `generateUniqueInitials(name, existingInitials)` - Create unique 1-2 char initials
-- `getProjectTeam()` - Get/initialize team structure
-- `addTeamMember(name, email, role)` - Add host/collaborator/contributor
-- `removeTeamMember(email, role)` - Remove team member
-- `generateContributorButtons()` - Render dynamic team buttons in Edit modal
+### 📋 Build 321: Meeting Transcript Analysis
+- **Auto-Detect Transcripts**: Timestamps, "discussed", research requests
+- **Extract Contacts**: Name, role, company from meeting mentions
+- **Research Requests**: Detects "research this", "look into", "investigate"
+- **Smart Preview UI**: Shows extracted contacts and research items before import
+- **Tree Metadata Storage**: Contacts and research requests saved for follow-up
 
-**🎨 Build 261: Imagen 4 Image Generation**:
-- **Google Imagen 4**: AI-generated images from node context
-- **Visual Styles**: Whiteboard Sketch, Infographic, Friendly Cartoon, 3D Render, etc.
-- **Aspect Ratios**: 1:1, 16:9, 9:16, 4:3, 3:4
-- **Resolutions**: 256px to 4K
-- **Nano Banana Pro**: Enhanced generation model
+### 🎯 Build 320: Optimized Import Prompts
+- **CAPEX-Specific Prompts**: Financial rigor (cost extraction, vendor tracking)
+- **Philosophy-Specific Prompts**: Scholarly requirements, dialectical structure
+- **Pattern-Specific Subtasks**: Tailored guidance for Quick and Deep modes
+- **A/B Tested**: Claude Sonnet for CAPEX (98%), Claude Opus for Philosophy (90%)
 
-**🧠 Build 260: AI Specialist Context**:
-- **Per-Project Expertise**: Set specialist context in Project Settings
-- **AI-Enhanced**: Context passed to all AI calls (Wizard, Analyze, Review)
-- **Stored in Tree**: `capexTree.specialistContext` persists with project
+### 🔀 Build 319: Smart Append + Semantic Deduplication
+- **Optimized Model Selection**: Pattern-aware AI model routing
+- **Semantic Deduplication**: 60% Jaccard similarity threshold
+- **Item Updates vs Duplicates**: Intelligently merges vs adds items
 
-**💬 Build 259: TreeBeard Chat Redesign**:
-- **Expanded Panel**: 440x520px for better conversation view
-- **Clean Welcome**: Simplified greeting message
-- **Removed Quick Actions**: Cleaner, more focused chat interface
+### ⏱️ Build 318: Edge Function Streaming
+- **Fixed Timeouts**: Streaming responses for long AI operations
+- **Better Reliability**: No more 10-second function timeouts
 
-**🔥 Build 231+: Firebase Live Sync**:
-- **Real-Time Collaboration**: Firebase-backed live sync
-- **Session Management**: Create/join collaborative sessions
-- **Cross-Device**: Changes sync instantly across all participants
+### 🍌 Build 317: Nano Banana Image Generation
+- **Enhanced Imagen 4**: Nano Banana Pro model for image generation
 
-**👥 Collaboration Features ("Chess by Mail")**:
-- **Collaboration Comments**: Leave notes for collaborators on any node
-- **Contributor Tags**: Tag who made edits with timestamps
-- **Visual Badges**: 👤 contributor badge and 💬 comment indicator on nodes
-- **Watch Mode**: Poll shared files for real-time sync (5s/10s/30s/1min intervals)
-- **Google Drive Links**: `?gdrive=FILE_ID` URL parameter loads trees from Google Drive
+### 🧠 Builds 315-316: Wiser TreeBeard
+- **Deep Knowledge Injection**: TreeListy context in all AI calls
+- **Context-Aware Responses**: AI understands full project structure
 
-**How Collaboration Works**:
-1. Save tree to shared folder (OneDrive, Google Drive, Dropbox)
-2. Email collaborator: `https://treelisty.netlify.app?gdrive=YOUR_FILE_ID`
-3. They edit, set their contributor name, save
-4. You reload → see their 👤 badges and 💬 comments
-5. Or use Firebase Live Sync for real-time collaboration
+### 🔍 Builds 304-314: Tree View & Search Fixes
+- **Search Navigation**: Click search results to navigate
+- **Large Tree Handling**: Smart default view for 50+ nodes
+- **Filesystem Pattern**: Fixed vertical positioning
+- **Zoom Reset**: Proper position preservation
 
-**Team Management Fields**:
-- `capexTree.team.host` (object): { name, email, initials }
-- `capexTree.team.collaborators` (array): [{ name, email, initials }]
-- `capexTree.team.contributors` (array): [{ name, email, initials }]
-- `capexTree.specialistContext` (string): AI specialist expertise context
+### 🌐 Builds 296-303: 3D View
+- **Knowledge Navigator**: Beautiful 3D universe visualization
+- **Interactive Nodes**: Hover and click in 3D space
+- **Hyperedge Shapes**: Visual connections in 3D
+- **Sort-Aware Layouts**: 3D respects current sort order
+
+### 🚀 Builds 280-295: 3D Fly Mode & Polish
+- **Three.js Rendering**: WebGL-powered 3D visualization
+- **Auto-Update Notifications**: Detect new versions
+- **Editable Hyperedges**: Modify cross-phase connections
+- **Version Conflict Detection**: Unsaved changes warnings
+
+### 💬 Builds 263-279: Live Collaboration Overhaul
+- **Firebase Live Sync**: Real-time multi-user editing
+- **Floating Chat Box**: Draggable, always-visible team chat
+- **Presence Badges**: See who's online in real-time
+- **API Key Sharing**: Optional key sharing with collaborators
+- **One-Click Start**: Streamlined session creation
+
+**Key New Functions (Builds 263-322)**:
+- `startVoiceChat()` - Launch Jitsi voice room for session
+- `detectTranscriptMode(text)` - Check if text is meeting transcript
+- `extractContacts(parsed)` - Pull contacts from AI response
+- `extractResearchRequests(parsed)` - Find research action items
+- `getOptimizedImportModel(pattern)` - Pattern-aware model selection
+- `findSemanticDuplicate(existingItems, newItem)` - Jaccard similarity matching
+
+**New Tree Metadata Fields**:
+- `capexTree.extractedContacts` (array): Contacts from transcript analysis
+- `capexTree.researchRequests` (array): Research items to follow up
+- `capexTree.itemUpdates` (array): Updates detected from appended content
 
 ---
 
@@ -200,7 +218,7 @@ TreeListy is a hierarchical project management tool that organizes work into 4 l
 - **Items**: Individual tasks/scenes/deals/arguments
 - **Subtasks**: Granular steps
 
-TreeListy supports **15 specialized patterns**, each with unique fields:
+TreeListy supports **19 specialized patterns**, each with unique fields:
 1. **Generic Project** 📋 - Cost, Lead Time, general planning (6 sort options)
 2. **Philosophy** 🤔 - Arguments, speakers, premises, dialectics
 3. **Sales Pipeline** 💼 - Deal value, probability, contacts (7 sort options)
@@ -500,30 +518,63 @@ TreeListy features a **dual view system** that lets you toggle between Tree View
 
 ---
 
+### 🌐 3D View (NEW in v2.17.0 - Builds 296-303)
+
+**What it is**: A Three.js-powered 3D visualization of your tree as a "Knowledge Navigator" universe.
+
+**Key Features**:
+- **WebGL Rendering**: Smooth 3D graphics via Three.js
+- **Interactive Nodes**: Hover to highlight, click to select
+- **Hyperedge Visualization**: 3D shapes showing cross-phase connections
+- **Sort-Aware Layouts**: 3D respects current sort order
+- **Phase Grouping**: Nodes clustered by phase with color coding
+
+**Navigation**:
+- **Mouse**: Orbit around the scene
+- **Scroll**: Zoom in/out
+- **Click**: Select node (shows in detail panel)
+
+**When to use 3D View**:
+- Visual exploration of complex trees
+- Presentations and demos (impressive visuals)
+- Finding patterns and clusters
+- Understanding hyperedge relationships
+
+**When NOT to use 3D View**:
+- Data entry (use Tree View)
+- Detailed editing (use Tree or Canvas View)
+- Mobile devices (performance limitations)
+
+---
+
 ## Web UI Capabilities
 
 TreeListy includes a rich web interface (treeplexity.html) with:
 
 ### Visual Features
-- **Dual View System**: Toggle between Tree View (hierarchical list) and Canvas View (infinite canvas)
+- **Triple View System**: Tree View (hierarchical), Canvas View (infinite canvas), 3D View (Three.js universe)
 - **Interactive tree visualization**: Expandable/collapsible phases and items
 - **Dependency arrows**: Visual representation of relationships
 - **Phase colors**: Color-coded timeline (green → blue → orange → purple)
 - **Pan/Zoom controls**: Navigate large trees easily
 - **Detail panel**: Click any item to view/edit full details
 - **4 Visual Themes**: Default (indigo), Steampunk (bronze), Powerpuff (pink), Tron (cyan)
+- **3D Knowledge Navigator**: WebGL-powered 3D visualization with interactive nodes
 
 ### Collaboration Features
 - **Shareable URLs**: Compress entire tree to base64, share via URL
 - **Excel Import/Export**: 4-sheet professional workbooks (Overview, Tree, Dependencies, PM Tracking)
 - **Google Drive Import**: OAuth-based import of full folder hierarchies
 - **Pattern detection**: Auto-detects pattern when importing Excel/JSON
-- **Append mode**: Merge multiple Excel files into one tree
+- **Append mode**: Merge multiple Excel files into one tree (with semantic deduplication)
 - **Collaboration Comments**: Leave notes for collaborators (💬 indicator)
 - **Contributor Tags**: Track who made edits (👤 badges)
-- **Watch Mode**: Real-time sync via shared files (polling)
+- **Firebase Live Sync**: Real-time multi-user editing with presence badges
+- **🎙️ Voice Chat**: One-click Jitsi Meet integration during live sessions
+- **Floating Chat Box**: Draggable team chat during collaboration
 - **Google Drive Links**: `?gdrive=FILE_ID` URL loads from Drive
 - **Watch Mode Links**: `?watch=URL` auto-starts live sync
+- **Meeting Transcript Analysis**: Extract contacts and research requests from appended transcripts
 
 ### PWA Features
 - **Installable**: Add to home screen on desktop/mobile
@@ -1400,11 +1451,13 @@ When user says... | Action
 "Generate prompt from my tree" | Export tree as AI-ready prompt (pattern-aware)
 "Improve this basic prompt: [text]" | Use AI Prompt pattern + Analyze Text workflow
 **Collaboration Commands** |
-"Collaborate with Owen on tree" | Use Watch Mode + shared file workflow
+"Start voice chat" | Click 🎙️ Voice button in collab chat → Opens Jitsi Meet
+"Collaborate with Owen on tree" | Create live session, share invite link
 "Share tree via Google Drive" | Save to Drive, email `?gdrive=FILE_ID` link
-"Start Watch Mode" | Click Watch Mode button, select file, set name
+"Start Live Session" | Click Live Sync → Create Room → Share link
 "See who edited what" | Look for 👤 contributor badges on nodes
 "Leave note for collaborator" | Edit node → Collaboration section → Comments field
+"Append meeting transcript" | Analyze Text → Append mode → Paste transcript (auto-detects contacts/research)
 **Traditional Commands** |
 "Load/Show my [name] tree" | Read JSON, display visual tree
 "What's blocking me?" | Find critical path, report blockers
@@ -1599,7 +1652,7 @@ Activate TreeListy skill when user:
 
 ---
 
-**End of TreeListy Skill Documentation v2.12.0**
+**End of TreeListy Skill Documentation v2.17.0 (Build 322)**
 
 You are now ready to work with TreeListy trees using both AI-powered features and traditional programmatic manipulation!
 

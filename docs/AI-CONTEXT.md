@@ -1,7 +1,7 @@
 # TreeListy AI Context Document
 
-**Current Version**: v2.11.0 (Build 262)
-**Last Updated**: 2025-12-03
+**Current Version**: v2.17.0 (Build 322)
+**Last Updated**: 2025-12-05
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -37,10 +37,11 @@ TreeListy is a **single-file HTML application** (~1.3MB) for hierarchical projec
 **Key Characteristics**:
 - Pure HTML/CSS/JavaScript (no build step, no frameworks)
 - Works from `file://` protocol (double-click to open)
-- Dual view system: Tree View + Canvas View
-- 17 specialized patterns for different domains
+- Triple view system: Tree View + Canvas View + 3D View
+- 19 specialized patterns for different domains
 - 3 AI providers: Claude, Gemini, ChatGPT
 - PWA-ready (installable, offline capable)
+- Real-time collaboration with Firebase + Voice Chat
 
 ---
 
@@ -50,35 +51,49 @@ TreeListy is a **single-file HTML application** (~1.3MB) for hierarchical projec
 treeplexity.html (single file ~1.3MB)
 ├── HTML structure (~2000 lines)
 ├── CSS styles (~3000 lines)
-├── JavaScript (~19000 lines)
+├── JavaScript (~21000+ lines)
 │   ├── Data model (capexTree object)
-│   ├── Rendering (Tree + Canvas views)
-│   ├── AI integration (3 providers)
-│   ├── Pattern system (17 patterns)
+│   ├── Rendering (Tree + Canvas + 3D views)
+│   ├── AI integration (3 providers + pattern-aware routing)
+│   ├── Pattern system (19 patterns)
 │   ├── Import/Export (JSON, Excel, URL)
+│   ├── Collaboration (Firebase Live Sync + Voice Chat)
 │   └── PM tracking (status, progress, RAG)
 └── Netlify function (claude-proxy.js for CORS)
 ```
 
 ---
 
-## Current Version Highlights (Build 262)
+## Current Version Highlights (Builds 263-322)
 
-1. **Dynamic Team Management** (Build 262): Contributors with unique initials, email accountability
-2. **Imagen 4 Image Generation** (Build 261): AI-generated images with multiple styles
-3. **AI Specialist Context** (Build 260): Per-project expertise context for AI calls
-4. **TreeBeard Chat Redesign** (Build 259): Expanded panel, cleaner UX
-5. **Firebase Live Sync** (Build 231+): Real-time collaboration via Firebase
-6. **Collaboration System**: Share nodes → Edit → Share Back → Merge workflow
-7. **Model Selector**: Per-call model selection (Claude Haiku/Sonnet/Opus, Gemini Flash/Pro, GPT-4o/o1)
+### Recent Features (Builds 318-322)
+1. **🎙️ Voice Chat** (Build 322): Jitsi Meet integration for live collaboration
+2. **📋 Meeting Transcript Analysis** (Build 321): Extract contacts, research requests from transcripts
+3. **🎯 Optimized Import Prompts** (Build 320): Pattern-specific prompts for CAPEX/Philosophy
+4. **🔀 Smart Append + Deduplication** (Build 319): Semantic duplicate detection (60% Jaccard)
+5. **⏱️ Edge Function Streaming** (Build 318): Fixed timeouts with streaming responses
+
+### 3D View & Visualization (Builds 296-317)
+6. **🌐 3D Knowledge Navigator** (Builds 296-303): Three.js-powered 3D visualization
+7. **Interactive 3D Nodes**: Hover, click, orbit in 3D space
+8. **Sort-Aware 3D Layouts**: 3D respects current sort order
+9. **Nano Banana Pro** (Build 317): Enhanced Imagen 4 image generation
+
+### Collaboration Overhaul (Builds 263-295)
+10. **Firebase Live Sync**: Real-time multi-user editing
+11. **Floating Chat Box**: Draggable team chat during sessions
+12. **Presence Badges**: See who's online in real-time
+13. **Auto-Update Notifications** (Build 280): Detect new versions
+14. **Editable Hyperedges** (Build 282): Modify cross-phase connections
 
 ---
 
-## 17 Specialized Patterns
+## 19 Specialized Patterns
 
 | Pattern | Key Fields | AI Persona |
 |---------|------------|------------|
 | Generic Project | cost, leadTime, dependencies | Project Manager |
+| CAPEX | cost, vendor, leadTime, contingency | Financial Analyst |
 | Philosophy | speaker, argumentType, premise1/2, conclusion | Philosophy Professor |
 | Sales Pipeline | dealValue, expectedCloseDate, stageProbability | Sales Strategist |
 | Academic Thesis | wordCount, citations, keyArgument | Academic Advisor |
@@ -89,11 +104,13 @@ treeplexity.html (single file ~1.3MB)
 | Fitness Program | sets, reps, intensity, formCues | Personal Trainer |
 | Strategic Plan | investment, keyMetric, riskLevel | Strategy Consultant |
 | Course Design | learningObjectives, difficultyLevel, prerequisites | Instructional Designer |
-| AI Video Production | aiPlatform, videoPrompt, cameraMovement | Film Director |
+| AI Video (Veo3) | aiPlatform, videoPrompt, cameraMovement | Film Director |
+| AI Video (Sora2) | aiPlatform, videoPrompt, visualStyle | Film Director |
 | Family Tree | birthDate, livingStatus, dnaInfo | Genealogist |
 | Dialogue & Rhetoric | rhetoricalDevice, fallaciesPresent, counterargument | Rhetoric Analyst |
 | File System | fileSize, fileExtension, dateModified | Systems Administrator |
 | Gmail Workflow | recipientEmail, subjectLine, threadId | Email Analyst |
+| Free Speech | constitutional, legal precedent, public interest | Legal Analyst |
 
 ---
 
@@ -106,11 +123,37 @@ treeplexity.html (single file ~1.3MB)
 | AI Review | Comprehensive quality analysis | Standard |
 | Smart Suggest | Context-aware field suggestions | AI, Quick |
 | Generate Prompt | Export as AI-ready prompt | Pattern-aware |
+| TreeBeard Chat | Contextual AI assistant | Wiser mode (full context) |
 
 **Key Algorithms**:
 - **Smart Merge**: Additive updates only - never deletes user data
 - **Semantic Chunking**: Embedding-based text segmentation (Build 156+)
+- **Semantic Deduplication**: 60% Jaccard similarity threshold (Build 319+)
+- **Pattern-Aware Model Selection**: Claude Sonnet for CAPEX, Opus for Philosophy (Build 320+)
+- **Transcript Analysis**: Auto-detect meetings, extract contacts/research (Build 321+)
 - **Barnes-Hut Quadtree**: O(n log n) force-directed layout
+
+---
+
+## Collaboration System
+
+### Firebase Live Sync
+- Real-time multi-user editing
+- Presence badges showing online users
+- Floating draggable chat box
+- One-click session creation
+
+### Voice Chat (Build 322)
+- Jitsi Meet integration
+- 🎙️ Voice button in chat panel
+- Shared room via session ID
+- No account required
+
+### Meeting Transcript Analysis (Build 321)
+- Auto-detects transcript format
+- Extracts contacts (name, role, company)
+- Detects research requests ("research this", "look into")
+- Smart preview before import
 
 ---
 
@@ -124,13 +167,20 @@ capexTree = {
   type: "root",
   description: "...",
   pattern: { key: "generic", labels: {...} },
+  specialistContext: "...",  // Build 260+
+  extractedContacts: [...],  // Build 321+
+  researchRequests: [...],   // Build 321+
+  team: {                    // Build 262+
+    host: { name, email, initials },
+    collaborators: [...],
+    contributors: [...]
+  },
   children: [
     {
       id: "phase-0",
       name: "Phase Name",
       type: "phase",
       phaseNumber: 0,
-      showInCanvas: true,  // Build 140+
       items: [
         {
           id: "item-0-0",
@@ -141,7 +191,7 @@ capexTree = {
           dependencies: ["item-0-1"],
           pmStatus: "In Progress",
           pmProgress: 50,
-          provenance: "user",  // Build 165+
+          provenance: { source: "user", timestamp: "..." },
           subtasks: [...]
         }
       ]
@@ -159,8 +209,9 @@ capexTree = {
 | `treeplexity.html` | Main production file |
 | `welcome-to-treelisty.json` | Default welcome tree |
 | `netlify/functions/claude-proxy.js` | Server proxy for Claude API |
-| `.claude/skills/treeplexity.md` | Claude Code skill definition |
+| `.claude/skills/treelisty.md` | Claude Code skill definition |
 | `docs/AI-CONTEXT.md` | This file - AI onboarding |
+| `CLAUDE.md` | Quick reference for Claude Code |
 
 ---
 
@@ -168,9 +219,8 @@ capexTree = {
 
 ### Updating Version
 1. Edit header comment (line ~9)
-2. Update changelog in header (lines ~19-24)
-3. Update UI version display (line ~1658)
-4. Update VERSION.md
+2. Update changelog in header (lines ~21-26)
+3. Update UI version display (line ~2937-2938)
 
 ### Adding a Pattern
 1. Add to `PATTERNS` object
@@ -198,7 +248,7 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 1. **CORS**: Claude API requires Netlify proxy from `file://`; Gemini/ChatGPT need web server
 2. **File Size**: ~1.3MB and growing; consider splitting if needed
 3. **Token Limits**: Large trees may exceed context; use semantic chunking
-4. **Netlify Timeout**: 10s limit on free tier; use Deep Mode for long operations
+4. **Netlify Timeout**: 10s limit on free tier; use streaming for long operations (Build 318+)
 
 ---
 
@@ -206,27 +256,31 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 | Build | Date | Key Feature |
 |-------|------|-------------|
-| 262 | 2025-12-03 | Dynamic Team Management (unique initials, email accountability) |
-| 261 | 2025-12-02 | Imagen 4 Image Generation (visual styles, aspect ratios) |
-| 260 | 2025-12-02 | AI Specialist Context (per-project expertise) |
-| 259 | 2025-12-01 | TreeBeard Chat Redesign (expanded panel, clean UX) |
-| 231 | 2025-12-01 | Firebase Live Sync (real-time collaboration) |
-| 203 | 2025-11-30 | Collaboration privacy fix + UX improvements |
-| 187 | 2025-11-29 | Complete Collaboration System (Branch & Merge) |
-| 165 | 2025-11-28 | Cognitive Citadel (migration, provenance, dialectic) |
-| 156 | 2025-11-24 | Semantic Chunking Engine |
-| 152 | 2025-11-22 | Wolfram-style Hyperedges |
-| 140 | 2025-11-20 | Selective Canvas visibility |
+| 322 | 2025-12-05 | Voice Chat for Collaboration (Jitsi Meet) |
+| 321 | 2025-12-05 | Meeting Transcript Analysis (contacts, research) |
+| 320 | 2025-12-05 | Optimized Import Prompts (CAPEX, Philosophy) |
+| 319 | 2025-12-04 | Smart Append + Semantic Deduplication |
+| 318 | 2025-12-04 | Edge Function Streaming (fix timeouts) |
+| 317 | 2025-12-04 | Nano Banana Image Generation |
+| 315-316 | 2025-12-03 | Wiser TreeBeard (context injection) |
+| 304-314 | 2025-12-03 | Tree View & Search Fixes |
+| 296-303 | 2025-12-02 | 3D Knowledge Navigator |
+| 280-295 | 2025-12-02 | 3D Fly Mode & Polish |
+| 263-279 | 2025-12-01 | Live Collaboration Overhaul |
+| 262 | 2025-12-03 | Dynamic Team Management |
+| 261 | 2025-12-02 | Imagen 4 Image Generation |
+| 260 | 2025-12-02 | AI Specialist Context |
+| 259 | 2025-12-01 | TreeBeard Chat Redesign |
+| 231 | 2025-12-01 | Firebase Live Sync |
 
 ---
 
 ## Related Documentation
 
-- **Full Feature Matrix**: `TREELISTY_FEATURES_2025.md`
-- **Skill Definition**: `.claude/skills/treelisty.md`
-- **Build Details**: `docs/builds/` folder
-- **Legacy Docs**: `docs/archive/` folder
+- **Full Skill Definition**: `.claude/skills/treelisty.md`
+- **Quick Reference**: `CLAUDE.md`
+- **Test Suite**: `test/treelisty-test/`
 
 ---
 
-*This document provides quick context for AI assistants working with the TreeListy codebase.*
+*This document provides quick context for AI assistants working with the TreeListy codebase. Updated for Build 322.*
