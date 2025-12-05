@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 328 | 2025-12-05
+    TreeListy v2.17.0 | Build 329 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 328): 🔧 Single Source of Truth for Version
-    - NEW: window.TREELISTY_VERSION object holds all version info
-    - FIX: UI display and version check now read from same constant
-    - FIX: No more manual updates in 3 places - just change one value
+    Changelog (Build 329): 🔄 Update Preserves Tree State
+    - FIX: "Update Now" saves tree + view state before refresh
+    - FIX: After update, tree/view/sync room automatically restored
+    - FIX: Minimal interruption during live collaboration
 
-    Previous (Build 327): 🐛 Fix Live Sync Race Condition
+    Previous (Build 328): 🔧 Single Source of Truth for Version
 
     Previous (Build 325): 📅 Meeting Link Collaboration System
     Previous (Build 324): 🎙️ Voice Chat UX Improvement
@@ -589,7 +589,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 328,
+            build: 329,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -24529,6 +24529,78 @@ https://treelisty.netlify.app`;
                     }
                 });
 
+                // BUILD 329: Check for pending update restore FIRST (highest priority)
+                const pendingUpdate = localStorage.getItem('treelisty:pending-update');
+                if (pendingUpdate) {
+                    console.log('🔄 Restoring tree state after update...');
+                    try {
+                        const updateState = JSON.parse(pendingUpdate);
+                        localStorage.removeItem('treelisty:pending-update');
+
+                        // Only restore if recent (within 30 seconds)
+                        if (Date.now() - updateState.timestamp < 30000) {
+                            setTimeout(() => {
+                                try {
+                                    // Restore tree
+                                    window.capexTree = updateState.tree;
+
+                                    // Restore pattern
+                                    if (updateState.pattern && window.PATTERNS && window.PATTERNS[updateState.pattern]) {
+                                        window.currentPattern = updateState.pattern;
+                                        const patternSelect = document.getElementById('pattern-select');
+                                        if (patternSelect) patternSelect.value = updateState.pattern;
+                                    }
+
+                                    // Update tree name display
+                                    const treeNameDisplay = document.getElementById('tree-name-display');
+                                    if (treeNameDisplay && updateState.tree.name) {
+                                        treeNameDisplay.textContent = updateState.tree.name;
+                                    }
+
+                                    // Restore view state
+                                    const vs = updateState.tree.viewState;
+                                    if (vs) {
+                                        // Restore view mode
+                                        if (vs.viewMode && vs.viewMode !== viewMode) {
+                                            const toggleBtn = document.getElementById('toggle-canvas-btn');
+                                            if (toggleBtn && vs.viewMode === 'canvas' && viewMode === 'tree') {
+                                                toggleBtn.click();
+                                            } else if (toggleBtn && vs.viewMode === 'tree' && viewMode === 'canvas') {
+                                                toggleBtn.click();
+                                            }
+                                        }
+                                    }
+
+                                    // Re-render
+                                    const treeRenderer = window.getTreeRenderer && window.getTreeRenderer();
+                                    if (treeRenderer) treeRenderer();
+
+                                    // Reconnect to sync room if was in one
+                                    if (updateState.roomId) {
+                                        console.log('🔥 Reconnecting to sync room:', updateState.roomId);
+                                        initFirebaseAuth().then(() => {
+                                            firebaseSyncState.roomId = updateState.roomId;
+                                            firebaseSyncState.isConnected = true;
+                                            subscribeToRoom(updateState.roomId);
+                                            updateSyncUI();
+                                            showFloatingChat();
+                                        });
+                                    }
+
+                                    showToast('✅ Updated to Build ' + (window.TREELISTY_VERSION?.build || 'latest') + ' - tree restored!', 'success');
+                                    console.log('✅ Tree state restored after update');
+                                } catch (e) {
+                                    console.error('❌ Failed to restore tree after update:', e);
+                                }
+                            }, 500);
+                            return; // Skip other initialization paths
+                        }
+                    } catch (e) {
+                        console.warn('⚠️ Could not restore pending update:', e);
+                        localStorage.removeItem('treelisty:pending-update');
+                    }
+                }
+
                 // BUILD 325: Check for ?meeting= URL parameter FIRST (has priority)
                 const urlParams = new URLSearchParams(window.location.search);
                 const meetingParam = urlParams.get('meeting');
@@ -39079,8 +39151,37 @@ RULES:
             document.body.appendChild(toast);
         }
 
-        // Force update - bypass all caches
+        // Force update - bypass all caches while preserving tree state
         window.forceUpdateApp = function() {
+            // BUILD 329: Save current tree state before refresh
+            try {
+                if (window.capexTree) {
+                    // Capture current view state
+                    const viewState = {
+                        viewMode: typeof viewMode !== 'undefined' ? viewMode : 'tree',
+                        treeZoom: typeof zoomLevel !== 'undefined' ? zoomLevel : 1,
+                        treePanX: typeof panX !== 'undefined' ? panX : 0,
+                        treePanY: typeof panY !== 'undefined' ? panY : 0,
+                        canvasZoom: typeof canvasZoom !== 'undefined' ? canvasZoom : 1,
+                        canvasPanX: typeof canvasPan !== 'undefined' ? canvasPan.x : 0,
+                        canvasPanY: typeof canvasPan !== 'undefined' ? canvasPan.y : 0
+                    };
+                    window.capexTree.viewState = viewState;
+
+                    // Save tree + state for restore after update
+                    const updateState = {
+                        tree: window.capexTree,
+                        pattern: typeof currentPattern !== 'undefined' ? currentPattern : 'generic',
+                        roomId: window.firebaseSyncState?.roomId || null,
+                        timestamp: Date.now()
+                    };
+                    localStorage.setItem('treelisty:pending-update', JSON.stringify(updateState));
+                    console.log('💾 Saved tree state for update restore');
+                }
+            } catch (e) {
+                console.warn('⚠️ Could not save tree state before update:', e);
+            }
+
             // Clear service worker cache if exists
             if ('caches' in window) {
                 caches.keys().then(names => {
