@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 324 | 2025-12-05
+    TreeListy v2.17.0 | Build 325 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 324): 🎙️ Voice Chat UX Improvement
-    - FIX: Skip Jitsi Meet prejoin modal - join voice instantly
-    - NEW: Auto-pass display name from collaboration session
-    - NEW: Start with video muted (audio-only by default)
-    - Better UX: no need to enter name or configure settings
+    Changelog (Build 325): 📅 Meeting Link Collaboration System
+    - NEW: Schedule meeting links for calendar invites (?meeting=MEETXXXX)
+    - NEW: Guests get full tree from Firebase before host arrives
+    - NEW: Waiting room with edit capability + host arrival detection
+    - NEW: Voice prompt toast when 2+ users join
+    - NEW: Auto-backup every 5 minutes + on join/leave
+    - NEW: Meeting Link Modal with settings (guest edits, voice prompt, backup)
 
+    Previous (Build 324): 🎙️ Voice Chat UX Improvement
     Previous (Build 323): 🐛 Bug fixes - version notification, welcome tree
-    Previous (Build 322): 🎙️ Voice Chat for Live Collaboration
     Previous (Build 318): ⏱️ Fix Edge Function Timeout - Use Streaming
     Previous (Build 317): 🍌 Nano Banana Image Generation
     Previous (Build 316): 🧠 Wiser AI Prompts - Context Injection
@@ -2934,8 +2936,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 324 | 2025-12-05">
-                    v2.17.0 • Build 324
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 325 | 2025-12-05">
+                    v2.17.0 • Build 325
                 </div>
             </div>
         </div>
@@ -4340,8 +4342,13 @@ The AI will analyze the structure and convert it to a tree."
                             Work together in real-time with instant sync
                         </p>
 
-                        <button class="btn" id="create-sync-room-btn" onclick="window.createFirebaseSyncRoom()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #10b981, #059669); font-weight: 600; font-size: 15px; margin-bottom: 16px;">
+                        <button class="btn" id="create-sync-room-btn" onclick="window.createFirebaseSyncRoom()" style="width: 100%; padding: 16px; background: linear-gradient(135deg, #10b981, #059669); font-weight: 600; font-size: 15px; margin-bottom: 12px;">
                             🚀 Start Live Session
+                        </button>
+
+                        <!-- BUILD 325: Schedule Meeting Button -->
+                        <button class="btn" onclick="window.closeMeetingModal(); window.showMeetingModal(); document.getElementById('live-sync-modal').style.display='none';" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6); font-weight: 600; font-size: 14px; margin-bottom: 16px;">
+                            📅 Schedule Meeting Link
                         </button>
 
                         <div style="display: flex; align-items: center; gap: 12px; margin: 16px 0;">
@@ -4474,6 +4481,153 @@ The AI will analyze the structure and convert it to a tree."
             </div>
         </div>
     </div>
+
+    <!-- BUILD 325: Meeting Link Modal -->
+    <div class="modal" id="meeting-link-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 480px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                <span>📅 Schedule Meeting Link</span>
+                <button class="modal-close" onclick="window.closeMeetingModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <!-- Create Meeting Section -->
+                <div id="meeting-create-section">
+                    <div style="text-align: center; padding: 10px 0 20px;">
+                        <div style="font-size: 40px; margin-bottom: 8px;">📅</div>
+                        <p style="margin: 0; font-size: 13px; color: var(--text-secondary);">
+                            Create a meeting link to share via calendar invite.<br>
+                            Guests get the full tree even before you arrive.
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">Meeting Name</label>
+                        <input type="text" id="meeting-name-input" placeholder="e.g., CAPEX Review with Erwin"
+                            style="width: 100%; padding: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; box-sizing: border-box;">
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">Scheduled Time (optional)</label>
+                        <input type="datetime-local" id="meeting-time-input"
+                            style="width: 100%; padding: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; box-sizing: border-box;">
+                    </div>
+
+                    <div style="margin-bottom: 20px; padding: 12px; background: var(--bg); border-radius: 8px;">
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px;">
+                            <input type="checkbox" id="meeting-allow-edits" checked style="width: 16px; height: 16px;">
+                            Allow guests to edit before I arrive
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px; cursor: pointer; font-size: 13px;">
+                            <input type="checkbox" id="meeting-voice-prompt" checked style="width: 16px; height: 16px;">
+                            Prompt for voice chat when ready
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 8px; cursor: pointer; font-size: 13px;">
+                            <input type="checkbox" id="meeting-auto-backup" checked style="width: 16px; height: 16px;">
+                            Auto-backup tree every 5 minutes
+                        </label>
+                    </div>
+
+                    <button class="btn" onclick="window.createScheduledMeeting()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #6366f1, #8b5cf6); font-weight: 600; font-size: 15px;">
+                        🔗 Generate Meeting Link
+                    </button>
+                </div>
+
+                <!-- Generated Link Section -->
+                <div id="meeting-generated-section" style="display: none;">
+                    <div style="text-align: center; padding: 20px 0;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+                        <h3 style="margin: 0 0 8px; color: var(--text-primary);">Meeting Link Ready!</h3>
+                        <p style="margin: 0 0 20px; font-size: 13px; color: var(--text-secondary);">
+                            Add this link to your Google Calendar invite
+                        </p>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-size: 12px; font-weight: 600;">Meeting Link</label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="text" id="meeting-link-url" readonly
+                                style="flex: 1; padding: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; font-family: monospace; font-size: 11px; color: var(--text-primary);">
+                            <button class="btn" onclick="window.copyMeetingLink()" style="padding: 12px 16px; background: linear-gradient(135deg, #10b981, #059669);" title="Copy link">📋</button>
+                        </div>
+                    </div>
+
+                    <div style="padding: 14px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.3); margin-bottom: 16px;">
+                        <p style="margin: 0; font-size: 12px; color: var(--text-secondary);">
+                            <strong style="color: var(--text-primary);">How it works:</strong><br>
+                            1. Guests click the link → tree loads instantly<br>
+                            2. They can start editing while waiting for you<br>
+                            3. When you click the link → live session activates<br>
+                            4. Everyone syncs automatically + voice prompt appears
+                        </p>
+                    </div>
+
+                    <div style="display: flex; gap: 8px;">
+                        <button class="btn" onclick="window.closeMeetingModal(); document.getElementById('live-sync-modal').style.display='flex';" style="flex: 1; padding: 12px; background: var(--card-bg); border: 1px solid var(--border);">
+                            View Session
+                        </button>
+                        <button class="btn" onclick="window.closeMeetingModal()" style="flex: 1; padding: 12px; background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                            Done
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 325: Waiting Room Banner -->
+    <div id="waiting-room-banner" style="display: none; position: fixed; top: 0; left: 0; right: 0; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; padding: 12px 20px; z-index: 10000; box-shadow: 0 4px 12px rgba(0,0,0,0.3);">
+        <div style="max-width: 1200px; margin: 0 auto; display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; gap: 12px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="font-size: 24px; animation: pulse 2s ease-in-out infinite;">⏳</div>
+                <div>
+                    <div id="waiting-status" style="font-weight: 600; font-size: 14px;">Waiting for host to start the meeting...</div>
+                    <div id="waiting-message" style="font-size: 12px; opacity: 0.9;">You can start editing - changes will sync when host arrives.</div>
+                </div>
+                <span id="waiting-timer" style="font-family: monospace; font-size: 13px; opacity: 0.8;"></span>
+            </div>
+            <div style="display: flex; gap: 8px;">
+                <button onclick="window.downloadMeetingBackup('manual')" style="padding: 8px 14px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; cursor: pointer; font-size: 12px; font-weight: 600;">💾 Save Backup</button>
+                <button onclick="window.location.href=window.location.pathname" style="padding: 8px 14px; background: rgba(239,68,68,0.8); border: none; border-radius: 6px; color: white; cursor: pointer; font-size: 12px; font-weight: 600;">Leave</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 325: Voice Prompt Toast -->
+    <div id="voice-prompt-toast" style="display: none; position: fixed; bottom: 100px; right: 20px; background: linear-gradient(135deg, #10b981, #059669); padding: 16px 20px; border-radius: 12px; box-shadow: 0 8px 32px rgba(0,0,0,0.4); z-index: 10001; color: white; max-width: 280px;">
+        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 12px;">
+            <span style="font-size: 24px;">🎙️</span>
+            <div>
+                <div style="font-weight: 600; font-size: 14px;">Ready for voice chat?</div>
+                <div style="font-size: 12px; opacity: 0.9;">Host has joined the session</div>
+            </div>
+        </div>
+        <div style="display: flex; gap: 8px;">
+            <button onclick="window.acceptVoicePrompt()" style="flex: 1; padding: 10px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; cursor: pointer; font-weight: 600; font-size: 13px;">Join Voice</button>
+            <button onclick="window.dismissVoicePrompt()" style="flex: 1; padding: 10px; background: transparent; border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; cursor: pointer; font-size: 13px;">Not now</button>
+        </div>
+    </div>
+
+    <style>
+        /* BUILD 325: Voice prompt animations */
+        #voice-prompt-toast.slide-in {
+            animation: slideInRight 0.3s ease-out;
+        }
+        #voice-prompt-toast.slide-out {
+            animation: slideOutRight 0.3s ease-out;
+        }
+        @keyframes slideInRight {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+        @keyframes slideOutRight {
+            from { transform: translateX(0); opacity: 1; }
+            to { transform: translateX(100%); opacity: 0; }
+        }
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+    </style>
 
     <!-- Hidden file input for JSON upload -->
     <input type="file" id="json-upload-input" accept=".json,.treelisty" style="display: none;" />
@@ -23271,6 +23425,583 @@ https://treelisty.netlify.app`;
                 console.log('🎙️ Voice chat started:', jitsiUrl);
             };
 
+            // ═══════════════════════════════════════════════════════════════════
+            // BUILD 325: Scheduled Meeting Link System
+            // ═══════════════════════════════════════════════════════════════════
+
+            // Meeting state storage
+            let meetingState = {
+                currentMeetingId: null,
+                isHost: false,
+                meetingUnsubscribe: null,
+                backupInterval: null,
+                waitingStartTime: null
+            };
+
+            // Generate unique 8-char meeting ID (MEET + 4 alphanumeric)
+            function generateMeetingId() {
+                const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // No ambiguous chars
+                let result = 'MEET';
+                for (let i = 0; i < 4; i++) {
+                    result += chars.charAt(Math.floor(Math.random() * chars.length));
+                }
+                return result;
+            }
+
+            // Create a scheduled meeting and store tree in Firebase
+            async function createScheduledMeeting() {
+                console.log('📅 Creating scheduled meeting...');
+
+                // 1. Authenticate if needed
+                if (!firebaseSyncState.userId) {
+                    const authed = await initFirebaseAuth();
+                    if (!authed) {
+                        showToast('❌ Authentication required', 'error');
+                        return null;
+                    }
+                }
+
+                // 2. Generate meeting ID
+                const meetingId = generateMeetingId();
+
+                // 3. Get form values
+                const meetingNameInput = document.getElementById('meeting-name-input');
+                const meetingTimeInput = document.getElementById('meeting-time-input');
+                const allowGuestEdits = document.getElementById('meeting-allow-edits')?.checked ?? true;
+                const autoVoicePrompt = document.getElementById('meeting-voice-prompt')?.checked ?? true;
+                const autoBackup = document.getElementById('meeting-auto-backup')?.checked ?? true;
+
+                const meetingName = meetingNameInput?.value || capexTree.name || 'Scheduled Meeting';
+                const scheduledTime = meetingTimeInput?.value ? new Date(meetingTimeInput.value) : null;
+
+                try {
+                    // 4. Create meeting document in Firestore
+                    const meetingRef = window.firebaseDoc(window.firebaseDb, 'scheduledMeetings', meetingId);
+
+                    await window.firebaseSetDoc(meetingRef, {
+                        meetingId: meetingId,
+                        roomId: null, // Set when meeting goes active
+
+                        // Scheduling
+                        scheduledAt: scheduledTime || window.firebaseServerTimestamp(),
+                        createdAt: window.firebaseServerTimestamp(),
+                        expiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48h from now
+
+                        // Host identification
+                        hostId: firebaseSyncState.userId,
+                        hostName: firebaseSyncState.myDisplayName || 'Host',
+                        hostDeviceFingerprint: getDeviceFingerprint(),
+
+                        // Meeting state
+                        state: 'SCHEDULED',
+                        stateChangedAt: window.firebaseServerTimestamp(),
+
+                        // Tree bundle (bypasses URL size limit!)
+                        treeData: JSON.stringify(capexTree),
+                        pattern: currentPattern,
+                        projectName: meetingName,
+
+                        // Participants (empty initially)
+                        participants: {},
+
+                        // Settings
+                        settings: {
+                            allowGuestEdits: allowGuestEdits,
+                            autoVoicePrompt: autoVoicePrompt,
+                            autoBackup: autoBackup,
+                            waitingMessage: `Waiting for ${firebaseSyncState.myDisplayName || 'host'} to start...`
+                        }
+                    });
+
+                    console.log('📅 Meeting created:', meetingId);
+
+                    // 5. Generate and display link
+                    const meetingUrl = `${window.location.origin}${window.location.pathname}?meeting=${meetingId}`;
+
+                    // Update modal UI
+                    const linkInput = document.getElementById('meeting-link-url');
+                    const createSection = document.getElementById('meeting-create-section');
+                    const generatedSection = document.getElementById('meeting-generated-section');
+
+                    if (linkInput) linkInput.value = meetingUrl;
+                    if (createSection) createSection.style.display = 'none';
+                    if (generatedSection) generatedSection.style.display = 'block';
+
+                    // 6. Copy to clipboard
+                    try {
+                        await navigator.clipboard.writeText(meetingUrl);
+                        showToast('📅 Meeting link created and copied!', 'success');
+                    } catch (e) {
+                        showToast('📅 Meeting link created! Copy it from the modal.', 'success');
+                    }
+
+                    // 7. Store locally for host re-identification
+                    localStorage.setItem('treelisty:hosted-meeting', meetingId);
+
+                    // Store in meeting state
+                    meetingState.currentMeetingId = meetingId;
+                    meetingState.isHost = true;
+
+                    return meetingId;
+
+                } catch (error) {
+                    console.error('📅 Failed to create meeting:', error);
+                    showToast('❌ Failed to create meeting: ' + error.message, 'error');
+                    return null;
+                }
+            }
+
+            // Check if current user is the host of a meeting
+            function isHostOfMeeting(meeting) {
+                // Check Firebase UID
+                if (meeting.hostId === firebaseSyncState.userId) return true;
+
+                // Check device fingerprint (for reconnection after auth change)
+                if (meeting.hostDeviceFingerprint === getDeviceFingerprint()) return true;
+
+                // Check localStorage (host created meeting on this device)
+                if (localStorage.getItem('treelisty:hosted-meeting') === meeting.meetingId) return true;
+
+                return false;
+            }
+
+            // Handle ?meeting= URL parameter
+            async function handleMeetingURL() {
+                const urlParams = new URLSearchParams(window.location.search);
+                const meetingId = urlParams.get('meeting');
+
+                if (!meetingId) return false;
+
+                console.log('📅 Meeting URL detected:', meetingId);
+
+                try {
+                    // 1. Authenticate
+                    if (!firebaseSyncState.userId) {
+                        await initFirebaseAuth();
+                    }
+
+                    // 2. Fetch meeting data from Firebase
+                    const meetingRef = window.firebaseDoc(window.firebaseDb, 'scheduledMeetings', meetingId);
+                    const meetingSnap = await window.firebaseGetDoc(meetingRef);
+
+                    if (!meetingSnap.exists()) {
+                        showToast('❌ Meeting not found or has expired', 'error');
+                        // Clean URL
+                        window.history.replaceState({}, '', window.location.pathname);
+                        return false;
+                    }
+
+                    const meeting = meetingSnap.data();
+                    console.log('📅 Meeting data loaded:', meeting.projectName, 'state:', meeting.state);
+
+                    // 3. Check if this is the host reconnecting
+                    const isHost = isHostOfMeeting(meeting);
+                    meetingState.isHost = isHost;
+                    meetingState.currentMeetingId = meetingId;
+
+                    // 4. Load the tree data from meeting
+                    if (meeting.treeData) {
+                        try {
+                            const loadedTree = JSON.parse(meeting.treeData);
+                            window.capexTree = loadedTree;
+
+                            // Update pattern if specified
+                            if (meeting.pattern && window.PATTERNS && window.PATTERNS[meeting.pattern]) {
+                                window.currentPattern = meeting.pattern;
+                                const patternSelect = document.getElementById('pattern-select');
+                                if (patternSelect) patternSelect.value = meeting.pattern;
+                            }
+
+                            // Update tree name display
+                            const treeNameDisplay = document.getElementById('tree-name-display');
+                            if (treeNameDisplay) {
+                                treeNameDisplay.textContent = loadedTree.name || meeting.projectName || 'Meeting Tree';
+                            }
+
+                            console.log('📅 Tree loaded from meeting:', loadedTree.name);
+                        } catch (e) {
+                            console.error('📅 Failed to parse meeting tree:', e);
+                            showToast('❌ Failed to load meeting tree', 'error');
+                            return false;
+                        }
+                    }
+
+                    // 5. Register as participant
+                    await registerMeetingParticipant(meetingId, isHost);
+
+                    // 6. Handle based on current meeting state
+                    if (meeting.state === 'ACTIVE' && meeting.roomId) {
+                        // Meeting already active - join the sync room directly
+                        console.log('📅 Meeting active, joining room:', meeting.roomId);
+                        await joinSyncRoom(meeting.roomId);
+
+                        // Start backup interval if enabled
+                        if (meeting.settings?.autoBackup) {
+                            startMeetingBackupInterval();
+                        }
+
+                    } else if (isHost) {
+                        // Host arriving - activate the meeting
+                        console.log('📅 Host detected, activating meeting...');
+                        await activateMeeting(meetingId);
+
+                    } else {
+                        // Guest arrived before host - show waiting room
+                        console.log('📅 Guest waiting for host...');
+                        showWaitingRoom(meeting);
+                        subscribeMeetingState(meetingId);
+                    }
+
+                    // 7. Download initial backup if enabled
+                    if (meeting.settings?.autoBackup) {
+                        setTimeout(() => {
+                            downloadMeetingBackup('meeting-join');
+                        }, 2000);
+                    }
+
+                    // Trigger re-render
+                    setTimeout(() => {
+                        const treeRenderer = window.getTreeRenderer && window.getTreeRenderer();
+                        const canvasRenderer = window.getCanvasRenderer && window.getCanvasRenderer();
+                        if (treeRenderer) treeRenderer();
+                        const canvasContainer = document.getElementById('canvas-container');
+                        if (canvasContainer && canvasContainer.classList.contains('active') && canvasRenderer) {
+                            canvasRenderer();
+                        }
+                    }, 300);
+
+                    return true;
+
+                } catch (error) {
+                    console.error('📅 Meeting join error:', error);
+                    showToast('❌ Failed to join meeting: ' + error.message, 'error');
+                    return false;
+                }
+            }
+
+            // Register user as meeting participant
+            async function registerMeetingParticipant(meetingId, isHost) {
+                try {
+                    const meetingRef = window.firebaseDoc(window.firebaseDb, 'scheduledMeetings', meetingId);
+                    const updateData = {};
+                    updateData[`participants.${firebaseSyncState.userId}`] = {
+                        name: firebaseSyncState.myDisplayName || (isHost ? 'Host' : 'Guest'),
+                        role: isHost ? 'host' : 'guest',
+                        joinedAt: Date.now(),
+                        lastActiveAt: Date.now()
+                    };
+                    await window.firebaseUpdateDoc(meetingRef, updateData);
+                    console.log('📅 Registered as participant');
+                } catch (error) {
+                    console.error('📅 Failed to register participant:', error);
+                }
+            }
+
+            // Host activates the meeting (creates sync room)
+            async function activateMeeting(meetingId) {
+                console.log('📅 Activating meeting:', meetingId);
+
+                // 1. Create a sync room
+                const roomId = generateRoomId();
+                firebaseSyncState.roomId = roomId;
+
+                try {
+                    // 2. Create sync room document
+                    const roomRef = window.firebaseDoc(window.firebaseDb, 'syncRooms', roomId);
+                    const initialConnectedUsers = {};
+                    initialConnectedUsers[firebaseSyncState.userId] = {
+                        name: firebaseSyncState.myDisplayName || 'Host',
+                        joinedAt: Date.now(),
+                        isHost: true
+                    };
+
+                    await window.firebaseSetDoc(roomRef, {
+                        createdBy: firebaseSyncState.userId,
+                        createdAt: window.firebaseServerTimestamp(),
+                        lastUpdatedBy: firebaseSyncState.userId,
+                        lastUpdatedAt: window.firebaseServerTimestamp(),
+                        treeData: JSON.stringify(capexTree),
+                        pattern: currentPattern,
+                        projectName: capexTree?.name || 'Meeting',
+                        chatMessages: [],
+                        connectedUsers: initialConnectedUsers,
+                        meetingId: meetingId,
+                        meetingState: 'ACTIVE'
+                    });
+
+                    // 3. Update meeting document with room ID and state
+                    const meetingRef = window.firebaseDoc(window.firebaseDb, 'scheduledMeetings', meetingId);
+                    await window.firebaseUpdateDoc(meetingRef, {
+                        roomId: roomId,
+                        state: 'ACTIVE',
+                        stateChangedAt: window.firebaseServerTimestamp()
+                    });
+
+                    // 4. Subscribe to room
+                    subscribeToRoom(roomId);
+                    firebaseSyncState.isConnected = true;
+                    floatingChatState.isHost = true;
+
+                    // 5. Update UI
+                    updateSyncUI();
+                    showFloatingChat();
+                    hideWaitingRoom();
+
+                    // 6. Start backup interval
+                    const meetingSnap = await window.firebaseGetDoc(meetingRef);
+                    if (meetingSnap.exists() && meetingSnap.data().settings?.autoBackup) {
+                        startMeetingBackupInterval();
+                    }
+
+                    showToast('📅 Meeting started! Waiting participants will auto-join.', 'success');
+                    console.log('📅 Meeting activated, room:', roomId);
+
+                } catch (error) {
+                    console.error('📅 Failed to activate meeting:', error);
+                    showToast('❌ Failed to start meeting: ' + error.message, 'error');
+                }
+            }
+
+            // Subscribe to meeting state changes (for waiting guests)
+            function subscribeMeetingState(meetingId) {
+                console.log('📅 Subscribing to meeting state:', meetingId);
+
+                const meetingRef = window.firebaseDoc(window.firebaseDb, 'scheduledMeetings', meetingId);
+
+                meetingState.meetingUnsubscribe = window.firebaseOnSnapshot(meetingRef, async (doc) => {
+                    if (!doc.exists()) {
+                        showToast('⚠️ Meeting was cancelled', 'warning');
+                        hideWaitingRoom();
+                        return;
+                    }
+
+                    const meeting = doc.data();
+                    console.log('📅 Meeting state update:', meeting.state);
+
+                    if (meeting.state === 'ACTIVE' && meeting.roomId) {
+                        // Host arrived! Join the sync room
+                        hideWaitingRoom();
+
+                        showToast('🎉 Host has joined! Connecting to live session...', 'success');
+
+                        // Unsubscribe from meeting state (we'll use room subscription now)
+                        if (meetingState.meetingUnsubscribe) {
+                            meetingState.meetingUnsubscribe();
+                            meetingState.meetingUnsubscribe = null;
+                        }
+
+                        // Join the sync room
+                        await joinSyncRoom(meeting.roomId);
+
+                        // Start backup interval if enabled
+                        if (meeting.settings?.autoBackup) {
+                            startMeetingBackupInterval();
+                        }
+
+                        // Prompt for voice if enabled
+                        if (meeting.settings?.autoVoicePrompt) {
+                            setTimeout(() => showVoicePrompt(), 2000);
+                        }
+                    }
+
+                    if (meeting.state === 'ENDED') {
+                        showToast('📅 Meeting has ended', 'info');
+                        hideWaitingRoom();
+                        stopMeetingBackupInterval();
+                    }
+                });
+            }
+
+            // Show waiting room UI
+            function showWaitingRoom(meeting) {
+                const banner = document.getElementById('waiting-room-banner');
+                if (!banner) {
+                    console.warn('📅 Waiting room banner not found');
+                    return;
+                }
+
+                const statusEl = document.getElementById('waiting-status');
+                const messageEl = document.getElementById('waiting-message');
+
+                banner.style.display = 'flex';
+                if (statusEl) {
+                    statusEl.textContent = `⏳ Waiting for ${meeting.hostName || 'host'} to start the meeting...`;
+                }
+                if (messageEl) {
+                    const editMsg = meeting.settings?.allowGuestEdits
+                        ? 'You can start editing - changes will sync when host arrives.'
+                        : 'View only until host arrives.';
+                    messageEl.textContent = editMsg;
+                }
+
+                meetingState.waitingStartTime = Date.now();
+
+                // Update waiting timer periodically
+                updateWaitingTimer();
+            }
+
+            function hideWaitingRoom() {
+                const banner = document.getElementById('waiting-room-banner');
+                if (banner) {
+                    banner.style.display = 'none';
+                }
+                meetingState.waitingStartTime = null;
+            }
+
+            // Update waiting timer display
+            function updateWaitingTimer() {
+                if (!meetingState.waitingStartTime) return;
+
+                const timerEl = document.getElementById('waiting-timer');
+                if (!timerEl) return;
+
+                const elapsed = Math.floor((Date.now() - meetingState.waitingStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60);
+                const seconds = elapsed % 60;
+                timerEl.textContent = `(${minutes}:${seconds.toString().padStart(2, '0')})`;
+
+                // Continue updating
+                setTimeout(updateWaitingTimer, 1000);
+            }
+
+            // Show voice prompt toast
+            function showVoicePrompt() {
+                const prompt = document.getElementById('voice-prompt-toast');
+                if (!prompt) return;
+
+                prompt.style.display = 'flex';
+                prompt.classList.add('slide-in');
+
+                // Auto-dismiss after 15 seconds
+                setTimeout(() => {
+                    if (prompt.style.display !== 'none') {
+                        dismissVoicePrompt();
+                    }
+                }, 15000);
+            }
+
+            function acceptVoicePrompt() {
+                const prompt = document.getElementById('voice-prompt-toast');
+                if (prompt) prompt.style.display = 'none';
+                window.startVoiceChat();
+            }
+
+            function dismissVoicePrompt() {
+                const prompt = document.getElementById('voice-prompt-toast');
+                if (!prompt) return;
+
+                prompt.classList.add('slide-out');
+                setTimeout(() => {
+                    prompt.style.display = 'none';
+                    prompt.classList.remove('slide-out', 'slide-in');
+                }, 300);
+            }
+
+            // Download JSON backup with meeting context
+            function downloadMeetingBackup(trigger = 'manual') {
+                if (typeof capexTree === 'undefined') return;
+
+                const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const meetingId = meetingState.currentMeetingId || 'adhoc';
+                const safeName = (capexTree.name || 'meeting-tree').replace(/[^a-z0-9]/gi, '-').toLowerCase();
+
+                const filename = `treelisty-meeting-${meetingId}-${safeName}-${trigger}-${timestamp}.json`;
+
+                // Add metadata to backup
+                const backupData = {
+                    ...capexTree,
+                    _meetingBackup: {
+                        meetingId: meetingId,
+                        trigger: trigger,
+                        timestamp: new Date().toISOString(),
+                        participants: Object.keys(firebaseSyncState.collaboratorNames || {}),
+                        isHost: meetingState.isHost
+                    }
+                };
+
+                const dataStr = JSON.stringify(backupData, null, 2);
+                const blob = new Blob([dataStr], { type: 'application/json' });
+                const url = URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+
+                console.log('💾 Meeting backup saved:', filename);
+                showToast(`💾 Backup saved: ${filename.substring(0, 40)}...`, 'success');
+            }
+
+            // Start periodic backup interval (every 5 minutes)
+            function startMeetingBackupInterval() {
+                if (meetingState.backupInterval) return;
+
+                console.log('💾 Starting periodic backup (every 5 min)');
+                meetingState.backupInterval = setInterval(() => {
+                    downloadMeetingBackup('periodic');
+                }, 5 * 60 * 1000); // Every 5 minutes
+            }
+
+            // Stop periodic backup
+            function stopMeetingBackupInterval() {
+                if (meetingState.backupInterval) {
+                    clearInterval(meetingState.backupInterval);
+                    meetingState.backupInterval = null;
+                    console.log('💾 Stopped periodic backup');
+                }
+            }
+
+            // Show meeting link modal
+            function showMeetingModal() {
+                const modal = document.getElementById('meeting-link-modal');
+                if (modal) {
+                    modal.style.display = 'flex';
+                    // Reset to create view
+                    const createSection = document.getElementById('meeting-create-section');
+                    const generatedSection = document.getElementById('meeting-generated-section');
+                    if (createSection) createSection.style.display = 'block';
+                    if (generatedSection) generatedSection.style.display = 'none';
+                    // Pre-fill meeting name
+                    const nameInput = document.getElementById('meeting-name-input');
+                    if (nameInput) nameInput.value = capexTree.name || '';
+                }
+            }
+
+            function closeMeetingModal() {
+                const modal = document.getElementById('meeting-link-modal');
+                if (modal) modal.style.display = 'none';
+            }
+
+            function copyMeetingLink() {
+                const linkInput = document.getElementById('meeting-link-url');
+                if (linkInput) {
+                    navigator.clipboard.writeText(linkInput.value)
+                        .then(() => showToast('📋 Meeting link copied!', 'success'))
+                        .catch(() => {
+                            linkInput.select();
+                            document.execCommand('copy');
+                            showToast('📋 Meeting link copied!', 'success');
+                        });
+                }
+            }
+
+            // Expose meeting functions globally
+            window.createScheduledMeeting = createScheduledMeeting;
+            window.handleMeetingURL = handleMeetingURL;
+            window.showMeetingModal = showMeetingModal;
+            window.closeMeetingModal = closeMeetingModal;
+            window.copyMeetingLink = copyMeetingLink;
+            window.downloadMeetingBackup = downloadMeetingBackup;
+            window.acceptVoicePrompt = acceptVoicePrompt;
+            window.dismissVoicePrompt = dismissVoicePrompt;
+
+            // ═══════════════════════════════════════════════════════════════════
+            // END BUILD 325: Scheduled Meeting Link System
+            // ═══════════════════════════════════════════════════════════════════
+
             // BUILD 257: Manual JSON save during collaboration
             window.saveCollabJSON = function() {
                 if (typeof capexTree === 'undefined') {
@@ -23762,10 +24493,20 @@ https://treelisty.netlify.app`;
                     }
                 });
 
-                // Check for ?room= URL parameter
+                // BUILD 325: Check for ?meeting= URL parameter FIRST (has priority)
                 const urlParams = new URLSearchParams(window.location.search);
+                const meetingParam = urlParams.get('meeting');
+                if (meetingParam) {
+                    console.log('📅 Meeting URL detected:', meetingParam);
+                    // Wait for Firebase and app to initialize, then handle meeting
+                    setTimeout(async () => {
+                        await window.handleMeetingURL();
+                    }, 1500);
+                }
+
+                // Check for ?room= URL parameter
                 const roomParam = urlParams.get('room');
-                if (roomParam) {
+                if (roomParam && !meetingParam) {
                     console.log('🔥 Room ID in URL:', roomParam);
 
                     // Check if we have pending tree data from a join
@@ -38167,7 +38908,7 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 324;
+        const CURRENT_BUILD = 325;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
