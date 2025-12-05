@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 317 | 2025-12-04
+    TreeListy v2.17.0 | Build 318 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 317): 🍌 Nano Banana Image Generation
-    - NEW: Nano Banana (Gemini 2.5 Flash) as default image model
-    - NEW: Nano Banana Pro (Gemini 2.5 Pro) for higher quality
-    - Imagen 4 Standard and Ultra still available as options
-    - Updated modal UI with banana theming
-    - Resolution selector for Nano Banana Pro (2K/4K)
+    Changelog (Build 318): ⏱️ Fix Edge Function Timeout - Use Streaming
+    - FIX: Edge Function was using buffered mode (40s timeout on headers)
+    - NOW: Uses streaming mode which returns headers immediately (no timeout!)
+    - Opus/Sonnet can now run 60+ seconds without timing out
+    - CRITICAL: Netlify Edge must return headers within 40s, streaming bypasses this
 
+    Previous (Build 317): 🍌 Nano Banana Image Generation
     Previous (Build 316): 🧠 Wiser AI Prompts - Context Injection
     Previous (Build 315): 🧠 Wiser TreeBeard - Deep Knowledge Injection
     Previous (Build 314): 📐 Fix Tree View Zoom Reset Position
@@ -2932,8 +2932,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 317 | 2025-12-04">
-                    v2.17.0 • Build 317
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 318 | 2025-12-05">
+                    v2.17.0 • Build 318
                 </div>
             </div>
         </div>
@@ -6575,24 +6575,18 @@ TREELISTY CONTEXT:
             // Fallback chain: Edge Stream → Edge Buffered → Regular Function
             // ═══════════════════════════════════════════════════════════════
 
-            // Try Edge Function streaming first (no timeout, works on deployed site)
+            // Try Edge Function STREAMING first (no timeout - returns headers immediately)
+            // CRITICAL: Buffered mode times out at 40s because headers aren't returned until done
+            // Streaming mode returns headers immediately, so can run indefinitely
             if (!isLocalFile) {
                 try {
-                    console.log('🌊 Trying Edge Function streaming (no timeout limit)...');
-                    const streamResult = await callClaudeEdgeBuffered(requestData, localApiKey);
-                    const data = await streamResult.json();
-                    console.log('✅ Edge Function success!');
-
-                    // Handle response
-                    if (!data.content || !Array.isArray(data.content) || data.content.length === 0) {
-                        console.error('Invalid Edge API response:', data);
-                        throw new Error('Invalid response from Edge Function');
-                    }
-
-                    return data.content[0].text;
+                    console.log('🌊 Using Edge Function streaming (no timeout limit)...');
+                    const result = await callClaudeStreamingAPI(requestData, localApiKey, null);
+                    console.log('✅ Edge Function streaming success!');
+                    return result;
                 } catch (edgeError) {
                     // Edge Function failed - fall back to regular function
-                    console.warn('⚠️ Edge Function failed, falling back to regular function:', edgeError.message);
+                    console.warn('⚠️ Edge Function streaming failed, falling back to regular function:', edgeError.message);
                     // Continue to fallback below
                 }
             }
