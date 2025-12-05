@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 319 | 2025-12-05
+    TreeListy v2.17.0 | Build 320 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 319): 🔀 Smart Append - Optimized Models + Deduplication
-    - Pattern-specific AI model selection for import (Claude Sonnet for CAPEX, Opus for Philosophy)
-    - Semantic deduplication: detects duplicates and merges updates instead of creating copies
-    - Better success messages showing added vs updated item counts
-    - A/B tested: +13.9% quality improvement over baseline
+    Changelog (Build 320): 🎯 Optimized Import Prompts for CAPEX & Philosophy
+    - NEW: CAPEX-specific import prompts with financial rigor (cost extraction, vendor tracking)
+    - NEW: Enhanced Philosophy prompts with scholarly requirements
+    - IMPROVED: Pattern-specific subtask guidance for both Quick and Deep modes
+    - A/B tested: Claude Sonnet for CAPEX (98%), Claude Opus for Philosophy (90%)
 
+    Previous (Build 319): 🔀 Smart Append - Optimized Models + Deduplication
     Previous (Build 318): ⏱️ Fix Edge Function Timeout - Use Streaming
     Previous (Build 317): 🍌 Nano Banana Image Generation
     Previous (Build 316): 🧠 Wiser AI Prompts - Context Injection
@@ -2932,8 +2933,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 319 | 2025-12-05">
-                    v2.17.0 • Build 319
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 320 | 2025-12-05">
+                    v2.17.0 • Build 320
                 </div>
             </div>
         </div>
@@ -29019,8 +29020,10 @@ RULES:
             }
 
             // Pattern-specific subtask guidance
+            // BUILD 320: Added CAPEX subtask guidance
             function getPatternSubtaskGuidance(pattern) {
                 const guidance = {
+                    capex: `For ${levels.item}s (line items), add ${levels.subtask}s like: components, delivery milestones, installation steps, verification tasks. Include cost breakdowns if available.`,
                     philosophy: `For ${levels.item}s (Claims), REQUIRED 1-3 ${levels.subtask}s (Supports): premises, objections, supporting evidence, textual references. NEVER skip subItems.`,
                     sales: `For ${levels.item}s (deals), add ${levels.subtask}s like: follow-up actions, next steps, activities to close`,
                     thesis: `For ${levels.item}s (arguments), add ${levels.subtask}s like: supporting evidence, citations, counter-arguments`,
@@ -29035,8 +29038,42 @@ RULES:
             }
 
             // Pattern-specific instructions for Quick Mode
+            // BUILD 320: Enhanced pattern-specific prompts based on A/B testing
             let patternSpecialInstructions = '';
-            if (pattern === 'philosophy') {
+            if (pattern === 'capex') {
+                patternSpecialInstructions = `
+
+⚠️ CAPEX PATTERN REQUIREMENTS (Financial Rigor):
+
+## COST EXTRACTION (CRITICAL)
+1. **EXTRACT ALL DOLLAR AMOUNTS**: Every cost, budget, price mentioned MUST be captured
+2. **PRESERVE EXACT VALUES**: "$1.2M" → cost: 1200000, NOT rounded or estimated
+3. **TRACK VENDORS**: Any company/supplier names go in alternateSource field
+4. **DEPENDENCIES**: Equipment that relies on other items → dependencies array
+
+## HIERARCHY STRUCTURE
+- Phase = Project phase (Planning, Procurement, Installation, Testing, etc.)
+- Item = Capital expense line item (equipment, infrastructure, service)
+- SubItem = Component, delivery milestone, or installation step
+
+## REQUIRED FIELDS PER ITEM
+- name: Equipment/expense name (be specific: "Dell PowerEdge R750 Servers" not "servers")
+- cost: Numeric value in base currency (no symbols, no commas)
+- itemType: equipment/infrastructure/labor/contingency/software/consulting
+- leadTime: Delivery/implementation time if mentioned ("6-8 weeks")
+- alternateSource: Vendor/supplier name
+
+## ITEM TYPES (Use precisely)
+- equipment: Physical hardware, machinery, devices
+- infrastructure: Facilities, power, cooling, networking
+- labor: Installation, configuration, training services
+- software: Licenses, subscriptions, development
+- consulting: Professional services, design, project management
+- contingency: Risk reserves, buffer allocations
+
+⚠️ KEY: NEVER skip cost values. If a range is given ($100K-$150K), use midpoint.
+`;
+            } else if (pattern === 'philosophy') {
                 patternSpecialInstructions = `
 
 ⚠️ PHILOSOPHY PATTERN REQUIREMENTS (Academic Standard):
@@ -29624,8 +29661,10 @@ ${jsonText}`;
             const patternFieldGuide = generateFieldExtractionGuide(pattern);
 
             // Pattern-specific subtask guidance for Deep Mode
+            // BUILD 320: Added CAPEX subtask guidance
             function getDeepModeSubtaskGuidance(pattern) {
                 const guidance = {
+                    capex: `CAPEX: ${levels.subtask}s = components, delivery milestones, installation steps, vendor deliverables, verification tasks. Include cost breakdowns where available.`,
                     philosophy: `Philosophy: ${levels.subtask}s = premises, objections, supporting evidence, citations. REQUIRED: 1-3 subItems per claim. NEVER skip subItems.`,
                     sales: `Sales: ${levels.subtask}s = follow-up actions, meeting notes, deliverables, next steps to advance the deal`,
                     thesis: `Academic: ${levels.subtask}s = supporting arguments, citations, evidence, counter-arguments to address`,
@@ -29640,8 +29679,58 @@ ${jsonText}`;
             }
 
             // Pattern-specific extraction instructions
+            // BUILD 320: Added CAPEX pattern instructions based on A/B testing
             function getPatternSpecificInstructions(pattern) {
                 const instructions = {
+                    capex: `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ CAPEX PATTERN - FINANCIAL RIGOR REQUIRED
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💰 COST EXTRACTION (CRITICAL - DO NOT SKIP):
+Every dollar amount in the source text MUST be captured:
+- "$1.2M" → cost: 1200000 (raw number, no symbols)
+- "$500K-$750K" → cost: 625000 (use midpoint)
+- "approximately $2 million" → cost: 2000000
+- NEVER omit or round costs arbitrarily
+
+📊 PROJECT HIERARCHY:
+- Phase = Project phase (Planning, Procurement, Installation, Commissioning, etc.)
+- Item = Individual capital expense line item (equipment, infrastructure, service)
+- SubItem = Component, delivery milestone, installation step, or verification task
+
+🏷️ ITEM TYPES (Assign precisely):
+- equipment: Physical hardware, servers, machinery, devices
+- infrastructure: Facilities, power distribution, cooling, networking, cabling
+- labor: Installation services, configuration, training, deployment
+- software: Licenses, subscriptions, development, integration
+- consulting: Professional services, architecture, design, project management
+- contingency: Risk reserves, buffer allocations, variance pools
+
+📋 REQUIRED FIELDS FOR EVERY ITEM:
+- name: SPECIFIC equipment name (e.g., "Dell PowerEdge R750 Servers (96 units)" NOT just "servers")
+- cost: Numeric value ONLY (no $ or commas)
+- itemType: One of the types above
+- description: Technical specifications or scope details
+- leadTime: Delivery/implementation time if mentioned ("6-8 weeks", "Q3 2025")
+- alternateSource: Vendor/supplier name (Cisco, Dell, contractor name)
+- dependencies: Array of item IDs this depends on ["item-0-1", "item-1-2"]
+
+🔗 DEPENDENCY TRACKING:
+Look for sequencing language:
+- "after installation of..." → add dependency
+- "requires..." → add dependency
+- "cannot proceed until..." → add dependency
+- Format: dependencies: ["item-X-Y"] referencing other items
+
+⚠️ COMMON MISTAKES TO AVOID:
+- Omitting cost values (NEVER skip a dollar amount)
+- Generic names like "Equipment" (be specific)
+- Missing vendor/supplier names
+- Ignoring contingency/risk reserves
+- Skipping lead time information
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+`,
                     philosophy: `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 ⚠️ PHILOSOPHY PATTERN - CRITICAL REQUIREMENTS
