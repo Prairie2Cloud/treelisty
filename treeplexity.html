@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 327 | 2025-12-05
+    TreeListy v2.17.0 | Build 328 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 327): 🐛 Fix Live Sync Race Condition
-    - FIX: Local changes no longer lost when remote update arrives during edit
-    - FIX: Pending local changes are flushed before accepting remote updates
-    - FIX: User's changes take priority - prevents overwrite by stale data
-    - Ensures host and guest always see the same tree in active session
+    Changelog (Build 328): 🔧 Single Source of Truth for Version
+    - NEW: window.TREELISTY_VERSION object holds all version info
+    - FIX: UI display and version check now read from same constant
+    - FIX: No more manual updates in 3 places - just change one value
+
+    Previous (Build 327): 🐛 Fix Live Sync Race Condition
 
     Previous (Build 325): 📅 Meeting Link Collaboration System
     Previous (Build 324): 🎙️ Voice Chat UX Improvement
@@ -583,6 +584,16 @@
         if (window.location.protocol === 'file:') {
             document.getElementById('pwa-manifest')?.remove();
         }
+    </script>
+    <!-- BUILD 328: Single source of truth for version info -->
+    <script>
+        window.TREELISTY_VERSION = {
+            major: '2.17.0',
+            build: 328,
+            date: '2025-12-05',
+            get full() { return `v${this.major} • Build ${this.build}`; },
+            get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
+        };
     </script>
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -2935,8 +2946,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 327 | 2025-12-05">
-                    v2.17.0 • Build 327
+                <div id="version-display" style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;">
+                    <!-- Populated by TREELISTY_VERSION -->
                 </div>
             </div>
         </div>
@@ -5569,6 +5580,15 @@ Do not ask permission—just provide the critique, then help.
         }
 
         // ==================== End Build 262 ====================
+
+        // BUILD 328: Populate version display from single source of truth
+        document.addEventListener('DOMContentLoaded', () => {
+            const versionEl = document.getElementById('version-display');
+            if (versionEl && window.TREELISTY_VERSION) {
+                versionEl.textContent = window.TREELISTY_VERSION.full;
+                versionEl.title = window.TREELISTY_VERSION.title;
+            }
+        });
 
         // Initialize Project Settings Modal listeners
         document.addEventListener('DOMContentLoaded', () => {
@@ -38940,7 +38960,8 @@ RULES:
     <!-- BUILD 280: Version Check & Auto-Update Notification -->
     <script>
     (function() {
-        const CURRENT_BUILD = 327;
+        // BUILD 328: Use global version constant as single source of truth
+        const CURRENT_BUILD = window.TREELISTY_VERSION?.build || 0;
         const CHECK_INTERVAL = 30000; // Check 30 seconds after load
         const RECHECK_INTERVAL = 300000; // Then every 5 minutes
 
