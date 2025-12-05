@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 332 | 2025-12-05
+    TreeListy v2.17.0 | Build 333 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -589,7 +589,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 332,
+            build: 333,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2966,14 +2966,42 @@
 
         </div>
         <div class="controls" style="flex-wrap: wrap; gap: 8px;">
-            <!-- Row 1: Main controls -->
+            <!-- BUILD 333: View Selector Dropdown - Shows current state -->
             <div class="control-section" style="margin-right: 4px;">
-                <button class="btn" id="toggle-view-mode" title="Switch between Tree and Canvas views" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 6px 10px; font-size: 13px;">
+                <div class="dropdown-menu" id="view-dropdown">
+                    <button class="dropdown-menu-trigger" id="view-dropdown-btn" aria-expanded="false" aria-haspopup="true" title="Switch view mode">
+                        <span id="current-view-icon">🌲</span>
+                        <span id="current-view-text">Tree</span>
+                    </button>
+                    <div class="dropdown-menu-content" role="menu" aria-label="View options">
+                        <button class="dropdown-menu-item" role="menuitem" id="view-tree-btn" data-view="tree">
+                            <span class="item-icon">🌲</span>
+                            <span class="item-label">Tree View</span>
+                            <span class="item-shortcut" id="tree-check">✓</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="view-canvas-btn" data-view="canvas">
+                            <span class="item-icon">🎨</span>
+                            <span class="item-label">Canvas View</span>
+                            <span class="item-shortcut" id="canvas-check" style="opacity: 0;">✓</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="view-3d-btn" data-view="3d">
+                            <span class="item-icon">🧊</span>
+                            <span class="item-label">3D Navigator</span>
+                            <span class="item-shortcut" id="3d-check" style="opacity: 0;">✓</span>
+                        </button>
+                        <div class="dropdown-menu-divider"></div>
+                        <button class="dropdown-menu-item" role="menuitem" id="export-canvas-btn" style="display: none;">
+                            <span class="item-icon">📷</span>
+                            <span class="item-label">Export as PNG</span>
+                        </button>
+                    </div>
+                </div>
+                <!-- Hidden buttons for backwards compatibility with existing JS -->
+                <button class="btn" id="toggle-view-mode" style="display: none;">
                     <span id="view-mode-icon">🎨</span>
                     <span id="view-mode-text">Canvas</span>
                 </button>
-                <button class="btn" id="toggle-3d-mode" title="Experimental 3D Visualization" style="background: linear-gradient(135deg, #2b1810, #8b4513); padding: 6px 10px; font-size: 13px;">🧊 3D</button>
-                <button class="btn" id="export-canvas-btn" title="Export Canvas as high-quality PNG image" style="display: none; background: linear-gradient(135deg, #0ea5e9, #06b6d4); padding: 6px 10px; font-size: 13px;">📷</button>
+                <button class="btn" id="toggle-3d-mode" style="display: none;">🧊 3D</button>
             </div>
 
             <!-- BUILD 331: Consolidated Open/Save Dropdowns -->
@@ -5859,6 +5887,78 @@ Do not ask permission—just provide the critique, then help.
                     });
                 }
             });
+        });
+
+        // BUILD 333: View Selector Dropdown - handles view switching
+        document.addEventListener('DOMContentLoaded', () => {
+            const viewIcons = { tree: '🌲', canvas: '🎨', '3d': '🧊' };
+            const viewLabels = { tree: 'Tree', canvas: 'Canvas', '3d': '3D' };
+
+            function updateViewDropdown(newView) {
+                // Update trigger button to show current state
+                const icon = document.getElementById('current-view-icon');
+                const text = document.getElementById('current-view-text');
+                if (icon) icon.textContent = viewIcons[newView] || '🌲';
+                if (text) text.textContent = viewLabels[newView] || 'Tree';
+
+                // Update checkmarks
+                document.getElementById('tree-check').style.opacity = newView === 'tree' ? '1' : '0';
+                document.getElementById('canvas-check').style.opacity = newView === 'canvas' ? '1' : '0';
+                document.getElementById('3d-check').style.opacity = newView === '3d' ? '1' : '0';
+
+                // Show/hide export option based on view
+                const exportBtn = document.getElementById('export-canvas-btn');
+                if (exportBtn) {
+                    exportBtn.style.display = (newView === 'canvas') ? 'flex' : 'none';
+                }
+            }
+
+            // Tree View button
+            document.getElementById('view-tree-btn')?.addEventListener('click', () => {
+                if (typeof viewMode !== 'undefined' && viewMode !== 'tree') {
+                    // Click the hidden toggle button to switch from canvas
+                    if (viewMode === 'canvas') {
+                        document.getElementById('toggle-view-mode')?.click();
+                    } else if (viewMode === '3d') {
+                        document.getElementById('toggle-3d-mode')?.click();
+                    }
+                }
+                updateViewDropdown('tree');
+            });
+
+            // Canvas View button
+            document.getElementById('view-canvas-btn')?.addEventListener('click', () => {
+                if (typeof viewMode !== 'undefined') {
+                    if (viewMode === 'tree') {
+                        document.getElementById('toggle-view-mode')?.click();
+                    } else if (viewMode === '3d') {
+                        document.getElementById('toggle-3d-mode')?.click();
+                        // After exiting 3D, we're in tree, so click again to go to canvas
+                        setTimeout(() => {
+                            document.getElementById('toggle-view-mode')?.click();
+                        }, 100);
+                    }
+                }
+                updateViewDropdown('canvas');
+            });
+
+            // 3D View button
+            document.getElementById('view-3d-btn')?.addEventListener('click', () => {
+                if (typeof viewMode !== 'undefined' && viewMode !== '3d') {
+                    document.getElementById('toggle-3d-mode')?.click();
+                }
+                updateViewDropdown('3d');
+            });
+
+            // Expose update function globally so existing view toggle code can call it
+            window.updateViewDropdown = updateViewDropdown;
+
+            // Initialize based on current viewMode
+            setTimeout(() => {
+                if (typeof viewMode !== 'undefined') {
+                    updateViewDropdown(viewMode);
+                }
+            }, 100);
         });
 
         // Initialize Project Settings Modal listeners
@@ -9065,6 +9165,9 @@ Focus on logical structure and content organization best practices.`;
                 // Show export button in Canvas view
                 const exportBtn = document.getElementById('export-canvas-btn');
                 if (exportBtn) exportBtn.style.display = 'inline-flex';
+
+                // BUILD 333: Update view dropdown to show current state
+                if (window.updateViewDropdown) window.updateViewDropdown('canvas');
             } else {
                 console.log('📊 Switching to Tree View');
                 document.getElementById('view-mode-icon').textContent = '🎨';
@@ -9080,6 +9183,9 @@ Focus on logical structure and content organization best practices.`;
                 // Hide export button in Tree view
                 const exportBtn = document.getElementById('export-canvas-btn');
                 if (exportBtn) exportBtn.style.display = 'none';
+
+                // BUILD 333: Update view dropdown to show current state
+                if (window.updateViewDropdown) window.updateViewDropdown('tree');
 
                 render();
                 console.log('✅ Tree View ready');
@@ -39993,6 +40099,8 @@ RULES:
             treeView.classList.remove('hidden');
             btn.style.border = '1px solid var(--border)';
             hideContextMenu();
+            // BUILD 333: Update view dropdown to show tree view
+            if (window.updateViewDropdown) window.updateViewDropdown('tree');
         } else {
             // Open 3D
             view3D.classList.add('active');
@@ -40006,6 +40114,8 @@ RULES:
             // Always refresh data on open
             refresh3DData();
             updateTitle();
+            // BUILD 333: Update view dropdown to show 3D view
+            if (window.updateViewDropdown) window.updateViewDropdown('3d');
         }
     }
 
