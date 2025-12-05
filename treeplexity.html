@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 330 | 2025-12-05
+    TreeListy v2.17.0 | Build 331 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -589,7 +589,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 330,
+            build: 331,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2247,6 +2247,146 @@
        UI MODERNIZATION - BUILD 148
        ============================================================================ */
 
+    /* ============================================================================
+       DROPDOWN MENU COMPONENT - BUILD 331
+       Accessible dropdown menus for toolbar consolidation
+       ============================================================================ */
+    .dropdown-menu {
+        position: relative;
+        display: inline-block;
+    }
+
+    .dropdown-menu-trigger {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 6px 12px;
+        font-size: 13px;
+        font-weight: 600;
+        color: white;
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-menu-trigger:hover {
+        filter: brightness(1.1);
+        transform: translateY(-1px);
+    }
+
+    .dropdown-menu-trigger::after {
+        content: '▾';
+        font-size: 10px;
+        margin-left: 2px;
+        transition: transform 0.2s ease;
+    }
+
+    .dropdown-menu-trigger[aria-expanded="true"]::after {
+        transform: rotate(180deg);
+    }
+
+    .dropdown-menu-content {
+        position: absolute;
+        top: calc(100% + 4px);
+        left: 0;
+        min-width: 200px;
+        background: var(--card-bg);
+        border: 1px solid var(--border);
+        border-radius: 8px;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-8px);
+        transition: all 0.2s ease;
+    }
+
+    .dropdown-menu-content.open {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    .dropdown-menu-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 10px 14px;
+        font-size: 13px;
+        color: var(--text-primary);
+        background: none;
+        border: none;
+        cursor: pointer;
+        transition: background 0.15s ease;
+        text-align: left;
+    }
+
+    .dropdown-menu-item:first-child {
+        border-radius: 7px 7px 0 0;
+    }
+
+    .dropdown-menu-item:last-child {
+        border-radius: 0 0 7px 7px;
+    }
+
+    .dropdown-menu-item:only-child {
+        border-radius: 7px;
+    }
+
+    .dropdown-menu-item:hover {
+        background: rgba(99, 102, 241, 0.15);
+        color: var(--treeplex-primary);
+    }
+
+    .dropdown-menu-item:focus {
+        outline: none;
+        background: rgba(99, 102, 241, 0.2);
+        color: var(--treeplex-primary);
+    }
+
+    .dropdown-menu-item .item-icon {
+        font-size: 16px;
+        width: 20px;
+        text-align: center;
+    }
+
+    .dropdown-menu-item .item-label {
+        flex: 1;
+    }
+
+    .dropdown-menu-item .item-shortcut {
+        font-size: 11px;
+        color: var(--text-secondary);
+        opacity: 0.7;
+    }
+
+    .dropdown-menu-divider {
+        height: 1px;
+        background: var(--border);
+        margin: 4px 0;
+    }
+
+    .dropdown-menu-header {
+        padding: 8px 14px 4px;
+        font-size: 11px;
+        font-weight: 600;
+        color: var(--text-secondary);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    /* Dropdown variants */
+    .dropdown-menu-trigger.btn-green {
+        background: linear-gradient(135deg, #059669, #10b981);
+    }
+
+    .dropdown-menu-trigger.btn-blue {
+        background: linear-gradient(135deg, #3b82f6, #2563eb);
+    }
+
     /* AI TOOLS SIDEBAR - Collapsible Left-Docked */
     #ai-tools-panel {
         position: fixed !important;
@@ -2836,21 +2976,64 @@
                 <button class="btn" id="export-canvas-btn" title="Export Canvas as high-quality PNG image" style="display: none; background: linear-gradient(135deg, #0ea5e9, #06b6d4); padding: 6px 10px; font-size: 13px;">📷</button>
             </div>
 
+            <!-- BUILD 331: Consolidated Open/Save Dropdowns -->
             <div class="control-section" style="margin-right: 4px;">
                 <button class="btn" id="new-project-btn" style="background: linear-gradient(135deg, #059669, #10b981); padding: 6px 10px; font-size: 13px;" title="Start a new project">🆕</button>
-                <button class="btn" id="import-text-header-btn" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); padding: 6px 10px; font-size: 13px;" title="Import text/document for AI analysis">📥 Import</button>
-                <button class="btn" id="save-json-btn" title="Save project as JSON" style="padding: 6px 10px; font-size: 13px;">💾</button>
-                <button class="btn" id="load-json-btn" title="Load project from JSON file" style="padding: 6px 10px; font-size: 13px;">📂</button>
-                <button class="btn" id="load-gdrive-btn" style="background: linear-gradient(135deg, #4285f4, #34a853); padding: 6px 10px; font-size: 13px;" title="Load from Google Drive URL">☁️</button>
-                <button class="btn" id="share-btn" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); padding: 6px 10px; font-size: 13px;" title="Generate shareable URL">📤</button>
-                <button class="btn" id="live-sync-btn" onclick="document.getElementById('live-sync-modal').style.display='flex'; window.initFirebaseAuthIfNeeded && window.initFirebaseAuthIfNeeded();" style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 6px 10px; font-size: 13px;" title="🔥 Firebase Live Sync">🔄</button>
-            </div>
 
-            <div class="control-section" style="margin-right: 4px;">
-                <button class="btn" id="excel-export-btn" style="background: linear-gradient(135deg, #1D6F42, #00A67D); padding: 6px 10px; font-size: 13px;" title="Export to Excel">📊</button>
-                <button class="btn" id="excel-import-btn" style="background: linear-gradient(135deg, #00A67D, #1D6F42); padding: 6px 10px; font-size: 13px;" title="Import from Excel">📥</button>
-                <button class="btn" id="refresh-drive-btn" style="background: linear-gradient(135deg, #4285f4, #34a853); padding: 6px 10px; font-size: 13px;" title="Refresh from Google Drive">☁️</button>
+                <!-- Open Dropdown -->
+                <div class="dropdown-menu" id="open-dropdown">
+                    <button class="dropdown-menu-trigger" id="open-dropdown-btn" aria-expanded="false" aria-haspopup="true" title="Open project from various sources">
+                        <span>📂 Open</span>
+                    </button>
+                    <div class="dropdown-menu-content" role="menu" aria-label="Open options">
+                        <button class="dropdown-menu-item" role="menuitem" id="load-json-btn">
+                            <span class="item-icon">📄</span>
+                            <span class="item-label">From JSON File</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="load-gdrive-btn">
+                            <span class="item-icon">☁️</span>
+                            <span class="item-label">From Google Drive</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="excel-import-btn">
+                            <span class="item-icon">📊</span>
+                            <span class="item-label">From Excel (.xlsx)</span>
+                        </button>
+                        <div class="dropdown-menu-divider"></div>
+                        <button class="dropdown-menu-item" role="menuitem" id="import-text-header-btn">
+                            <span class="item-icon">📝</span>
+                            <span class="item-label">Import Text (AI)</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="refresh-drive-btn" style="display: none;">
+                            <span class="item-icon">🔄</span>
+                            <span class="item-label">Refresh from Drive</span>
+                        </button>
+                    </div>
+                </div>
                 <input type="file" id="excel-upload-input" accept=".xlsx,.xls" style="display: none;">
+
+                <!-- Save Dropdown -->
+                <div class="dropdown-menu" id="save-dropdown">
+                    <button class="dropdown-menu-trigger btn-green" id="save-dropdown-btn" aria-expanded="false" aria-haspopup="true" title="Save or export project">
+                        <span>💾 Save</span>
+                    </button>
+                    <div class="dropdown-menu-content" role="menu" aria-label="Save options">
+                        <button class="dropdown-menu-item" role="menuitem" id="save-json-btn">
+                            <span class="item-icon">📄</span>
+                            <span class="item-label">Save as JSON</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="excel-export-btn">
+                            <span class="item-icon">📊</span>
+                            <span class="item-label">Export to Excel</span>
+                        </button>
+                        <div class="dropdown-menu-divider"></div>
+                        <button class="dropdown-menu-item" role="menuitem" id="share-btn">
+                            <span class="item-icon">🔗</span>
+                            <span class="item-label">Share as URL</span>
+                        </button>
+                    </div>
+                </div>
+
+                <button class="btn" id="live-sync-btn" onclick="document.getElementById('live-sync-modal').style.display='flex'; window.initFirebaseAuthIfNeeded && window.initFirebaseAuthIfNeeded();" style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 6px 10px; font-size: 13px;" title="🔥 Firebase Live Sync">🔄 Live</button>
             </div>
 
             <div class="control-section" style="margin-right: 4px;">
@@ -5588,6 +5771,94 @@ Do not ask permission—just provide the critique, then help.
                 versionEl.textContent = window.TREELISTY_VERSION.full;
                 versionEl.title = window.TREELISTY_VERSION.title;
             }
+        });
+
+        // BUILD 331: Dropdown Menu System with ARIA support
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize all dropdown menus
+            document.querySelectorAll('.dropdown-menu').forEach(dropdown => {
+                const trigger = dropdown.querySelector('.dropdown-menu-trigger');
+                const content = dropdown.querySelector('.dropdown-menu-content');
+                const items = dropdown.querySelectorAll('.dropdown-menu-item');
+
+                if (!trigger || !content) return;
+
+                // Toggle dropdown on trigger click
+                trigger.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const isOpen = content.classList.contains('open');
+
+                    // Close all other dropdowns first
+                    document.querySelectorAll('.dropdown-menu-content.open').forEach(d => {
+                        d.classList.remove('open');
+                        d.parentElement.querySelector('.dropdown-menu-trigger')?.setAttribute('aria-expanded', 'false');
+                    });
+
+                    // Toggle this dropdown
+                    if (!isOpen) {
+                        content.classList.add('open');
+                        trigger.setAttribute('aria-expanded', 'true');
+                        // Focus first item for keyboard nav
+                        items[0]?.focus();
+                    } else {
+                        content.classList.remove('open');
+                        trigger.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                // Keyboard navigation within dropdown
+                content.addEventListener('keydown', (e) => {
+                    const currentIndex = Array.from(items).indexOf(document.activeElement);
+
+                    if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        const nextIndex = (currentIndex + 1) % items.length;
+                        items[nextIndex]?.focus();
+                    } else if (e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        const prevIndex = (currentIndex - 1 + items.length) % items.length;
+                        items[prevIndex]?.focus();
+                    } else if (e.key === 'Escape') {
+                        content.classList.remove('open');
+                        trigger.setAttribute('aria-expanded', 'false');
+                        trigger.focus();
+                    } else if (e.key === 'Tab') {
+                        // Allow tab to close dropdown and move focus naturally
+                        content.classList.remove('open');
+                        trigger.setAttribute('aria-expanded', 'false');
+                    }
+                });
+
+                // Close dropdown when clicking menu items (after their handler runs)
+                items.forEach(item => {
+                    item.addEventListener('click', () => {
+                        setTimeout(() => {
+                            content.classList.remove('open');
+                            trigger.setAttribute('aria-expanded', 'false');
+                        }, 50);
+                    });
+                });
+            });
+
+            // Close dropdowns when clicking outside
+            document.addEventListener('click', (e) => {
+                if (!e.target.closest('.dropdown-menu')) {
+                    document.querySelectorAll('.dropdown-menu-content.open').forEach(d => {
+                        d.classList.remove('open');
+                        d.parentElement.querySelector('.dropdown-menu-trigger')?.setAttribute('aria-expanded', 'false');
+                    });
+                }
+            });
+
+            // Close dropdowns on Escape key (global)
+            document.addEventListener('keydown', (e) => {
+                if (e.key === 'Escape') {
+                    document.querySelectorAll('.dropdown-menu-content.open').forEach(d => {
+                        d.classList.remove('open');
+                        d.parentElement.querySelector('.dropdown-menu-trigger')?.setAttribute('aria-expanded', 'false');
+                    });
+                }
+            });
         });
 
         // Initialize Project Settings Modal listeners
@@ -22012,10 +22283,7 @@ Thanks!`;
                 return hash.toString(16);
             }
 
-            // Show toast notification for watch mode events
-            function showToast(message, type = 'info') {
-                showToast(message, type);
-            }
+            // Note: Watch mode uses the global showToast() function defined elsewhere
 
             // Update the status panel
             function updateWatchStatus() {
