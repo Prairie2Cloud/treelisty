@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 326 | 2025-12-05
+    TreeListy v2.17.0 | Build 327 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,9 +18,10 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 326): 🐛 Fix Meeting Tree Sync
-    - FIX: Guest now gets LATEST tree from sync room when meeting is active
-    - FIX: Only load from meeting document when waiting (before host arrives)
+    Changelog (Build 327): 🐛 Fix Live Sync Race Condition
+    - FIX: Local changes no longer lost when remote update arrives during edit
+    - FIX: Pending local changes are flushed before accepting remote updates
+    - FIX: User's changes take priority - prevents overwrite by stale data
     - Ensures host and guest always see the same tree in active session
 
     Previous (Build 325): 📅 Meeting Link Collaboration System
@@ -2934,8 +2935,8 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 6px 10px; font-size: 13px;">❓</button>
-                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 326 | 2025-12-05">
-                    v2.17.0 • Build 326
+                <div style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;" title="TreeListy v2.17.0 | Build 327 | 2025-12-05">
+                    v2.17.0 • Build 327
                 </div>
             </div>
         </div>
@@ -23159,6 +23160,18 @@ https://treelisty.netlify.app`;
                     // Update tree from remote
                     if (data.treeData) {
                         try {
+                            // BUILD 327: If we have pending local changes, flush them first
+                            // This prevents losing local edits when remote updates arrive
+                            if (window.firebaseHasPendingLocalChanges && window.firebaseHasPendingLocalChanges()) {
+                                console.log('🔥 Pending local changes detected, flushing before accepting remote...');
+                                // Skip this remote update - our push will trigger a new one
+                                // The user's changes take priority
+                                if (window.firebaseFlushPendingChanges) {
+                                    window.firebaseFlushPendingChanges();
+                                }
+                                return; // Don't overwrite local changes
+                            }
+
                             const newTree = JSON.parse(data.treeData);
                             const editorId = data.lastUpdatedBy?.substring(0, 8) || 'Unknown';
                             console.log('🔥 Received tree update from', editorId);
@@ -24596,6 +24609,20 @@ https://treelisty.netlify.app`;
             // We'll create a debounced sync function that watches the save indicator
             let syncDebounceTimer = null;
             let lastTreeHash = null;
+            // BUILD 327: Track pending local changes to prevent loss during remote sync
+            let hasPendingLocalChanges = false;
+
+            // Expose hasPendingLocalChanges for snapshot handler
+            window.firebaseHasPendingLocalChanges = () => hasPendingLocalChanges;
+            window.firebaseFlushPendingChanges = async () => {
+                if (hasPendingLocalChanges && syncDebounceTimer) {
+                    clearTimeout(syncDebounceTimer);
+                    syncDebounceTimer = null;
+                    hasPendingLocalChanges = false;
+                    console.log('🔥 Flushing pending local changes before accepting remote...');
+                    await pushTreeToRoom();
+                }
+            };
 
             // Simple hash function for tree comparison
             function simpleHash(str) {
@@ -24618,8 +24645,10 @@ https://treelisty.netlify.app`;
                 if (lastTreeHash !== null && currentHash !== lastTreeHash) {
                     // Tree changed, debounce sync
                     clearTimeout(syncDebounceTimer);
+                    hasPendingLocalChanges = true; // BUILD 327: Mark changes as pending
                     syncDebounceTimer = setTimeout(() => {
                         console.log('🔥 Tree change detected, syncing...');
+                        hasPendingLocalChanges = false; // BUILD 327: Clear pending flag after push
                         pushTreeToRoom();
                     }, 500);
                 }
