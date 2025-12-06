@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 336 | 2025-12-05
+    TreeListy v2.17.0 | Build 337 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,19 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 336): 📱 File System Mobile UI
-    - FIX: Sidebar now properly hidden on all mobile devices
-    - NEW: File-system style tree (📁 folders, 📄 files, └─ subtasks)
-    - FIX: Tree takes full width, no horizontal scroll
-    - FIX: Expanded media query for touch devices up to 1024px
-    - NEW: Sticky header with hamburger menu
-    - FIX: Descriptions hidden, single-line truncated titles
-    - FIX: Action buttons hidden (use long-press for context menu)
+    Changelog (Build 337): 🔷 Gemini 3 Pro Preview Support
+    - NEW: Gemini 3 Pro Preview (Nov 2025) added to model selector
+    - NEW: Model ID: gemini-3-pro-preview (1501 Elo, tops LMArena)
+    - FIX: Updated playground to use latest Gemini model IDs (2.5+)
 
+    Previous (Build 336): 📱 File System Mobile UI
     Previous (Build 335): 📱 Swipe Navigation
     Previous (Build 334): 📱 Mobile Layout + Touch Support
     Previous (Build 333): 🔀 Unified View Selector Dropdown
-    Previous (Build 331): 📂 Consolidated Open/Save Dropdowns
 
     Previous (Build 325): 📅 Meeting Link Collaboration System
     Previous (Build 324): 🎙️ Voice Chat UX Improvement
@@ -596,7 +592,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 336,
+            build: 337,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3628,6 +3624,7 @@
                         <optgroup label="🔷 Gemini (Your Key)">
                             <option value="user-gemini-flash" title="Fast - Gemini 2.5 Flash (Stable)">⚡ Flash 2.5</option>
                             <option value="user-gemini-pro" title="Best reasoning - Gemini 2.5 Pro (Stable)">🧠 Pro 2.5</option>
+                            <option value="user-gemini-3-pro" title="Frontier - Gemini 3 Pro Preview (Nov 2025)">🌟 Pro 3 Preview</option>
                         </optgroup>
                         <optgroup label="💬 OpenAI (Your Key)">
                             <option value="user-gpt5-mini" title="Fast - GPT-5 Mini">⚡ GPT-5 mini</option>
@@ -7301,6 +7298,13 @@ Do not ask permission—just provide the critique, then help.
                     modelId: 'gemini-2.5-pro',
                     useServerKey: false,
                     description: 'Best reasoning - Gemini 2.5 Pro (Stable)'
+                },
+                'user-gemini-3-pro': {
+                    provider: 'gemini',
+                    model: 'gemini-3-pro',
+                    modelId: 'gemini-3-pro-preview',
+                    useServerKey: false,
+                    description: 'Frontier - Gemini 3 Pro Preview (Nov 2025)'
                 },
                 // Legacy: user-gemini maps to flash
                 'user-gemini': {
@@ -39109,7 +39113,12 @@ ${transcript}`;
                         return '🔑 Please set your Gemini API key in Settings to use Gemini models.';
                     }
 
-                    const modelId = model === 'gemini-flash' ? 'gemini-1.5-flash' : 'gemini-1.5-pro';
+                    // Map model name to API model ID
+                    let modelId;
+                    if (model === 'gemini-flash') modelId = 'gemini-2.5-flash';
+                    else if (model === 'gemini-pro') modelId = 'gemini-2.5-pro';
+                    else if (model === 'gemini-3-pro') modelId = 'gemini-3-pro-preview';
+                    else modelId = model; // Use as-is if already a full model ID
                     const contents = chatState.playgroundHistory.map(m => ({
                         role: m.role === 'user' ? 'user' : 'model',
                         parts: [{ text: m.content }]
