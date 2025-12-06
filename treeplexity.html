@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 345 | 2025-12-05
+    TreeListy v2.17.0 | Build 346 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 345): 📱 Mobile Menu - Show All Items
-    - FIX: Control sections now display: flex !important - all items visible
-    - FIX: Tapping dropdown trigger no longer closes menu (only action items close it)
-    - FIX: Row layout with flex-wrap for button groups
+    Changelog (Build 346): 📱 Mobile Menu - Complete Rewrite
+    - REWRITE: Simplified CSS from scratch - white background, blue buttons
+    - FIX: display: flex on controls and all children
+    - FIX: Fixed width (300px) instead of percentage
+    - FIX: Removed conflicting/duplicate CSS rules
+    - FIX: Control sections in gray cards with flex-wrap
 
+    Previous (Build 345): 📱 Mobile Menu - Show All Items
     Previous (Build 344): 📱 Mobile Menu - Neutral Light Theme
     Previous (Build 343): 📱 Mobile Menu Z-Index Fix
     Previous (Build 342): 📱 Mobile Menu - White on Purple
@@ -597,7 +600,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 345,
+            build: 346,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1199,7 +1202,7 @@
             transform: rotate(-45deg) translate(5px, -5px);
         }
 
-        /* Mobile menu overlay - just dims the background, menu sits on top */
+        /* Mobile menu overlay - light dim, just to indicate menu is open */
         .mobile-menu-overlay {
             display: none;
             position: fixed;
@@ -1207,14 +1210,11 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
-            z-index: 10000;
-            opacity: 0;
-            transition: opacity 0.3s ease;
+            background: transparent;
+            z-index: 99999;
         }
         .mobile-menu-overlay.visible {
             display: block;
-            opacity: 1;
         }
 
 
@@ -1275,139 +1275,130 @@
                 font-size: 15px !important;
             }
 
-            /* Hide ALL controls by default - show via hamburger */
-            /* BUILD 344: NEUTRAL LIGHT BACKGROUND - maximum readability */
+            /* ===== BUILD 346: MOBILE SLIDE-OUT MENU - COMPLETE REWRITE ===== */
+
+            /* Controls panel: hidden off-screen by default */
             .header .controls {
+                display: flex !important;
+                flex-direction: column !important;
                 position: fixed !important;
                 top: 0 !important;
-                right: -100% !important;
-                width: 85% !important;
-                max-width: 320px !important;
-                height: 100vh !important;
-                height: 100dvh !important;
-                background: #f8fafc !important;
-                flex-direction: column !important;
-                padding: 16px !important;
-                padding-top: 60px !important;
-                gap: 8px !important;
+                right: -320px !important;
+                width: 300px !important;
+                height: 100% !important;
+                background: #ffffff !important;
+                padding: 60px 12px 20px 12px !important;
+                gap: 12px !important;
                 overflow-y: auto !important;
-                z-index: 99999 !important;
-                box-shadow: -4px 0 20px rgba(0,0,0,0.3) !important;
-                transition: right 0.3s ease !important;
-                border-left: 3px solid #e2e8f0 !important;
+                overflow-x: hidden !important;
+                z-index: 100000 !important;
+                box-shadow: -2px 0 10px rgba(0,0,0,0.2) !important;
+                transition: right 0.25s ease-out !important;
             }
 
-            /* ===== BUILD 344: NEUTRAL HIGH CONTRAST MOBILE MENU ===== */
-            /* Dark text on light background - iOS/Android style */
+            /* When menu is open, slide in */
+            .header .controls.mobile-menu-open {
+                right: 0 !important;
+            }
 
+            /* All child elements must be visible */
+            .header .controls > * {
+                display: flex !important;
+                flex-shrink: 0 !important;
+            }
+
+            /* Control sections - vertical stack */
+            .header .controls .control-section {
+                display: flex !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+                padding: 8px !important;
+                background: #f1f5f9 !important;
+                border-radius: 8px !important;
+                width: 100% !important;
+                box-sizing: border-box !important;
+            }
+
+            /* Buttons - clear styling */
             .header .controls .btn,
-            .header .controls button,
+            .header .controls button {
+                display: flex !important;
+                align-items: center !important;
+                justify-content: center !important;
+                background: #3b82f6 !important;
+                color: #ffffff !important;
+                border: none !important;
+                padding: 10px 14px !important;
+                font-size: 13px !important;
+                font-weight: 600 !important;
+                border-radius: 6px !important;
+                min-height: 40px !important;
+                cursor: pointer !important;
+            }
+
+            /* Dropdown triggers */
             .header .controls .dropdown-menu-trigger {
+                background: #1e293b !important;
+                color: #ffffff !important;
+            }
+
+            /* Selects/dropdowns */
+            .header .controls select {
+                display: block !important;
+                width: 100% !important;
                 background: #ffffff !important;
                 color: #1e293b !important;
-                border: 1px solid #cbd5e1 !important;
-                padding: 12px 16px !important;
-                font-size: 14px !important;
-                font-weight: 600 !important;
-                border-radius: 8px !important;
-                min-height: 44px !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
+                border: 2px solid #cbd5e1 !important;
+                padding: 10px 12px !important;
+                font-size: 13px !important;
+                font-weight: 500 !important;
+                border-radius: 6px !important;
+                min-height: 40px !important;
             }
 
-            .header .controls .btn:active,
-            .header .controls button:active,
-            .header .controls .dropdown-menu-trigger:active {
-                background: #e2e8f0 !important;
-            }
-
+            /* Dropdown menu content */
             .header .controls .dropdown-menu-content {
+                position: relative !important;
+                display: none;
+                width: 100% !important;
                 background: #ffffff !important;
-                border: 1px solid #cbd5e1 !important;
-                border-radius: 8px !important;
-                box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+                border: 1px solid #e2e8f0 !important;
+                border-radius: 6px !important;
+                margin-top: 4px !important;
+                box-shadow: none !important;
+            }
+
+            .header .controls .dropdown-menu.open .dropdown-menu-content {
+                display: block !important;
             }
 
             .header .controls .dropdown-menu-item {
+                display: flex !important;
+                padding: 10px 12px !important;
                 color: #1e293b !important;
-                padding: 12px 16px !important;
-                font-size: 14px !important;
-                font-weight: 500 !important;
+                font-size: 13px !important;
+                background: #ffffff !important;
             }
 
             .header .controls .dropdown-menu-item:active {
                 background: #e2e8f0 !important;
             }
 
-            .header .controls select,
-            .header .controls .pattern-select,
-            .header .controls #unified-ai-mode-select,
-            .header .controls #theme-select {
-                background: #ffffff !important;
-                color: #1e293b !important;
-                border: 1px solid #cbd5e1 !important;
-                padding: 12px 16px !important;
-                font-size: 14px !important;
-                font-weight: 500 !important;
-                min-height: 44px !important;
-                border-radius: 8px !important;
-                box-shadow: 0 1px 3px rgba(0,0,0,0.1) !important;
-                -webkit-appearance: none !important;
-            }
-
-            .header .controls select option {
-                background: #ffffff !important;
-                color: #1e293b !important;
-            }
-
-            .header .controls label,
-            .header .controls label span,
-            .header .controls .control-section span {
+            /* Labels */
+            .header .controls label {
+                display: flex !important;
+                flex-direction: column !important;
+                gap: 4px !important;
                 color: #475569 !important;
-                font-size: 13px !important;
+                font-size: 12px !important;
                 font-weight: 600 !important;
+                width: 100% !important;
             }
 
-            /* Close button for menu - top right */
-            .header .controls::before {
-                content: "✕";
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                position: absolute;
-                top: 12px;
-                right: 12px;
-                color: #64748b;
-                font-size: 20px;
-                font-weight: 400;
-                background: #e2e8f0;
-                width: 36px;
-                height: 36px;
-                border-radius: 50%;
-                cursor: pointer;
-            }
-
-            /* Section groups in menu - subtle separation */
-            .header .controls .control-section {
-                background: #ffffff !important;
-                padding: 10px !important;
-                border-radius: 10px !important;
-                border: 1px solid #e2e8f0 !important;
-                flex-wrap: wrap !important;
-            }
-
-            /* Menu header title */
-            .header .controls::after {
-                content: "Menu";
-                position: absolute;
-                top: 16px;
-                left: 16px;
-                font-size: 18px;
-                font-weight: 700;
-                color: #1e293b;
-            }
-
-            .header .controls.mobile-menu-open {
-                right: 0 !important;
+            /* Hide sort section unless active */
+            .header .controls #sort-section {
+                display: none !important;
             }
 
             /* ===== AI TOOLS SIDEBAR: COMPLETELY HIDDEN ===== */
@@ -1435,81 +1426,12 @@
                 max-width: 100vw !important;
             }
 
-            /* Control sections in hamburger menu - MUST be visible */
-            .control-section {
-                display: flex !important;
-                width: 100% !important;
-                margin: 0 !important;
-                flex-direction: row !important;
-                flex-wrap: wrap !important;
-                gap: 8px !important;
-            }
-
-            /* Sort section is hidden by default - keep it hidden unless active */
-            #sort-section {
-                display: none !important;
-            }
-            #sort-section.active {
-                display: flex !important;
-            }
-
-            /* Full-width dropdowns in menu */
-            .dropdown-menu {
+            /* Dropdowns in mobile menu */
+            .header .controls .dropdown-menu {
                 width: 100% !important;
             }
 
-            .dropdown-menu-trigger {
-                width: 100% !important;
-                justify-content: flex-start !important;
-                padding: 10px 12px !important;
-                font-size: 13px !important;
-            }
-
-            .dropdown-menu-content {
-                position: static !important;
-                width: 100% !important;
-                max-width: none !important;
-                margin-top: 4px !important;
-                box-shadow: none !important;
-                border: 1px solid var(--border) !important;
-            }
-
-            /* Buttons in hamburger menu */
-            .header .controls .btn {
-                width: 100% !important;
-                justify-content: flex-start !important;
-                padding: 10px 12px !important;
-                font-size: 13px !important;
-                text-align: left !important;
-            }
-
-            /* Selectors: Full width */
-            .pattern-select,
-            #unified-ai-mode-select,
-            #theme-select {
-                width: 100% !important;
-                min-width: auto !important;
-                max-width: none !important;
-                padding: 10px !important;
-                font-size: 13px !important;
-            }
-
-            /* Labels in mobile menu */
-            .control-section label {
-                width: 100% !important;
-                flex-direction: column !important;
-                align-items: flex-start !important;
-                gap: 4px !important;
-            }
-
-            .control-section label > span:first-child {
-                font-size: 11px !important;
-                color: var(--text-secondary) !important;
-                text-transform: uppercase !important;
-                letter-spacing: 0.5px !important;
-            }
-
-            /* Hide version */
+            /* Hide version on mobile */
             #version-display {
                 display: none !important;
             }
