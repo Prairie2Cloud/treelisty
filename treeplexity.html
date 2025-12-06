@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 335 | 2025-12-05
+    TreeListy v2.17.0 | Build 336 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,19 +18,19 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 335): 📱 Mobile UX Overhaul - Swipe Navigation
-    - NEW: Hamburger menu slides out all controls on mobile
-    - NEW: Swipe left/right to navigate between nodes
-    - NEW: Swipe up/down on phases to collapse/expand
-    - NEW: Edge-swipe (from left) opens hamburger menu
-    - NEW: First-time swipe hint for mobile users
-    - FIX: Clean reading mode - tree only, no clutter
+    Changelog (Build 336): 📱 File System Mobile UI
+    - FIX: Sidebar now properly hidden on all mobile devices
+    - NEW: File-system style tree (📁 folders, 📄 files, └─ subtasks)
+    - FIX: Tree takes full width, no horizontal scroll
+    - FIX: Expanded media query for touch devices up to 1024px
+    - NEW: Sticky header with hamburger menu
+    - FIX: Descriptions hidden, single-line truncated titles
+    - FIX: Action buttons hidden (use long-press for context menu)
 
+    Previous (Build 335): 📱 Swipe Navigation
     Previous (Build 334): 📱 Mobile Layout + Touch Support
     Previous (Build 333): 🔀 Unified View Selector Dropdown
-    Previous (Build 332): 🐛 Tree Zoom Positioning Fix
     Previous (Build 331): 📂 Consolidated Open/Save Dropdowns
-    Previous (Build 329): 🔄 Update Preserves Tree State
 
     Previous (Build 325): 📅 Meeting Link Collaboration System
     Previous (Build 324): 🎙️ Voice Chat UX Improvement
@@ -596,7 +596,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 335,
+            build: 336,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1237,10 +1237,16 @@
         }
 
         /* ============================================================================
-           MOBILE OPTIMIZED VIEW - BUILD 335
-           Clean reading mode with hamburger menu for all controls
+           MOBILE OPTIMIZED VIEW - BUILD 336
+           File-system style reading mode with hamburger menu
            ============================================================================ */
-        @media (max-width: 768px) {
+        @media screen and (max-width: 768px), (max-device-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+            /* CRITICAL: Hide EVERYTHING that's not the tree content */
+            html, body {
+                overflow-x: hidden !important;
+                max-width: 100vw !important;
+            }
+
             /* Show hamburger button on mobile */
             .mobile-hamburger {
                 display: flex !important;
@@ -1250,11 +1256,16 @@
             .mobile-menu-overlay.visible {
                 display: block !important;
             }
+
             /* Header: Minimal - just logo + hamburger */
             .header {
-                padding: 10px 12px !important;
+                padding: 8px 12px !important;
                 gap: 8px !important;
-                min-height: auto !important;
+                min-height: 48px !important;
+                max-height: 48px !important;
+                position: sticky !important;
+                top: 0 !important;
+                z-index: 100 !important;
             }
 
             /* Hide logo subtitle on mobile */
@@ -1264,7 +1275,7 @@
             }
 
             .header .logo-title {
-                font-size: 16px !important;
+                font-size: 15px !important;
             }
 
             /* Hide ALL controls by default - show via hamburger */
@@ -1273,15 +1284,16 @@
                 top: 0 !important;
                 right: -100% !important;
                 width: 85% !important;
-                max-width: 320px !important;
+                max-width: 300px !important;
                 height: 100vh !important;
-                background: var(--card-bg) !important;
+                height: 100dvh !important;
+                background: var(--bg) !important;
                 flex-direction: column !important;
-                padding: 60px 16px 20px !important;
-                gap: 8px !important;
+                padding: 60px 12px 20px !important;
+                gap: 6px !important;
                 overflow-y: auto !important;
-                z-index: 10000 !important;
-                box-shadow: -4px 0 20px rgba(0,0,0,0.5) !important;
+                z-index: 10001 !important;
+                box-shadow: -4px 0 20px rgba(0,0,0,0.6) !important;
                 transition: right 0.3s ease !important;
             }
 
@@ -1289,12 +1301,37 @@
                 right: 0 !important;
             }
 
-            /* Control sections stack vertically in menu */
+            /* ===== AI TOOLS SIDEBAR: COMPLETELY HIDDEN ===== */
+            #ai-tools-panel,
+            .ai-tools-panel,
+            [id="ai-tools-panel"] {
+                display: none !important;
+                visibility: hidden !important;
+                width: 0 !important;
+                height: 0 !important;
+                overflow: hidden !important;
+                position: absolute !important;
+                left: -9999px !important;
+            }
+
+            /* ===== MAIN CONTENT: FULL WIDTH ===== */
+            .main-content,
+            .tree-view-container,
+            .canvas-container,
+            main,
+            [class*="main"] {
+                margin-left: 0 !important;
+                padding-left: 0 !important;
+                width: 100% !important;
+                max-width: 100vw !important;
+            }
+
+            /* Control sections in hamburger menu */
             .control-section {
                 width: 100% !important;
                 margin: 0 !important;
                 flex-direction: column !important;
-                gap: 8px !important;
+                gap: 6px !important;
             }
 
             /* Full-width dropdowns in menu */
@@ -1305,8 +1342,8 @@
             .dropdown-menu-trigger {
                 width: 100% !important;
                 justify-content: flex-start !important;
-                padding: 12px 16px !important;
-                font-size: 14px !important;
+                padding: 10px 12px !important;
+                font-size: 13px !important;
             }
 
             .dropdown-menu-content {
@@ -1318,71 +1355,69 @@
                 border: 1px solid var(--border) !important;
             }
 
-            /* Full-width buttons in menu */
+            /* Buttons in hamburger menu */
             .header .controls .btn {
                 width: 100% !important;
                 justify-content: flex-start !important;
-                padding: 12px 16px !important;
-                font-size: 14px !important;
+                padding: 10px 12px !important;
+                font-size: 13px !important;
                 text-align: left !important;
             }
 
-            /* Pattern and AI selectors: Full width */
+            /* Selectors: Full width */
             .pattern-select,
             #unified-ai-mode-select,
             #theme-select {
                 width: 100% !important;
                 min-width: auto !important;
                 max-width: none !important;
-                padding: 12px !important;
-                font-size: 14px !important;
+                padding: 10px !important;
+                font-size: 13px !important;
             }
 
-            /* Show labels in mobile menu */
+            /* Labels in mobile menu */
             .control-section label {
                 width: 100% !important;
                 flex-direction: column !important;
                 align-items: flex-start !important;
-                gap: 6px !important;
+                gap: 4px !important;
             }
 
             .control-section label > span:first-child {
-                font-size: 12px !important;
+                font-size: 11px !important;
                 color: var(--text-secondary) !important;
                 text-transform: uppercase !important;
                 letter-spacing: 0.5px !important;
             }
 
-            /* Section dividers in menu */
-            .control-section:not(:last-child)::after {
-                content: '';
-                display: block;
-                height: 1px;
-                background: var(--border);
-                margin-top: 12px;
-            }
-
-            /* Hide version in menu */
+            /* Hide version */
             #version-display {
                 display: none !important;
             }
 
-            /* Tree container: Full width, no horizontal scroll */
+            /* ===== FILE SYSTEM STYLE TREE ===== */
             .tree-view-container {
-                padding: 8px;
-                overflow-x: hidden;
+                padding: 0 !important;
+                margin: 0 !important;
+                overflow-x: hidden !important;
+                overflow-y: auto !important;
+                width: 100% !important;
+                max-width: 100vw !important;
             }
 
             .tree-container {
-                padding: 0;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
             }
 
-            /* Apply filesystem-style vertical layout to ALL patterns on mobile */
             .tree {
                 display: flex !important;
                 flex-direction: column !important;
                 gap: 0 !important;
-                padding: 8px !important;
+                padding: 4px 8px !important;
+                width: 100% !important;
+                max-width: 100% !important;
             }
 
             .tree-level {
@@ -1390,61 +1425,132 @@
                 flex-direction: column !important;
                 gap: 0 !important;
                 padding: 0 !important;
-                background: none !important;
+                margin: 0 !important;
+                background: transparent !important;
                 flex-wrap: nowrap !important;
+                width: 100% !important;
             }
 
-            /* Compact nodes */
+            /* ===== FILE SYSTEM NODE STYLING ===== */
             .tree-node {
-                min-width: auto !important;
-                width: 100% !important;
+                min-width: 0 !important;
+                width: calc(100% - 4px) !important;
                 max-width: none !important;
-                margin: 2px 0 !important;
+                margin: 1px 2px !important;
                 padding: 10px 12px !important;
-                border-radius: 6px !important;
+                border-radius: 4px !important;
                 font-size: 14px !important;
+                background: transparent !important;
+                border: none !important;
+                box-shadow: none !important;
+                display: flex !important;
+                flex-direction: row !important;
+                align-items: center !important;
+                gap: 8px !important;
             }
 
             .tree-node:hover {
                 transform: none !important;
+                background: rgba(255,255,255,0.05) !important;
             }
 
-            /* Reduced indentation for mobile */
-            .tree-node.phase { margin-left: 0 !important; }
-            .tree-node.item { margin-left: 16px !important; }
-            .tree-node.subtask { margin-left: 32px !important; }
+            .tree-node.selected {
+                background: rgba(99, 102, 241, 0.15) !important;
+                border-left: 3px solid var(--primary) !important;
+            }
 
-            /* Phase nodes: Simpler styling */
+            /* File-system indentation */
+            .tree-node.root { margin-left: 0 !important; padding-left: 8px !important; }
+            .tree-node.phase { margin-left: 0 !important; padding-left: 8px !important; }
+            .tree-node.item { margin-left: 20px !important; padding-left: 8px !important; }
+            .tree-node.subtask { margin-left: 40px !important; padding-left: 8px !important; }
+
+            /* Phase: Folder style */
             .tree-node.phase {
-                border-left-width: 4px !important;
-                padding: 12px !important;
-                margin-bottom: 4px !important;
+                font-weight: 600 !important;
+                color: var(--text) !important;
+                border-left: 3px solid var(--primary) !important;
+                border-left-color: inherit !important;
+                margin-top: 8px !important;
+                margin-bottom: 2px !important;
             }
 
-            /* Item nodes: Compact */
+            .tree-node.phase::before {
+                content: '📁' !important;
+                display: inline-block !important;
+                margin-right: 6px !important;
+                font-size: 14px !important;
+            }
+
+            /* Item: File style */
             .tree-node.item {
-                background: rgba(255, 255, 255, 0.03) !important;
-                border: 1px solid rgba(255, 255, 255, 0.1) !important;
-                box-shadow: none !important;
+                color: var(--text-secondary) !important;
             }
 
-            /* Subtask nodes: Minimal */
-            .tree-node.subtask {
-                background: transparent !important;
-                border: none !important;
-                padding: 8px 12px !important;
+            .tree-node.item::before {
+                content: '📄' !important;
+                display: inline-block !important;
+                margin-right: 6px !important;
                 font-size: 13px !important;
             }
 
-            /* Hide complex UI elements */
-            .dependency-svg,
-            .empty-state-cta,
-            #canvas-container,
-            #view-3d {
+            /* Subtask: Nested file */
+            .tree-node.subtask {
+                font-size: 13px !important;
+                color: var(--text-secondary) !important;
+                opacity: 0.85 !important;
+            }
+
+            .tree-node.subtask::before {
+                content: '└─' !important;
+                display: inline-block !important;
+                margin-right: 4px !important;
+                font-family: monospace !important;
+                color: var(--border) !important;
+            }
+
+            /* Node content - single line, truncate */
+            .node-title,
+            .item-name,
+            .tree-node > span:first-of-type {
+                white-space: nowrap !important;
+                overflow: hidden !important;
+                text-overflow: ellipsis !important;
+                flex: 1 !important;
+            }
+
+            /* Hide descriptions on mobile */
+            .node-subtitle,
+            .item-description,
+            .node-description {
                 display: none !important;
             }
 
-            /* Info panel: Bottom sheet style */
+            /* Hide action buttons - use long-press instead */
+            .tree-node .node-actions,
+            .tree-node .item-actions,
+            .node-buttons,
+            .tree-node button:not(.collapse-btn) {
+                display: none !important;
+            }
+
+            /* Keep collapse button visible */
+            .tree-node .collapse-btn {
+                padding: 4px !important;
+                margin-left: auto !important;
+                opacity: 0.6 !important;
+            }
+
+            /* Hide complex elements */
+            .dependency-svg,
+            .empty-state-cta,
+            #canvas-container,
+            #view-3d,
+            .hyperedge-indicator {
+                display: none !important;
+            }
+
+            /* Info panel: Bottom sheet */
             .info-panel {
                 position: fixed !important;
                 bottom: 0 !important;
@@ -1454,27 +1560,23 @@
                 width: 100% !important;
                 max-height: 60vh !important;
                 border-radius: 16px 16px 0 0 !important;
-                transform: translateY(100%);
+                transform: translateY(100%) !important;
                 transition: transform 0.3s ease !important;
+                z-index: 1000 !important;
             }
 
             .info-panel.open {
                 transform: translateY(0) !important;
             }
 
-            /* Sidebar: Hidden on mobile, use dropdowns instead */
-            #ai-tools-panel {
-                display: none !important;
-            }
-
             /* Touch-friendly tap targets */
             .tree-node,
             .btn,
             .dropdown-menu-item {
-                min-height: 44px;
+                min-height: 44px !important;
             }
 
-            /* Context menu: Bottom sheet on mobile */
+            /* Context menu: Bottom sheet */
             .context-menu {
                 position: fixed !important;
                 bottom: 0 !important;
@@ -1484,8 +1586,9 @@
                 max-width: none !important;
                 border-radius: 16px 16px 0 0 !important;
                 padding: 12px !important;
-                max-height: 50vh;
-                overflow-y: auto;
+                max-height: 50vh !important;
+                overflow-y: auto !important;
+                z-index: 10000 !important;
             }
 
             .context-item {
@@ -1493,7 +1596,7 @@
                 font-size: 15px !important;
             }
 
-            /* Modals: Full screen on mobile */
+            /* Modals: Full screen */
             .modal-content {
                 max-width: 100% !important;
                 max-height: 100% !important;
@@ -1503,7 +1606,7 @@
                 margin: 0 !important;
             }
 
-            /* TreeBeard chat: Full width */
+            /* TreeBeard chat: Full width bottom sheet */
             #treebeard-chat-panel {
                 width: 100% !important;
                 right: 0 !important;
@@ -1511,6 +1614,14 @@
                 bottom: 0 !important;
                 max-height: 70vh !important;
                 border-radius: 16px 16px 0 0 !important;
+            }
+
+            /* TreeBeard FAB button */
+            #treebeard-fab {
+                bottom: 16px !important;
+                right: 16px !important;
+                width: 52px !important;
+                height: 52px !important;
             }
         }
 
