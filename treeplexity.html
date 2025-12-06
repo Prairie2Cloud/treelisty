@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 339 | 2025-12-05
+    TreeListy v2.17.0 | Build 340 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,16 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 339): 📱 Mobile Menu High Contrast
-    - FIX: Hamburger button solid purple (#6366f1) with white lines
-    - FIX: Slide-out menu dark solid background (#1a1b26)
-    - FIX: All menu buttons/items white text on dark background
-    - FIX: Dropdowns and selects high contrast styling
+    Changelog (Build 340): 📱 Mobile Menu High Contrast Overlay
+    - FIX: Menu overlay now 90% opaque (was 50%) - tree content no longer visible behind
+    - FIX: Sidebar CSS rule now placed AFTER desktop rules (CSS order matters)
+    - FIX: Sidebar properly hidden on mobile - was being overridden
 
+    Previous (Build 339): 📱 Mobile Menu High Contrast
     Previous (Build 338): 📱 Mobile Hamburger Fix
     Previous (Build 337): 🔷 Gemini 3 Pro Preview Support
     Previous (Build 336): 📱 File System Mobile UI
-    Previous (Build 334): 📱 Mobile Layout + Touch Support
 
     Previous (Build 325): 📅 Meeting Link Collaboration System
     Previous (Build 324): 🎙️ Voice Chat UX Improvement
@@ -593,7 +592,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 339,
+            build: 340,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1195,7 +1194,7 @@
             transform: rotate(-45deg) translate(5px, -5px);
         }
 
-        /* Mobile menu overlay */
+        /* Mobile menu overlay - HIGH CONTRAST for readability */
         .mobile-menu-overlay {
             display: none;
             position: fixed;
@@ -1203,7 +1202,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: rgba(0, 0, 0, 0.5);
+            background: rgba(0, 0, 0, 0.9);
             z-index: 9999;
             opacity: 0;
             transition: opacity 0.3s ease;
@@ -2935,6 +2934,19 @@
     #ai-tools-panel:hover {
         width: 260px !important;
         background: var(--card-bg) !important;
+    }
+
+    /* BUILD 340: HIDE SIDEBAR ON MOBILE - Must come AFTER desktop rules */
+    @media screen and (max-width: 768px), (max-device-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+        #ai-tools-panel {
+            display: none !important;
+            visibility: hidden !important;
+            width: 0 !important;
+            height: 0 !important;
+            position: absolute !important;
+            left: -9999px !important;
+            pointer-events: none !important;
+        }
     }
 
     /* Sidebar Buttons */
