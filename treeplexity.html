@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 347 | 2025-12-05
+    TreeListy v2.17.0 | Build 348 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 347): 📱 Mobile Menu - Fix Button Taps
-    - FIX: Overlay z-index (99990) now BELOW menu panel (100000)
-    - FIX: Buttons now receive tap events correctly
-    - ADD: Light dim overlay (30% black) when menu open
+    Changelog (Build 348): 📱 Mobile Menu - Force Pointer Events
+    - FIX: Added pointer-events: auto !important to ALL interactive elements
+    - FIX: Added touch-action: manipulation for mobile taps
+    - FIX: Added -webkit-tap-highlight-color for visual feedback
+    - FIX: Explicit pointer-events on controls, sections, buttons, selects, dropdowns
 
+    Previous (Build 347): 📱 Mobile Menu - Fix Button Taps
     Previous (Build 346): 📱 Mobile Menu - Complete Rewrite
     Previous (Build 345): 📱 Mobile Menu - Show All Items
     Previous (Build 344): 📱 Mobile Menu - Neutral Light Theme
@@ -599,7 +601,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 347,
+            build: 348,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1275,7 +1277,7 @@
                 font-size: 15px !important;
             }
 
-            /* ===== BUILD 346: MOBILE SLIDE-OUT MENU - COMPLETE REWRITE ===== */
+            /* ===== BUILD 348: MOBILE SLIDE-OUT MENU ===== */
 
             /* Controls panel: hidden off-screen by default */
             .header .controls {
@@ -1294,6 +1296,8 @@
                 z-index: 100000 !important;
                 box-shadow: -2px 0 10px rgba(0,0,0,0.2) !important;
                 transition: right 0.25s ease-out !important;
+                pointer-events: auto !important;
+                touch-action: auto !important;
             }
 
             /* When menu is open, slide in */
@@ -1301,10 +1305,11 @@
                 right: 0 !important;
             }
 
-            /* All child elements must be visible */
+            /* All child elements must be visible AND clickable */
             .header .controls > * {
                 display: flex !important;
                 flex-shrink: 0 !important;
+                pointer-events: auto !important;
             }
 
             /* Control sections - vertical stack */
@@ -1318,9 +1323,10 @@
                 border-radius: 8px !important;
                 width: 100% !important;
                 box-sizing: border-box !important;
+                pointer-events: auto !important;
             }
 
-            /* Buttons - clear styling */
+            /* Buttons - clear styling + MUST BE CLICKABLE */
             .header .controls .btn,
             .header .controls button {
                 display: flex !important;
@@ -1335,12 +1341,16 @@
                 border-radius: 6px !important;
                 min-height: 40px !important;
                 cursor: pointer !important;
+                pointer-events: auto !important;
+                touch-action: manipulation !important;
+                -webkit-tap-highlight-color: rgba(0,0,0,0.1) !important;
             }
 
             /* Dropdown triggers */
             .header .controls .dropdown-menu-trigger {
                 background: #1e293b !important;
                 color: #ffffff !important;
+                pointer-events: auto !important;
             }
 
             /* Selects/dropdowns */
@@ -1355,6 +1365,13 @@
                 font-weight: 500 !important;
                 border-radius: 6px !important;
                 min-height: 40px !important;
+                pointer-events: auto !important;
+                touch-action: manipulation !important;
+            }
+
+            /* Dropdown menu */
+            .header .controls .dropdown-menu {
+                pointer-events: auto !important;
             }
 
             /* Dropdown menu content */
@@ -1367,6 +1384,7 @@
                 border-radius: 6px !important;
                 margin-top: 4px !important;
                 box-shadow: none !important;
+                pointer-events: auto !important;
             }
 
             .header .controls .dropdown-menu.open .dropdown-menu-content {
@@ -1379,6 +1397,8 @@
                 color: #1e293b !important;
                 font-size: 13px !important;
                 background: #ffffff !important;
+                pointer-events: auto !important;
+                cursor: pointer !important;
             }
 
             .header .controls .dropdown-menu-item:active {
