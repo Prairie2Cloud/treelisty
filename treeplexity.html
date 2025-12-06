@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 348 | 2025-12-05
+    TreeListy v2.17.0 | Build 349 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 348): 📱 Mobile Menu - Force Pointer Events
-    - FIX: Added pointer-events: auto !important to ALL interactive elements
-    - FIX: Added touch-action: manipulation for mobile taps
-    - FIX: Added -webkit-tap-highlight-color for visual feedback
-    - FIX: Explicit pointer-events on controls, sections, buttons, selects, dropdowns
+    Changelog (Build 349): 📱 Mobile Menu - Absolute Top Layer
+    - FIX: z-index: 2147483647 (max 32-bit int) - NOTHING can be above menu
+    - FIX: touch-action: pan-y for vertical scrolling in menu
+    - FIX: -webkit-overflow-scrolling: touch for iOS momentum scrolling
+    - FIX: isolation: isolate to create new stacking context
 
+    Previous (Build 348): 📱 Mobile Menu - Force Pointer Events
     Previous (Build 347): 📱 Mobile Menu - Fix Button Taps
     Previous (Build 346): 📱 Mobile Menu - Complete Rewrite
     Previous (Build 345): 📱 Mobile Menu - Show All Items
@@ -601,7 +602,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 348,
+            build: 349,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1277,9 +1278,9 @@
                 font-size: 15px !important;
             }
 
-            /* ===== BUILD 348: MOBILE SLIDE-OUT MENU ===== */
+            /* ===== BUILD 349: MOBILE SLIDE-OUT MENU - TOP LAYER ===== */
 
-            /* Controls panel: hidden off-screen by default */
+            /* Controls panel: ABSOLUTE TOP LAYER for touch/tap */
             .header .controls {
                 display: flex !important;
                 flex-direction: column !important;
@@ -1293,11 +1294,13 @@
                 gap: 12px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
-                z-index: 100000 !important;
+                z-index: 2147483647 !important;
                 box-shadow: -2px 0 10px rgba(0,0,0,0.2) !important;
                 transition: right 0.25s ease-out !important;
                 pointer-events: auto !important;
-                touch-action: auto !important;
+                touch-action: pan-y !important;
+                -webkit-overflow-scrolling: touch !important;
+                isolation: isolate !important;
             }
 
             /* When menu is open, slide in */
