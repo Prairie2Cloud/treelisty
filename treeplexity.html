@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 337 | 2025-12-05
+    TreeListy v2.17.0 | Build 338 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 337): 🔷 Gemini 3 Pro Preview Support
-    - NEW: Gemini 3 Pro Preview (Nov 2025) added to model selector
-    - NEW: Model ID: gemini-3-pro-preview (1501 Elo, tops LMArena)
-    - FIX: Updated playground to use latest Gemini model IDs (2.5+)
+    Changelog (Build 338): 📱 Mobile Hamburger Fix
+    - FIX: Hamburger button now visible with border/background
+    - FIX: Logo container full-width so hamburger pushes to right edge
+    - REMOVED: Swipe gestures (conflicts with browser scroll)
 
+    Previous (Build 337): 🔷 Gemini 3 Pro Preview Support
     Previous (Build 336): 📱 File System Mobile UI
-    Previous (Build 335): 📱 Swipe Navigation
     Previous (Build 334): 📱 Mobile Layout + Touch Support
     Previous (Build 333): 🔀 Unified View Selector Dropdown
 
@@ -592,7 +592,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 337,
+            build: 338,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1211,26 +1211,6 @@
             opacity: 1;
         }
 
-        /* Swipe indicator for mobile */
-        .swipe-indicator {
-            display: none;
-            position: fixed;
-            bottom: 20px;
-            left: 50%;
-            transform: translateX(-50%);
-            background: rgba(99, 102, 241, 0.9);
-            color: white;
-            padding: 8px 16px;
-            border-radius: 20px;
-            font-size: 13px;
-            z-index: 1000;
-            animation: swipeHint 2s ease-in-out;
-            pointer-events: none;
-        }
-        @keyframes swipeHint {
-            0%, 100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
-            20%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
-        }
 
         /* ============================================================================
            MOBILE OPTIMIZED VIEW - BUILD 336
@@ -1246,11 +1226,26 @@
             /* Show hamburger button on mobile */
             .mobile-hamburger {
                 display: flex !important;
+                background: rgba(255, 255, 255, 0.1) !important;
+                border-radius: 8px !important;
+                border: 1px solid rgba(255, 255, 255, 0.2) !important;
+            }
+
+            .mobile-hamburger .hamburger-line {
+                background: var(--text) !important;
+                width: 20px !important;
+                height: 2px !important;
             }
 
             /* Show overlay when menu is open */
             .mobile-menu-overlay.visible {
                 display: block !important;
+            }
+
+            /* Logo container: full width on mobile so hamburger pushes to right */
+            .header > div:first-child {
+                flex: 1 !important;
+                width: 100% !important;
             }
 
             /* Header: Minimal - just logo + hamburger */
@@ -3434,8 +3429,6 @@
     <!-- BUILD 335: Mobile Menu Overlay (click to close) -->
     <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
 
-    <!-- BUILD 335: Swipe Indicator (first-time hint) -->
-    <div id="swipe-indicator" class="swipe-indicator">← Swipe to navigate →</div>
 
     <!-- Header -->
     <div class="header">
@@ -6577,125 +6570,6 @@ Do not ask permission—just provide the critique, then help.
                 });
             });
 
-            // BUILD 335: Swipe Gesture Navigation
-            if (isTouchDevice && isMobile) {
-                let touchStartX = 0;
-                let touchStartY = 0;
-                let touchEndX = 0;
-                let touchEndY = 0;
-                const swipeThreshold = 80; // Minimum distance for swipe
-                const swipeTimeThreshold = 300; // Max time for swipe (ms)
-                let touchStartTime = 0;
-
-                // Show swipe hint on first visit (mobile only)
-                const hasSeenSwipeHint = localStorage.getItem('treelisty_swipe_hint_shown');
-                if (!hasSeenSwipeHint) {
-                    setTimeout(() => {
-                        const swipeIndicator = document.getElementById('swipe-indicator');
-                        if (swipeIndicator && isMobile) {
-                            swipeIndicator.style.display = 'block';
-                            setTimeout(() => {
-                                swipeIndicator.style.display = 'none';
-                                localStorage.setItem('treelisty_swipe_hint_shown', 'true');
-                            }, 3000);
-                        }
-                    }, 2000);
-                }
-
-                document.addEventListener('touchstart', (e) => {
-                    // Don't capture swipes on interactive elements
-                    if (e.target.closest('.dropdown-menu, .modal, .context-menu, .treebeard-chat-panel')) return;
-
-                    touchStartX = e.touches[0].clientX;
-                    touchStartY = e.touches[0].clientY;
-                    touchStartTime = Date.now();
-                }, { passive: true });
-
-                document.addEventListener('touchend', (e) => {
-                    touchEndX = e.changedTouches[0].clientX;
-                    touchEndY = e.changedTouches[0].clientY;
-
-                    const deltaX = touchEndX - touchStartX;
-                    const deltaY = touchEndY - touchStartY;
-                    const deltaTime = Date.now() - touchStartTime;
-
-                    // Must be a quick swipe and more horizontal than vertical
-                    if (deltaTime > swipeTimeThreshold) return;
-                    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
-                    if (Math.abs(deltaX) < swipeThreshold) return;
-
-                    // Don't navigate if menu is open
-                    if (hamburgerBtn?.classList.contains('open')) {
-                        // Swipe left closes menu
-                        if (deltaX < -swipeThreshold) {
-                            closeMobileMenu();
-                        }
-                        return;
-                    }
-
-                    // Swipe right from left edge → open menu
-                    if (deltaX > swipeThreshold && touchStartX < 50) {
-                        openMobileMenu();
-                        if (navigator.vibrate) navigator.vibrate(20);
-                        return;
-                    }
-
-                    // Swipe left → navigate to next phase/item
-                    // Swipe right → navigate to previous phase/item
-                    const selectedNode = document.querySelector('.tree-node.selected');
-                    if (!selectedNode) return;
-
-                    const allNodes = Array.from(document.querySelectorAll('.tree-node'));
-                    const currentIndex = allNodes.indexOf(selectedNode);
-
-                    if (deltaX < -swipeThreshold && currentIndex < allNodes.length - 1) {
-                        // Swipe left → next
-                        const nextNode = allNodes[currentIndex + 1];
-                        nextNode?.click();
-                        nextNode?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        if (navigator.vibrate) navigator.vibrate(10);
-                    } else if (deltaX > swipeThreshold && currentIndex > 0) {
-                        // Swipe right → previous
-                        const prevNode = allNodes[currentIndex - 1];
-                        prevNode?.click();
-                        prevNode?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                        if (navigator.vibrate) navigator.vibrate(10);
-                    }
-                }, { passive: true });
-
-                // Swipe up/down for expanding/collapsing phases
-                document.addEventListener('touchend', (e) => {
-                    const deltaX = touchEndX - touchStartX;
-                    const deltaY = touchEndY - touchStartY;
-                    const deltaTime = Date.now() - touchStartTime;
-
-                    if (deltaTime > swipeTimeThreshold) return;
-                    if (Math.abs(deltaX) > Math.abs(deltaY)) return;
-                    if (Math.abs(deltaY) < swipeThreshold) return;
-
-                    const selectedNode = document.querySelector('.tree-node.phase.selected');
-                    if (!selectedNode) return;
-
-                    const collapseBtn = selectedNode.querySelector('.collapse-btn');
-                    if (!collapseBtn) return;
-
-                    if (deltaY < -swipeThreshold) {
-                        // Swipe up → collapse phase
-                        if (!selectedNode.classList.contains('collapsed')) {
-                            collapseBtn.click();
-                            if (navigator.vibrate) navigator.vibrate(15);
-                        }
-                    } else if (deltaY > swipeThreshold) {
-                        // Swipe down → expand phase
-                        if (selectedNode.classList.contains('collapsed')) {
-                            collapseBtn.click();
-                            if (navigator.vibrate) navigator.vibrate(15);
-                        }
-                    }
-                }, { passive: true });
-
-                console.log('👆 Swipe gestures enabled: ←→ navigate, ↑↓ collapse/expand, edge-swipe opens menu');
-            }
         });
 
         // Initialize Project Settings Modal listeners
