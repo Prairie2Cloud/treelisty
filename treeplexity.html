@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 346 | 2025-12-05
+    TreeListy v2.17.0 | Build 347 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 346): 📱 Mobile Menu - Complete Rewrite
-    - REWRITE: Simplified CSS from scratch - white background, blue buttons
-    - FIX: display: flex on controls and all children
-    - FIX: Fixed width (300px) instead of percentage
-    - FIX: Removed conflicting/duplicate CSS rules
-    - FIX: Control sections in gray cards with flex-wrap
+    Changelog (Build 347): 📱 Mobile Menu - Fix Button Taps
+    - FIX: Overlay z-index (99990) now BELOW menu panel (100000)
+    - FIX: Buttons now receive tap events correctly
+    - ADD: Light dim overlay (30% black) when menu open
 
+    Previous (Build 346): 📱 Mobile Menu - Complete Rewrite
     Previous (Build 345): 📱 Mobile Menu - Show All Items
     Previous (Build 344): 📱 Mobile Menu - Neutral Light Theme
     Previous (Build 343): 📱 Mobile Menu Z-Index Fix
@@ -600,7 +599,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 346,
+            build: 347,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1202,7 +1201,8 @@
             transform: rotate(-45deg) translate(5px, -5px);
         }
 
-        /* Mobile menu overlay - light dim, just to indicate menu is open */
+        /* Mobile menu overlay - catches taps outside menu to close */
+        /* z-index MUST be lower than .controls (100000) so menu is clickable */
         .mobile-menu-overlay {
             display: none;
             position: fixed;
@@ -1210,8 +1210,8 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background: transparent;
-            z-index: 99999;
+            background: rgba(0, 0, 0, 0.3);
+            z-index: 99990;
         }
         .mobile-menu-overlay.visible {
             display: block;
