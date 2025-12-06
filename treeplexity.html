@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 334 | 2025-12-05
+    TreeListy v2.17.0 | Build 335 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,19 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 329): 🔄 Update Preserves Tree State
-    - FIX: "Update Now" saves tree + view state before refresh
-    - FIX: After update, tree/view/sync room automatically restored
-    - FIX: Minimal interruption during live collaboration
+    Changelog (Build 335): 📱 Mobile UX Overhaul - Swipe Navigation
+    - NEW: Hamburger menu slides out all controls on mobile
+    - NEW: Swipe left/right to navigate between nodes
+    - NEW: Swipe up/down on phases to collapse/expand
+    - NEW: Edge-swipe (from left) opens hamburger menu
+    - NEW: First-time swipe hint for mobile users
+    - FIX: Clean reading mode - tree only, no clutter
 
-    Previous (Build 328): 🔧 Single Source of Truth for Version
+    Previous (Build 334): 📱 Mobile Layout + Touch Support
+    Previous (Build 333): 🔀 Unified View Selector Dropdown
+    Previous (Build 332): 🐛 Tree Zoom Positioning Fix
+    Previous (Build 331): 📂 Consolidated Open/Save Dropdowns
+    Previous (Build 329): 🔄 Update Preserves Tree State
 
     Previous (Build 325): 📅 Meeting Link Collaboration System
     Previous (Build 324): 🎙️ Voice Chat UX Improvement
@@ -589,7 +596,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 334,
+            build: 335,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1153,42 +1160,211 @@
         }
 
         /* ============================================================================
-           MOBILE OPTIMIZED VIEW - BUILD 334
-           Compact vertical tree layout for touch devices
+           BUILD 335: HAMBURGER MENU BUTTON
+           Hidden on desktop, visible on mobile
+           ============================================================================ */
+        .mobile-hamburger {
+            display: none;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            width: 44px;
+            height: 44px;
+            padding: 10px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            gap: 5px;
+            margin-left: auto;
+        }
+
+        .hamburger-line {
+            display: block;
+            width: 24px;
+            height: 2px;
+            background: var(--text);
+            border-radius: 2px;
+            transition: all 0.3s ease;
+        }
+
+        /* Hamburger → X animation when open */
+        .mobile-hamburger.open .hamburger-line:nth-child(1) {
+            transform: rotate(45deg) translate(5px, 5px);
+        }
+        .mobile-hamburger.open .hamburger-line:nth-child(2) {
+            opacity: 0;
+        }
+        .mobile-hamburger.open .hamburger-line:nth-child(3) {
+            transform: rotate(-45deg) translate(5px, -5px);
+        }
+
+        /* Mobile menu overlay */
+        .mobile-menu-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 9999;
+            opacity: 0;
+            transition: opacity 0.3s ease;
+        }
+        .mobile-menu-overlay.visible {
+            opacity: 1;
+        }
+
+        /* Swipe indicator for mobile */
+        .swipe-indicator {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(99, 102, 241, 0.9);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            z-index: 1000;
+            animation: swipeHint 2s ease-in-out;
+            pointer-events: none;
+        }
+        @keyframes swipeHint {
+            0%, 100% { opacity: 0; transform: translateX(-50%) translateY(10px); }
+            20%, 80% { opacity: 1; transform: translateX(-50%) translateY(0); }
+        }
+
+        /* ============================================================================
+           MOBILE OPTIMIZED VIEW - BUILD 335
+           Clean reading mode with hamburger menu for all controls
            ============================================================================ */
         @media (max-width: 768px) {
-            /* Header: Stack controls vertically */
+            /* Show hamburger button on mobile */
+            .mobile-hamburger {
+                display: flex !important;
+            }
+
+            /* Show overlay when menu is open */
+            .mobile-menu-overlay.visible {
+                display: block !important;
+            }
+            /* Header: Minimal - just logo + hamburger */
             .header {
-                flex-direction: column;
-                padding: 8px 12px;
-                gap: 8px;
+                padding: 10px 12px !important;
+                gap: 8px !important;
+                min-height: auto !important;
             }
 
-            .header .controls {
-                width: 100%;
-                justify-content: flex-start;
-                gap: 6px;
-            }
-
-            .control-section {
-                margin-right: 2px !important;
-            }
-
-            /* Hide less essential controls on mobile */
-            #sort-section,
-            #theme-select,
-            .control-section:has(#api-key-btn) {
+            /* Hide logo subtitle on mobile */
+            .header .logo-subtitle,
+            #save-indicator {
                 display: none !important;
             }
 
-            /* Compact dropdowns */
+            .header .logo-title {
+                font-size: 16px !important;
+            }
+
+            /* Hide ALL controls by default - show via hamburger */
+            .header .controls {
+                position: fixed !important;
+                top: 0 !important;
+                right: -100% !important;
+                width: 85% !important;
+                max-width: 320px !important;
+                height: 100vh !important;
+                background: var(--card-bg) !important;
+                flex-direction: column !important;
+                padding: 60px 16px 20px !important;
+                gap: 8px !important;
+                overflow-y: auto !important;
+                z-index: 10000 !important;
+                box-shadow: -4px 0 20px rgba(0,0,0,0.5) !important;
+                transition: right 0.3s ease !important;
+            }
+
+            .header .controls.mobile-menu-open {
+                right: 0 !important;
+            }
+
+            /* Control sections stack vertically in menu */
+            .control-section {
+                width: 100% !important;
+                margin: 0 !important;
+                flex-direction: column !important;
+                gap: 8px !important;
+            }
+
+            /* Full-width dropdowns in menu */
+            .dropdown-menu {
+                width: 100% !important;
+            }
+
             .dropdown-menu-trigger {
-                padding: 8px 10px;
-                font-size: 12px;
+                width: 100% !important;
+                justify-content: flex-start !important;
+                padding: 12px 16px !important;
+                font-size: 14px !important;
             }
 
             .dropdown-menu-content {
-                min-width: 180px;
+                position: static !important;
+                width: 100% !important;
+                max-width: none !important;
+                margin-top: 4px !important;
+                box-shadow: none !important;
+                border: 1px solid var(--border) !important;
+            }
+
+            /* Full-width buttons in menu */
+            .header .controls .btn {
+                width: 100% !important;
+                justify-content: flex-start !important;
+                padding: 12px 16px !important;
+                font-size: 14px !important;
+                text-align: left !important;
+            }
+
+            /* Pattern and AI selectors: Full width */
+            .pattern-select,
+            #unified-ai-mode-select,
+            #theme-select {
+                width: 100% !important;
+                min-width: auto !important;
+                max-width: none !important;
+                padding: 12px !important;
+                font-size: 14px !important;
+            }
+
+            /* Show labels in mobile menu */
+            .control-section label {
+                width: 100% !important;
+                flex-direction: column !important;
+                align-items: flex-start !important;
+                gap: 6px !important;
+            }
+
+            .control-section label > span:first-child {
+                font-size: 12px !important;
+                color: var(--text-secondary) !important;
+                text-transform: uppercase !important;
+                letter-spacing: 0.5px !important;
+            }
+
+            /* Section dividers in menu */
+            .control-section:not(:last-child)::after {
+                content: '';
+                display: block;
+                height: 1px;
+                background: var(--border);
+                margin-top: 12px;
+            }
+
+            /* Hide version in menu */
+            #version-display {
+                display: none !important;
             }
 
             /* Tree container: Full width, no horizontal scroll */
@@ -3148,6 +3324,12 @@
         </div>
     </div>
 
+    <!-- BUILD 335: Mobile Menu Overlay (click to close) -->
+    <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
+
+    <!-- BUILD 335: Swipe Indicator (first-time hint) -->
+    <div id="swipe-indicator" class="swipe-indicator">← Swipe to navigate →</div>
+
     <!-- Header -->
     <div class="header">
         <div style="display: flex; align-items: center; gap: 20px;">
@@ -3163,6 +3345,13 @@
             <div id="save-indicator" style="font-size: 12px; color: #9DA3B4; margin-left: 12px; white-space: nowrap;">
                 ● Unsaved changes
             </div>
+
+            <!-- BUILD 335: Mobile Hamburger Menu Button -->
+            <button id="mobile-menu-btn" class="mobile-hamburger" aria-label="Open menu" aria-expanded="false">
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+                <span class="hamburger-line"></span>
+            </button>
 
         </div>
         <div class="controls" style="flex-wrap: wrap; gap: 8px;">
@@ -6233,6 +6422,171 @@ Do not ask permission—just provide the critique, then help.
                 }, { passive: true });
 
                 console.log('👆 Touch device - long-press for context menu enabled');
+            }
+
+            // BUILD 335: Hamburger Menu Toggle
+            const hamburgerBtn = document.getElementById('mobile-menu-btn');
+            const controlsMenu = document.querySelector('.header .controls');
+            const menuOverlay = document.getElementById('mobile-menu-overlay');
+
+            function openMobileMenu() {
+                hamburgerBtn?.classList.add('open');
+                controlsMenu?.classList.add('mobile-menu-open');
+                menuOverlay?.classList.add('visible');
+                hamburgerBtn?.setAttribute('aria-expanded', 'true');
+                document.body.style.overflow = 'hidden'; // Prevent scroll
+            }
+
+            function closeMobileMenu() {
+                hamburgerBtn?.classList.remove('open');
+                controlsMenu?.classList.remove('mobile-menu-open');
+                menuOverlay?.classList.remove('visible');
+                hamburgerBtn?.setAttribute('aria-expanded', 'false');
+                document.body.style.overflow = '';
+            }
+
+            if (hamburgerBtn) {
+                hamburgerBtn.addEventListener('click', () => {
+                    const isOpen = hamburgerBtn.classList.contains('open');
+                    if (isOpen) {
+                        closeMobileMenu();
+                    } else {
+                        openMobileMenu();
+                    }
+                });
+            }
+
+            // Close menu when clicking overlay
+            if (menuOverlay) {
+                menuOverlay.addEventListener('click', closeMobileMenu);
+            }
+
+            // Close menu when clicking a menu item
+            controlsMenu?.querySelectorAll('.dropdown-menu-item, .btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    // Delay close to allow button action to complete
+                    setTimeout(closeMobileMenu, 100);
+                });
+            });
+
+            // BUILD 335: Swipe Gesture Navigation
+            if (isTouchDevice && isMobile) {
+                let touchStartX = 0;
+                let touchStartY = 0;
+                let touchEndX = 0;
+                let touchEndY = 0;
+                const swipeThreshold = 80; // Minimum distance for swipe
+                const swipeTimeThreshold = 300; // Max time for swipe (ms)
+                let touchStartTime = 0;
+
+                // Show swipe hint on first visit (mobile only)
+                const hasSeenSwipeHint = localStorage.getItem('treelisty_swipe_hint_shown');
+                if (!hasSeenSwipeHint) {
+                    setTimeout(() => {
+                        const swipeIndicator = document.getElementById('swipe-indicator');
+                        if (swipeIndicator && isMobile) {
+                            swipeIndicator.style.display = 'block';
+                            setTimeout(() => {
+                                swipeIndicator.style.display = 'none';
+                                localStorage.setItem('treelisty_swipe_hint_shown', 'true');
+                            }, 3000);
+                        }
+                    }, 2000);
+                }
+
+                document.addEventListener('touchstart', (e) => {
+                    // Don't capture swipes on interactive elements
+                    if (e.target.closest('.dropdown-menu, .modal, .context-menu, .treebeard-chat-panel')) return;
+
+                    touchStartX = e.touches[0].clientX;
+                    touchStartY = e.touches[0].clientY;
+                    touchStartTime = Date.now();
+                }, { passive: true });
+
+                document.addEventListener('touchend', (e) => {
+                    touchEndX = e.changedTouches[0].clientX;
+                    touchEndY = e.changedTouches[0].clientY;
+
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = touchEndY - touchStartY;
+                    const deltaTime = Date.now() - touchStartTime;
+
+                    // Must be a quick swipe and more horizontal than vertical
+                    if (deltaTime > swipeTimeThreshold) return;
+                    if (Math.abs(deltaY) > Math.abs(deltaX)) return;
+                    if (Math.abs(deltaX) < swipeThreshold) return;
+
+                    // Don't navigate if menu is open
+                    if (hamburgerBtn?.classList.contains('open')) {
+                        // Swipe left closes menu
+                        if (deltaX < -swipeThreshold) {
+                            closeMobileMenu();
+                        }
+                        return;
+                    }
+
+                    // Swipe right from left edge → open menu
+                    if (deltaX > swipeThreshold && touchStartX < 50) {
+                        openMobileMenu();
+                        if (navigator.vibrate) navigator.vibrate(20);
+                        return;
+                    }
+
+                    // Swipe left → navigate to next phase/item
+                    // Swipe right → navigate to previous phase/item
+                    const selectedNode = document.querySelector('.tree-node.selected');
+                    if (!selectedNode) return;
+
+                    const allNodes = Array.from(document.querySelectorAll('.tree-node'));
+                    const currentIndex = allNodes.indexOf(selectedNode);
+
+                    if (deltaX < -swipeThreshold && currentIndex < allNodes.length - 1) {
+                        // Swipe left → next
+                        const nextNode = allNodes[currentIndex + 1];
+                        nextNode?.click();
+                        nextNode?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        if (navigator.vibrate) navigator.vibrate(10);
+                    } else if (deltaX > swipeThreshold && currentIndex > 0) {
+                        // Swipe right → previous
+                        const prevNode = allNodes[currentIndex - 1];
+                        prevNode?.click();
+                        prevNode?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        if (navigator.vibrate) navigator.vibrate(10);
+                    }
+                }, { passive: true });
+
+                // Swipe up/down for expanding/collapsing phases
+                document.addEventListener('touchend', (e) => {
+                    const deltaX = touchEndX - touchStartX;
+                    const deltaY = touchEndY - touchStartY;
+                    const deltaTime = Date.now() - touchStartTime;
+
+                    if (deltaTime > swipeTimeThreshold) return;
+                    if (Math.abs(deltaX) > Math.abs(deltaY)) return;
+                    if (Math.abs(deltaY) < swipeThreshold) return;
+
+                    const selectedNode = document.querySelector('.tree-node.phase.selected');
+                    if (!selectedNode) return;
+
+                    const collapseBtn = selectedNode.querySelector('.collapse-btn');
+                    if (!collapseBtn) return;
+
+                    if (deltaY < -swipeThreshold) {
+                        // Swipe up → collapse phase
+                        if (!selectedNode.classList.contains('collapsed')) {
+                            collapseBtn.click();
+                            if (navigator.vibrate) navigator.vibrate(15);
+                        }
+                    } else if (deltaY > swipeThreshold) {
+                        // Swipe down → expand phase
+                        if (selectedNode.classList.contains('collapsed')) {
+                            collapseBtn.click();
+                            if (navigator.vibrate) navigator.vibrate(15);
+                        }
+                    }
+                }, { passive: true });
+
+                console.log('👆 Swipe gestures enabled: ←→ navigate, ↑↓ collapse/expand, edge-swipe opens menu');
             }
         });
 
