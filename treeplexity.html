@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 344 | 2025-12-05
+    TreeListy v2.17.0 | Build 345 | 2025-12-05
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 344): 📱 Mobile Menu - Neutral Light Theme
-    - FIX: Light gray background (#f8fafc) - iOS/Android style
-    - FIX: Dark text (#1e293b) on white buttons - maximum contrast
-    - FIX: Subtle borders and shadows for depth
-    - ADD: "Menu" title at top left, "✕" close button at top right
-    - ADD: Control sections grouped in white cards
+    Changelog (Build 345): 📱 Mobile Menu - Show All Items
+    - FIX: Control sections now display: flex !important - all items visible
+    - FIX: Tapping dropdown trigger no longer closes menu (only action items close it)
+    - FIX: Row layout with flex-wrap for button groups
 
+    Previous (Build 344): 📱 Mobile Menu - Neutral Light Theme
     Previous (Build 343): 📱 Mobile Menu Z-Index Fix
     Previous (Build 342): 📱 Mobile Menu - White on Purple
     Previous (Build 341): 📱 Mobile Menu Aggressive High Contrast
@@ -598,7 +597,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 344,
+            build: 345,
             date: '2025-12-05',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1436,12 +1435,22 @@
                 max-width: 100vw !important;
             }
 
-            /* Control sections in hamburger menu */
+            /* Control sections in hamburger menu - MUST be visible */
             .control-section {
+                display: flex !important;
                 width: 100% !important;
                 margin: 0 !important;
-                flex-direction: column !important;
-                gap: 6px !important;
+                flex-direction: row !important;
+                flex-wrap: wrap !important;
+                gap: 8px !important;
+            }
+
+            /* Sort section is hidden by default - keep it hidden unless active */
+            #sort-section {
+                display: none !important;
+            }
+            #sort-section.active {
+                display: flex !important;
             }
 
             /* Full-width dropdowns in menu */
@@ -6694,11 +6703,19 @@ Do not ask permission—just provide the critique, then help.
                 menuOverlay.addEventListener('click', closeMobileMenu);
             }
 
-            // Close menu when clicking a menu item
-            controlsMenu?.querySelectorAll('.dropdown-menu-item, .btn').forEach(btn => {
+            // Close menu when clicking action items (NOT dropdown triggers)
+            // Only close for items that perform an action, not for opening submenus
+            controlsMenu?.querySelectorAll('.dropdown-menu-item').forEach(btn => {
                 btn.addEventListener('click', () => {
                     // Delay close to allow button action to complete
-                    setTimeout(closeMobileMenu, 100);
+                    setTimeout(closeMobileMenu, 150);
+                });
+            });
+
+            // For regular buttons, only close if they're action buttons (not dropdown triggers)
+            controlsMenu?.querySelectorAll('.btn:not(.dropdown-menu-trigger)').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    setTimeout(closeMobileMenu, 150);
                 });
             });
 
