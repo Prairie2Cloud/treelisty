@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 360 | 2025-12-06
+    TreeListy v2.17.0 | Build 361 | 2025-12-06
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,10 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 360): 🔧 Fix Syntax Error - Splash Screen Freeze
-    - CRITICAL FIX: Removed stray `});` causing SyntaxError at line 33133
-    - App now loads properly without freezing at splash screen
+    Changelog (Build 361): 🔗 Pivot-Style Smart Hyperedges
+    - Fix: Hyperedge labels no longer show "undefined"
+    - Smart auto-grouping: Suggests hyperedges based on status, assignee, priority, cost
+    - Query builder: Create hyperedges with filter conditions (status=X, cost>Y)
+    - Live aggregates: Show totals ($2.3M • 67% • 4 nodes) on hyperedges
+    - TreeBeard integration: Natural language queries ("show items over $500K")
+    - Pattern-aware detection: CAPEX (cost tiers), Philosophy (philosophers), Sales (deal stages)
 
+    Previous (Build 360): 🔧 Fix Syntax Error - Splash Screen Freeze
     Previous (Build 359): 🔧 Fix CORS for Local Version Check
     Previous (Build 358): 🔄 Check for Updates Button
     Previous (Build 357): 🔔 Version Check Fix for Local Files
@@ -9657,7 +9662,7 @@ Focus on logical structure and content organization best practices.`;
                 font-size: 14px;
             `;
             indicator.innerHTML = `
-                <span>🎯 Focused: <strong>${hyperedge.label}</strong></span>
+                <span>🎯 Focused: <strong>${getHyperedgeDisplayLabel(hyperedge)}</strong></span>
                 <button onclick="exitFocusMode()" style="
                     background: rgba(255,255,255,0.2);
                     border: 1px solid rgba(255,255,255,0.3);
@@ -9687,6 +9692,7 @@ Focus on logical structure and content organization best practices.`;
 
         /**
          * Toggle hyperedge visibility panel
+         * BUILD 361: Enhanced with suggestions and aggregates
          */
         function toggleHyperedgePanel() {
             const existing = document.getElementById('hyperedge-visibility-panel');
@@ -9695,9 +9701,15 @@ Focus on logical structure and content organization best practices.`;
                 return;
             }
 
+            // Detect suggestions on panel open
+            detectSuggestedHyperedges();
+
             const hyperedges = capexTree.hyperedges || [];
-            if (hyperedges.length === 0) {
-                showToast('No hyperedges to manage', 'info');
+            const suggestions = suggestedHyperedges || [];
+
+            // Allow panel to open even with no hyperedges if there are suggestions
+            if (hyperedges.length === 0 && suggestions.length === 0) {
+                showToast('No hyperedges or suggestions available', 'info');
                 return;
             }
 
@@ -9712,8 +9724,8 @@ Focus on logical structure and content organization best practices.`;
                 position: fixed;
                 top: 120px;
                 right: ${rightOffset}px;
-                width: 280px;
-                max-height: 400px;
+                width: 320px;
+                max-height: 500px;
                 background: var(--surface-elevated);
                 border: 1px solid var(--border-color);
                 border-radius: 12px;
@@ -9733,20 +9745,95 @@ Focus on logical structure and content organization best practices.`;
             `;
             header.innerHTML = `
                 <span style="font-weight: 600; color: var(--text-primary);">🔗 Hyperedges (${hyperedges.length})</span>
-                <button onclick="document.getElementById('hyperedge-visibility-panel').remove()"
-                    style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;">✕</button>
+                <div style="display: flex; gap: 8px; align-items: center;">
+                    <button onclick="showQueryBuilderModal()" title="Create by Query"
+                        style="background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.3); padding: 4px 8px; border-radius: 4px; color: #6366f1; cursor: pointer; font-size: 12px;">
+                        🔍 Query
+                    </button>
+                    <button onclick="document.getElementById('hyperedge-visibility-panel').remove()"
+                        style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 18px;">✕</button>
+                </div>
             `;
 
             const list = document.createElement('div');
             list.style.cssText = `
-                max-height: 320px;
+                max-height: 380px;
                 overflow-y: auto;
                 padding: 8px;
             `;
 
+            // BUILD 361: Suggestions section
+            if (suggestions.length > 0) {
+                const suggestionsHeader = document.createElement('div');
+                suggestionsHeader.style.cssText = `
+                    padding: 8px 12px;
+                    margin-bottom: 8px;
+                    background: linear-gradient(135deg, rgba(251, 191, 36, 0.1), rgba(245, 158, 11, 0.1));
+                    border: 1px dashed rgba(251, 191, 36, 0.4);
+                    border-radius: 8px;
+                `;
+                suggestionsHeader.innerHTML = `
+                    <div style="font-size: 12px; font-weight: 600; color: #fbbf24; margin-bottom: 8px;">
+                        💡 Suggested Groupings (${suggestions.length})
+                    </div>
+                `;
+
+                suggestions.forEach(s => {
+                    const suggestionItem = document.createElement('div');
+                    suggestionItem.style.cssText = `
+                        padding: 8px 10px;
+                        margin-bottom: 6px;
+                        background: rgba(251, 191, 36, 0.05);
+                        border: 1px solid rgba(251, 191, 36, 0.2);
+                        border-radius: 6px;
+                        display: flex;
+                        align-items: center;
+                        gap: 8px;
+                    `;
+                    suggestionItem.innerHTML = `
+                        <div style="flex: 1; min-width: 0;">
+                            <div style="font-size: 12px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                                ${s.label}
+                            </div>
+                            <div style="font-size: 10px; color: var(--text-secondary);">
+                                ${s.nodeIds?.length || 0} nodes • ${s.description || ''}
+                            </div>
+                        </div>
+                        <button onclick="event.stopPropagation(); acceptSuggestion('${s.id}'); toggleHyperedgePanel(); toggleHyperedgePanel();"
+                            title="Create this hyperedge"
+                            style="background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.3); padding: 4px 8px; border-radius: 4px; color: #22c55e; cursor: pointer; font-size: 11px;">
+                            ✓
+                        </button>
+                        <button onclick="event.stopPropagation(); dismissSuggestion('${s.id}'); this.closest('div').parentElement.remove();"
+                            title="Dismiss suggestion"
+                            style="background: rgba(239, 68, 68, 0.1); border: none; padding: 4px 6px; border-radius: 4px; color: #ef4444; cursor: pointer; font-size: 10px;">
+                            ✕
+                        </button>
+                    `;
+                    suggestionsHeader.appendChild(suggestionItem);
+                });
+
+                list.appendChild(suggestionsHeader);
+            }
+
+            // Existing hyperedges with aggregates
+            if (hyperedges.length > 0) {
+                const existingHeader = document.createElement('div');
+                existingHeader.style.cssText = `
+                    font-size: 11px;
+                    color: var(--text-secondary);
+                    padding: 4px 8px;
+                    margin-top: ${suggestions.length > 0 ? '8px' : '0'};
+                `;
+                existingHeader.textContent = 'Your Hyperedges';
+                list.appendChild(existingHeader);
+            }
+
             hyperedges.forEach(he => {
                 const colorObj = getHyperedgeColor(he);
                 const isHidden = hiddenHyperedges.has(he.id);
+                const aggregates = calculateHyperedgeAggregates(he);
+                const aggregateStr = formatHyperedgeAggregates(aggregates);
 
                 const item = document.createElement('div');
                 item.style.cssText = `
@@ -9754,6 +9841,7 @@ Focus on logical structure and content organization best practices.`;
                     margin-bottom: 6px;
                     background: ${isHidden ? 'rgba(0,0,0,0.2)' : 'rgba(139, 92, 246, 0.1)'};
                     border: 1px solid ${isHidden ? 'var(--border-color)' : colorObj.border};
+                    border-left: 3px solid ${colorObj.solid || '#8B5CF6'};
                     border-radius: 8px;
                     display: flex;
                     align-items: center;
@@ -9768,10 +9856,10 @@ Focus on logical structure and content organization best practices.`;
                         style="width: 18px; height: 18px; cursor: pointer; accent-color: ${colorObj.solid || '#8B5CF6'};">
                     <div style="flex: 1; min-width: 0;">
                         <div style="font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
-                            ${he.label}
+                            ${getHyperedgeDisplayLabel(he)}
                         </div>
                         <div style="font-size: 11px; color: var(--text-secondary);">
-                            ${he.nodeIds?.length || 0} nodes
+                            ${he.nodeIds?.length || 0} nodes${aggregateStr ? ' • ' + aggregateStr : ''}
                         </div>
                     </div>
                     <button onclick="event.stopPropagation(); focusOnHyperedge('${he.id}'); document.getElementById('hyperedge-visibility-panel').remove();"
@@ -10397,6 +10485,11 @@ Focus on logical structure and content organization best practices.`;
          * If no label exists, derive a concise one from description (<5 words)
          */
         function getHyperedgeDisplayLabel(hyperedge) {
+            // If name exists (used by welcome tree and older hyperedges), use it
+            if (hyperedge.name && hyperedge.name.trim()) {
+                return hyperedge.name;
+            }
+
             // If label exists and is meaningful, use it
             if (hyperedge.label && hyperedge.label.trim() && hyperedge.label !== 'Unnamed Hyperedge') {
                 return hyperedge.label;
@@ -10429,6 +10522,779 @@ Focus on logical structure and content organization best practices.`;
             }
 
             return 'Relationship';
+        }
+
+        /**
+         * BUILD 361: Calculate aggregates for a hyperedge's member nodes
+         * Returns pattern-aware metrics (cost, progress, lead time, etc.)
+         * Called live on render for dynamic updates
+         */
+        function calculateHyperedgeAggregates(hyperedge) {
+            const nodeIds = hyperedge.nodeIds || [];
+            const nodes = nodeIds.map(id => getNodeById(id)).filter(Boolean);
+
+            if (nodes.length === 0) {
+                return { count: 0 };
+            }
+
+            const pattern = capexTree.pattern?.key || 'generic';
+
+            // Helper functions
+            const sum = arr => arr.reduce((a, b) => a + b, 0);
+            const avg = arr => arr.length > 0 ? sum(arr) / arr.length : 0;
+            const countBy = (arr, key) => arr.reduce((acc, item) => {
+                const val = item[key] || 'Unknown';
+                acc[val] = (acc[val] || 0) + 1;
+                return acc;
+            }, {});
+
+            // Universal aggregates (all patterns)
+            const aggregates = {
+                count: nodes.length,
+                avgProgress: Math.round(avg(nodes.map(n => n.pmProgress || 0))),
+                statusCounts: countBy(nodes, 'pmStatus'),
+                priorityCounts: countBy(nodes, 'pmPriority')
+            };
+
+            // Cost aggregates (CAPEX, Sales, Generic patterns)
+            if (['capex', 'generic', 'sales'].includes(pattern)) {
+                const costs = nodes.map(n => n.cost || n.dealValue || 0).filter(c => c > 0);
+                if (costs.length > 0) {
+                    aggregates.totalCost = sum(costs);
+                    aggregates.avgCost = Math.round(avg(costs));
+                    aggregates.maxCost = Math.max(...costs);
+                    aggregates.minCost = Math.min(...costs);
+                    aggregates.costNodeCount = costs.length;
+                }
+            }
+
+            // Lead time aggregates (CAPEX pattern)
+            if (pattern === 'capex') {
+                const leadTimes = nodes.map(n => n.leadTime || 0).filter(lt => lt > 0);
+                if (leadTimes.length > 0) {
+                    aggregates.totalLeadTime = sum(leadTimes);
+                    aggregates.maxLeadTime = Math.max(...leadTimes);
+                    aggregates.avgLeadTime = Math.round(avg(leadTimes));
+                }
+            }
+
+            // Sales-specific aggregates
+            if (pattern === 'sales') {
+                const probabilities = nodes.map(n => n.probability || 0).filter(p => p > 0);
+                if (probabilities.length > 0) {
+                    aggregates.avgProbability = Math.round(avg(probabilities));
+                }
+                aggregates.stageCounts = countBy(nodes, 'dealStage');
+            }
+
+            // Assignee aggregates (all patterns)
+            const assignees = nodes.map(n => n.pmAssignee).filter(a => a && a.trim());
+            if (assignees.length > 0) {
+                aggregates.assigneeCounts = countBy(nodes, 'pmAssignee');
+                aggregates.assigneeCount = Object.keys(aggregates.assigneeCounts).length;
+            }
+
+            // Due date aggregates
+            const dueDates = nodes.map(n => n.dueDate).filter(d => d);
+            if (dueDates.length > 0) {
+                const sorted = dueDates.sort();
+                aggregates.nextDue = sorted[0];
+                aggregates.lastDue = sorted[sorted.length - 1];
+                // Check for overdue
+                const today = new Date().toISOString().split('T')[0];
+                aggregates.overdueCount = dueDates.filter(d => d < today).length;
+            }
+
+            return aggregates;
+        }
+
+        /**
+         * BUILD 361: Format aggregates for display
+         * Returns a compact string like "$2.3M • 67% • 4 nodes"
+         */
+        function formatHyperedgeAggregates(aggregates, compact = true) {
+            const parts = [];
+            const pattern = capexTree.pattern?.key || 'generic';
+
+            // Cost (primary for CAPEX/Sales)
+            if (aggregates.totalCost) {
+                const cost = aggregates.totalCost;
+                if (cost >= 1000000) {
+                    parts.push(`$${(cost / 1000000).toFixed(1)}M`);
+                } else if (cost >= 1000) {
+                    parts.push(`$${(cost / 1000).toFixed(0)}K`);
+                } else {
+                    parts.push(`$${cost}`);
+                }
+            }
+
+            // Progress (universal)
+            if (aggregates.avgProgress > 0) {
+                parts.push(`${aggregates.avgProgress}%`);
+            }
+
+            // Lead time (CAPEX)
+            if (aggregates.maxLeadTime && pattern === 'capex') {
+                parts.push(`${aggregates.maxLeadTime}mo`);
+            }
+
+            // Probability (Sales)
+            if (aggregates.avgProbability && pattern === 'sales') {
+                parts.push(`${aggregates.avgProbability}% prob`);
+            }
+
+            // Overdue warning
+            if (aggregates.overdueCount > 0) {
+                parts.push(`⚠️${aggregates.overdueCount} overdue`);
+            }
+
+            if (compact && parts.length > 3) {
+                return parts.slice(0, 3).join(' • ');
+            }
+
+            return parts.join(' • ');
+        }
+
+        // BUILD 361: Suggested hyperedges (in-memory, opt-in)
+        let suggestedHyperedges = [];
+        const DISMISSED_SUGGESTIONS_KEY = 'treelisty-dismissed-suggestions';
+
+        /**
+         * BUILD 361: Get dismissed suggestion IDs from localStorage
+         */
+        function getDismissedSuggestions() {
+            try {
+                return JSON.parse(localStorage.getItem(DISMISSED_SUGGESTIONS_KEY) || '[]');
+            } catch (e) {
+                return [];
+            }
+        }
+
+        /**
+         * BUILD 361: Dismiss a suggestion (won't appear again)
+         */
+        function dismissSuggestion(suggestionId) {
+            const dismissed = getDismissedSuggestions();
+            if (!dismissed.includes(suggestionId)) {
+                dismissed.push(suggestionId);
+                localStorage.setItem(DISMISSED_SUGGESTIONS_KEY, JSON.stringify(dismissed));
+            }
+            suggestedHyperedges = suggestedHyperedges.filter(s => s.id !== suggestionId);
+        }
+
+        /**
+         * BUILD 361: Accept a suggestion - create permanent hyperedge
+         */
+        function acceptSuggestion(suggestionId) {
+            const suggestion = suggestedHyperedges.find(s => s.id === suggestionId);
+            if (!suggestion) return;
+
+            // Create real hyperedge
+            saveState('Create Hyperedge from Suggestion');
+            const hyperedge = addHyperedge(
+                suggestion.type || 'suggested',
+                suggestion.label,
+                suggestion.nodeIds,
+                {
+                    color: suggestion.color,
+                    description: suggestion.description,
+                    source: 'auto-detected'
+                }
+            );
+
+            // Set custom color if provided
+            if (hyperedge && suggestion.color) {
+                hyperedge.color = suggestion.color;
+            }
+
+            // Remove from suggestions
+            suggestedHyperedges = suggestedHyperedges.filter(s => s.id !== suggestionId);
+
+            // Re-render
+            renderCanvas();
+            showToast(`Created hyperedge: ${suggestion.label}`, 'success');
+        }
+
+        /**
+         * BUILD 361: Detect suggested hyperedges based on tree data
+         * Runs on tree load and after significant edits
+         */
+        function detectSuggestedHyperedges() {
+            const dismissed = getDismissedSuggestions();
+            const existingEdgeNodeSets = (capexTree.hyperedges || []).map(h =>
+                new Set(h.nodeIds || [])
+            );
+            const suggestions = [];
+            const pattern = capexTree.pattern?.key || 'generic';
+
+            // Collect all items from tree
+            const allItems = [];
+            function collectItems(node) {
+                if (node.type === 'item' || node.type === 'subtask') {
+                    allItems.push(node);
+                }
+                (node.items || []).forEach(collectItems);
+                (node.children || []).forEach(child => {
+                    collectItems(child);
+                    (child.items || []).forEach(collectItems);
+                });
+            }
+            collectItems(capexTree);
+
+            if (allItems.length < 2) return [];
+
+            // Helper: Check if suggestion already exists as real hyperedge
+            const alreadyExists = (nodeIds) => {
+                const newSet = new Set(nodeIds);
+                return existingEdgeNodeSets.some(existingSet => {
+                    if (existingSet.size !== newSet.size) return false;
+                    for (const id of newSet) {
+                        if (!existingSet.has(id)) return false;
+                    }
+                    return true;
+                });
+            };
+
+            // Helper: Create suggestion if valid
+            const addSuggestion = (id, label, nodeIds, color, description, type = 'auto') => {
+                if (nodeIds.length < 2) return;
+                if (dismissed.includes(id)) return;
+                if (alreadyExists(nodeIds)) return;
+                suggestions.push({ id, label, nodeIds, color, description, type });
+            };
+
+            // ===========================================
+            // UNIVERSAL RULES (All Patterns)
+            // ===========================================
+
+            // Rule 1: Status clusters (3+ items with same status)
+            const statusGroups = {};
+            allItems.forEach(item => {
+                const status = item.pmStatus || 'Unknown';
+                if (!statusGroups[status]) statusGroups[status] = [];
+                statusGroups[status].push(item.id);
+            });
+            Object.entries(statusGroups).forEach(([status, ids]) => {
+                if (ids.length >= 3 && status !== 'Unknown') {
+                    const colors = {
+                        'Done': '#22c55e',
+                        'Completed': '#22c55e',
+                        'In Progress': '#f59e0b',
+                        'To Do': '#6366f1',
+                        'Blocked': '#ef4444',
+                        'Not Started': '#94a3b8'
+                    };
+                    addSuggestion(
+                        `suggest-status-${status.toLowerCase().replace(/\s+/g, '-')}`,
+                        `${status} Items`,
+                        ids,
+                        colors[status] || '#8b5cf6',
+                        `${ids.length} items with status "${status}"`,
+                        'status-cluster'
+                    );
+                }
+            });
+
+            // Rule 2: Assignee clusters (2+ items with same assignee)
+            const assigneeGroups = {};
+            allItems.forEach(item => {
+                const assignee = item.pmAssignee?.trim();
+                if (assignee) {
+                    if (!assigneeGroups[assignee]) assigneeGroups[assignee] = [];
+                    assigneeGroups[assignee].push(item.id);
+                }
+            });
+            Object.entries(assigneeGroups).forEach(([assignee, ids]) => {
+                if (ids.length >= 2) {
+                    addSuggestion(
+                        `suggest-assignee-${assignee.toLowerCase().replace(/\s+/g, '-')}`,
+                        `${assignee}'s Items`,
+                        ids,
+                        '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0'),
+                        `${ids.length} items assigned to ${assignee}`,
+                        'assignee-cluster'
+                    );
+                }
+            });
+
+            // Rule 3: Priority clusters (3+ items with same priority)
+            const priorityGroups = {};
+            allItems.forEach(item => {
+                const priority = item.pmPriority;
+                if (priority) {
+                    if (!priorityGroups[priority]) priorityGroups[priority] = [];
+                    priorityGroups[priority].push(item.id);
+                }
+            });
+            Object.entries(priorityGroups).forEach(([priority, ids]) => {
+                if (ids.length >= 3) {
+                    const colors = {
+                        'Critical': '#ef4444',
+                        'High': '#f97316',
+                        'Medium': '#eab308',
+                        'Low': '#22c55e'
+                    };
+                    addSuggestion(
+                        `suggest-priority-${priority.toLowerCase()}`,
+                        `${priority} Priority`,
+                        ids,
+                        colors[priority] || '#8b5cf6',
+                        `${ids.length} items with ${priority} priority`,
+                        'priority-cluster'
+                    );
+                }
+            });
+
+            // Rule 4: Blocked items (items with incomplete dependencies)
+            const blockedIds = allItems
+                .filter(item => {
+                    const deps = item.dependencies || [];
+                    return deps.some(depId => {
+                        const depNode = getNodeById(depId);
+                        return depNode && depNode.pmStatus !== 'Done' && depNode.pmStatus !== 'Completed';
+                    });
+                })
+                .map(item => item.id);
+            if (blockedIds.length >= 2) {
+                addSuggestion(
+                    'suggest-blocked-items',
+                    'Blocked Items',
+                    blockedIds,
+                    '#ef4444',
+                    `${blockedIds.length} items waiting on incomplete dependencies`,
+                    'blocked'
+                );
+            }
+
+            // ===========================================
+            // PATTERN-SPECIFIC RULES
+            // ===========================================
+
+            // CAPEX: High cost items (top 25% by cost)
+            if (['capex', 'generic', 'sales'].includes(pattern)) {
+                const itemsWithCost = allItems.filter(i => (i.cost || 0) > 0);
+                if (itemsWithCost.length >= 4) {
+                    const costs = itemsWithCost.map(i => i.cost).sort((a, b) => b - a);
+                    const threshold = costs[Math.floor(costs.length * 0.25)] || costs[0];
+                    const highCostIds = itemsWithCost
+                        .filter(i => i.cost >= threshold)
+                        .map(i => i.id);
+                    if (highCostIds.length >= 2) {
+                        const total = highCostIds.reduce((sum, id) => {
+                            const node = getNodeById(id);
+                            return sum + (node?.cost || 0);
+                        }, 0);
+                        const formatted = total >= 1000000
+                            ? `$${(total/1000000).toFixed(1)}M`
+                            : `$${(total/1000).toFixed(0)}K`;
+                        addSuggestion(
+                            'suggest-high-cost',
+                            `High Cost Items`,
+                            highCostIds,
+                            '#dc2626',
+                            `${highCostIds.length} items totaling ${formatted}`,
+                            'cost-cluster'
+                        );
+                    }
+                }
+            }
+
+            // CAPEX: Long lead time items
+            if (pattern === 'capex') {
+                const longLeadItems = allItems.filter(i => (i.leadTime || 0) >= 6);
+                if (longLeadItems.length >= 2) {
+                    addSuggestion(
+                        'suggest-long-lead',
+                        'Long Lead Items',
+                        longLeadItems.map(i => i.id),
+                        '#7c3aed',
+                        `${longLeadItems.length} items with 6+ month lead time`,
+                        'lead-time-cluster'
+                    );
+                }
+            }
+
+            // Philosophy: Extract philosopher names from descriptions
+            if (pattern === 'philosophy') {
+                const philosophers = ['Plato', 'Aristotle', 'Kant', 'Hegel', 'Nietzsche', 'Descartes',
+                    'Hume', 'Locke', 'Spinoza', 'Leibniz', 'Socrates', 'Marx', 'Kierkegaard',
+                    'Heidegger', 'Wittgenstein', 'Sartre', 'Husserl', 'Schopenhauer'];
+
+                philosophers.forEach(philosopher => {
+                    const regex = new RegExp(philosopher, 'i');
+                    const matches = allItems.filter(i =>
+                        regex.test(i.name || '') || regex.test(i.description || '')
+                    );
+                    if (matches.length >= 2) {
+                        addSuggestion(
+                            `suggest-philosopher-${philosopher.toLowerCase()}`,
+                            `${philosopher}'s Ideas`,
+                            matches.map(i => i.id),
+                            '#8b5cf6',
+                            `${matches.length} items referencing ${philosopher}`,
+                            'philosopher-cluster'
+                        );
+                    }
+                });
+            }
+
+            // Sales: Deal stage clusters
+            if (pattern === 'sales') {
+                const stageGroups = {};
+                allItems.forEach(item => {
+                    const stage = item.dealStage;
+                    if (stage) {
+                        if (!stageGroups[stage]) stageGroups[stage] = [];
+                        stageGroups[stage].push(item.id);
+                    }
+                });
+                Object.entries(stageGroups).forEach(([stage, ids]) => {
+                    if (ids.length >= 2) {
+                        addSuggestion(
+                            `suggest-stage-${stage.toLowerCase().replace(/\s+/g, '-')}`,
+                            `${stage} Deals`,
+                            ids,
+                            '#0ea5e9',
+                            `${ids.length} deals in ${stage} stage`,
+                            'stage-cluster'
+                        );
+                    }
+                });
+            }
+
+            // Film: Character clusters (look for character names in descriptions)
+            if (pattern === 'film') {
+                // Look for quoted names or "Character:" patterns
+                const characterMentions = {};
+                allItems.forEach(item => {
+                    const text = `${item.name || ''} ${item.description || ''}`;
+                    // Match patterns like "John:", "MARY:", or names in quotes
+                    const matches = text.match(/\b([A-Z][a-z]+):/g) || [];
+                    matches.forEach(m => {
+                        const name = m.replace(':', '');
+                        if (!characterMentions[name]) characterMentions[name] = new Set();
+                        characterMentions[name].add(item.id);
+                    });
+                });
+                Object.entries(characterMentions).forEach(([character, idSet]) => {
+                    const ids = Array.from(idSet);
+                    if (ids.length >= 2) {
+                        addSuggestion(
+                            `suggest-character-${character.toLowerCase()}`,
+                            `${character}'s Scenes`,
+                            ids,
+                            '#f472b6',
+                            `${ids.length} items featuring ${character}`,
+                            'character-cluster'
+                        );
+                    }
+                });
+            }
+
+            suggestedHyperedges = suggestions;
+            console.log(`🔍 Detected ${suggestions.length} suggested hyperedges`);
+            return suggestions;
+        }
+
+        /**
+         * BUILD 361: Query builder modal for creating hyperedges by filter
+         */
+        function showQueryBuilderModal() {
+            // Close hyperedge panel if open
+            const existingPanel = document.getElementById('hyperedge-visibility-panel');
+            if (existingPanel) existingPanel.remove();
+
+            const pattern = capexTree.pattern?.key || 'generic';
+
+            // Define available fields based on pattern
+            const fields = [
+                { key: 'pmStatus', label: 'Status', type: 'select', options: ['To Do', 'In Progress', 'Done', 'Blocked', 'Not Started'] },
+                { key: 'pmPriority', label: 'Priority', type: 'select', options: ['Critical', 'High', 'Medium', 'Low'] },
+                { key: 'pmAssignee', label: 'Assignee', type: 'text' },
+                { key: 'name', label: 'Name contains', type: 'text' },
+                { key: 'description', label: 'Description contains', type: 'text' },
+                { key: 'type', label: 'Node Type', type: 'select', options: ['item', 'subtask', 'phase'] }
+            ];
+
+            // Add pattern-specific fields
+            if (['capex', 'generic', 'sales'].includes(pattern)) {
+                fields.push({ key: 'cost', label: 'Cost ($)', type: 'number', operators: ['>', '<', '>=', '<=', '='] });
+            }
+            if (pattern === 'capex') {
+                fields.push({ key: 'leadTime', label: 'Lead Time (months)', type: 'number', operators: ['>', '<', '>=', '<=', '='] });
+            }
+            if (pattern === 'sales') {
+                fields.push({ key: 'probability', label: 'Probability (%)', type: 'number', operators: ['>', '<', '>=', '<=', '='] });
+                fields.push({ key: 'dealStage', label: 'Deal Stage', type: 'text' });
+            }
+
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+            document.getElementById('modal-title').textContent = '🔍 Create Hyperedge by Query';
+
+            const fieldOptions = fields.map(f => `<option value="${f.key}">${f.label}</option>`).join('');
+
+            modalBody.innerHTML = `
+                <div style="padding: 16px;">
+                    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 16px;">
+                        Find nodes matching your criteria and group them into a hyperedge.
+                    </p>
+
+                    <div id="query-conditions" style="margin-bottom: 16px;">
+                        <div class="query-condition" style="display: flex; gap: 8px; margin-bottom: 8px; align-items: center;">
+                            <select class="query-field" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); flex: 1;">
+                                ${fieldOptions}
+                            </select>
+                            <select class="query-operator" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); width: 100px;">
+                                <option value="equals">equals</option>
+                                <option value="contains">contains</option>
+                                <option value="not_equals">not equals</option>
+                                <option value=">">></option>
+                                <option value="<"><</option>
+                            </select>
+                            <input type="text" class="query-value" placeholder="Value..."
+                                style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); flex: 1;">
+                        </div>
+                    </div>
+
+                    <button onclick="addQueryCondition()" style="
+                        padding: 6px 12px;
+                        background: rgba(99, 102, 241, 0.1);
+                        border: 1px dashed rgba(99, 102, 241, 0.3);
+                        border-radius: 6px;
+                        color: #6366f1;
+                        cursor: pointer;
+                        font-size: 12px;
+                        margin-bottom: 16px;
+                    ">+ Add Condition (AND)</button>
+
+                    <div style="padding: 12px; background: var(--surface); border-radius: 8px; margin-bottom: 16px;">
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 4px;">Preview:</div>
+                        <div id="query-preview" style="font-size: 14px; color: var(--text-primary); font-weight: 500;">
+                            Click "Preview" to see matching nodes
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                        <div style="flex: 1;">
+                            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Hyperedge Name</label>
+                            <input type="text" id="query-hyperedge-name" placeholder="e.g., High Priority Items"
+                                style="width: 100%; padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary);">
+                        </div>
+                        <div style="width: 100px;">
+                            <label style="font-size: 12px; color: var(--text-secondary); display: block; margin-bottom: 4px;">Color</label>
+                            <input type="color" id="query-hyperedge-color" value="#8b5cf6"
+                                style="width: 100%; height: 34px; padding: 2px; border-radius: 6px; border: 1px solid var(--border); cursor: pointer;">
+                        </div>
+                    </div>
+
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px;">
+                        <input type="checkbox" id="query-dynamic" style="width: 16px; height: 16px;">
+                        <label for="query-dynamic" style="font-size: 13px; color: var(--text-secondary);">
+                            Update automatically when tree changes
+                        </label>
+                    </div>
+                </div>
+            `;
+
+            document.querySelector('#modal .modal-footer').innerHTML = `
+                <button class="btn" onclick="document.getElementById('modal').style.display='none'">Cancel</button>
+                <button class="btn" onclick="previewQueryResults()" style="background: rgba(99, 102, 241, 0.2); color: #6366f1;">Preview</button>
+                <button class="btn btn-primary" onclick="createHyperedgeFromQuery()">Create Hyperedge</button>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * BUILD 361: Add another condition to the query builder
+         */
+        function addQueryCondition() {
+            const container = document.getElementById('query-conditions');
+            const pattern = capexTree.pattern?.key || 'generic';
+
+            const fields = [
+                { key: 'pmStatus', label: 'Status' },
+                { key: 'pmPriority', label: 'Priority' },
+                { key: 'pmAssignee', label: 'Assignee' },
+                { key: 'name', label: 'Name contains' },
+                { key: 'description', label: 'Description contains' },
+                { key: 'type', label: 'Node Type' }
+            ];
+            if (['capex', 'generic', 'sales'].includes(pattern)) {
+                fields.push({ key: 'cost', label: 'Cost ($)' });
+            }
+            if (pattern === 'capex') {
+                fields.push({ key: 'leadTime', label: 'Lead Time (months)' });
+            }
+
+            const fieldOptions = fields.map(f => `<option value="${f.key}">${f.label}</option>`).join('');
+
+            const condition = document.createElement('div');
+            condition.className = 'query-condition';
+            condition.style.cssText = 'display: flex; gap: 8px; margin-bottom: 8px; align-items: center;';
+            condition.innerHTML = `
+                <span style="color: var(--text-secondary); font-size: 12px;">AND</span>
+                <select class="query-field" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); flex: 1;">
+                    ${fieldOptions}
+                </select>
+                <select class="query-operator" style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); width: 100px;">
+                    <option value="equals">equals</option>
+                    <option value="contains">contains</option>
+                    <option value="not_equals">not equals</option>
+                    <option value=">">></option>
+                    <option value="<"><</option>
+                </select>
+                <input type="text" class="query-value" placeholder="Value..."
+                    style="padding: 8px; border-radius: 6px; border: 1px solid var(--border); background: var(--surface); color: var(--text-primary); flex: 1;">
+                <button onclick="this.parentElement.remove()" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 16px;">✕</button>
+            `;
+            container.appendChild(condition);
+        }
+
+        /**
+         * BUILD 361: Evaluate query conditions against tree nodes
+         */
+        function evaluateQueryConditions() {
+            const conditions = [];
+            document.querySelectorAll('.query-condition').forEach(row => {
+                const field = row.querySelector('.query-field')?.value;
+                const operator = row.querySelector('.query-operator')?.value;
+                const value = row.querySelector('.query-value')?.value?.trim();
+                if (field && value) {
+                    conditions.push({ field, operator, value });
+                }
+            });
+
+            if (conditions.length === 0) {
+                return [];
+            }
+
+            // Collect all items from tree
+            const allItems = [];
+            function collectItems(node) {
+                if (node.type === 'item' || node.type === 'subtask' || node.type === 'phase') {
+                    allItems.push(node);
+                }
+                (node.items || []).forEach(collectItems);
+                (node.children || []).forEach(child => {
+                    collectItems(child);
+                    (child.items || []).forEach(collectItems);
+                });
+            }
+            collectItems(capexTree);
+
+            // Filter items by ALL conditions (AND logic)
+            return allItems.filter(item => {
+                return conditions.every(cond => {
+                    const itemValue = item[cond.field];
+                    const condValue = cond.value;
+
+                    switch (cond.operator) {
+                        case 'equals':
+                            return String(itemValue || '').toLowerCase() === condValue.toLowerCase();
+                        case 'not_equals':
+                            return String(itemValue || '').toLowerCase() !== condValue.toLowerCase();
+                        case 'contains':
+                            return String(itemValue || '').toLowerCase().includes(condValue.toLowerCase());
+                        case '>':
+                            return Number(itemValue || 0) > Number(condValue);
+                        case '<':
+                            return Number(itemValue || 0) < Number(condValue);
+                        case '>=':
+                            return Number(itemValue || 0) >= Number(condValue);
+                        case '<=':
+                            return Number(itemValue || 0) <= Number(condValue);
+                        default:
+                            return false;
+                    }
+                });
+            });
+        }
+
+        /**
+         * BUILD 361: Preview query results
+         */
+        function previewQueryResults() {
+            const matches = evaluateQueryConditions();
+            const preview = document.getElementById('query-preview');
+
+            if (matches.length === 0) {
+                preview.innerHTML = '<span style="color: var(--text-secondary);">No matching nodes found</span>';
+            } else {
+                const names = matches.slice(0, 5).map(m => m.name).join(', ');
+                const more = matches.length > 5 ? ` +${matches.length - 5} more` : '';
+                preview.innerHTML = `<span style="color: #22c55e;">${matches.length} nodes match:</span> ${names}${more}`;
+            }
+
+            // Auto-generate name if empty
+            const nameInput = document.getElementById('query-hyperedge-name');
+            if (!nameInput.value && matches.length > 0) {
+                const firstCondition = document.querySelector('.query-condition');
+                if (firstCondition) {
+                    const field = firstCondition.querySelector('.query-field')?.value;
+                    const value = firstCondition.querySelector('.query-value')?.value;
+                    if (field && value) {
+                        const fieldLabels = {
+                            pmStatus: 'Status',
+                            pmPriority: 'Priority',
+                            pmAssignee: 'Assigned to',
+                            cost: 'Cost',
+                            leadTime: 'Lead Time'
+                        };
+                        nameInput.value = `${fieldLabels[field] || field}: ${value}`;
+                    }
+                }
+            }
+        }
+
+        /**
+         * BUILD 361: Create hyperedge from query results
+         */
+        function createHyperedgeFromQuery() {
+            const matches = evaluateQueryConditions();
+
+            if (matches.length < 2) {
+                showToast('Need at least 2 matching nodes to create a hyperedge', 'error');
+                return;
+            }
+
+            const name = document.getElementById('query-hyperedge-name').value || 'Query Result';
+            const color = document.getElementById('query-hyperedge-color').value || '#8b5cf6';
+            const isDynamic = document.getElementById('query-dynamic').checked;
+
+            // Collect conditions for dynamic hyperedge
+            const conditions = [];
+            document.querySelectorAll('.query-condition').forEach(row => {
+                const field = row.querySelector('.query-field')?.value;
+                const operator = row.querySelector('.query-operator')?.value;
+                const value = row.querySelector('.query-value')?.value?.trim();
+                if (field && value) {
+                    conditions.push({ field, operator, value });
+                }
+            });
+
+            saveState('Create Hyperedge from Query');
+
+            const hyperedge = addHyperedge(
+                'query',
+                name,
+                matches.map(m => m.id),
+                {
+                    color: color,
+                    description: `Query-generated: ${matches.length} matching nodes`,
+                    query: isDynamic ? { conditions, logic: 'AND' } : null,
+                    dynamic: isDynamic
+                }
+            );
+
+            if (hyperedge) {
+                hyperedge.color = color;
+            }
+
+            document.getElementById('modal').style.display = 'none';
+            renderCanvas();
+            showToast(`Created hyperedge "${name}" with ${matches.length} nodes`, 'success');
         }
 
         // SVG offset to match the large canvas-connections area (top: -5000px, left: -5000px)
@@ -10704,7 +11570,7 @@ Focus on logical structure and content organization best practices.`;
                 label.setAttribute('font-weight', 'bold');
                 label.style.cursor = 'pointer';
                 label.style.textShadow = '0 0 6px rgba(0,0,0,0.8)';
-                label.textContent = hyperedge.label;
+                label.textContent = getHyperedgeDisplayLabel(hyperedge);
                 label.addEventListener('click', (e) => {
                     e.stopPropagation();
                     showHyperedgeInfo(hyperedge);
@@ -41289,8 +42155,221 @@ ${transcript}`;
                 window.chatRedundancyGroups = [];
 
                 return `🎉 **Auto-merge complete!**\n\nDeleted ${totalDeleted} duplicate nodes across ${groups.length} groups.\n\nKept: ${kept.slice(0, 5).join(', ')}${kept.length > 5 ? ` ...and ${kept.length - 5} more` : ''}\n\n💡 Use Undo if you need to revert.`;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 361: HYPEREDGE QUERY COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            // Create hyperedge from stored query results
+            'create_hyperedge_from_query': (conditionsJson) => {
+                const matches = chatState.lastQueryMatches;
+                const description = chatState.lastQueryDescription;
+
+                if (!matches || matches.length < 2) {
+                    return '⚠️ No valid query results. Try asking again!';
+                }
+
+                if (typeof saveState === 'function') {
+                    saveState('Create Hyperedge from Query');
+                }
+
+                const label = description || 'Query Result';
+                const color = '#' + Math.floor(Math.random()*16777215).toString(16).padStart(6, '0');
+
+                const hyperedge = addHyperedge(
+                    'query',
+                    label,
+                    matches.map(m => m.id),
+                    { color, description: `Query: ${description}`, source: 'treebeard' }
+                );
+
+                if (hyperedge) {
+                    hyperedge.color = color;
+                }
+
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `✅ Created hyperedge **"${label}"** with ${matches.length} nodes!\n\n🎯 Switch to Canvas view to see it visualized.`;
+            },
+
+            // Highlight query results in canvas
+            'highlight_query_results': () => {
+                const matches = chatState.lastQueryMatches;
+
+                if (!matches || matches.length === 0) {
+                    return '⚠️ No query results to highlight.';
+                }
+
+                // Select nodes in canvas
+                if (typeof window.selectedCanvasNodes !== 'undefined') {
+                    window.selectedCanvasNodes = matches;
+                }
+
+                // Highlight visually
+                matches.forEach(node => {
+                    const nodeEl = document.querySelector(`.canvas-node[data-id="${node.id}"]`);
+                    if (nodeEl) {
+                        nodeEl.classList.add('selected');
+                        nodeEl.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.6)';
+                    }
+                });
+
+                // Switch to canvas view if not already there
+                const container = document.getElementById('canvas-container');
+                if (container && !container.classList.contains('active')) {
+                    document.getElementById('toggle-view-mode')?.click();
+                }
+
+                return `🎯 Highlighted ${matches.length} matching nodes in Canvas view!`;
+            },
+
+            // Open query builder modal
+            'open_query_builder': () => {
+                if (typeof showQueryBuilderModal === 'function') {
+                    showQueryBuilderModal();
+                    return '🔍 Query Builder opened!';
+                }
+                return '❌ Query Builder not available.';
             }
         };
+
+        /**
+         * BUILD 361: Detect hyperedge queries in natural language
+         * Returns { matches, description, queryConditions } or null if not a query
+         */
+        function detectHyperedgeQuery(message) {
+            const lowerMsg = message.toLowerCase();
+
+            // Patterns for hyperedge queries
+            const queryPatterns = [
+                // Cost queries
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?items?\s+(?:over|above|>\s*)\s*\$?([\d,]+)k?/i, field: 'cost', operator: '>', multiplier: (m) => m.includes('k') || parseInt(m) < 1000 ? 1000 : 1 },
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?items?\s+(?:under|below|<\s*)\s*\$?([\d,]+)k?/i, field: 'cost', operator: '<', multiplier: (m) => m.includes('k') || parseInt(m) < 1000 ? 1000 : 1 },
+                { pattern: /(?:expensive|high[\s-]?cost|big[\s-]?ticket)\s*items?/i, field: 'cost', operator: '>', value: 'percentile75' },
+
+                // Status queries
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?(?:items?\s+)?(?:that\s+are\s+)?(?:in\s+progress|in-progress)/i, field: 'pmStatus', operator: 'equals', value: 'In Progress' },
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?(?:items?\s+)?(?:that\s+are\s+)?(?:done|completed|finished)/i, field: 'pmStatus', operator: 'equals', value: 'Done' },
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?(?:items?\s+)?(?:that\s+are\s+)?(?:to\s*do|pending|not\s+started)/i, field: 'pmStatus', operator: 'equals', value: 'To Do' },
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?blocked\s*items?/i, field: 'pmStatus', operator: 'equals', value: 'Blocked' },
+
+                // Priority queries
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?(?:high[\s-]?priority|urgent|critical)\s*items?/i, field: 'pmPriority', operator: 'equals', value: 'High' },
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?low[\s-]?priority\s*items?/i, field: 'pmPriority', operator: 'equals', value: 'Low' },
+
+                // Assignee queries
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?(?:items?\s+)?(?:assigned\s+to|owned\s+by|for)\s+(\w+)/i, field: 'pmAssignee', operator: 'contains', valueGroup: 1 },
+                { pattern: /(\w+)'s\s+(?:items?|tasks?|work)/i, field: 'pmAssignee', operator: 'contains', valueGroup: 1 },
+
+                // Description/name contains
+                { pattern: /(?:show|find|get|list)\s+(?:me\s+)?(?:all\s+)?items?\s+(?:with|containing|about|mentioning)\s+["']?([^"']+)["']?/i, field: 'description', operator: 'contains', valueGroup: 1 }
+            ];
+
+            // Try each pattern
+            for (const qp of queryPatterns) {
+                const match = message.match(qp.pattern);
+                if (match) {
+                    // Determine value
+                    let value = qp.value;
+                    if (qp.valueGroup) {
+                        value = match[qp.valueGroup];
+                    } else if (match[1] && !qp.value) {
+                        value = match[1].replace(/,/g, '');
+                        if (qp.multiplier) {
+                            value = parseInt(value) * qp.multiplier(match[0]);
+                        }
+                    }
+
+                    // Handle percentile value
+                    if (value === 'percentile75') {
+                        const allItems = [];
+                        function collect(node) {
+                            if (node.cost > 0) allItems.push(node);
+                            (node.items || []).forEach(collect);
+                            (node.children || []).forEach(c => { collect(c); (c.items || []).forEach(collect); });
+                        }
+                        collect(capexTree);
+                        if (allItems.length > 0) {
+                            const costs = allItems.map(i => i.cost).sort((a, b) => b - a);
+                            value = costs[Math.floor(costs.length * 0.25)] || costs[0] || 100000;
+                        } else {
+                            value = 100000;
+                        }
+                    }
+
+                    const conditions = [{ field: qp.field, operator: qp.operator, value: String(value) }];
+                    const description = describeQuery(conditions);
+
+                    // Execute query
+                    const matches = executeHyperedgeQuery(conditions);
+
+                    return { matches, description, queryConditions: conditions };
+                }
+            }
+
+            return null; // Not a query
+        }
+
+        /**
+         * BUILD 361: Execute a hyperedge query
+         */
+        function executeHyperedgeQuery(conditions) {
+            const allItems = [];
+            function collectItems(node) {
+                if (node.type === 'item' || node.type === 'subtask') {
+                    allItems.push(node);
+                }
+                (node.items || []).forEach(collectItems);
+                (node.children || []).forEach(child => {
+                    collectItems(child);
+                    (child.items || []).forEach(collectItems);
+                });
+            }
+            collectItems(capexTree);
+
+            return allItems.filter(item => {
+                return conditions.every(cond => {
+                    const itemValue = item[cond.field];
+                    const condValue = cond.value;
+
+                    switch (cond.operator) {
+                        case 'equals':
+                            return String(itemValue || '').toLowerCase() === String(condValue).toLowerCase();
+                        case 'contains':
+                            return String(itemValue || '').toLowerCase().includes(String(condValue).toLowerCase()) ||
+                                   String(item.name || '').toLowerCase().includes(String(condValue).toLowerCase());
+                        case '>':
+                            return Number(itemValue || 0) > Number(condValue);
+                        case '<':
+                            return Number(itemValue || 0) < Number(condValue);
+                        default:
+                            return false;
+                    }
+                });
+            });
+        }
+
+        /**
+         * BUILD 361: Describe a query in human-readable form
+         */
+        function describeQuery(conditions) {
+            return conditions.map(c => {
+                const fieldNames = {
+                    cost: 'cost',
+                    pmStatus: 'status',
+                    pmPriority: 'priority',
+                    pmAssignee: 'assignee',
+                    description: 'description',
+                    name: 'name'
+                };
+                const opNames = { '>': 'over', '<': 'under', 'equals': '', 'contains': 'containing' };
+                const field = fieldNames[c.field] || c.field;
+                const op = opNames[c.operator] || c.operator;
+                const val = c.field === 'cost' ? '$' + (Number(c.value) >= 1000000 ? (Number(c.value)/1000000).toFixed(1) + 'M' : (Number(c.value)/1000).toFixed(0) + 'K') : c.value;
+                return `${field} ${op} ${val}`.replace(/\s+/g, ' ').trim();
+            }).join(' AND ');
+        }
 
         // ═══════════════════════════════════════════════════════════════
         // PLAYGROUND MODE HELPERS
@@ -42115,6 +43194,45 @@ RULES:
                     return;
                 }
 
+                // BUILD 361: Hyperedge query detection
+                const hyperedgeQueryResult = detectHyperedgeQuery(message);
+                if (hyperedgeQueryResult) {
+                    hideTypingIndicator();
+                    const { matches, description, queryConditions } = hyperedgeQueryResult;
+
+                    if (matches.length === 0) {
+                        addMessage(`🔍 No items found matching "${description}". Try a different query or use the Query Builder (🔗 Hyperedges → 🔍 Query).`, 'assistant');
+                    } else if (matches.length === 1) {
+                        addMessage(`🔍 Found 1 item matching "${description}": **${matches[0].name}**\n\nNeed at least 2 items to create a hyperedge.`, 'assistant');
+                    } else {
+                        // Format matches for display
+                        const matchList = matches.slice(0, 5).map(m => `• ${m.name}`).join('\n');
+                        const moreText = matches.length > 5 ? `\n...and ${matches.length - 5} more` : '';
+
+                        // Calculate aggregates if available
+                        const totalCost = matches.reduce((sum, m) => sum + (m.cost || 0), 0);
+                        const costStr = totalCost > 0
+                            ? `\n💰 Total: ${totalCost >= 1000000 ? '$' + (totalCost/1000000).toFixed(1) + 'M' : '$' + (totalCost/1000).toFixed(0) + 'K'}`
+                            : '';
+
+                        addMessage(
+                            `🔍 Found **${matches.length} items** matching "${description}":${costStr}\n\n${matchList}${moreText}\n\nCreate a hyperedge to visualize them?`,
+                            'assistant',
+                            [
+                                { label: '✓ Create Hyperedge', action: `create_hyperedge_from_query:${JSON.stringify(queryConditions)}` },
+                                { label: '🎯 Highlight in Canvas', action: 'highlight_query_results' }
+                            ]
+                        );
+
+                        // Store matches for later use
+                        chatState.lastQueryMatches = matches;
+                        chatState.lastQueryDescription = description;
+                        chatState.lastQueryConditions = queryConditions;
+                    }
+                    chatState.isProcessing = false;
+                    return;
+                }
+
                 // Standard command interpretation
                 const result = await interpretCommand(message);
                 hideTypingIndicator();
@@ -42667,7 +43785,7 @@ RULES:
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 360; // Update this with each build
+                    const KNOWN_LATEST = 361; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
