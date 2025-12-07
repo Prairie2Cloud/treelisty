@@ -6,10 +6,10 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 364 | 2025-12-07
+    TreeListy v2.17.0 | Build 365 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
-    - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
+    - 20 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
     - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
     - Pattern Translation Engine with shadow data preservation
     - Modern collapsible sidebar UI (icon-based navigation)
@@ -18,16 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 364): 🔗 Enhanced Hyperedge Info Modal
-    - Inline-editable name, description, and color (auto-saves on blur)
-    - Live aggregates: Shows total cost, avg progress, status breakdown
-    - Query conditions display: Shows filter criteria for query-generated hyperedges
-    - Member nodes list: Visual status indicators with costs
-    - AI Analyze button: Generate insights about why nodes are grouped
-    - Simplified actions: Analyze, Focus View, Delete
-    - 3D view integration: Clicking hyperedge now opens enhanced modal
+    Changelog (Build 365): 🌳 LifeTree Pattern - Biographical Timeline
+    - New pattern: LifeTree for documenting life stories and biographies
+    - Initialization modal: Collects subject name, birth year, living status
+    - Auto-generated decades: Creates timeline phases from birth to present/death
+    - Event fields: When, Where, Who, Feeling, Source, Certainty, Historical Context
+    - Life-stage subtitles: Childhood, Teen Years, Twenties, etc.
+    - BC year support: Works for historical figures (e.g., Plato born -428)
+    - TreeBeard integration: Opens with guided interview prompt
 
-    Previous (Build 363): 🎨 Fix Query Modal Dropdown Contrast
+    Previous (Build 364): 🔗 Enhanced Hyperedge Info Modal
     Previous (Build 360): 🔧 Fix Syntax Error - Splash Screen Freeze
     Previous (Build 359): 🔧 Fix CORS for Local Version Check
     Previous (Build 358): 🔄 Check for Updates Button
@@ -612,7 +612,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 364,
+            build: 365,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -15415,6 +15415,110 @@ const PATTERNS = {
             includeTracking: false
         }
     },
+    lifetree: {
+        name: 'LifeTree',
+        icon: '🌳',
+        levels: {
+            root: 'Life',
+            phase: 'Decade',
+            item: 'Event',
+            subtask: 'Detail'
+        },
+        phaseSubtitles: [], // Auto-generated from birth year
+        types: [
+            { value: 'birth', label: 'Birth' },
+            { value: 'family', label: 'Family' },
+            { value: 'education', label: 'Education' },
+            { value: 'career', label: 'Career' },
+            { value: 'relationship', label: 'Relationship' },
+            { value: 'residence', label: 'Residence/Move' },
+            { value: 'health', label: 'Health' },
+            { value: 'milestone', label: 'Milestone' },
+            { value: 'loss', label: 'Loss' },
+            { value: 'travel', label: 'Travel' },
+            { value: 'achievement', label: 'Achievement' },
+            { value: 'memory', label: 'Memory/Story' }
+        ],
+        description: 'Biographical timeline for a life story',
+        sortOptions: [
+            { value: 'date-oldest', label: '📅 Date (Oldest First)', field: 'eventDate', order: 'asc', type: 'date' },
+            { value: 'date-newest', label: '📅 Date (Newest First)', field: 'eventDate', order: 'desc', type: 'date' },
+            { value: 'age-youngest', label: '🎂 Age (Youngest First)', field: 'age', order: 'asc', type: 'number' },
+            { value: 'age-oldest', label: '🎂 Age (Oldest First)', field: 'age', order: 'desc', type: 'number' },
+            { value: 'emotion', label: '💭 By Emotion', field: 'emotion', order: 'asc', type: 'text' },
+            { value: 'type', label: '📁 By Type', field: 'itemType', order: 'asc', type: 'text' }
+        ],
+        fields: {
+            eventDate: {
+                label: 'When',
+                type: 'text',
+                placeholder: 'March 1965, Summer 1952, age 7...',
+                helpText: '📅 Date or approximate time (AI parses natural language)'
+            },
+            age: {
+                label: 'Age',
+                type: 'number',
+                computed: true,
+                helpText: '🎂 Auto-calculated from birth year'
+            },
+            location: {
+                label: 'Where',
+                type: 'text',
+                placeholder: 'Brooklyn, NY...',
+                helpText: '📍 Location of this event'
+            },
+            people: {
+                label: 'Who',
+                type: 'text',
+                placeholder: 'Dad, Aunt Rose, friend Betty...',
+                helpText: '👥 People involved in this event'
+            },
+            emotion: {
+                label: 'Feeling',
+                type: 'select',
+                options: ['Joyful', 'Proud', 'Bittersweet', 'Difficult', 'Routine', 'Milestone'],
+                helpText: '💭 Emotional tone of this memory'
+            },
+            source: {
+                label: 'Remembered by',
+                type: 'text',
+                placeholder: 'Mom, sister, family letter...',
+                helpText: '🗣️ Who contributed this memory'
+            },
+            confidence: {
+                label: 'Certainty',
+                type: 'select',
+                options: ['Exact', 'Approximate', 'Family legend'],
+                helpText: '🎯 How certain is this date/detail?'
+            },
+            historicalContext: {
+                label: 'Historical Context',
+                type: 'textarea',
+                placeholder: 'AI-generated: what was happening in the world...',
+                computed: true,
+                helpText: '🌍 World events at this time'
+            },
+            locationContext: {
+                label: 'Location Context',
+                type: 'textarea',
+                placeholder: 'AI-generated: what this place was like...',
+                computed: true,
+                helpText: '🏘️ What this location was like then'
+            },
+            mediaUrl: {
+                label: 'Photo/Document',
+                type: 'text',
+                placeholder: 'URL or file path...',
+                helpText: '📷 Attach image or document'
+            },
+            includeDependencies: false,
+            includeTracking: false
+        },
+        // LifeTree-specific metadata
+        requiresBirthYear: true,
+        supportsDeathYear: true,
+        autoGenerateDecades: true
+    },
     custom: {
         name: 'Custom Names',
         icon: '✏️',
@@ -21884,6 +21988,12 @@ Return ONLY the JSON array.`
         // Save and Load JSON buttons in console
         // New Project button - Start fresh
         document.getElementById('new-project-btn').addEventListener('click', () => {
+            // Check if LifeTree pattern - needs special initialization
+            if (currentPattern === 'lifetree') {
+                showLifeTreeInitModal();
+                return;
+            }
+
             const confirmNew = confirm(
                 '🆕 Start New Project?\n\n' +
                 'This will clear your current project.\n\n' +
@@ -21891,80 +22001,352 @@ Return ONLY the JSON array.`
             );
 
             if (confirmNew) {
-                saveState('New Project');
-
-                // Use current pattern from dropdown (pattern-aware)
-                const pattern = PATTERNS[currentPattern];
-                const levels = pattern.levels;
-                const fields = pattern.fields || {};
-
-                // Build starter item with only pattern-specific fields
-                const starterItem = {
-                    id: 'item-' + Date.now(),
-                    name: `New ${levels.item}`,
-                    description: 'Enter description',
-                    icon: '📦',
-                    itemType: '',
-                    type: 'item',
-                    dependencies: [],
-                    subItems: [],
-                    expanded: true
-                };
-
-                // Add pattern-specific fields
-                Object.keys(fields).forEach(fieldKey => {
-                    if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
-                        return; // Skip meta fields
-                    }
-
-                    const fieldConfig = fields[fieldKey];
-
-                    // Set default values based on field type
-                    if (fieldConfig.type === 'number') {
-                        starterItem[fieldKey] = 0;
-                    } else if (fieldConfig.type === 'date') {
-                        starterItem[fieldKey] = '';
-                    } else if (fieldConfig.type === 'select') {
-                        starterItem[fieldKey] = '';
-                    } else if (fieldConfig.type === 'textarea') {
-                        starterItem[fieldKey] = '';
-                    } else {
-                        starterItem[fieldKey] = '';
-                    }
-                });
-
-                // Reset to fresh tree with pattern-specific structure
-                capexTree = {
-                    id: 'root',
-                    name: `My ${levels.root}`,
-                    type: 'root',
-                    icon: pattern.icon,
-                    expanded: true,
-                    children: [
-                        {
-                            id: 'phase-0',
-                            name: `${levels.phase} 0`,
-                            subtitle: pattern.phaseSubtitles ? pattern.phaseSubtitles[0] : '',
-                            type: 'phase',
-                            phase: 0,
-                            icon: '1️⃣',
-                            expanded: true,
-                            items: [starterItem],
-                            children: []
-                        }
-                    ],
-                    pattern: {
-                        key: currentPattern,
-                        labels: levels
-                    }
-                };
-
-                render();
-                renderCanvas();  // Also update canvas view if visible
-                showToast(`✅ New ${pattern.name} project started!`);
-                console.log(`🆕 New ${pattern.name} project created`);
+                createNewProject();
             }
         });
+
+        /**
+         * BUILD 365: LifeTree initialization modal
+         * Collects subject name, birth year, and living status
+         */
+        function showLifeTreeInitModal() {
+            const modal = document.getElementById('modal');
+            const modalBody = document.getElementById('modal-body');
+            document.getElementById('modal-title').textContent = '🌳 Start a New LifeTree';
+
+            const currentYear = new Date().getFullYear();
+
+            modalBody.innerHTML = `
+                <div style="padding: 24px; max-width: 480px;">
+                    <p style="color: var(--text-secondary); margin-bottom: 20px; line-height: 1.6;">
+                        A LifeTree is a biographical timeline. Let's start with the basics.
+                    </p>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                            Whose life is this? *
+                        </label>
+                        <input type="text" id="lifetree-subject-name" placeholder="e.g., Mom, Grandpa Joe, Marie Curie..."
+                            style="width: 100%; padding: 12px; font-size: 16px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 8px; color: #f8fafc;">
+                    </div>
+
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
+                        <div>
+                            <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                                Birth Year *
+                            </label>
+                            <input type="number" id="lifetree-birth-year" placeholder="${currentYear - 70}"
+                                min="-3000" max="${currentYear}"
+                                style="width: 100%; padding: 12px; font-size: 16px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 8px; color: #f8fafc;">
+                            <div style="font-size: 10px; color: var(--text-secondary); margin-top: 4px;">
+                                Use negative for BC (e.g., -428 for Plato)
+                            </div>
+                        </div>
+                        <div>
+                            <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                                Still Living?
+                            </label>
+                            <select id="lifetree-living-status"
+                                style="width: 100%; padding: 12px; font-size: 16px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 8px; color: #f8fafc;">
+                                <option value="living">Yes, still living</option>
+                                <option value="deceased">No, passed away</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div id="lifetree-death-year-container" style="display: none; margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">
+                            Year of Passing
+                        </label>
+                        <input type="number" id="lifetree-death-year" placeholder="${currentYear}"
+                            min="-3000" max="${currentYear}"
+                            style="width: 100%; padding: 12px; font-size: 16px; background: #1e293b; border: 1px solid var(--border-color); border-radius: 8px; color: #f8fafc;">
+                    </div>
+
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; margin-bottom: 20px;">
+                        <div style="font-size: 12px; color: #a78bfa; margin-bottom: 8px;">💡 What happens next</div>
+                        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.5;">
+                            TreeBeard will help you build the timeline by asking about key life events,
+                            family members, and memories. You can also add events and photos anytime.
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Show/hide death year based on selection
+            setTimeout(() => {
+                const livingSelect = document.getElementById('lifetree-living-status');
+                const deathContainer = document.getElementById('lifetree-death-year-container');
+                livingSelect?.addEventListener('change', () => {
+                    deathContainer.style.display = livingSelect.value === 'deceased' ? 'block' : 'none';
+                });
+            }, 100);
+
+            document.querySelector('#modal .modal-footer').innerHTML = `
+                <button class="btn" onclick="document.getElementById('modal').style.display='none'">Cancel</button>
+                <button class="btn btn-primary" onclick="createLifeTree()">🌳 Create LifeTree</button>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * BUILD 365: Create LifeTree with decades generated from birth year
+         */
+        function createLifeTree() {
+            const subjectName = document.getElementById('lifetree-subject-name')?.value?.trim();
+            const birthYear = parseInt(document.getElementById('lifetree-birth-year')?.value);
+            const livingStatus = document.getElementById('lifetree-living-status')?.value;
+            const deathYear = livingStatus === 'deceased'
+                ? parseInt(document.getElementById('lifetree-death-year')?.value)
+                : null;
+
+            // Validation
+            if (!subjectName) {
+                showToast('Please enter a name', 'error');
+                return;
+            }
+            if (isNaN(birthYear)) {
+                showToast('Please enter a birth year', 'error');
+                return;
+            }
+            if (livingStatus === 'deceased' && isNaN(deathYear)) {
+                showToast('Please enter year of passing', 'error');
+                return;
+            }
+
+            saveState('New LifeTree');
+
+            // Generate decades from birth year to now (or death year)
+            const currentYear = new Date().getFullYear();
+            const endYear = deathYear || currentYear;
+            const decades = generateDecades(birthYear, endYear);
+
+            const pattern = PATTERNS.lifetree;
+            const levels = pattern.levels;
+
+            // Create birth event as first item
+            const birthEvent = {
+                id: 'event-birth-' + Date.now(),
+                name: `${subjectName} was born`,
+                description: '',
+                icon: '👶',
+                itemType: 'birth',
+                type: 'item',
+                eventDate: birthYear.toString(),
+                age: 0,
+                location: '',
+                people: '',
+                emotion: 'Milestone',
+                source: '',
+                confidence: 'Exact',
+                dependencies: [],
+                subItems: [],
+                expanded: true
+            };
+
+            // Build decade phases
+            const decadePhases = decades.map((decade, idx) => ({
+                id: `phase-${idx}`,
+                name: decade.label,
+                subtitle: decade.subtitle,
+                type: 'phase',
+                phase: idx,
+                icon: decade.icon,
+                expanded: idx === 0, // Expand first decade
+                items: idx === 0 ? [birthEvent] : [],
+                children: []
+            }));
+
+            // Create the LifeTree
+            capexTree = {
+                id: 'root',
+                name: `${subjectName}'s Life`,
+                type: 'root',
+                icon: '🌳',
+                expanded: true,
+                children: decadePhases,
+                pattern: {
+                    key: 'lifetree',
+                    labels: levels
+                },
+                // LifeTree-specific metadata
+                lifetree: {
+                    subjectName: subjectName,
+                    birthYear: birthYear,
+                    deathYear: deathYear,
+                    isLiving: livingStatus === 'living',
+                    people: [] // Will store relationship data
+                }
+            };
+
+            document.getElementById('modal').style.display = 'none';
+            render();
+            renderCanvas();
+            showToast(`🌳 ${subjectName}'s LifeTree created!`, 'success');
+            console.log(`🌳 LifeTree created for ${subjectName}, born ${birthYear}`);
+
+            // Open TreeBeard to start guided interview
+            setTimeout(() => {
+                const treebeard = document.getElementById('treebeard-panel');
+                if (treebeard && !treebeard.classList.contains('open')) {
+                    treebeard.classList.add('open');
+                }
+                // Add welcome message
+                if (typeof addMessage === 'function') {
+                    addMessage(
+                        `🌳 Welcome to ${subjectName}'s LifeTree!\n\n` +
+                        `I've created decades from ${formatDecadeYear(birthYear)} to ${formatDecadeYear(endYear)}.\n\n` +
+                        `Let's start filling in the story. You can:\n` +
+                        `• Tell me a memory or story\n` +
+                        `• Drop in a photo\n` +
+                        `• Answer my questions\n\n` +
+                        `**First question:** Who were ${subjectName}'s parents?`,
+                        'assistant'
+                    );
+                }
+            }, 500);
+        }
+
+        /**
+         * BUILD 365: Generate decade phases from birth to end year
+         */
+        function generateDecades(birthYear, endYear) {
+            const decades = [];
+            const isBC = birthYear < 0;
+
+            // Round birth year down to decade start
+            const startDecade = Math.floor(birthYear / 10) * 10;
+            const endDecade = Math.floor(endYear / 10) * 10;
+
+            const decadeIcons = ['👶', '💒', '🧒', '🎓', '💼', '🏠', '👨‍👩‍👧', '🌟', '📚', '🎄', '🌅', '✨'];
+
+            if (isBC) {
+                // BC years go backwards (higher numbers are earlier)
+                for (let d = startDecade; d >= endDecade; d -= 10) {
+                    const idx = decades.length;
+                    decades.push({
+                        label: `${Math.abs(d)}s BC`,
+                        subtitle: getDecadeSubtitle(birthYear, d, idx),
+                        icon: decadeIcons[idx % decadeIcons.length]
+                    });
+                }
+            } else {
+                for (let d = startDecade; d <= endDecade; d += 10) {
+                    const idx = decades.length;
+                    decades.push({
+                        label: `${d}s`,
+                        subtitle: getDecadeSubtitle(birthYear, d, idx),
+                        icon: decadeIcons[idx % decadeIcons.length]
+                    });
+                }
+            }
+
+            return decades;
+        }
+
+        /**
+         * Get appropriate subtitle for a decade based on age
+         */
+        function getDecadeSubtitle(birthYear, decadeStart, idx) {
+            const ageAtDecadeStart = Math.abs(decadeStart - birthYear);
+            if (ageAtDecadeStart < 10) return 'Childhood';
+            if (ageAtDecadeStart < 20) return 'Teen Years';
+            if (ageAtDecadeStart < 30) return 'Twenties';
+            if (ageAtDecadeStart < 40) return 'Thirties';
+            if (ageAtDecadeStart < 50) return 'Forties';
+            if (ageAtDecadeStart < 60) return 'Fifties';
+            if (ageAtDecadeStart < 70) return 'Sixties';
+            if (ageAtDecadeStart < 80) return 'Seventies';
+            if (ageAtDecadeStart < 90) return 'Eighties';
+            return 'Golden Years';
+        }
+
+        /**
+         * Format year for display (handles BC)
+         */
+        function formatDecadeYear(year) {
+            if (year < 0) return `${Math.abs(year)} BC`;
+            return year.toString();
+        }
+
+        /**
+         * Standard new project creation (non-LifeTree patterns)
+         */
+        function createNewProject() {
+            saveState('New Project');
+
+            // Use current pattern from dropdown (pattern-aware)
+            const pattern = PATTERNS[currentPattern];
+            const levels = pattern.levels;
+            const fields = pattern.fields || {};
+
+            // Build starter item with only pattern-specific fields
+            const starterItem = {
+                id: 'item-' + Date.now(),
+                name: `New ${levels.item}`,
+                description: 'Enter description',
+                icon: '📦',
+                itemType: '',
+                type: 'item',
+                dependencies: [],
+                subItems: [],
+                expanded: true
+            };
+
+            // Add pattern-specific fields
+            Object.keys(fields).forEach(fieldKey => {
+                if (fieldKey === 'includeDependencies' || fieldKey === 'includeTracking' || fieldKey === 'trackingFor') {
+                    return; // Skip meta fields
+                }
+
+                const fieldConfig = fields[fieldKey];
+
+                // Set default values based on field type
+                if (fieldConfig.type === 'number') {
+                    starterItem[fieldKey] = 0;
+                } else if (fieldConfig.type === 'date') {
+                    starterItem[fieldKey] = '';
+                } else if (fieldConfig.type === 'select') {
+                    starterItem[fieldKey] = '';
+                } else if (fieldConfig.type === 'textarea') {
+                    starterItem[fieldKey] = '';
+                } else {
+                    starterItem[fieldKey] = '';
+                }
+            });
+
+            // Reset to fresh tree with pattern-specific structure
+            capexTree = {
+                id: 'root',
+                name: `My ${levels.root}`,
+                type: 'root',
+                icon: pattern.icon,
+                expanded: true,
+                children: [
+                    {
+                        id: 'phase-0',
+                        name: `${levels.phase} 0`,
+                        subtitle: pattern.phaseSubtitles ? pattern.phaseSubtitles[0] : '',
+                        type: 'phase',
+                        phase: 0,
+                        icon: '1️⃣',
+                        expanded: true,
+                        items: [starterItem],
+                        children: []
+                    }
+                ],
+                pattern: {
+                    key: currentPattern,
+                    labels: levels
+                }
+            };
+
+            render();
+            renderCanvas();  // Also update canvas view if visible
+            showToast(`✅ New ${pattern.name} project started!`);
+            console.log(`🆕 New ${pattern.name} project created`);
+        }
 
         document.getElementById('save-json-btn').addEventListener('click', handleDownload);
         document.getElementById('load-json-btn').addEventListener('click', handleUpload);
