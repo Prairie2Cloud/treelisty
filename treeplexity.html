@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 370 | 2025-12-07
+    TreeListy v2.17.0 | Build 371 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 370): 🎤 Voice Capture System
-    - Voice Inbox: FAB on mobile, TreeBeard mic on desktop
-    - Live transcript recording with Web Speech API
-    - Captures section in TreeBeard with processing prompts
-    - Mobile full-screen TreeBeard for focused voice capture
-    - Guided processing: Add to tree, New branch, Save as note, Psych analysis
-    - Per-tree capture storage with IndexedDB persistence
+    Changelog (Build 371): 📎 Artifact Side Panel
+    - Attach files to any item/detail via context menu
+    - Drag-and-drop file upload with 25MB limit
+    - Preview images, audio, and PDFs inline
+    - Download and remove attachments
+    - IndexedDB persistence across sessions
 
+    Previous (Build 370): 🎤 Voice Capture System
     Previous (Build 369): 🔧 Fix TreeBeard Button - Syntax Error Fix
     Previous (Build 368): 🧠 Conversation Mode - Full AI Intelligence
     Previous (Build 367): 🎂 TreeBeard Birthday Method - Proactive Biographer
@@ -616,7 +616,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 370,
+            build: 371,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3922,6 +3922,242 @@
         font-size: 11px;
         color: #a5b4fc;
         margin-left: 6px;
+    }
+
+    /* BUILD 371: Artifact Side Panel */
+    #artifact-panel {
+        position: fixed;
+        top: 60px;
+        right: -400px;
+        width: 380px;
+        height: calc(100vh - 60px);
+        background: var(--surface, #1e1e2e);
+        border-left: 1px solid var(--border, #3f3f5a);
+        z-index: 200;
+        display: flex;
+        flex-direction: column;
+        transition: right 0.3s ease;
+        box-shadow: -4px 0 20px rgba(0, 0, 0, 0.3);
+    }
+
+    #artifact-panel.open {
+        right: 0;
+    }
+
+    #artifact-panel .panel-header {
+        padding: 16px 20px;
+        background: var(--header-bg, #16161e);
+        border-bottom: 1px solid var(--border, #3f3f5a);
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+    }
+
+    #artifact-panel .panel-header h3 {
+        margin: 0;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    #artifact-panel .panel-header .item-name {
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+
+    #artifact-panel .panel-close {
+        background: none;
+        border: none;
+        color: var(--text-secondary);
+        font-size: 20px;
+        cursor: pointer;
+        padding: 4px 8px;
+        border-radius: 4px;
+    }
+
+    #artifact-panel .panel-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+    }
+
+    #artifact-panel .panel-content {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+    }
+
+    /* Drop zone for artifacts */
+    .artifact-drop-zone {
+        border: 2px dashed rgba(99, 102, 241, 0.4);
+        border-radius: 12px;
+        padding: 32px;
+        text-align: center;
+        margin-bottom: 16px;
+        background: rgba(99, 102, 241, 0.05);
+        transition: all 0.2s;
+        cursor: pointer;
+    }
+
+    .artifact-drop-zone:hover,
+    .artifact-drop-zone.drag-over {
+        border-color: #6366f1;
+        background: rgba(99, 102, 241, 0.15);
+    }
+
+    .artifact-drop-zone .drop-icon {
+        font-size: 32px;
+        margin-bottom: 12px;
+    }
+
+    .artifact-drop-zone .drop-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .artifact-drop-zone .drop-hint {
+        font-size: 11px;
+        color: var(--text-tertiary);
+        margin-top: 8px;
+    }
+
+    /* Artifact list */
+    .artifact-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .artifact-list-item {
+        display: flex;
+        align-items: flex-start;
+        gap: 12px;
+        padding: 12px;
+        background: var(--item-bg, #2a2a3e);
+        border-radius: 8px;
+        border: 1px solid var(--border, #3f3f5a);
+        transition: all 0.2s;
+    }
+
+    .artifact-list-item:hover {
+        background: var(--item-hover, #32324a);
+    }
+
+    .artifact-list-item .artifact-preview {
+        width: 60px;
+        height: 60px;
+        border-radius: 6px;
+        overflow: hidden;
+        background: rgba(0, 0, 0, 0.3);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+    }
+
+    .artifact-list-item .artifact-preview img {
+        width: 100%;
+        height: 100%;
+        object-fit: cover;
+    }
+
+    .artifact-list-item .artifact-preview .placeholder-icon {
+        font-size: 24px;
+        opacity: 0.5;
+    }
+
+    .artifact-list-item .artifact-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .artifact-list-item .artifact-name {
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text-primary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .artifact-list-item .artifact-meta {
+        font-size: 11px;
+        color: var(--text-secondary);
+        margin-top: 4px;
+    }
+
+    .artifact-list-item .artifact-actions {
+        display: flex;
+        gap: 4px;
+        margin-top: 8px;
+    }
+
+    .artifact-list-item .artifact-action {
+        padding: 4px 8px;
+        font-size: 11px;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 4px;
+        color: #a5b4fc;
+        cursor: pointer;
+    }
+
+    .artifact-list-item .artifact-action:hover {
+        background: rgba(99, 102, 241, 0.4);
+    }
+
+    .artifact-list-item .artifact-action.delete {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.3);
+        color: #fca5a5;
+    }
+
+    .artifact-list-item .artifact-action.delete:hover {
+        background: rgba(239, 68, 68, 0.4);
+    }
+
+    /* Empty state */
+    .artifact-empty {
+        text-align: center;
+        padding: 32px;
+        color: var(--text-secondary);
+    }
+
+    .artifact-empty .empty-icon {
+        font-size: 48px;
+        opacity: 0.3;
+        margin-bottom: 12px;
+    }
+
+    /* Item row artifact indicator */
+    .item-row .item-artifacts-indicator {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 2px 6px;
+        background: rgba(99, 102, 241, 0.15);
+        border-radius: 4px;
+        font-size: 10px;
+        color: #a5b4fc;
+        cursor: pointer;
+        margin-left: 4px;
+    }
+
+    .item-row .item-artifacts-indicator:hover {
+        background: rgba(99, 102, 241, 0.3);
+    }
+
+    /* Mobile adjustments for artifact panel */
+    @media screen and (max-width: 768px) {
+        #artifact-panel {
+            width: 100vw;
+            right: -100vw;
+        }
+
+        #artifact-panel.open {
+            right: 0;
+        }
     }
 
     </style>
@@ -19072,6 +19308,7 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-view">📋 View Details</div>
                     <div class="context-item" id="ctx-edit">✏️ Edit ${labels.item}</div>
                     <div class="context-item" id="ctx-add-subtask">➕ Add ${labels.subtask}</div>
+                    <div class="context-item" id="ctx-attach">📎 Attachments</div>
                     <div class="context-item" id="ctx-delete">🗑️ Delete ${labels.item}</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
@@ -19083,6 +19320,7 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-view">📋 View Details</div>
                     <div class="context-item" id="ctx-edit">✏️ Edit ${labels.subtask}</div>
                     <div class="context-item" id="ctx-add-subtask">➕ Add Nested ${labels.subtask}</div>
+                    <div class="context-item" id="ctx-attach">📎 Attachments</div>
                     <div class="context-item" id="ctx-delete">🗑️ Delete ${labels.subtask}</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
@@ -19159,6 +19397,7 @@ function hidePatternDescription() {
             const editBtn = document.getElementById('ctx-edit');
             const createBtn = document.getElementById('ctx-create');
             const addSubtaskBtn = document.getElementById('ctx-add-subtask');
+            const attachBtn = document.getElementById('ctx-attach');
             const deleteBtn = document.getElementById('ctx-delete');
             const aiBtn = document.getElementById('ctx-ai');
             const deepDiveBtn = document.getElementById('ctx-deep-dive');
@@ -19171,6 +19410,7 @@ function hidePatternDescription() {
             if (editBtn) editBtn.onclick = handleEdit;
             if (createBtn) createBtn.onclick = handleCreate;
             if (addSubtaskBtn) addSubtaskBtn.onclick = handleAddSubtask;
+            if (attachBtn) attachBtn.onclick = handleAttachments;
             if (deleteBtn) deleteBtn.onclick = handleDelete;
             if (aiBtn) aiBtn.onclick = handleAI;
             if (deepDiveBtn) deepDiveBtn.onclick = () => handleAnalyzeSelection([activeNode]);
@@ -19178,6 +19418,14 @@ function hidePatternDescription() {
             if (uploadBtn) uploadBtn.onclick = handleUpload;
             if (expandBtn) expandBtn.onclick = handleExpandAll;
             if (collapseBtn) collapseBtn.onclick = handleCollapseAll;
+        }
+
+        // BUILD 371: Handle attachments context menu
+        function handleAttachments() {
+            if (activeNode) {
+                document.getElementById('context-menu').style.display = 'none';
+                window.openArtifactPanel(activeNode.id, activeNode.name);
+            }
         }
 
         document.addEventListener('click', () => {
@@ -45005,6 +45253,9 @@ RULES:
 
             // BUILD 370: Initialize Voice Capture system
             initVoiceCaptureSystem();
+
+            // BUILD 371: Initialize Artifact Panel
+            initArtifactPanel();
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -45599,6 +45850,522 @@ RULES:
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 370: INDEXEDDB ARTIFACT STORAGE
+        // - Local storage for artifacts during session
+        // - Survives browser refresh/crash
+        // - Keyed to tree ID
+        // ═══════════════════════════════════════════════════════════════
+
+        const artifactDB = {
+            dbName: 'TreeListyArtifacts',
+            dbVersion: 1,
+            storeName: 'artifacts',
+            db: null
+        };
+
+        async function initArtifactDB() {
+            return new Promise((resolve, reject) => {
+                if (artifactDB.db) {
+                    resolve(artifactDB.db);
+                    return;
+                }
+
+                const request = indexedDB.open(artifactDB.dbName, artifactDB.dbVersion);
+
+                request.onerror = () => {
+                    console.error('Failed to open artifact database:', request.error);
+                    reject(request.error);
+                };
+
+                request.onsuccess = () => {
+                    artifactDB.db = request.result;
+                    console.log('📦 Artifact database initialized');
+                    resolve(artifactDB.db);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+
+                    // Create artifacts store
+                    if (!db.objectStoreNames.contains(artifactDB.storeName)) {
+                        const store = db.createObjectStore(artifactDB.storeName, { keyPath: 'id' });
+                        store.createIndex('treeId', 'treeId', { unique: false });
+                        store.createIndex('itemId', 'itemId', { unique: false });
+                        console.log('📦 Created artifacts object store');
+                    }
+                };
+            });
+        }
+
+        async function saveArtifact(artifact) {
+            try {
+                const db = await initArtifactDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([artifactDB.storeName], 'readwrite');
+                    const store = transaction.objectStore(artifactDB.storeName);
+
+                    const artifactRecord = {
+                        id: artifact.id || 'art-' + Date.now(),
+                        treeId: capexTree?.id || 'unknown',
+                        itemId: artifact.itemId,
+                        filename: artifact.filename,
+                        type: artifact.type,
+                        size: artifact.size,
+                        data: artifact.data, // Base64 or Blob
+                        addedAt: new Date().toISOString()
+                    };
+
+                    const request = store.put(artifactRecord);
+
+                    request.onsuccess = () => {
+                        console.log('📦 Artifact saved:', artifactRecord.id);
+                        resolve(artifactRecord);
+                    };
+
+                    request.onerror = () => {
+                        console.error('Failed to save artifact:', request.error);
+                        reject(request.error);
+                    };
+                });
+            } catch (e) {
+                console.error('Error saving artifact:', e);
+                throw e;
+            }
+        }
+
+        async function getArtifact(artifactId) {
+            try {
+                const db = await initArtifactDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([artifactDB.storeName], 'readonly');
+                    const store = transaction.objectStore(artifactDB.storeName);
+                    const request = store.get(artifactId);
+
+                    request.onsuccess = () => {
+                        resolve(request.result || null);
+                    };
+
+                    request.onerror = () => {
+                        console.error('Failed to get artifact:', request.error);
+                        reject(request.error);
+                    };
+                });
+            } catch (e) {
+                console.error('Error getting artifact:', e);
+                return null;
+            }
+        }
+
+        async function getArtifactsForTree(treeId) {
+            try {
+                const db = await initArtifactDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([artifactDB.storeName], 'readonly');
+                    const store = transaction.objectStore(artifactDB.storeName);
+                    const index = store.index('treeId');
+                    const request = index.getAll(treeId);
+
+                    request.onsuccess = () => {
+                        resolve(request.result || []);
+                    };
+
+                    request.onerror = () => {
+                        console.error('Failed to get tree artifacts:', request.error);
+                        reject(request.error);
+                    };
+                });
+            } catch (e) {
+                console.error('Error getting tree artifacts:', e);
+                return [];
+            }
+        }
+
+        async function getArtifactsForItem(itemId) {
+            try {
+                const db = await initArtifactDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([artifactDB.storeName], 'readonly');
+                    const store = transaction.objectStore(artifactDB.storeName);
+                    const index = store.index('itemId');
+                    const request = index.getAll(itemId);
+
+                    request.onsuccess = () => {
+                        resolve(request.result || []);
+                    };
+
+                    request.onerror = () => {
+                        console.error('Failed to get item artifacts:', request.error);
+                        reject(request.error);
+                    };
+                });
+            } catch (e) {
+                console.error('Error getting item artifacts:', e);
+                return [];
+            }
+        }
+
+        async function deleteArtifact(artifactId) {
+            try {
+                const db = await initArtifactDB();
+                return new Promise((resolve, reject) => {
+                    const transaction = db.transaction([artifactDB.storeName], 'readwrite');
+                    const store = transaction.objectStore(artifactDB.storeName);
+                    const request = store.delete(artifactId);
+
+                    request.onsuccess = () => {
+                        console.log('📦 Artifact deleted:', artifactId);
+                        resolve(true);
+                    };
+
+                    request.onerror = () => {
+                        console.error('Failed to delete artifact:', request.error);
+                        reject(request.error);
+                    };
+                });
+            } catch (e) {
+                console.error('Error deleting artifact:', e);
+                return false;
+            }
+        }
+
+        async function deleteArtifactsForTree(treeId) {
+            try {
+                const artifacts = await getArtifactsForTree(treeId);
+                for (const artifact of artifacts) {
+                    await deleteArtifact(artifact.id);
+                }
+                console.log(`📦 Deleted ${artifacts.length} artifacts for tree:`, treeId);
+                return true;
+            } catch (e) {
+                console.error('Error deleting tree artifacts:', e);
+                return false;
+            }
+        }
+
+        // File to artifact helper
+        async function fileToArtifact(file, itemId) {
+            return new Promise((resolve, reject) => {
+                const reader = new FileReader();
+
+                reader.onload = async () => {
+                    const artifact = {
+                        id: 'art-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9),
+                        itemId: itemId,
+                        filename: file.name,
+                        type: file.type,
+                        size: file.size,
+                        data: reader.result // Base64 data URL
+                    };
+
+                    try {
+                        const saved = await saveArtifact(artifact);
+                        resolve(saved);
+                    } catch (e) {
+                        reject(e);
+                    }
+                };
+
+                reader.onerror = () => {
+                    reject(new Error('Failed to read file'));
+                };
+
+                reader.readAsDataURL(file);
+            });
+        }
+
+        // Get artifact display info
+        function getArtifactDisplayInfo(artifact) {
+            const isImage = artifact.type?.startsWith('image/');
+            const isAudio = artifact.type?.startsWith('audio/');
+            const isPDF = artifact.type === 'application/pdf';
+
+            let icon = '📎';
+            if (isImage) icon = '🖼️';
+            else if (isAudio) icon = '🎙️';
+            else if (isPDF) icon = '📄';
+
+            const sizeStr = artifact.size >= 1024 * 1024
+                ? (artifact.size / (1024 * 1024)).toFixed(1) + ' MB'
+                : (artifact.size / 1024).toFixed(0) + ' KB';
+
+            return {
+                icon,
+                isImage,
+                isAudio,
+                isPDF,
+                canPreview: isImage || isAudio || isPDF,
+                sizeStr
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 371: ARTIFACT SIDE PANEL
+        // - View/manage artifacts attached to items
+        // - Drag-and-drop file upload
+        // - Preview images, audio, PDFs
+        // ═══════════════════════════════════════════════════════════════
+
+        const artifactPanelState = {
+            isOpen: false,
+            currentItemId: null,
+            currentItemName: ''
+        };
+
+        function initArtifactPanel() {
+            const dropZone = document.getElementById('artifact-drop-zone');
+            const fileInput = document.getElementById('artifact-file-input');
+
+            if (!dropZone || !fileInput) return;
+
+            // Click to browse
+            dropZone.addEventListener('click', () => {
+                fileInput.click();
+            });
+
+            // File input change
+            fileInput.addEventListener('change', async (e) => {
+                const files = Array.from(e.target.files);
+                await handleArtifactFiles(files);
+                fileInput.value = ''; // Reset
+            });
+
+            // Drag and drop
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.classList.add('drag-over');
+            });
+
+            dropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+            });
+
+            dropZone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                dropZone.classList.remove('drag-over');
+
+                const files = Array.from(e.dataTransfer.files);
+                await handleArtifactFiles(files);
+            });
+
+            console.log('📎 Artifact panel initialized');
+        }
+
+        async function handleArtifactFiles(files) {
+            if (!artifactPanelState.currentItemId) {
+                showToast('No item selected for attachments', 'error');
+                return;
+            }
+
+            const MAX_FILE_SIZE = 25 * 1024 * 1024; // 25MB limit
+
+            for (const file of files) {
+                if (file.size > MAX_FILE_SIZE) {
+                    showToast(`${file.name} is too large (max 25MB)`, 'warning');
+                    continue;
+                }
+
+                try {
+                    const artifact = await fileToArtifact(file, artifactPanelState.currentItemId);
+                    console.log('📎 File attached:', artifact.filename);
+                    showToast(`Attached: ${artifact.filename}`, 'success');
+                } catch (e) {
+                    console.error('Failed to attach file:', e);
+                    showToast(`Failed to attach ${file.name}`, 'error');
+                }
+            }
+
+            // Refresh artifact list
+            await updateArtifactPanel();
+            // Update item in tree to show badge
+            render();
+        }
+
+        window.openArtifactPanel = async function(itemId, itemName) {
+            artifactPanelState.currentItemId = itemId;
+            artifactPanelState.currentItemName = itemName || 'Item';
+            artifactPanelState.isOpen = true;
+
+            const panel = document.getElementById('artifact-panel');
+            const itemNameEl = document.getElementById('artifact-panel-item-name');
+
+            if (itemNameEl) {
+                itemNameEl.textContent = artifactPanelState.currentItemName;
+            }
+
+            if (panel) {
+                panel.classList.add('open');
+            }
+
+            await updateArtifactPanel();
+        };
+
+        window.closeArtifactPanel = function() {
+            artifactPanelState.isOpen = false;
+            artifactPanelState.currentItemId = null;
+
+            const panel = document.getElementById('artifact-panel');
+            if (panel) {
+                panel.classList.remove('open');
+            }
+        };
+
+        async function updateArtifactPanel() {
+            const listEl = document.getElementById('artifact-list');
+            const emptyEl = document.getElementById('artifact-empty');
+
+            if (!listEl || !artifactPanelState.currentItemId) return;
+
+            // Get artifacts for current item
+            const artifacts = await getArtifactsForItem(artifactPanelState.currentItemId);
+
+            if (artifacts.length === 0) {
+                listEl.innerHTML = '';
+                if (emptyEl) emptyEl.style.display = 'block';
+                return;
+            }
+
+            if (emptyEl) emptyEl.style.display = 'none';
+
+            listEl.innerHTML = artifacts.map(artifact => {
+                const info = getArtifactDisplayInfo(artifact);
+                const previewHtml = info.isImage && artifact.data
+                    ? `<img src="${artifact.data}" alt="${artifact.filename}">`
+                    : `<span class="placeholder-icon">${info.icon}</span>`;
+
+                return `
+                    <div class="artifact-list-item" data-artifact-id="${artifact.id}">
+                        <div class="artifact-preview">
+                            ${previewHtml}
+                        </div>
+                        <div class="artifact-info">
+                            <div class="artifact-name">${artifact.filename}</div>
+                            <div class="artifact-meta">${info.sizeStr} • ${new Date(artifact.addedAt).toLocaleDateString()}</div>
+                            <div class="artifact-actions">
+                                ${info.canPreview ? `<button class="artifact-action" onclick="window.previewArtifact('${artifact.id}')">Preview</button>` : ''}
+                                <button class="artifact-action" onclick="window.downloadArtifact('${artifact.id}')">Download</button>
+                                <button class="artifact-action delete" onclick="window.removeArtifact('${artifact.id}')">Remove</button>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        window.previewArtifact = async function(artifactId) {
+            const artifact = await getArtifact(artifactId);
+            if (!artifact || !artifact.data) {
+                showToast('Could not load artifact', 'error');
+                return;
+            }
+
+            const info = getArtifactDisplayInfo(artifact);
+
+            // Create preview modal
+            const modal = document.createElement('div');
+            modal.className = 'artifact-preview-modal';
+            modal.style.cssText = `
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.9);
+                z-index: 10000;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                flex-direction: column;
+                padding: 40px;
+            `;
+
+            let contentHtml = '';
+            if (info.isImage) {
+                contentHtml = `<img src="${artifact.data}" style="max-width: 100%; max-height: 80vh; border-radius: 8px;">`;
+            } else if (info.isAudio) {
+                contentHtml = `<audio src="${artifact.data}" controls style="width: 400px;"></audio>`;
+            } else if (info.isPDF) {
+                contentHtml = `<iframe src="${artifact.data}" style="width: 90vw; height: 80vh; border: none; border-radius: 8px;"></iframe>`;
+            }
+
+            modal.innerHTML = `
+                <div style="text-align: center;">
+                    ${contentHtml}
+                    <div style="margin-top: 16px; color: #888;">${artifact.filename}</div>
+                    <button onclick="this.parentElement.parentElement.remove()" style="
+                        margin-top: 16px;
+                        padding: 8px 24px;
+                        background: #6366f1;
+                        border: none;
+                        border-radius: 8px;
+                        color: white;
+                        cursor: pointer;
+                    ">Close</button>
+                </div>
+            `;
+
+            document.body.appendChild(modal);
+
+            // Close on background click
+            modal.addEventListener('click', (e) => {
+                if (e.target === modal) {
+                    modal.remove();
+                }
+            });
+
+            // Close on Escape
+            const escHandler = (e) => {
+                if (e.key === 'Escape') {
+                    modal.remove();
+                    document.removeEventListener('keydown', escHandler);
+                }
+            };
+            document.addEventListener('keydown', escHandler);
+        };
+
+        window.downloadArtifact = async function(artifactId) {
+            const artifact = await getArtifact(artifactId);
+            if (!artifact || !artifact.data) {
+                showToast('Could not load artifact', 'error');
+                return;
+            }
+
+            // Create download link
+            const link = document.createElement('a');
+            link.href = artifact.data;
+            link.download = artifact.filename;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+
+            showToast(`Downloaded: ${artifact.filename}`, 'success');
+        };
+
+        window.removeArtifact = async function(artifactId) {
+            if (!confirm('Remove this attachment?')) return;
+
+            try {
+                await deleteArtifact(artifactId);
+                showToast('Attachment removed', 'success');
+                await updateArtifactPanel();
+                render(); // Update badges
+            } catch (e) {
+                console.error('Failed to remove artifact:', e);
+                showToast('Failed to remove attachment', 'error');
+            }
+        };
+
+        // Get artifact count for an item (for badges)
+        async function getArtifactCountForItem(itemId) {
+            const artifacts = await getArtifactsForItem(itemId);
+            return artifacts.length;
+        }
+
+        // Expose for tree rendering
+        window.getArtifactCountForItem = getArtifactCountForItem;
+        window.openArtifactPanel = window.openArtifactPanel;
+
+        // ═══════════════════════════════════════════════════════════════
         // DRAGGABLE FLOATING PANEL
         // ═══════════════════════════════════════════════════════════════
 
@@ -46124,6 +46891,32 @@ RULES:
             <textarea id="chat-assistant-input" placeholder="Ask anything or give a command..." rows="1"></textarea>
             <button id="chat-voice-btn" title="Voice capture" onclick="window.startVoiceCapture()">🎤</button>
             <button id="chat-send-btn" title="Send message">➤</button>
+        </div>
+    </div>
+
+    <!-- BUILD 371: Artifact Side Panel -->
+    <div id="artifact-panel">
+        <div class="panel-header">
+            <div>
+                <h3>📎 Attachments</h3>
+                <div class="item-name" id="artifact-panel-item-name"></div>
+            </div>
+            <button class="panel-close" onclick="window.closeArtifactPanel()">✕</button>
+        </div>
+        <div class="panel-content">
+            <div class="artifact-drop-zone" id="artifact-drop-zone">
+                <div class="drop-icon">📁</div>
+                <div class="drop-text">Drop files here</div>
+                <div class="drop-hint">or click to browse</div>
+                <input type="file" id="artifact-file-input" multiple style="display: none;" accept="image/*,audio/*,.pdf,.doc,.docx,.txt,.md">
+            </div>
+            <div class="artifact-list" id="artifact-list">
+                <!-- Artifacts populated dynamically -->
+            </div>
+            <div class="artifact-empty" id="artifact-empty" style="display: none;">
+                <div class="empty-icon">📎</div>
+                <div>No attachments yet</div>
+            </div>
         </div>
     </div>
 
