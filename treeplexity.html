@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 371 | 2025-12-07
+    TreeListy v2.17.0 | Build 372 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 371): 📎 Artifact Side Panel
-    - Attach files to any item/detail via context menu
-    - Drag-and-drop file upload with 25MB limit
-    - Preview images, audio, and PDFs inline
-    - Download and remove attachments
-    - IndexedDB persistence across sessions
+    Changelog (Build 372): 📦 .treelisty Bundle Export/Import
+    - New "Save as Bundle" option in Save dropdown
+    - Export tree + all artifacts as portable ZIP archive
+    - Import .treelisty files via Open File dialog
+    - Artifacts restored to IndexedDB on import
+    - JSZip library for compression
 
+    Previous (Build 371): 📎 Artifact Side Panel
     Previous (Build 370): 🎤 Voice Capture System
     Previous (Build 369): 🔧 Fix TreeBeard Button - Syntax Error Fix
     Previous (Build 368): 🧠 Conversation Mode - Full AI Intelligence
@@ -616,7 +617,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 371,
+            build: 372,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -4167,6 +4168,8 @@
     <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
     <!-- html2canvas for Canvas export as image -->
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+    <!-- JSZip for .treelisty bundle export/import -->
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <!-- Google API Client Library for OAuth and Drive API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -4331,6 +4334,10 @@
                         <button class="dropdown-menu-item" role="menuitem" id="save-json-btn">
                             <span class="item-icon">📄</span>
                             <span class="item-label">Save as JSON</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="save-bundle-btn" onclick="window.exportTreelistyBundle()">
+                            <span class="item-icon">📦</span>
+                            <span class="item-label">Save as Bundle (.treelisty)</span>
                         </button>
                         <button class="dropdown-menu-item" role="menuitem" id="excel-export-btn">
                             <span class="item-icon">📊</span>
@@ -22314,10 +22321,17 @@ Return ONLY the JSON array.`
             document.getElementById('edit-modal').style.display = 'none';
         });
 
-        // JSON upload handler
-        document.getElementById('json-upload-input').addEventListener('change', (e) => {
+        // JSON upload handler (BUILD 372: Also handles .treelisty bundles)
+        document.getElementById('json-upload-input').addEventListener('change', async (e) => {
             const file = e.target.files[0];
             if (file) {
+                // BUILD 372: Handle .treelisty bundle files
+                if (file.name.endsWith('.treelisty')) {
+                    await window.importTreelistyBundle(file);
+                    e.target.value = '';
+                    return;
+                }
+
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     try {
@@ -46364,6 +46378,221 @@ RULES:
         // Expose for tree rendering
         window.getArtifactCountForItem = getArtifactCountForItem;
         window.openArtifactPanel = window.openArtifactPanel;
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 372: .TREELISTY BUNDLE EXPORT/IMPORT
+        // - ZIP archive containing tree.json + artifacts folder
+        // - Portable format for sharing trees with attachments
+        // - Import restores tree and all artifacts to IndexedDB
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Export current tree as .treelisty bundle (ZIP)
+         * Contains: tree.json + artifacts/ folder with all attachments
+         */
+        window.exportTreelistyBundle = async function() {
+            if (!window.JSZip) {
+                showToast('JSZip library not loaded', 'error');
+                return;
+            }
+
+            try {
+                showToast('Preparing bundle...', 'info');
+
+                const zip = new JSZip();
+                const treeId = capexTree?.id || 'unknown';
+
+                // Get all artifacts for this tree
+                const artifacts = await getArtifactsForTree(treeId);
+
+                // Build artifact manifest for tree.json
+                const artifactManifest = {};
+                for (const artifact of artifacts) {
+                    artifactManifest[artifact.id] = {
+                        filename: artifact.filename,
+                        itemId: artifact.itemId,
+                        type: artifact.type,
+                        size: artifact.size,
+                        addedAt: artifact.addedAt
+                    };
+                }
+
+                // Create tree.json with artifact manifest
+                const treeData = JSON.parse(JSON.stringify(capexTree));
+                treeData.artifacts = artifactManifest;
+                treeData.exportedAt = new Date().toISOString();
+                treeData.bundleVersion = 1;
+
+                zip.file('tree.json', JSON.stringify(treeData, null, 2));
+
+                // Add artifacts to artifacts/ folder
+                const artifactsFolder = zip.folder('artifacts');
+                for (const artifact of artifacts) {
+                    if (artifact.data) {
+                        // Convert data URL to binary
+                        const base64Data = artifact.data.split(',')[1];
+                        if (base64Data) {
+                            artifactsFolder.file(artifact.id + '_' + artifact.filename, base64Data, { base64: true });
+                        }
+                    }
+                }
+
+                // Generate the ZIP file
+                const content = await zip.generateAsync({
+                    type: 'blob',
+                    compression: 'DEFLATE',
+                    compressionOptions: { level: 6 }
+                });
+
+                // Create filename from tree name
+                const safeName = (capexTree?.name || 'tree')
+                    .toLowerCase()
+                    .replace(/[^a-z0-9]+/g, '-')
+                    .replace(/^-|-$/g, '')
+                    .substring(0, 50);
+                const filename = `${safeName}.treelisty`;
+
+                // Trigger download
+                const url = URL.createObjectURL(content);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+
+                const artifactCount = artifacts.length;
+                const sizeKB = Math.round(content.size / 1024);
+                showToast(`Bundle exported: ${artifactCount} artifacts, ${sizeKB} KB`, 'success');
+
+            } catch (e) {
+                console.error('Failed to export bundle:', e);
+                showToast('Failed to export bundle: ' + e.message, 'error');
+            }
+        };
+
+        /**
+         * Import .treelisty bundle
+         * Restores tree data and all artifacts to IndexedDB
+         */
+        window.importTreelistyBundle = async function(file) {
+            if (!window.JSZip) {
+                showToast('JSZip library not loaded', 'error');
+                return false;
+            }
+
+            try {
+                showToast('Importing bundle...', 'info');
+
+                const zip = await JSZip.loadAsync(file);
+
+                // Read tree.json
+                const treeJsonFile = zip.file('tree.json');
+                if (!treeJsonFile) {
+                    throw new Error('Invalid bundle: tree.json not found');
+                }
+
+                const treeJsonText = await treeJsonFile.async('string');
+                const importedTree = JSON.parse(treeJsonText);
+
+                // Validate tree structure
+                if (!importedTree.name || !importedTree.children) {
+                    throw new Error('Invalid bundle: tree.json is malformed');
+                }
+
+                // Extract artifact manifest
+                const artifactManifest = importedTree.artifacts || {};
+                delete importedTree.artifacts; // Remove from tree data
+                delete importedTree.exportedAt;
+                delete importedTree.bundleVersion;
+
+                // Generate new tree ID to avoid conflicts
+                const newTreeId = 'tree-' + Date.now();
+                const oldTreeId = importedTree.id;
+                importedTree.id = newTreeId;
+
+                // Import artifacts from artifacts/ folder
+                const artifactsFolder = zip.folder('artifacts');
+                let artifactCount = 0;
+
+                if (artifactsFolder) {
+                    const artifactFiles = [];
+                    artifactsFolder.forEach((relativePath, zipEntry) => {
+                        if (!zipEntry.dir) {
+                            artifactFiles.push({ path: relativePath, entry: zipEntry });
+                        }
+                    });
+
+                    for (const { path, entry } of artifactFiles) {
+                        try {
+                            // Extract original artifact ID from filename (id_originalname.ext)
+                            const underscoreIndex = path.indexOf('_');
+                            const originalId = underscoreIndex > 0 ? path.substring(0, underscoreIndex) : path;
+                            const originalFilename = underscoreIndex > 0 ? path.substring(underscoreIndex + 1) : path;
+
+                            // Get manifest info
+                            const manifestInfo = artifactManifest[originalId] || {};
+
+                            // Read file data as base64
+                            const base64Data = await entry.async('base64');
+                            const mimeType = manifestInfo.type || 'application/octet-stream';
+                            const dataUrl = `data:${mimeType};base64,${base64Data}`;
+
+                            // Create new artifact with new ID
+                            const newArtifactId = 'art-' + Date.now() + '-' + Math.random().toString(36).substr(2, 9);
+
+                            const artifact = {
+                                id: newArtifactId,
+                                treeId: newTreeId,
+                                itemId: manifestInfo.itemId,
+                                filename: manifestInfo.filename || originalFilename,
+                                type: mimeType,
+                                size: manifestInfo.size || 0,
+                                data: dataUrl,
+                                addedAt: manifestInfo.addedAt || new Date().toISOString()
+                            };
+
+                            await saveArtifact(artifact);
+                            artifactCount++;
+
+                        } catch (artifactError) {
+                            console.error('Failed to import artifact:', path, artifactError);
+                        }
+                    }
+                }
+
+                // Load the tree
+                capexTree = importedTree;
+                saveState('Imported bundle: ' + importedTree.name);
+                render();
+
+                showToast(`Imported: "${importedTree.name}" with ${artifactCount} artifacts`, 'success');
+                return true;
+
+            } catch (e) {
+                console.error('Failed to import bundle:', e);
+                showToast('Failed to import bundle: ' + e.message, 'error');
+                return false;
+            }
+        };
+
+        /**
+         * Handle file input for .treelisty import
+         */
+        window.handleBundleFileSelect = async function(event) {
+            const file = event.target.files?.[0];
+            if (!file) return;
+
+            if (file.name.endsWith('.treelisty') || file.type === 'application/zip') {
+                await window.importTreelistyBundle(file);
+            } else {
+                showToast('Please select a .treelisty file', 'warning');
+            }
+
+            // Reset input
+            event.target.value = '';
+        };
 
         // ═══════════════════════════════════════════════════════════════
         // DRAGGABLE FLOATING PANEL
