@@ -6,10 +6,10 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 365 | 2025-12-07
+    TreeListy v2.17.0 | Build 366 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
-    - 20 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
+    - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
     - AI-powered (Claude, Gemini, ChatGPT) with tunable personas
     - Pattern Translation Engine with shadow data preservation
     - Modern collapsible sidebar UI (icon-based navigation)
@@ -18,15 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 365): 🌳 LifeTree Pattern - Biographical Timeline
-    - New pattern: LifeTree for documenting life stories and biographies
-    - Initialization modal: Collects subject name, birth year, living status
-    - Auto-generated decades: Creates timeline phases from birth to present/death
-    - Event fields: When, Where, Who, Feeling, Source, Certainty, Historical Context
-    - Life-stage subtitles: Childhood, Teen Years, Twenties, etc.
-    - BC year support: Works for historical figures (e.g., Plato born -428)
-    - TreeBeard integration: Opens with guided interview prompt
+    Changelog (Build 366): 🎙️ TreeBeard Biographer Mode (LifeTree)
+    - Auto-detect mode: Guided Interview, Open Listening, Timeline Scaffolding, Artifact Import
+    - Mode indicator in TreeBeard header (click to cycle modes)
+    - Mode-specific AI prompts for biographical interviewing
+    - Gentle interview mode asks one question at a time
+    - Listening mode absorbs longer stories with minimal interruption
+    - Scaffolding mode builds timeline structure rapidly
+    - Artifact mode explores photos and documents curiously
 
+    Previous (Build 365): 🌳 LifeTree Pattern - Biographical Timeline
     Previous (Build 364): 🔗 Enhanced Hyperedge Info Modal
     Previous (Build 360): 🔧 Fix Syntax Error - Splash Screen Freeze
     Previous (Build 359): 🔧 Fix CORS for Local Version Check
@@ -612,7 +613,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 365,
+            build: 366,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3677,6 +3678,7 @@
                     <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>
                     <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>
                     <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
+                    <option value="lifetree" data-desc="Biography: Life → Decade → Event → Detail">🌳 LifeTree (Biography)</option>
                     <option value="dialogue" data-desc="Rhetoric: Conversation → Speaker → Statement → Point">💬 Dialogue & Rhetoric</option>
                     <option value="gmail" data-desc="Email: Inbox/Campaign → Label/Stage → Thread → Message">📧 Email Workflow</option>
                     <option value="filesystem" data-desc="File System: Drive → Folder → File/Folder (Unlimited Depth)">💾 File System</option>
@@ -3985,6 +3987,7 @@
                         <option value="philosophy" style="background: #1a1a2e; color: #ffffff;">🤔 Philosophy - Arguments & treatises</option>
                         <option value="prompting" style="background: #1a1a2e; color: #ffffff;">🧠 Prompt Engineering - AI prompts</option>
                         <option value="familytree" style="background: #1a1a2e; color: #ffffff;">👨‍👩‍👧‍👦 Family Tree - Genealogy</option>
+                        <option value="lifetree" style="background: #1a1a2e; color: #ffffff;">🌳 LifeTree - Biographical timeline</option>
                         <option value="dialogue" style="background: #1a1a2e; color: #ffffff;">💬 Dialogue & Rhetoric - Debate analysis</option>
                         <option value="capex" style="background: #1a1a2e; color: #ffffff;">💰 CAPEX / Angel Pitch - Investor-ready</option>
                         <option value="filesystem" style="background: #1a1a2e; color: #ffffff;">💾 File System - File organization</option>
@@ -41543,7 +41546,9 @@ ${transcript}`;
             playgroundMode: false,
             playgroundSystemPrompt: '',
             playgroundModel: 'claude-sonnet',
-            playgroundHistory: []
+            playgroundHistory: [],
+            // BUILD 366: LifeTree Biographer Mode
+            biographerMode: null // null, 'guided', 'listening', 'scaffolding', 'artifact'
         };
 
         // BUILD 355: Load conversation memory from localStorage
@@ -43125,6 +43130,91 @@ ${transcript}`;
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 366: LIFETREE BIOGRAPHER MODE DETECTION
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Detect the appropriate biographer mode based on input type
+         * Modes: 'guided' (interview), 'listening' (long stories), 'scaffolding' (rapid structure), 'artifact' (photo/file)
+         */
+        function detectBiographerMode(message, hasAttachment = false) {
+            // Only applies to LifeTree pattern
+            if (typeof currentPattern === 'undefined' || currentPattern !== 'lifetree') {
+                return null;
+            }
+
+            // Artifact Import: Photo or file attached
+            if (hasAttachment) {
+                return 'artifact';
+            }
+
+            // Open Listening: Long text (>300 chars) suggests storytelling mode
+            if (message.length > 300) {
+                return 'listening';
+            }
+
+            // Timeline Scaffolding: Rapid anchor point requests
+            const scaffoldingPatterns = /\b(list|timeline|major|key events?|all|when did|what happened|marriages?|jobs?|moves?|births?|deaths?)\b/i;
+            if (scaffoldingPatterns.test(message) && message.length < 100) {
+                return 'scaffolding';
+            }
+
+            // Default: Guided Interview for short inputs
+            return 'guided';
+        }
+
+        /**
+         * Get mode display info for the indicator
+         */
+        function getBiographerModeInfo(mode) {
+            const modes = {
+                'guided': { icon: '🎙️', label: 'Interview', description: 'One question at a time, patient & gentle' },
+                'listening': { icon: '📖', label: 'Listening', description: 'Absorbing your story, minimal interruption' },
+                'scaffolding': { icon: '🏗️', label: 'Scaffolding', description: 'Building timeline structure rapidly' },
+                'artifact': { icon: '📸', label: 'Artifact', description: 'Exploring photos, letters, documents' }
+            };
+            return modes[mode] || { icon: '🌳', label: 'TreeBeard', description: 'AI assistant' };
+        }
+
+        /**
+         * Update the biographer mode indicator in the TreeBeard panel
+         */
+        function updateBiographerModeIndicator(mode) {
+            const indicator = document.getElementById('biographer-mode-indicator');
+            if (!indicator) return;
+
+            if (!mode) {
+                indicator.style.display = 'none';
+                return;
+            }
+
+            const info = getBiographerModeInfo(mode);
+            indicator.innerHTML = `${info.icon} ${info.label}`;
+            indicator.title = info.description + ' (click to change)';
+            indicator.style.display = 'inline-flex';
+            chatState.biographerMode = mode;
+        }
+
+        /**
+         * Manually cycle through biographer modes (for user override)
+         */
+        window.cycleBiographerMode = function() {
+            if (typeof currentPattern === 'undefined' || currentPattern !== 'lifetree') {
+                return;
+            }
+
+            const modes = ['guided', 'listening', 'scaffolding', 'artifact'];
+            const currentIndex = modes.indexOf(chatState.biographerMode);
+            const nextIndex = (currentIndex + 1) % modes.length;
+            const nextMode = modes[nextIndex];
+
+            updateBiographerModeIndicator(nextMode);
+
+            const info = getBiographerModeInfo(nextMode);
+            showToast(`${info.icon} Switched to ${info.label} mode`, 'info');
+        };
+
+        // ═══════════════════════════════════════════════════════════════
         // AI COMMAND INTERPRETER
         // ═══════════════════════════════════════════════════════════════
 
@@ -43242,7 +43332,57 @@ PRACTICAL TIPS TO SHARE:
 • "Export to Excel creates 4-sheet workbook with PM tracking"
 
 ═══════════════════════════════════════════════════════════════════════════
+${context.pattern === 'lifetree' ? `
+═══════════════════════════════════════════════════════════════════════════
+LIFETREE BIOGRAPHER MODE (BUILD 366)
+═══════════════════════════════════════════════════════════════════════════
 
+You are documenting a life story: "${context.projectName}"
+Current biographer mode: ${chatState.biographerMode || 'guided'}
+
+MODE-SPECIFIC BEHAVIOR:
+${chatState.biographerMode === 'guided' ? `
+• GUIDED INTERVIEW: Ask one question at a time
+• Be patient, gentle, and warm
+• After each answer, place the event in the timeline (decade)
+• Ask follow-up: "When was this?" "Where?" "Who else was there?"
+• Example: "Tell me more about that summer. Where were you living then?"
+` : chatState.biographerMode === 'listening' ? `
+• OPEN LISTENING: The user is telling a longer story
+• Minimize interruption - absorb the narrative
+• After they finish, extract multiple events and place them in the timeline
+• Acknowledge the emotional weight of what they've shared
+• Example: "That's a rich chapter. Let me add these moments to the timeline..."
+` : chatState.biographerMode === 'scaffolding' ? `
+• TIMELINE SCAFFOLDING: Build structure rapidly
+• Ask for anchor points: "Major moves? Marriages? Career changes?"
+• Don't go deep - just capture the skeleton
+• Example: "Got it - and what about the 1970s? Any big milestones?"
+` : chatState.biographerMode === 'artifact' ? `
+• ARTIFACT IMPORT: The user has shared a photo or document
+• Be a curious archivist: "What am I looking at? When was this taken?"
+• Extract dates, people, locations from the artifact
+• Connect it to existing timeline events
+• Example: "I see several people in this photo. Can you tell me who they are?"
+` : `
+• DEFAULT: Gentle biographer mode
+• Ask open questions about their life
+• Place memories in the appropriate decade
+`}
+
+LIFETREE STRUCTURE:
+• Root = the person's life (${context.projectName})
+• Phases = Decades (auto-generated from birth year)
+• Items = Life events (birth, family, education, career, milestone, etc.)
+• Subtasks = Details about events
+
+When the user shares a memory:
+1. Identify the approximate time (year, decade, or life stage)
+2. Determine the event type (family, career, residence, etc.)
+3. Note the people involved
+4. Capture the location if mentioned
+5. Suggest placing it in the correct decade
+` : ''}
 CURRENT CONTEXT:
 - Project: "${context.projectName}"
 - Pattern: ${context.pattern}
@@ -43684,6 +43824,14 @@ RULES:
             // Clear input
             input.value = '';
             input.style.height = 'auto';
+
+            // BUILD 366: Detect and update biographer mode for LifeTree
+            if (typeof currentPattern !== 'undefined' && currentPattern === 'lifetree') {
+                const detectedMode = detectBiographerMode(message);
+                updateBiographerModeIndicator(detectedMode);
+            } else {
+                updateBiographerModeIndicator(null);
+            }
 
             // Add user message
             addMessage(message, 'user');
@@ -44590,6 +44738,8 @@ RULES:
     <div id="chat-assistant-panel">
         <div id="chat-assistant-header">
             <h3>🌳 TreeBeard</h3>
+            <!-- BUILD 366: Biographer mode indicator for LifeTree -->
+            <span id="biographer-mode-indicator" style="display: none; align-items: center; gap: 4px; padding: 3px 8px; background: rgba(99, 102, 241, 0.2); border-radius: 12px; font-size: 11px; color: #a5b4fc; cursor: pointer;" onclick="window.cycleBiographerMode()" title="Click to change mode"></span>
             <div class="header-actions">
                 <button id="chat-clear-btn" title="Clear conversation">🗑️</button>
                 <button id="chat-close-btn" title="Close">✕</button>
