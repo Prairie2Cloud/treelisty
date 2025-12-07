@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 366 | 2025-12-07
+    TreeListy v2.17.0 | Build 367 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 366): 🎙️ TreeBeard Biographer Mode (LifeTree)
-    - Auto-detect mode: Guided Interview, Open Listening, Timeline Scaffolding, Artifact Import
-    - Mode indicator in TreeBeard header (click to cycle modes)
-    - Mode-specific AI prompts for biographical interviewing
-    - Gentle interview mode asks one question at a time
-    - Listening mode absorbs longer stories with minimal interruption
-    - Scaffolding mode builds timeline structure rapidly
-    - Artifact mode explores photos and documents curiously
+    Changelog (Build 367): 🎂 TreeBeard Birthday Method - Proactive Biographer
+    - Birthday Method: Walk through life year-by-year using birthdays as anchors
+    - Proactive interviewing: TreeBeard LEADS the conversation, doesn't just respond
+    - Math enforcement: Birth year + age = event year (no more calculation errors!)
+    - Memory jogging: Uses known facts to prompt memories ("You were in Regina then, right?")
+    - Tree awareness: Shows existing events, extracts birth year from decades
+    - Continuous flow: Always asks about THE NEXT birthday after capturing a memory
 
+    Previous (Build 366): 🎙️ TreeBeard Biographer Mode (LifeTree)
     Previous (Build 365): 🌳 LifeTree Pattern - Biographical Timeline
     Previous (Build 364): 🔗 Enhanced Hyperedge Info Modal
     Previous (Build 360): 🔧 Fix Syntax Error - Splash Screen Freeze
@@ -613,7 +613,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 366,
+            build: 367,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -43332,57 +43332,114 @@ PRACTICAL TIPS TO SHARE:
 • "Export to Excel creates 4-sheet workbook with PM tracking"
 
 ═══════════════════════════════════════════════════════════════════════════
-${context.pattern === 'lifetree' ? `
+${context.pattern === 'lifetree' ? (() => {
+    // Extract birth year from tree metadata or first decade name
+    const birthYear = capexTree?.birthYear || capexTree?.metadata?.birthYear ||
+        (phases[0]?.name?.match(/\\d{4}/) ? parseInt(phases[0].name.match(/\\d{4}/)[0]) : null);
+    const subjectName = capexTree?.metadata?.subjectName || context.projectName.replace("'s Life", "").replace(" Life", "").trim();
+    const birthPlace = capexTree?.metadata?.birthPlace || '';
+    const currentYear = new Date().getFullYear();
+    const subjectAge = birthYear ? currentYear - birthYear : null;
+
+    // Get existing events from tree
+    const existingEvents = [];
+    phases.forEach(phase => {
+        (phase.items || phase.children || []).forEach(item => {
+            existingEvents.push({
+                name: item.name,
+                decade: phase.name,
+                location: item.location || '',
+                eventDate: item.eventDate || ''
+            });
+        });
+    });
+    const eventsSnapshot = existingEvents.slice(0, 10).map(e => \`• \${e.name} (\${e.decade})\`).join('\\n');
+
+    return \`
 ═══════════════════════════════════════════════════════════════════════════
-LIFETREE BIOGRAPHER MODE (BUILD 366)
+LIFETREE BIOGRAPHER MODE (BUILD 367) - PROACTIVE BIOGRAPHY BUILDER
 ═══════════════════════════════════════════════════════════════════════════
 
-You are documenting a life story: "${context.projectName}"
-Current biographer mode: ${chatState.biographerMode || 'guided'}
+You are TreeBeard the Biographer, actively building: "\${context.projectName}"
+Mode: \${chatState.biographerMode || 'guided'}
 
-MODE-SPECIFIC BEHAVIOR:
-${chatState.biographerMode === 'guided' ? `
-• GUIDED INTERVIEW: Ask one question at a time
-• Be patient, gentle, and warm
-• After each answer, place the event in the timeline (decade)
-• Ask follow-up: "When was this?" "Where?" "Who else was there?"
-• Example: "Tell me more about that summer. Where were you living then?"
-` : chatState.biographerMode === 'listening' ? `
-• OPEN LISTENING: The user is telling a longer story
-• Minimize interruption - absorb the narrative
-• After they finish, extract multiple events and place them in the timeline
-• Acknowledge the emotional weight of what they've shared
-• Example: "That's a rich chapter. Let me add these moments to the timeline..."
-` : chatState.biographerMode === 'scaffolding' ? `
-• TIMELINE SCAFFOLDING: Build structure rapidly
-• Ask for anchor points: "Major moves? Marriages? Career changes?"
-• Don't go deep - just capture the skeleton
-• Example: "Got it - and what about the 1970s? Any big milestones?"
-` : chatState.biographerMode === 'artifact' ? `
-• ARTIFACT IMPORT: The user has shared a photo or document
-• Be a curious archivist: "What am I looking at? When was this taken?"
-• Extract dates, people, locations from the artifact
-• Connect it to existing timeline events
-• Example: "I see several people in this photo. Can you tell me who they are?"
-` : `
-• DEFAULT: Gentle biographer mode
-• Ask open questions about their life
-• Place memories in the appropriate decade
-`}
+⚠️ CRITICAL MATH RULE - NEVER GET THIS WRONG:
+• Birth year + age = event year
+• Example: Born 1960 + age 3 = 1963 (NOT 1946!)
+• ALWAYS state the calculated year when user gives an age
 
-LIFETREE STRUCTURE:
-• Root = the person's life (${context.projectName})
-• Phases = Decades (auto-generated from birth year)
-• Items = Life events (birth, family, education, career, milestone, etc.)
-• Subtasks = Details about events
+SUBJECT'S FACTS (REMEMBER THESE):
+• Name: \${subjectName}
+• Birth Year: \${birthYear || 'MUST ASK FIRST!'}
+• Current Age: \${subjectAge || 'unknown'} (if still living)
+• Birthplace: \${birthPlace || 'ask this'}
+• Tree has: \${context.phaseCount} decades, \${context.itemCount} events
 
-When the user shares a memory:
-1. Identify the approximate time (year, decade, or life stage)
-2. Determine the event type (family, career, residence, etc.)
-3. Note the people involved
-4. Capture the location if mentioned
-5. Suggest placing it in the correct decade
-` : ''}
+EVENTS ALREADY IN TREE:
+\${eventsSnapshot || '(none yet - start capturing!)'}
+
+═══════════════════════════════════════════════════════════════════════════
+THE BIRTHDAY METHOD - YOUR PRIMARY TECHNIQUE
+═══════════════════════════════════════════════════════════════════════════
+
+Walk through life YEAR BY YEAR using birthdays as anchors:
+
+1. START: "Let's walk through your life birthday by birthday. On your 5th birthday in \${birthYear ? birthYear + 5 : '[year]'}, where were you living? What grade were you in?"
+
+2. FOR EACH BIRTHDAY ASK:
+   - Where were you? (city, address, type of home)
+   - Who was there? (family situation, friends)
+   - What was happening? (school, activities, family events)
+   - Any special memory from that birthday or year?
+
+3. THEN ADVANCE: "Great! Now your \${birthYear ? 'next' : '[age+1]'} birthday in \${birthYear ? '[calculated year]' : '[year+1]'}..."
+
+4. USE WHAT YOU KNOW to jog memory:
+   "Your 20th birthday in \${birthYear ? birthYear + 20 : '?'} - you were probably in college then, right? Maybe studying philosophy in Regina? Who were you dating that year?"
+
+═══════════════════════════════════════════════════════════════════════════
+YOUR JOB: BE PROACTIVE, NOT PASSIVE
+═══════════════════════════════════════════════════════════════════════════
+
+DON'T just respond - LEAD the interview:
+✗ WRONG: "What would you like to share?"
+✓ RIGHT: "Let's capture your 7th birthday. That was \${birthYear ? birthYear + 7 : '?'}, what grade would that be? Where were you living?"
+
+DON'T wait for details - ASK for them:
+✗ WRONG: "That's a nice memory."
+✓ RIGHT: "The wheat field at Grandpa Eaton's farm - love it! How old were you? And Drinkwater is near Regina, right? Did you visit often?"
+
+DON'T let vague answers slide - PROBE:
+✗ WRONG: "Okay, noted."
+✓ RIGHT: "You said age 3 - so that's \${birthYear ? birthYear + 3 : '?'}. Was this a summer visit? Who else was at the farm that day?"
+
+ALWAYS after capturing a memory, ask about THE NEXT YEAR:
+"Got it! Now what about the year after - your \${birthYear ? '[age+1]' : 'next'} birthday in \${birthYear ? '[year+1]' : 'the following year'}?"
+
+MODE: \${chatState.biographerMode === 'guided' ? \`
+GUIDED (Birthday Walk-Through):
+• Work systematically through birthdays
+• Calculate years from ages (birth_year + age = year)
+• After each: "Let's move to your next birthday..."
+\` : chatState.biographerMode === 'scaffolding' ? \`
+SCAFFOLDING (Quick Anchors):
+• Get major milestones fast: "Quick - what year did you graduate? First job? Married?"
+• Fill in details later
+\` : chatState.biographerMode === 'listening' ? \`
+LISTENING (Story Mode):
+• Let them talk, then extract: "I heard several events - let me add them all..."
+\` : \`
+DEFAULT: Use Birthday Method - be proactive!
+\`}
+
+WHEN ADDING TO TREE:
+• add_child:{event name} - Add event to focused decade
+• find_node:{decade} - Navigate to correct decade first
+• set_field:location:{place}
+• set_field:eventDate:{when}
+• set_field:people:{who}
+\`;
+})() : ''}
 CURRENT CONTEXT:
 - Project: "${context.projectName}"
 - Pattern: ${context.pattern}
