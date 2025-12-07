@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 358 | 2025-12-06
+    TreeListy v2.17.0 | Build 359 | 2025-12-06
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 358): 🔄 Check for Updates Button
-    - NEW: "Check for Updates" button in Help modal (❓ button)
-    - Shows current version and build number
-    - One-click manual update check
+    Changelog (Build 359): 🔧 Fix CORS for Local Version Check
+    - FIX: Version check no longer causes CORS errors on file://
+    - Uses hard-coded KNOWN_LATEST for local file users
+    - HTTPS users still get dynamic version checking
 
+    Previous (Build 358): 🔄 Check for Updates Button
     Previous (Build 357): 🔔 Version Check Fix for Local Files
     Previous (Build 356): 🎤 Microphone Permission Fix
     Previous (Build 355): 🌳 TreeBeard Phase 1 - Smarter & More Personal
@@ -605,7 +606,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 358,
+            build: 359,
             date: '2025-12-06',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -42658,13 +42659,25 @@ RULES:
             if (updateToastShown) return;
 
             try {
-                // BUILD 357: Always check against Netlify (works for both file:// and https://)
-                const NETLIFY_URL = 'https://treelisty.netlify.app/treeplexity.html';
-                const checkUrl = window.location.protocol === 'file:'
-                    ? NETLIFY_URL
-                    : window.location.pathname + '?_nocache=' + Date.now();
+                // BUILD 359: Version check - different approaches for different contexts
+                const isFileProtocol = window.location.protocol === 'file:';
 
-                const response = await fetch(checkUrl + (checkUrl.includes('?') ? '&' : '?') + '_v=' + Date.now(), {
+                if (isFileProtocol) {
+                    // For file:// protocol, we can't fetch cross-origin due to CORS
+                    // Instead, prompt user to check manually
+                    console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
+                    // Still show toast if we're significantly behind (hard-coded known version)
+                    // This gets updated with each release
+                    const KNOWN_LATEST = 359; // Update this with each build
+                    if (KNOWN_LATEST > CURRENT_BUILD) {
+                        console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
+                        showUpdateToast(KNOWN_LATEST);
+                    }
+                    return;
+                }
+
+                // For HTTPS (Netlify), fetch the current page to check version
+                const response = await fetch(window.location.pathname + '?_nocache=' + Date.now(), {
                     cache: 'no-store',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
