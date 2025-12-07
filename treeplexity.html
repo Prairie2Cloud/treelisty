@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 367 | 2025-12-07
+    TreeListy v2.17.0 | Build 368 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,17 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 367): 🎂 TreeBeard Birthday Method - Proactive Biographer
-    - Birthday Method: Walk through life year-by-year using birthdays as anchors
-    - Proactive interviewing: TreeBeard LEADS the conversation, doesn't just respond
-    - Math enforcement: Birth year + age = event year (no more calculation errors!)
-    - Memory jogging: Uses known facts to prompt memories ("You were in Regina then, right?")
-    - Tree awareness: Shows existing events, extracts birth year from decades
-    - Continuous flow: Always asks about THE NEXT birthday after capturing a memory
+    Changelog (Build 368): 🧠 Conversation Mode - Full AI Intelligence
+    - Smart mode detection: Auto-switches between Quick (commands) and Deep (conversation)
+    - Full AI conversations: Natural responses, not JSON-constrained
+    - Pattern-specific personas: Expert biographer, philosopher, financial analyst, etc.
+    - 3x more response tokens (1500 vs 500) for thoughtful answers
+    - Proper system prompts: Uses Claude's system field correctly
+    - Rich tree context: AI sees current project structure and content
+    - Action extraction: AI can still trigger commands from natural conversation
+    - Toggle button: Click ⚡/🧠 in TreeBeard header to force mode
 
+    Previous (Build 367): 🎂 TreeBeard Birthday Method - Proactive Biographer
     Previous (Build 366): 🎙️ TreeBeard Biographer Mode (LifeTree)
     Previous (Build 365): 🌳 LifeTree Pattern - Biographical Timeline
     Previous (Build 364): 🔗 Enhanced Hyperedge Info Modal
@@ -613,7 +616,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 367,
+            build: 368,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -41548,7 +41551,10 @@ ${transcript}`;
             playgroundModel: 'claude-sonnet',
             playgroundHistory: [],
             // BUILD 366: LifeTree Biographer Mode
-            biographerMode: null // null, 'guided', 'listening', 'scaffolding', 'artifact'
+            biographerMode: null, // null, 'guided', 'listening', 'scaffolding', 'artifact'
+            // BUILD 368: Conversation Mode - Full AI intelligence
+            conversationMode: false, // When true, uses full AI conversation instead of command mode
+            lastConversationContext: null // Stores context for action extraction
         };
 
         // BUILD 355: Load conversation memory from localStorage
@@ -43215,6 +43221,234 @@ ${transcript}`;
         };
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 368: CONVERSATION MODE - FULL AI INTELLIGENCE
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Detect if message needs full conversation mode vs quick command mode
+         * Returns: 'conversation' for deep thinking, 'command' for quick actions
+         */
+        function detectInteractionMode(message) {
+            const msg = message.toLowerCase().trim();
+
+            // Quick commands - use fast command mode
+            const quickPatterns = [
+                /^(switch|change|set|go|open|close|show|hide|toggle|zoom|undo|redo|save|load|export|import)\b/i,
+                /^(canvas|tree|3d)\s*(view)?$/i,
+                /^\/(help|clear|settings)/i,
+                /^(yes|no|ok|sure|cancel|done|next|back)$/i
+            ];
+
+            for (const pattern of quickPatterns) {
+                if (pattern.test(msg)) return 'command';
+            }
+
+            // Conversation indicators - use full AI
+            const conversationIndicators = [
+                msg.length > 100, // Longer messages need thoughtful response
+                /\?.*\?/.test(msg), // Multiple questions
+                /(tell me|explain|help me understand|what do you think|how should|why|describe)/i.test(msg),
+                /(remember|you said|earlier|we talked|last time)/i.test(msg), // Memory references
+                /(feel|feeling|emotion|remember when|story|memory|childhood|growing up)/i.test(msg), // Emotional/biographical
+                currentPattern === 'lifetree', // Always conversation mode for LifeTree
+                currentPattern === 'philosophy', // Deep thinking for philosophy
+            ];
+
+            const conversationScore = conversationIndicators.filter(Boolean).length;
+
+            // If 2+ indicators, use conversation mode
+            return conversationScore >= 2 ? 'conversation' : 'command';
+        }
+
+        /**
+         * Full conversation handler - uses AI naturally without JSON constraints
+         */
+        async function handleConversation(userMessage) {
+            const phases = typeof capexTree !== 'undefined' ? (capexTree.children || capexTree.phases || []) : [];
+            const pattern = typeof currentPattern !== 'undefined' ? currentPattern : 'generic';
+            const patternDef = PATTERNS[pattern] || PATTERNS.generic;
+
+            // Build rich context about the current tree
+            const treeContext = buildTreeContext(phases, pattern);
+
+            // Pattern-specific persona
+            const personas = {
+                lifetree: `You are a warm, curious biographer helping document a life story. You use the Birthday Method - walking through life year by year. You're proactive: you ASK questions, you LEAD the conversation, you jog memories with what you already know. When given an age, ALWAYS calculate the year (birth_year + age). After capturing a memory, immediately ask about the NEXT year.`,
+                philosophy: `You are a scholarly companion well-versed in philosophy. You engage deeply with arguments, identify logical structures, reference relevant philosophers and texts, and help build rigorous dialectical analyses. You can discuss Plato, Aristotle, Kant, Hegel, Nietzsche, Heidegger, and contemporary thinkers with equal facility.`,
+                capex: `You are a sharp financial analyst helping with capital expenditure planning. You understand NPV, IRR, payback periods, risk assessment, and vendor evaluation. You help structure investment proposals that would satisfy CFOs and board members.`,
+                sales: `You are a seasoned sales strategist. You understand pipeline management, deal qualification, stakeholder mapping, and closing techniques. You help structure deals and identify risks and opportunities.`,
+                thesis: `You are an academic writing coach. You help structure arguments, identify gaps in reasoning, suggest relevant citations, and ensure scholarly rigor. You understand academic conventions across disciplines.`,
+                film: `You are a film production expert. You understand shot composition, scene structure, narrative pacing, and the technical aspects of video production including prompts for AI video tools.`,
+                generic: `You are TreeBeard, a wise and helpful assistant. You're knowledgeable about project management, hierarchical thinking, and breaking down complex work into manageable pieces.`
+            };
+
+            const persona = personas[pattern] || personas.generic;
+
+            const systemPrompt = `${persona}
+
+You are embedded in TreeListy, a tool for hierarchical project decomposition. You have FULL conversational ability - respond naturally and helpfully, not in JSON.
+
+CURRENT PROJECT: "${capexTree?.name || 'Unknown'}"
+PATTERN: ${pattern} (${patternDef.name})
+STRUCTURE: ${patternDef.levels?.root || 'Project'} → ${patternDef.levels?.phase || 'Phase'} → ${patternDef.levels?.item || 'Item'} → ${patternDef.levels?.subtask || 'Task'}
+
+${treeContext}
+
+CONVERSATION GUIDELINES:
+• Respond naturally in plain text (NOT JSON)
+• Be warm, insightful, and genuinely helpful
+• Reference what you know about the project
+• Ask follow-up questions to deepen understanding
+• If the user wants to DO something (add, edit, delete, navigate), acknowledge it and describe what should happen
+• Use your full intelligence - this is a real conversation
+
+ACTIONS: If you determine the user wants to perform an action, end your response with a line like:
+[ACTION: add_child:Event Name] or [ACTION: find_node:Something] or [ACTION: none]
+This helps the system know what to do, but keep it at the END after your natural response.`;
+
+            try {
+                const aiMode = document.getElementById('unified-ai-mode-select')?.value || 'server-sonnet';
+                const messages = [
+                    ...chatState.conversationHistory.slice(-8).map(m => ({
+                        role: m.role === 'user' ? 'user' : 'assistant',
+                        content: m.content
+                    })),
+                    { role: 'user', content: userMessage }
+                ];
+
+                let response;
+                if (aiMode.startsWith('server-')) {
+                    response = await fetch('/.netlify/functions/claude-proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 1500, // Much more room for thoughtful responses
+                            system: systemPrompt,
+                            messages: messages
+                        })
+                    });
+                } else {
+                    const anthropicKey = localStorage.getItem('anthropic_api_key');
+                    if (!anthropicKey) {
+                        return { message: '🔑 Please set your API key or switch to Server mode.', action: null };
+                    }
+                    response = await fetch('https://api.anthropic.com/v1/messages', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'x-api-key': anthropicKey,
+                            'anthropic-version': '2023-06-01',
+                            'anthropic-dangerous-direct-browser-access': 'true'
+                        },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 1500,
+                            system: systemPrompt,
+                            messages: messages
+                        })
+                    });
+                }
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message || data.error);
+
+                const aiResponse = data.content[0].text;
+
+                // Extract action if present
+                const actionMatch = aiResponse.match(/\[ACTION:\s*([^\]]+)\]/i);
+                let action = null;
+                let actionParam = null;
+                let cleanResponse = aiResponse;
+
+                if (actionMatch) {
+                    cleanResponse = aiResponse.replace(/\[ACTION:[^\]]+\]/gi, '').trim();
+                    const actionParts = actionMatch[1].split(':');
+                    action = actionParts[0].trim();
+                    actionParam = actionParts.slice(1).join(':').trim() || null;
+                    if (action.toLowerCase() === 'none') action = null;
+                }
+
+                return {
+                    message: cleanResponse,
+                    action: action,
+                    actionParam: actionParam,
+                    buttons: null
+                };
+
+            } catch (error) {
+                console.error('Conversation error:', error);
+                return {
+                    message: `I had trouble processing that: ${error.message}. Let me try a simpler approach.`,
+                    action: null
+                };
+            }
+        }
+
+        /**
+         * Build context about current tree state for AI
+         */
+        function buildTreeContext(phases, pattern) {
+            if (!phases || phases.length === 0) {
+                return 'TREE STATE: Empty - no content yet.';
+            }
+
+            let context = `TREE STATE (${phases.length} ${PATTERNS[pattern]?.levels?.phase || 'phases'}):\n`;
+
+            // For LifeTree, include birth year calculation
+            if (pattern === 'lifetree') {
+                const birthYearMatch = phases[0]?.name?.match(/(\d{4})/);
+                if (birthYearMatch) {
+                    const birthYear = parseInt(birthYearMatch[1]);
+                    context += `BIRTH YEAR: ${birthYear} (IMPORTANT: age + ${birthYear} = event year)\n`;
+                }
+            }
+
+            // List phases with their items
+            phases.slice(0, 8).forEach((phase, i) => {
+                const items = phase.items || phase.children || [];
+                const itemNames = items.slice(0, 5).map(it => it.name).join(', ');
+                const moreItems = items.length > 5 ? ` +${items.length - 5} more` : '';
+                context += `• ${phase.name}: ${items.length} items${itemNames ? ` (${itemNames}${moreItems})` : ''}\n`;
+            });
+
+            if (phases.length > 8) {
+                context += `... and ${phases.length - 8} more phases\n`;
+            }
+
+            return context;
+        }
+
+        /**
+         * Toggle conversation mode manually
+         */
+        window.toggleConversationMode = function() {
+            chatState.conversationMode = !chatState.conversationMode;
+            updateConversationModeIndicator();
+            showToast(chatState.conversationMode ? '🧠 Deep Conversation mode ON' : '⚡ Quick Command mode ON', 'info');
+        };
+
+        /**
+         * Update conversation mode indicator in UI
+         */
+        function updateConversationModeIndicator() {
+            const indicator = document.getElementById('conversation-mode-indicator');
+            if (!indicator) return;
+
+            if (chatState.conversationMode) {
+                indicator.innerHTML = '🧠 Deep';
+                indicator.title = 'Deep Conversation mode - full AI intelligence (click to toggle)';
+                indicator.style.background = 'rgba(34, 197, 94, 0.2)';
+                indicator.style.color = '#86efac';
+            } else {
+                indicator.innerHTML = '⚡ Quick';
+                indicator.title = 'Quick Command mode - fast responses (click to toggle)';
+                indicator.style.background = 'rgba(99, 102, 241, 0.2)';
+                indicator.style.color = '#a5b4fc';
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // AI COMMAND INTERPRETER
         // ═══════════════════════════════════════════════════════════════
 
@@ -43993,8 +44227,18 @@ RULES:
                     return;
                 }
 
-                // Standard command interpretation
-                const result = await interpretCommand(message);
+                // BUILD 368: Smart mode detection - conversation vs command
+                const interactionMode = chatState.conversationMode ? 'conversation' : detectInteractionMode(message);
+
+                let result;
+                if (interactionMode === 'conversation') {
+                    // Use full AI conversation mode
+                    result = await handleConversation(message);
+                } else {
+                    // Use quick command interpretation
+                    result = await interpretCommand(message);
+                }
+
                 hideTypingIndicator();
 
                 // Add assistant response
@@ -44795,8 +45039,10 @@ RULES:
     <div id="chat-assistant-panel">
         <div id="chat-assistant-header">
             <h3>🌳 TreeBeard</h3>
+            <!-- BUILD 368: Conversation mode indicator -->
+            <span id="conversation-mode-indicator" style="display: inline-flex; align-items: center; gap: 4px; padding: 3px 8px; background: rgba(99, 102, 241, 0.2); border-radius: 12px; font-size: 10px; color: #a5b4fc; cursor: pointer;" onclick="window.toggleConversationMode()" title="Click to toggle AI mode">⚡ Quick</span>
             <!-- BUILD 366: Biographer mode indicator for LifeTree -->
-            <span id="biographer-mode-indicator" style="display: none; align-items: center; gap: 4px; padding: 3px 8px; background: rgba(99, 102, 241, 0.2); border-radius: 12px; font-size: 11px; color: #a5b4fc; cursor: pointer;" onclick="window.cycleBiographerMode()" title="Click to change mode"></span>
+            <span id="biographer-mode-indicator" style="display: none; align-items: center; gap: 4px; padding: 3px 8px; background: rgba(99, 102, 241, 0.2); border-radius: 12px; font-size: 10px; color: #a5b4fc; cursor: pointer;" onclick="window.cycleBiographerMode()" title="Click to change mode"></span>
             <div class="header-actions">
                 <button id="chat-clear-btn" title="Clear conversation">🗑️</button>
                 <button id="chat-close-btn" title="Close">✕</button>
