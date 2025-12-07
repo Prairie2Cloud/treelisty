@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 351 | 2025-12-06
+    TreeListy v2.17.0 | Build 355 | 2025-12-06
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,21 +18,24 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 349): 📱 Mobile Menu - Absolute Top Layer
-    - FIX: z-index: 2147483647 (max 32-bit int) - NOTHING can be above menu
-    - FIX: touch-action: pan-y for vertical scrolling in menu
-    - FIX: -webkit-overflow-scrolling: touch for iOS momentum scrolling
-    - FIX: isolation: isolate to create new stacking context
+    Changelog (Build 355): 🌳 TreeBeard Phase 1 - Smarter & More Personal
+    - NEW: AI Verification Pass - validates trees before preview, auto-fixes issues
+    - NEW: Conversation Memory - TreeBeard remembers last 5 exchanges across sessions
+    - NEW: Enhanced Personality - warmer, more personable responses with dry wit
+    - NEW: Familiarity tracking - TreeBeard adapts tone based on conversation history
+    - Reduces malformed tree output with Generator→Critic→Revise pattern
+    - Chat history persists in localStorage and restores on page load
 
+    Previous (Build 354): 🌳 Multi-Tree Import Option
+    Previous (Build 353): 🔍 Smart Import Wizard
+
+    Previous (Build 352): 🧊 Fix 3D View Mode Switching
+    Previous (Build 351): Hero Session Code Display for easier sharing
+    Previous (Build 350): Fix mobile menu tap interactions
+    Previous (Build 349): 📱 Mobile Menu - Absolute Top Layer
     Previous (Build 348): 📱 Mobile Menu - Force Pointer Events
     Previous (Build 347): 📱 Mobile Menu - Fix Button Taps
     Previous (Build 346): 📱 Mobile Menu - Complete Rewrite
-    Previous (Build 345): 📱 Mobile Menu - Show All Items
-    Previous (Build 344): 📱 Mobile Menu - Neutral Light Theme
-    Previous (Build 343): 📱 Mobile Menu Z-Index Fix
-    Previous (Build 342): 📱 Mobile Menu - White on Purple
-    Previous (Build 341): 📱 Mobile Menu Aggressive High Contrast
-    Previous (Build 340): 📱 Mobile Menu High Contrast Overlay
     Previous (Build 339): 📱 Mobile Menu High Contrast
     Previous (Build 338): 📱 Mobile Hamburger Fix
     Previous (Build 337): 🔷 Gemini 3 Pro Preview Support
@@ -602,8 +605,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 351,
-            date: '2025-12-05',
+            build: 355,
+            date: '2025-12-06',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -19057,6 +19060,12 @@ Your response:`;
          * Used by JSON upload, version conflict resolution, and other loaders
          */
         function loadTreeData(data) {
+            // BUILD 352: Exit 3D view before loading new tree data
+            if (viewMode === '3d') {
+                const toggle3DBtn = document.getElementById('toggle-3d-mode');
+                if (toggle3DBtn) toggle3DBtn.click();
+            }
+
             // Replace the tree data
             Object.assign(capexTree, data);
 
@@ -31255,7 +31264,9 @@ Include in root metadata: tradition, method, keyTerms, interlocutors, secondaryS
   ]` : '';
 
                 // Pattern-aware context for this specific chunk
-                const chunkPrompt = `Extract items for the ${patternConfig.name} pattern from this SPECIFIC SECTION of a larger document (Section ${chunkIndex + 1}/${chunks.length}).
+                // BUILD 353: Prepend Smart Import Context if available
+                const smartContext = window.smartImportContext || '';
+                const chunkPrompt = `${smartContext}Extract items for the ${patternConfig.name} pattern from this SPECIFIC SECTION of a larger document (Section ${chunkIndex + 1}/${chunks.length}).
 
 PATTERN HIERARCHY:
 - Root: ${levels.root}
@@ -31507,6 +31518,293 @@ Respond with ONLY valid JSON:
             }
 
             return result;
+        }
+
+        // =========================================================================
+        // BUILD 355: VERIFICATION PASS - Validate & Auto-Fix Generated Trees
+        // =========================================================================
+        // Generator → Critic → Revise pipeline to catch errors before user sees them
+
+        /**
+         * Verify generated tree data and attempt fixes if issues found
+         * @param {Object} treeData - The generated tree data
+         * @param {string} pattern - The pattern used
+         * @param {string} originalText - Original input text (for context in fixes)
+         * @returns {Object} - Verified/fixed tree data
+         */
+        async function verifyAndFixTreeData(treeData, pattern, originalText) {
+            const patternConfig = PATTERNS[pattern];
+            const levels = patternConfig.levels;
+
+            console.log('🔍 BUILD 355: Starting verification pass...');
+
+            // Collect issues
+            const issues = [];
+
+            // Check 1: Has phases?
+            if (!treeData.phases || !Array.isArray(treeData.phases) || treeData.phases.length === 0) {
+                issues.push({
+                    severity: 'critical',
+                    message: `No ${levels.phase}s found in generated tree`,
+                    type: 'missing_phases'
+                });
+            }
+
+            // Check 2: Project name exists?
+            if (!treeData.projectName || treeData.projectName.trim() === '') {
+                issues.push({
+                    severity: 'minor',
+                    message: 'Missing project name',
+                    type: 'missing_project_name'
+                });
+                // Quick fix - don't need AI for this
+                treeData.projectName = `${patternConfig.name} Project`;
+            }
+
+            // Check 3: Validate each phase
+            let totalItems = 0;
+            let itemsWithDescription = 0;
+            let itemsWithSubtasks = 0;
+
+            if (treeData.phases && Array.isArray(treeData.phases)) {
+                treeData.phases.forEach((phase, pIdx) => {
+                    // Phase needs a name
+                    if (!phase.name || phase.name.trim() === '') {
+                        issues.push({
+                            severity: 'warning',
+                            message: `${levels.phase} ${pIdx + 1} has no name`,
+                            type: 'missing_phase_name',
+                            location: `phase[${pIdx}]`
+                        });
+                    }
+
+                    // Phase should have items
+                    if (!phase.items || !Array.isArray(phase.items) || phase.items.length === 0) {
+                        issues.push({
+                            severity: 'warning',
+                            message: `${levels.phase} "${phase.name || pIdx + 1}" has no ${levels.item}s`,
+                            type: 'empty_phase',
+                            location: `phase[${pIdx}]`
+                        });
+                    } else {
+                        // Check each item
+                        phase.items.forEach((item, iIdx) => {
+                            totalItems++;
+
+                            if (!item.name || item.name.trim() === '') {
+                                issues.push({
+                                    severity: 'warning',
+                                    message: `${levels.item} at ${levels.phase} "${phase.name}" position ${iIdx + 1} has no name`,
+                                    type: 'missing_item_name',
+                                    location: `phase[${pIdx}].items[${iIdx}]`
+                                });
+                            }
+
+                            if (item.description && item.description.trim() !== '') {
+                                itemsWithDescription++;
+                            }
+
+                            if (item.subtasks && Array.isArray(item.subtasks) && item.subtasks.length > 0) {
+                                itemsWithSubtasks++;
+                            } else if (item.subItems && Array.isArray(item.subItems) && item.subItems.length > 0) {
+                                // Some patterns use subItems instead of subtasks
+                                itemsWithSubtasks++;
+                            }
+                        });
+                    }
+                });
+            }
+
+            // Check 4: Description coverage (warn if <50% have descriptions)
+            if (totalItems > 0) {
+                const descCoverage = (itemsWithDescription / totalItems) * 100;
+                if (descCoverage < 50) {
+                    issues.push({
+                        severity: 'quality',
+                        message: `Only ${Math.round(descCoverage)}% of ${levels.item}s have descriptions`,
+                        type: 'low_description_coverage',
+                        stats: { total: totalItems, withDesc: itemsWithDescription }
+                    });
+                }
+            }
+
+            // Check 5: Subtask coverage for deep patterns (philosophy, thesis, course)
+            const deepPatterns = ['philosophy', 'thesis', 'course', 'book', 'film'];
+            if (deepPatterns.includes(pattern) && totalItems > 0) {
+                const subtaskCoverage = (itemsWithSubtasks / totalItems) * 100;
+                if (subtaskCoverage < 30) {
+                    issues.push({
+                        severity: 'quality',
+                        message: `Only ${Math.round(subtaskCoverage)}% of ${levels.item}s have ${levels.subtask}s (${pattern} pattern expects more depth)`,
+                        type: 'low_subtask_coverage',
+                        stats: { total: totalItems, withSubtasks: itemsWithSubtasks }
+                    });
+                }
+            }
+
+            // Log issues found
+            const criticalIssues = issues.filter(i => i.severity === 'critical');
+            const warningIssues = issues.filter(i => i.severity === 'warning');
+            const qualityIssues = issues.filter(i => i.severity === 'quality');
+
+            console.log(`🔍 Verification complete: ${criticalIssues.length} critical, ${warningIssues.length} warnings, ${qualityIssues.length} quality suggestions`);
+
+            // If critical issues or multiple warnings, attempt AI fix
+            if (criticalIssues.length > 0 || warningIssues.length >= 3) {
+                console.log('⚠️ Issues require AI correction. Attempting fix...');
+
+                try {
+                    const fixedTree = await attemptAITreeFix(treeData, issues, pattern, originalText);
+                    if (fixedTree) {
+                        console.log('✅ AI fix successful');
+                        // Add verification metadata
+                        fixedTree._verificationPassed = true;
+                        fixedTree._fixApplied = true;
+                        fixedTree._issuesFixed = issues.length;
+                        return fixedTree;
+                    }
+                } catch (error) {
+                    console.warn('⚠️ AI fix failed, returning original with warnings:', error.message);
+                }
+            }
+
+            // Add verification metadata
+            treeData._verificationPassed = issues.filter(i => i.severity !== 'quality').length === 0;
+            treeData._qualityIssues = qualityIssues.length;
+
+            return treeData;
+        }
+
+        /**
+         * Call AI to fix issues in generated tree
+         */
+        async function attemptAITreeFix(treeData, issues, pattern, originalText) {
+            const patternConfig = PATTERNS[pattern];
+            const levels = patternConfig.levels;
+
+            // Build feedback prompt
+            const issuesList = issues.map(i => `- ${i.message}`).join('\n');
+
+            const fixPrompt = `You previously generated a tree structure but it has these issues:
+
+${issuesList}
+
+Here is the ORIGINAL TEXT that needs to be analyzed:
+---
+${originalText.substring(0, 3000)}${originalText.length > 3000 ? '...(truncated)' : ''}
+---
+
+Here is the FLAWED TREE you generated:
+${JSON.stringify(treeData, null, 2).substring(0, 2000)}
+
+Please regenerate the tree, fixing all the issues above. The pattern is "${patternConfig.name}" with these levels:
+- ${levels.root} (root)
+- ${levels.phase} (phases/major sections)
+- ${levels.item} (items within each phase)
+- ${levels.subtask} (subtasks/sub-items for depth)
+
+IMPORTANT:
+1. Every ${levels.phase} must have a meaningful name
+2. Every ${levels.phase} must have at least 1-2 ${levels.item}s
+3. ${levels.item}s should have descriptions that capture key information
+4. For ${pattern} pattern, include ${levels.subtask}s where the content supports them
+
+Return ONLY valid JSON in this exact format:
+{
+  "projectName": "...",
+  "phases": [
+    {
+      "name": "...",
+      "items": [
+        {
+          "name": "...",
+          "description": "...",
+          "subtasks": [{ "name": "..." }]
+        }
+      ]
+    }
+  ]
+}`;
+
+            // Get current AI provider
+            const provider = localStorage.getItem('aiProvider') || 'claude';
+            let response;
+
+            // Show fixing status
+            const modalBody = document.getElementById('modal-body');
+            if (modalBody) {
+                modalBody.innerHTML = `
+                    <div style="padding: 20px; text-align: center;">
+                        <div class="spinner"></div>
+                        <p style="margin-top: 16px; color: var(--text-primary); font-weight: 600;">
+                            🔧 Fixing ${issues.length} issue${issues.length > 1 ? 's' : ''}...
+                        </p>
+                        <p style="color: var(--text-secondary); font-size: 13px; margin-top: 8px;">
+                            TreeBeard is reviewing and improving the structure
+                        </p>
+                    </div>
+                `;
+            }
+
+            try {
+                if (provider === 'claude') {
+                    response = await callClaudeAPI(fixPrompt);
+                } else if (provider === 'gemini') {
+                    response = await callGeminiAPI(fixPrompt);
+                } else if (provider === 'openai') {
+                    response = await callOpenAIAPI(fixPrompt);
+                } else {
+                    throw new Error('Unknown AI provider');
+                }
+
+                // Extract JSON from response
+                let jsonText = response.trim();
+                jsonText = jsonText.replace(/```json\s*/g, '').replace(/```\s*/g, '');
+
+                const firstBrace = jsonText.indexOf('{');
+                if (firstBrace === -1) throw new Error('No JSON in fix response');
+
+                // Find matching closing brace
+                let depth = 0;
+                let endPos = -1;
+                let inString = false;
+                let escapeNext = false;
+
+                for (let i = firstBrace; i < jsonText.length; i++) {
+                    const char = jsonText[i];
+                    if (escapeNext) { escapeNext = false; continue; }
+                    if (char === '\\') { escapeNext = true; continue; }
+                    if (char === '"') { inString = !inString; continue; }
+                    if (!inString) {
+                        if (char === '{') depth++;
+                        else if (char === '}') {
+                            depth--;
+                            if (depth === 0) { endPos = i + 1; break; }
+                        }
+                    }
+                }
+
+                if (endPos === -1) throw new Error('Incomplete JSON in fix response');
+
+                jsonText = jsonText.substring(firstBrace, endPos);
+                const fixed = JSON.parse(jsonText);
+
+                // Validate the fix actually improved things
+                if (!fixed.phases || fixed.phases.length === 0) {
+                    throw new Error('Fix produced empty tree');
+                }
+
+                // Preserve any transcript analysis data from original
+                if (treeData.extractedContacts) fixed.extractedContacts = treeData.extractedContacts;
+                if (treeData.researchRequests) fixed.researchRequests = treeData.researchRequests;
+                if (treeData.itemUpdates) fixed.itemUpdates = treeData.itemUpdates;
+
+                return fixed;
+
+            } catch (error) {
+                console.error('❌ AI fix attempt failed:', error);
+                throw error;
+            }
         }
 
         // OLD SINGLE-CHUNK FALLBACK (DEPRECATED - keeping for reference)
@@ -32064,7 +32362,9 @@ Describe the ACTUAL SHOTS, not the process of creating them.
                     `;
                 }
 
-                const chunkPrompt = `Convert this SPECIFIC SECTION of a larger document into a detailed hierarchical structure using the "${patternConfig.name}" pattern (Section ${chunkIndex + 1}/${chunks.length}).
+                // BUILD 353: Prepend Smart Import Context if available
+                const smartContextDeep = window.smartImportContext || '';
+                const chunkPrompt = `${smartContextDeep}Convert this SPECIFIC SECTION of a larger document into a detailed hierarchical structure using the "${patternConfig.name}" pattern (Section ${chunkIndex + 1}/${chunks.length}).
 
 PATTERN HIERARCHY (4 LEVELS):
 - Root: ${levels.root}
@@ -32636,8 +32936,28 @@ ${jsonText}`;
                 }
             }
 
-            // Close analysis modal and show loading modal
+            // BUILD 353: Launch Smart Import Wizard for text analysis
+            const textAnalysis = analyzeTextContent(finalText, analysisFileName || 'Pasted Text');
+
+            // Close analysis modal before showing wizard
             document.getElementById('analysis-modal').style.display = 'none';
+
+            // BUILD 354: Pass original text for multi-tree slice detection
+            showSmartImportWizard(textAnalysis, analysisAppendMode, async (userAnswers) => {
+                // After wizard completes, proceed with the actual analysis
+                // BUILD 354: Handle multi-tree mode
+                if (userAnswers.multiTreeMode && userAnswers.multiTreeContexts) {
+                    await proceedWithMultiTreeTextAnalysis(finalText, mode, userAnswers.multiTreeContexts);
+                } else {
+                    await proceedWithTextAnalysis(finalText, mode, analysisAppendMode);
+                }
+            }, { text: finalText });
+        });
+
+        // BUILD 353: Extracted analysis logic to separate function for wizard callback
+        async function proceedWithTextAnalysis(finalText, mode, appendMode) {
+            // Close any modal and show loading modal
+            document.getElementById('modal').style.display = 'none';
             const modal = document.getElementById('modal');
             const modalBody = document.getElementById('modal-body');
             document.getElementById('modal-title').textContent = '🔍 Analyzing Text...';
@@ -32663,6 +32983,10 @@ ${jsonText}`;
                     } else {
                         treeData = await convertTextToTreeDeep(finalText, selectedPattern);
                     }
+
+                    // BUILD 355: Verification pass
+                    modalBody.innerHTML = '<div class="spinner"></div><p style="text-align: center; margin-top: 16px; color: var(--text-secondary);">Step 2/2: Verifying structure...</p>';
+                    treeData = await verifyAndFixTreeData(treeData, selectedPattern, finalText);
 
                     // Step 3: Preview and import
                     showAnalysisPreview(treeData, selectedPattern, analysisAppendMode);
@@ -32759,7 +33083,11 @@ ${jsonText}`;
                             treeData = await convertTextToTreeDeep(finalText, selectedPattern);
                         }
 
-                        // Step 3: Preview and import
+                        // BUILD 355: Verification pass
+                        modalBody.innerHTML = '<div class="spinner"></div><p style="text-align: center; margin-top: 16px; color: var(--text-secondary);">Step 3/3: Verifying structure...</p>';
+                        treeData = await verifyAndFixTreeData(treeData, selectedPattern, finalText);
+
+                        // Step 4: Preview and import
                         showAnalysisPreview(treeData, selectedPattern, analysisAppendMode);
 
                     } catch (error) {
@@ -34290,6 +34618,1904 @@ ${jsonText}`;
         document.getElementById('excel-export-btn').addEventListener('click', exportToExcel);
 
         // =============================================================================
+        // BUILD 353: SMART IMPORT WIZARD
+        // Pre-import Q&A for better AI analysis of Excel/Text
+        // =============================================================================
+
+        // Smart Import Wizard State
+        let smartImportState = {
+            active: false,
+            contentAnalysis: null,
+            userAnswers: {},
+            currentStep: 0,
+            questions: [],
+            appendMode: false,
+            sourceType: null, // 'excel' or 'text'
+            onComplete: null,  // Callback when wizard completes
+            // BUILD 354: Multi-tree output
+            multiTreeMode: false,
+            selectedSlices: [],
+            detectedSlices: [],
+            originalData: null  // Store original workbook/text for multi-tree processing
+        };
+
+        // Global context that gets prepended to AI prompts
+        window.smartImportContext = '';
+
+        // BUILD 354: Multi-tree contexts for generating multiple trees
+        window.multiTreeContexts = [];
+
+        // =============================================================================
+        // CONTENT ANALYSIS ENGINE (client-side, no AI)
+        // =============================================================================
+
+        /**
+         * Analyze Excel workbook structure
+         */
+        function analyzeExcelContent(workbook, fileName) {
+            const analysis = {
+                sourceType: 'excel',
+                fileName: fileName,
+                sheets: [],
+                relationships: [],
+                domain: { detected: 'generic', confidence: 0, keywords: [] },
+                financials: { hasCapex: false, hasOpex: false, hasRevenue: false, hasCashflow: false, metrics: [], currencyColumns: [] },
+                timeline: { detected: false, range: { start: null, end: null }, granularity: null, milestones: [] },
+                validationInfo: { detected: false, stats: { validated: 0, notValidated: 0 } },
+                totalRows: 0,
+                totalCols: 0
+            };
+
+            // Domain keywords for detection
+            const domainKeywords = {
+                capex: ['capex', 'capital', 'turbine', 'mw', 'megawatt', 'infrastructure', 'construction', 'equipment', 'irr', 'npv', 'payback', 'data center', 'datacenter'],
+                philosophy: ['argument', 'premise', 'conclusion', 'dialectic', 'thesis', 'antithesis', 'socratic', 'philosopher', 'epistemology', 'ontology'],
+                sales: ['deal', 'pipeline', 'revenue', 'prospect', 'lead', 'close date', 'probability', 'competitor', 'quota', 'commission'],
+                legal: ['contract', 'clause', 'party', 'obligation', 'liability', 'indemnity', 'term', 'amendment'],
+                technical: ['api', 'database', 'server', 'deployment', 'architecture', 'microservice', 'endpoint', 'integration']
+            };
+
+            // Financial keywords
+            const financialKeywords = {
+                capex: ['capex', 'capital cost', 'capital expenditure', 'equipment cost', 'purchase', 'investment'],
+                opex: ['opex', 'operating', 'maintenance', 'wages', 'salary', 'fuel', 'utilities'],
+                revenue: ['revenue', 'income', 'sales', 'gross', 'billing'],
+                metrics: ['irr', 'npv', 'roi', 'payback', 'margin', 'ebitda']
+            };
+
+            // Validation column keywords
+            const validationKeywords = ['validated', 'approved', 'confirmed', 'verified', 'status', 'complete', 'done', 'yes/no'];
+
+            // Timeline patterns
+            const yearPattern = /\b(20[2-3]\d)\b/g;
+            const quarterPattern = /Q[1-4]\s*20[2-3]\d|20[2-3]\d\s*Q[1-4]/gi;
+
+            let allText = '';
+            let detectedYears = new Set();
+            let detectedMilestones = [];
+
+            // Analyze each sheet
+            workbook.SheetNames.forEach((sheetName, sheetIndex) => {
+                const sheet = workbook.Sheets[sheetName];
+                const data = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+
+                if (data.length === 0) return;
+
+                const sheetInfo = {
+                    name: sheetName,
+                    index: sheetIndex,
+                    rowCount: data.length,
+                    colCount: data[0]?.length || 0,
+                    headers: [],
+                    sampleData: data.slice(0, 5),
+                    dataTypes: {},
+                    hasValidationColumn: false,
+                    validationColIndex: -1,
+                    validationStats: { validated: 0, notValidated: 0 },
+                    hasCurrencyData: false,
+                    hasDateData: false,
+                    summary: ''
+                };
+
+                analysis.totalRows += data.length;
+                analysis.totalCols = Math.max(analysis.totalCols, sheetInfo.colCount);
+
+                // Find headers (first non-empty row with multiple values)
+                for (let i = 0; i < Math.min(5, data.length); i++) {
+                    const row = data[i];
+                    if (row && row.filter(c => c !== null && c !== undefined && c !== '').length >= 2) {
+                        sheetInfo.headers = row.map(h => String(h || '').trim());
+                        break;
+                    }
+                }
+
+                // Analyze content
+                data.forEach((row, rowIndex) => {
+                    if (!row) return;
+                    row.forEach((cell, colIndex) => {
+                        if (cell === null || cell === undefined) return;
+                        const cellStr = String(cell).toLowerCase();
+                        allText += ' ' + cellStr;
+
+                        // Detect validation columns
+                        if (rowIndex < 3) { // Header area
+                            validationKeywords.forEach(kw => {
+                                if (cellStr.includes(kw)) {
+                                    sheetInfo.hasValidationColumn = true;
+                                    sheetInfo.validationColIndex = colIndex;
+                                }
+                            });
+                        }
+
+                        // Count validation values
+                        if (sheetInfo.hasValidationColumn && colIndex === sheetInfo.validationColIndex && rowIndex > 0) {
+                            if (cellStr === 'yes' || cellStr === 'true' || cellStr === 'done' || cellStr === 'validated' || cellStr === 'approved') {
+                                sheetInfo.validationStats.validated++;
+                            } else if (cellStr === 'no' || cellStr === 'false' || cellStr === 'pending' || cellStr === 'tbd') {
+                                sheetInfo.validationStats.notValidated++;
+                            }
+                        }
+
+                        // Detect currency (numbers with $ or large numbers)
+                        if (typeof cell === 'number' && cell > 10000) {
+                            sheetInfo.hasCurrencyData = true;
+                        }
+                        if (cellStr.includes('$') || cellStr.includes('cost') || cellStr.includes('price')) {
+                            sheetInfo.hasCurrencyData = true;
+                        }
+
+                        // Detect years and milestones
+                        const yearMatches = cellStr.match(yearPattern);
+                        if (yearMatches) {
+                            yearMatches.forEach(y => detectedYears.add(parseInt(y)));
+                        }
+                        const quarterMatches = cellStr.match(quarterPattern);
+                        if (quarterMatches) {
+                            quarterMatches.forEach(q => {
+                                if (!detectedMilestones.includes(q)) {
+                                    detectedMilestones.push(q);
+                                }
+                            });
+                        }
+
+                        // Detect milestone keywords
+                        if (cellStr.includes('milestone') || cellStr.includes('in-service') || cellStr.includes('commission') || cellStr.includes('complete')) {
+                            const context = String(cell).substring(0, 100);
+                            if (!detectedMilestones.some(m => m.includes(context.substring(0, 20)))) {
+                                detectedMilestones.push(context);
+                            }
+                        }
+                    });
+                });
+
+                // Generate sheet summary
+                const summaryParts = [];
+                if (sheetInfo.hasCurrencyData) summaryParts.push('financial data');
+                if (sheetInfo.hasValidationColumn) summaryParts.push('validation status');
+                if (sheetInfo.hasDateData) summaryParts.push('dates');
+                sheetInfo.summary = summaryParts.length > 0 ? summaryParts.join(', ') : 'general data';
+
+                // Aggregate validation stats
+                if (sheetInfo.hasValidationColumn) {
+                    analysis.validationInfo.detected = true;
+                    analysis.validationInfo.stats.validated += sheetInfo.validationStats.validated;
+                    analysis.validationInfo.stats.notValidated += sheetInfo.validationStats.notValidated;
+                }
+
+                analysis.sheets.push(sheetInfo);
+            });
+
+            // Domain detection
+            const textLower = allText.toLowerCase();
+            let maxScore = 0;
+            let detectedDomain = 'generic';
+            const foundKeywords = [];
+
+            Object.entries(domainKeywords).forEach(([domain, keywords]) => {
+                let score = 0;
+                keywords.forEach(kw => {
+                    const matches = (textLower.match(new RegExp(kw, 'g')) || []).length;
+                    if (matches > 0) {
+                        score += matches;
+                        if (!foundKeywords.includes(kw) && foundKeywords.length < 8) {
+                            foundKeywords.push(kw);
+                        }
+                    }
+                });
+                if (score > maxScore) {
+                    maxScore = score;
+                    detectedDomain = domain;
+                }
+            });
+
+            analysis.domain = {
+                detected: detectedDomain,
+                confidence: Math.min(0.95, maxScore / 20),
+                keywords: foundKeywords,
+                suggestedPattern: detectedDomain === 'capex' ? 'generic' : detectedDomain
+            };
+
+            // Financial structure detection
+            Object.entries(financialKeywords).forEach(([type, keywords]) => {
+                keywords.forEach(kw => {
+                    if (textLower.includes(kw)) {
+                        if (type === 'capex') analysis.financials.hasCapex = true;
+                        if (type === 'opex') analysis.financials.hasOpex = true;
+                        if (type === 'revenue') analysis.financials.hasRevenue = true;
+                        if (type === 'metrics' && !analysis.financials.metrics.includes(kw.toUpperCase())) {
+                            analysis.financials.metrics.push(kw.toUpperCase());
+                        }
+                    }
+                });
+            });
+            if (textLower.includes('cashflow') || textLower.includes('cash flow')) {
+                analysis.financials.hasCashflow = true;
+            }
+
+            // Timeline detection
+            if (detectedYears.size > 0) {
+                const years = Array.from(detectedYears).sort();
+                analysis.timeline = {
+                    detected: true,
+                    range: { start: years[0], end: years[years.length - 1] },
+                    granularity: detectedMilestones.length > 4 ? 'quarterly' : 'yearly',
+                    milestones: detectedMilestones.slice(0, 10)
+                };
+            }
+
+            // Detect cross-sheet relationships (simple heuristic: shared keywords in sheet names)
+            const sheetKeywords = analysis.sheets.map(s => ({
+                name: s.name,
+                keywords: s.name.toLowerCase().split(/[\s_-]+/)
+            }));
+
+            for (let i = 0; i < sheetKeywords.length; i++) {
+                for (let j = i + 1; j < sheetKeywords.length; j++) {
+                    const shared = sheetKeywords[i].keywords.filter(k =>
+                        k.length > 2 && sheetKeywords[j].keywords.includes(k)
+                    );
+                    if (shared.length > 0) {
+                        analysis.relationships.push({
+                            from: sheetKeywords[i].name,
+                            to: sheetKeywords[j].name,
+                            sharedKeywords: shared,
+                            type: 'related'
+                        });
+                    }
+                }
+            }
+
+            console.log('📊 Content analysis complete:', analysis);
+            return analysis;
+        }
+
+        /**
+         * Analyze text content structure
+         */
+        function analyzeTextContent(text, fileName = 'Pasted Text') {
+            const analysis = {
+                sourceType: 'text',
+                fileName: fileName,
+                sheets: [], // Not applicable for text
+                relationships: [],
+                domain: { detected: 'generic', confidence: 0, keywords: [] },
+                financials: { hasCapex: false, hasOpex: false, hasRevenue: false, hasCashflow: false, metrics: [] },
+                timeline: { detected: false, range: { start: null, end: null }, granularity: null, milestones: [] },
+                validationInfo: { detected: false, stats: { validated: 0, notValidated: 0 } },
+                textStats: {
+                    charCount: text.length,
+                    wordCount: text.split(/\s+/).filter(w => w.length > 0).length,
+                    lineCount: text.split('\n').length,
+                    hasHeaders: false,
+                    hasBullets: false,
+                    hasNumbers: false
+                }
+            };
+
+            const textLower = text.toLowerCase();
+
+            // Domain keywords (same as Excel)
+            const domainKeywords = {
+                capex: ['capex', 'capital', 'turbine', 'mw', 'infrastructure', 'equipment', 'irr', 'npv'],
+                philosophy: ['argument', 'premise', 'conclusion', 'dialectic', 'thesis', 'philosopher'],
+                sales: ['deal', 'pipeline', 'revenue', 'prospect', 'lead', 'probability'],
+                legal: ['contract', 'clause', 'party', 'obligation', 'liability'],
+                technical: ['api', 'database', 'server', 'deployment', 'architecture']
+            };
+
+            // Detect domain
+            let maxScore = 0;
+            let detectedDomain = 'generic';
+            const foundKeywords = [];
+
+            Object.entries(domainKeywords).forEach(([domain, keywords]) => {
+                let score = 0;
+                keywords.forEach(kw => {
+                    const matches = (textLower.match(new RegExp(kw, 'g')) || []).length;
+                    if (matches > 0) {
+                        score += matches;
+                        if (!foundKeywords.includes(kw)) foundKeywords.push(kw);
+                    }
+                });
+                if (score > maxScore) {
+                    maxScore = score;
+                    detectedDomain = domain;
+                }
+            });
+
+            analysis.domain = {
+                detected: detectedDomain,
+                confidence: Math.min(0.95, maxScore / 10),
+                keywords: foundKeywords.slice(0, 6)
+            };
+
+            // Detect timeline
+            const yearPattern = /\b(20[2-3]\d)\b/g;
+            const years = [...new Set((text.match(yearPattern) || []).map(y => parseInt(y)))].sort();
+            if (years.length > 0) {
+                analysis.timeline = {
+                    detected: true,
+                    range: { start: years[0], end: years[years.length - 1] },
+                    granularity: 'yearly',
+                    milestones: []
+                };
+            }
+
+            // Text structure detection
+            analysis.textStats.hasHeaders = /^#+\s|^[A-Z][A-Z\s]+:|\n[A-Z][A-Z\s]+\n/m.test(text);
+            analysis.textStats.hasBullets = /^[\s]*[-•*]\s|^\s*\d+[.)]\s/m.test(text);
+            analysis.textStats.hasNumbers = /\$[\d,]+|\d+%|\d+\s*(MW|kW|GJ|MWh)/i.test(text);
+
+            // Financial detection
+            if (/capex|capital\s*(cost|expenditure)/i.test(text)) analysis.financials.hasCapex = true;
+            if (/opex|operating\s*(cost|expense)/i.test(text)) analysis.financials.hasOpex = true;
+            if (/revenue|income|sales/i.test(text)) analysis.financials.hasRevenue = true;
+
+            console.log('📄 Text analysis complete:', analysis);
+            return analysis;
+        }
+
+        // =============================================================================
+        // BUILD 354: MULTI-TREE SLICE DETECTION
+        // Detect potential ways to split data into multiple trees
+        // =============================================================================
+
+        /**
+         * Detect potential slices for multi-tree output
+         * Returns array of slice objects with id, name, description, and filter context
+         */
+        function detectPotentialSlices(analysis, workbook = null, text = null) {
+            const slices = [];
+            const isExcel = analysis.sourceType === 'excel';
+
+            // 1. STAKEHOLDER/AUDIENCE SLICES
+            // Look for business model indicators
+            const stakeholderKeywords = {
+                'btc-mining': {
+                    keywords: ['btc', 'bitcoin', 'mining', 'hash', 'crypto'],
+                    name: 'BTC Mining Focus',
+                    desc: 'Crypto investors, mining operations',
+                    icon: '₿',
+                    audience: 'Crypto investors, power generation partners'
+                },
+                'enterprise-dc': {
+                    keywords: ['enterprise', 'tier 3', 'tier 4', 'datacenter', 'data center', 'colocation', 'colo', 'ai training', 'hyperscale'],
+                    name: 'Enterprise Data Center',
+                    desc: 'Enterprise customers, AI/cloud investors',
+                    icon: '🏢',
+                    audience: 'Enterprise customers, AI/cloud investors, ESG stakeholders'
+                },
+                'investor': {
+                    keywords: ['irr', 'npv', 'roi', 'investor', 'returns', 'payback', 'payout'],
+                    name: 'Investor Summary',
+                    desc: 'Financial metrics and returns',
+                    icon: '📈',
+                    audience: 'Investors, financial stakeholders, board members'
+                },
+                'operations': {
+                    keywords: ['operations', 'maintenance', 'staff', 'wages', 'daily', 'uptime'],
+                    name: 'Operations Focus',
+                    desc: 'Day-to-day operational data',
+                    icon: '⚙️',
+                    audience: 'Operations team, facility managers'
+                },
+                'esg-carbon': {
+                    keywords: ['carbon', 'esg', 'solar', 'renewable', 'emissions', 'neutral', 'sustainable'],
+                    name: 'ESG & Carbon Neutral',
+                    desc: 'Sustainability and environmental focus',
+                    icon: '🌱',
+                    audience: 'ESG committees, sustainability officers, green investors'
+                }
+            };
+
+            // Check content for stakeholder indicators
+            let contentText = '';
+            if (isExcel && workbook) {
+                workbook.SheetNames.forEach(name => {
+                    const sheet = workbook.Sheets[name];
+                    if (sheet) {
+                        const json = XLSX.utils.sheet_to_json(sheet, { header: 1 });
+                        json.forEach(row => {
+                            contentText += ' ' + row.map(c => String(c || '')).join(' ');
+                        });
+                    }
+                });
+            } else if (text) {
+                contentText = text;
+            }
+            const contentLower = contentText.toLowerCase();
+
+            Object.entries(stakeholderKeywords).forEach(([id, config]) => {
+                const matchCount = config.keywords.reduce((count, kw) => {
+                    const matches = (contentLower.match(new RegExp(kw, 'gi')) || []).length;
+                    return count + matches;
+                }, 0);
+
+                if (matchCount >= 2) {
+                    slices.push({
+                        id: id,
+                        type: 'stakeholder',
+                        name: config.name,
+                        desc: config.desc,
+                        icon: config.icon,
+                        matchScore: matchCount,
+                        context: `TARGET AUDIENCE: ${config.audience}\nFOCUS: Filter and emphasize content relevant to ${config.name.toLowerCase()}. Exclude items not relevant to this audience.`
+                    });
+                }
+            });
+
+            // 2. TIMELINE SLICES (if multi-year data)
+            if (analysis.timeline.detected && analysis.timeline.range.end - analysis.timeline.range.start >= 2) {
+                // Suggest phase-based splits
+                slices.push({
+                    id: 'phase-early',
+                    type: 'timeline',
+                    name: `Early Phase (${analysis.timeline.range.start}-${analysis.timeline.range.start + 1})`,
+                    desc: 'Initial development and setup',
+                    icon: '1️⃣',
+                    context: `TIMELINE FILTER: Focus only on activities, costs, and milestones from ${analysis.timeline.range.start} to ${analysis.timeline.range.start + 1}. This is the early development phase.`
+                });
+
+                if (analysis.timeline.range.end - analysis.timeline.range.start >= 3) {
+                    const midStart = analysis.timeline.range.start + 2;
+                    const midEnd = analysis.timeline.range.end - 1;
+                    slices.push({
+                        id: 'phase-growth',
+                        type: 'timeline',
+                        name: `Growth Phase (${midStart}-${midEnd})`,
+                        desc: 'Expansion and scaling',
+                        icon: '📈',
+                        context: `TIMELINE FILTER: Focus only on activities, costs, and milestones from ${midStart} to ${midEnd}. This is the growth and expansion phase.`
+                    });
+                }
+
+                slices.push({
+                    id: 'phase-mature',
+                    type: 'timeline',
+                    name: `Mature Phase (${analysis.timeline.range.end}+)`,
+                    desc: 'Full operations and optimization',
+                    icon: '✅',
+                    context: `TIMELINE FILTER: Focus only on activities, costs, and milestones from ${analysis.timeline.range.end} onwards. This is the mature operations phase.`
+                });
+            }
+
+            // 3. FINANCIAL STRUCTURE SLICES
+            if (analysis.financials.hasCapex && analysis.financials.hasRevenue) {
+                slices.push({
+                    id: 'capex-only',
+                    type: 'financial',
+                    name: 'Capital Expenditures',
+                    desc: 'Investment and infrastructure costs',
+                    icon: '💵',
+                    context: 'FINANCIAL FILTER: Focus ONLY on capital expenditures (CAPEX) - equipment, infrastructure, land, construction. Exclude operating costs and revenue projections.'
+                });
+
+                slices.push({
+                    id: 'revenue-model',
+                    type: 'financial',
+                    name: 'Revenue & Operations',
+                    desc: 'Operating economics and returns',
+                    icon: '💰',
+                    context: 'FINANCIAL FILTER: Focus ONLY on revenue generation, operating costs (OPEX), profit margins, and ROI calculations. Minimize CAPEX details.'
+                });
+            }
+
+            // 4. DOMAIN-SPECIFIC SLICES (if mixed content detected)
+            if (analysis.domain.keywords.length > 4) {
+                // Mixed content - suggest domain splits
+                if (analysis.domain.detected === 'capex') {
+                    slices.push({
+                        id: 'power-infrastructure',
+                        type: 'domain',
+                        name: 'Power Infrastructure',
+                        desc: 'Turbines, solar, grid connection',
+                        icon: '⚡',
+                        context: 'DOMAIN FILTER: Focus ONLY on power generation infrastructure - turbines, solar arrays, grid connections, electrical systems, energy storage.'
+                    });
+
+                    slices.push({
+                        id: 'facility-infrastructure',
+                        type: 'domain',
+                        name: 'Facility & Utilities',
+                        desc: 'Buildings, cooling, water, connectivity',
+                        icon: '🏗️',
+                        context: 'DOMAIN FILTER: Focus ONLY on facility infrastructure - buildings, cooling systems, water treatment, fiber connectivity, site development.'
+                    });
+                }
+            }
+
+            // Sort by match score (stakeholder slices) then by type
+            slices.sort((a, b) => {
+                if (a.type === 'stakeholder' && b.type === 'stakeholder') {
+                    return (b.matchScore || 0) - (a.matchScore || 0);
+                }
+                return a.type.localeCompare(b.type);
+            });
+
+            console.log('🌳 Detected potential slices:', slices);
+            return slices;
+        }
+
+        // =============================================================================
+        // QUESTION POOL - Dynamic questions based on content analysis
+        // =============================================================================
+
+        const smartImportQuestions = {
+            organization: {
+                id: 'organization',
+                condition: () => true, // Always ask
+                question: "How should I organize this?",
+                getOptions: (analysis) => {
+                    const options = [
+                        { id: 'category', label: 'By Category', desc: 'Group by domain/type' }
+                    ];
+                    if (analysis.timeline.detected) {
+                        const range = `${analysis.timeline.range.start} → ${analysis.timeline.range.end}`;
+                        options.unshift({ id: 'timeline', label: 'By Timeline', desc: range });
+                        options.push({
+                            id: 'milestone',
+                            label: 'By Milestone',
+                            desc: `${analysis.timeline.milestones.length || 'Key'} milestones`,
+                            recommended: analysis.timeline.milestones.length > 2
+                        });
+                    }
+                    if (analysis.financials.hasCapex || analysis.financials.hasRevenue) {
+                        options.push({ id: 'financial', label: 'By Financial Structure', desc: 'CAPEX → OPEX → Revenue' });
+                    }
+                    // Mark first as recommended if none marked
+                    if (!options.some(o => o.recommended)) {
+                        options[0].recommended = true;
+                    }
+                    return options;
+                }
+            },
+
+            detailLevel: {
+                id: 'detailLevel',
+                condition: () => true, // Always ask
+                question: "What level of detail?",
+                getOptions: () => [
+                    { id: 'capital-only', label: 'Key Items Only', desc: 'Main deliverables and costs' },
+                    { id: 'capital-milestones', label: 'Items + Milestones', desc: 'Deliverables, infrastructure, key dates', recommended: true },
+                    { id: 'everything', label: 'Everything', desc: 'All data as items/subtasks' }
+                ]
+            },
+
+            financials: {
+                id: 'financials',
+                condition: (a) => a.financials.hasCapex || a.financials.hasRevenue || a.financials.hasOpex,
+                question: "Where should financial data appear?",
+                getOptions: () => [
+                    { id: 'items', label: 'On Items Only', desc: 'Each item shows its cost' },
+                    { id: 'summaries', label: 'Phase Summaries Only', desc: 'Totals per phase' },
+                    { id: 'both', label: 'Both', desc: 'Item costs + phase summaries', recommended: true }
+                ]
+            },
+
+            validation: {
+                id: 'validation',
+                condition: (a) => a.validationInfo.detected,
+                question: "I found validation status. How should I track it?",
+                getOptions: (analysis) => {
+                    const stats = analysis.validationInfo.stats;
+                    return [
+                        { id: 'pm-status', label: 'PM Tracking', desc: `Done/To Do (${stats.validated} validated, ${stats.notValidated} pending)`, recommended: true },
+                        { id: 'description', label: 'In Description', desc: 'Add [VALIDATED] tag' },
+                        { id: 'ignore', label: 'Ignore', desc: "Don't import status" }
+                    ];
+                }
+            },
+
+            appendTarget: {
+                id: 'appendTarget',
+                condition: (a) => a.appendMode,
+                question: "Where should new content go?",
+                getOptions: (analysis) => {
+                    const options = [
+                        { id: 'smart-match', label: 'Smart Match', desc: 'AI matches to existing phases', recommended: true },
+                        { id: 'new-phases', label: 'Add New Phases', desc: 'Create separate phases' }
+                    ];
+                    // Add existing phases as options
+                    if (window.capexTree && window.capexTree.children) {
+                        window.capexTree.children.forEach(phase => {
+                            options.push({
+                                id: `phase-${phase.id}`,
+                                label: `Under: ${phase.name}`,
+                                desc: `${phase.items?.length || 0} existing items`
+                            });
+                        });
+                    }
+                    return options;
+                }
+            },
+
+            duplicateHandling: {
+                id: 'duplicateHandling',
+                condition: (a) => a.appendMode,
+                question: "How should I handle duplicates?",
+                getOptions: () => [
+                    { id: 'smart-dedupe', label: 'Smart Deduplication', desc: 'Merge similar items (60% match)', recommended: true },
+                    { id: 'update', label: 'Update Existing', desc: 'Overwrite matching items' },
+                    { id: 'add-all', label: 'Add Everything', desc: 'No deduplication' }
+                ]
+            },
+
+            // BUILD 354: Multi-tree output option
+            outputMode: {
+                id: 'outputMode',
+                condition: (a) => !a.appendMode && a.detectedSlices && a.detectedSlices.length >= 2,
+                question: "I can create multiple trees for different audiences. Interested?",
+                getOptions: (analysis) => {
+                    const options = [
+                        { id: 'single', label: 'Single Tree', desc: 'One comprehensive tree (standard)', recommended: true }
+                    ];
+
+                    if (analysis.detectedSlices && analysis.detectedSlices.length >= 2) {
+                        options.push({
+                            id: 'multi-select',
+                            label: 'Multiple Trees',
+                            desc: `Choose from ${analysis.detectedSlices.length} detected variations`,
+                            icon: '🌳'
+                        });
+
+                        // Add quick option for top 2 stakeholder slices
+                        const stakeholderSlices = analysis.detectedSlices.filter(s => s.type === 'stakeholder');
+                        if (stakeholderSlices.length >= 2) {
+                            const top2 = stakeholderSlices.slice(0, 2);
+                            options.push({
+                                id: 'quick-dual',
+                                label: `Quick: ${top2[0].name} + ${top2[1].name}`,
+                                desc: 'Generate two targeted trees',
+                                quickSlices: top2.map(s => s.id)
+                            });
+                        }
+                    }
+
+                    return options;
+                }
+            }
+        };
+
+        /**
+         * Generate questions based on content analysis
+         */
+        function generateSmartQuestions(analysis) {
+            const questions = [];
+            Object.values(smartImportQuestions).forEach(q => {
+                // Check if appendMode is set in analysis for append-specific questions
+                // BUILD 354: Include detectedSlices in analysis for outputMode question
+                const checkAnalysis = {
+                    ...analysis,
+                    appendMode: smartImportState.appendMode,
+                    detectedSlices: smartImportState.detectedSlices || []
+                };
+                if (q.condition(checkAnalysis)) {
+                    questions.push({
+                        ...q,
+                        options: q.getOptions(checkAnalysis)
+                    });
+                }
+            });
+            return questions;
+        }
+
+        // =============================================================================
+        // SEMANTIC ICON MAPPING
+        // =============================================================================
+
+        const semanticIconMap = {
+            // Energy & Power
+            turbine: '⚡', generator: '⚡', power: '⚡', electricity: '⚡', 'mw': '⚡', megawatt: '⚡',
+            solar: '☀️', photovoltaic: '☀️', pv: '☀️',
+            battery: '🔋', bess: '🔋', storage: '🔋',
+            gas: '🔥', fuel: '🔥', natural: '🔥',
+
+            // Infrastructure
+            water: '💧', cooling: '❄️', hvac: '❄️',
+            fiber: '🌐', network: '🌐', internet: '🌐', connectivity: '🌐',
+            building: '🏗️', shell: '🏗️', construction: '🏗️', facility: '🏗️',
+            site: '🚧', civil: '🚧', grading: '🚧',
+            land: '🏞️', acre: '🏞️', property: '🏞️',
+
+            // Business
+            btc: '₿', bitcoin: '₿', crypto: '₿', mining: '₿',
+            enterprise: '🏢', datacenter: '🏢', 'data center': '🏢', tier: '🏢',
+            revenue: '💰', income: '💰', profit: '💰', economics: '💰',
+            cost: '💵', capex: '💵', expense: '💵',
+
+            // Status & Milestones
+            milestone: '🎯', target: '🎯', deadline: '🎯',
+            complete: '✅', done: '✅', validated: '✅',
+            pending: '⏳', progress: '⏳',
+
+            // Equipment
+            switchgear: '🔌', cable: '🔌', electrical: '🔌',
+            diesel: '🛢️', backup: '🛡️', redundancy: '🛡️',
+
+            // Environment
+            carbon: '🌱', co2: '🌱', emission: '🌱', green: '🌱',
+
+            // Security & Compliance
+            security: '🔒', fence: '🔒', permit: '📋', approval: '📋',
+            engineering: '📐', design: '📐'
+        };
+
+        /**
+         * Get semantic icon for an item name
+         */
+        function getSemanticIcon(itemName) {
+            const nameLower = itemName.toLowerCase();
+            for (const [keyword, icon] of Object.entries(semanticIconMap)) {
+                if (nameLower.includes(keyword)) {
+                    return icon;
+                }
+            }
+            return '📦'; // Default
+        }
+
+        // =============================================================================
+        // BUILD SMART IMPORT CONTEXT (prepended to existing prompts)
+        // =============================================================================
+
+        /**
+         * Build context string that gets prepended to existing AI prompts
+         * This is ADDITIVE - existing prompts are not modified
+         */
+        function buildSmartImportContext(analysis, answers) {
+            if (!analysis || Object.keys(answers).length === 0) {
+                return '';
+            }
+
+            let context = `
+=== SMART IMPORT CONTEXT ===
+Source: ${analysis.fileName} (${analysis.sourceType})
+`;
+
+            // Organization preference
+            if (answers.organization) {
+                context += `\nORGANIZATION: ${answers.organization}`;
+                if (answers.organization === 'timeline' && analysis.timeline.detected) {
+                    context += ` (${analysis.timeline.range.start}-${analysis.timeline.range.end})`;
+                } else if (answers.organization === 'milestone' && analysis.timeline.milestones.length > 0) {
+                    context += `\nMilestones to use: ${analysis.timeline.milestones.slice(0, 5).join(', ')}`;
+                }
+            }
+
+            // Detail level
+            if (answers.detailLevel) {
+                context += `\nDETAIL LEVEL: ${answers.detailLevel}`;
+                if (answers.detailLevel === 'capital-only') {
+                    context += ' - Focus on main deliverables and costs only';
+                } else if (answers.detailLevel === 'everything') {
+                    context += ' - Include all available data as items/subtasks';
+                }
+            }
+
+            // Financial handling
+            if (answers.financials) {
+                context += `\nFINANCIALS: ${answers.financials}`;
+                if (answers.financials === 'both') {
+                    context += ' - Add costs to items AND create "Economics Summary" item per phase';
+                }
+            }
+
+            // Validation mapping
+            if (answers.validation === 'pm-status') {
+                context += `\nVALIDATION → PM STATUS: Map Yes/Validated/Approved → pmStatus:"Done", pmProgress:100; Map No/Pending/TBD → pmStatus:"To Do", pmProgress:0`;
+            }
+
+            // Append mode specifics
+            if (answers.appendTarget) {
+                context += `\nAPPEND TARGET: ${answers.appendTarget}`;
+            }
+            if (answers.duplicateHandling) {
+                context += `\nDUPLICATE HANDLING: ${answers.duplicateHandling}`;
+            }
+
+            // Domain context
+            if (analysis.domain.detected !== 'generic' && analysis.domain.confidence > 0.3) {
+                context += `\nDOMAIN CONTEXT: This is ${analysis.domain.detected} data. Keywords: ${analysis.domain.keywords.join(', ')}`;
+            }
+
+            // Cross-sheet relationships
+            if (analysis.relationships && analysis.relationships.length > 0) {
+                context += `\nCROSS-REFERENCES: ${analysis.relationships.map(r => `${r.from}↔${r.to}`).join(', ')}`;
+            }
+
+            // Source traceability instruction
+            context += `\nSOURCE TRACEABILITY: Include source reference in item descriptions where helpful`;
+
+            // Semantic icons instruction
+            context += `\nICONS: Use semantic icons (⚡ power, 💰 financial, 🏗️ building, 🎯 milestone, etc.)`;
+
+            context += `\n=== END SMART IMPORT CONTEXT ===\n\n`;
+
+            return context;
+        }
+
+        // =============================================================================
+        // SMART IMPORT WIZARD UI
+        // =============================================================================
+
+        /**
+         * Show the Smart Import Wizard modal
+         * BUILD 354: Added workbook/text params for multi-tree slice detection
+         */
+        function showSmartImportWizard(analysis, appendMode, onComplete, originalData = null) {
+            // BUILD 354: Detect potential slices for multi-tree output
+            const detectedSlices = !appendMode ? detectPotentialSlices(
+                analysis,
+                originalData?.workbook || null,
+                originalData?.text || null
+            ) : [];
+
+            smartImportState = {
+                active: true,
+                contentAnalysis: analysis,
+                userAnswers: {},
+                currentStep: 0,
+                questions: [], // Will be generated after detectedSlices is set
+                appendMode: appendMode,
+                sourceType: analysis.sourceType,
+                onComplete: onComplete,
+                // BUILD 354: Multi-tree state
+                multiTreeMode: false,
+                detectedSlices: detectedSlices,
+                selectedSlices: [],
+                originalData: originalData
+            };
+
+            // Generate questions now that detectedSlices is set
+            smartImportState.questions = generateSmartQuestions(analysis);
+
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🔍 Smart Import Wizard';
+
+            // Show Step 1: Content Preview
+            showWizardStep1(modalBody, analysis);
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * Step 1: Content Preview
+         */
+        function showWizardStep1(container, analysis) {
+            const isExcel = analysis.sourceType === 'excel';
+
+            let sheetsHtml = '';
+            if (isExcel && analysis.sheets.length > 0) {
+                sheetsHtml = `
+                    <div style="margin-top: 16px; border-top: 1px solid var(--border); padding-top: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 8px; cursor: pointer;" onclick="this.nextElementSibling.style.display = this.nextElementSibling.style.display === 'none' ? 'block' : 'none'">
+                            📑 Sheets Overview (${analysis.sheets.length}) ▾
+                        </div>
+                        <div style="display: none; max-height: 150px; overflow-y: auto;">
+                            ${analysis.sheets.map(s => `
+                                <div style="padding: 4px 0; font-size: 13px; color: var(--text-secondary);">
+                                    • ${s.name} (${s.rowCount} rows) - ${s.summary || 'data'}
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+
+            let textStatsHtml = '';
+            if (!isExcel && analysis.textStats) {
+                textStatsHtml = `
+                    <div style="padding: 8px 12px; background: var(--bg-secondary); border-radius: 6px; margin-bottom: 12px;">
+                        📄 ${analysis.textStats.wordCount.toLocaleString()} words • ${analysis.textStats.lineCount} lines
+                        ${analysis.textStats.hasHeaders ? ' • Has headers' : ''}
+                        ${analysis.textStats.hasBullets ? ' • Has bullet points' : ''}
+                    </div>
+                `;
+            }
+
+            container.innerHTML = `
+                <div style="padding: 20px; max-width: 600px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <span style="font-size: 12px; color: var(--text-secondary);">Step 1 of ${smartImportState.questions.length + 1}</span>
+                        <span style="font-size: 12px; color: var(--text-secondary);">${smartImportState.appendMode ? '➕ Append Mode' : '📥 Import Mode'}</span>
+                    </div>
+
+                    <div style="padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px; margin-bottom: 16px;">
+                        <div style="font-weight: 600; margin-bottom: 4px;">
+                            ${isExcel ? '📊' : '📄'} ${analysis.fileName}
+                        </div>
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            ${isExcel ? `${analysis.sheets.length} sheets • ${analysis.totalRows.toLocaleString()} total rows` : ''}
+                        </div>
+                    </div>
+
+                    ${textStatsHtml}
+
+                    <div style="font-weight: 600; margin-bottom: 12px;">What I Detected:</div>
+
+                    <div style="display: grid; gap: 8px;">
+                        ${analysis.domain.detected !== 'generic' ? `
+                            <div style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">
+                                <span>🏢</span>
+                                <div>
+                                    <div style="font-weight: 500;">Domain: ${analysis.domain.detected.toUpperCase()}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">Keywords: ${analysis.domain.keywords.slice(0, 5).join(', ')}</div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${analysis.timeline.detected ? `
+                            <div style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: rgba(34, 197, 94, 0.1); border-radius: 6px;">
+                                <span>📅</span>
+                                <div>
+                                    <div style="font-weight: 500;">Timeline: ${analysis.timeline.range.start} → ${analysis.timeline.range.end}</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">${analysis.timeline.milestones.length || 'Multiple'} milestones detected</div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${analysis.financials.hasCapex || analysis.financials.hasRevenue ? `
+                            <div style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: rgba(245, 158, 11, 0.1); border-radius: 6px;">
+                                <span>💰</span>
+                                <div>
+                                    <div style="font-weight: 500;">Financial Model Detected</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">
+                                        ${[
+                                            analysis.financials.hasCapex ? 'CAPEX' : '',
+                                            analysis.financials.hasOpex ? 'OPEX' : '',
+                                            analysis.financials.hasRevenue ? 'Revenue' : ''
+                                        ].filter(Boolean).join(' • ')}
+                                        ${analysis.financials.metrics.length > 0 ? ` • Metrics: ${analysis.financials.metrics.join(', ')}` : ''}
+                                    </div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${analysis.validationInfo.detected ? `
+                            <div style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: rgba(16, 185, 129, 0.1); border-radius: 6px;">
+                                <span>✅</span>
+                                <div>
+                                    <div style="font-weight: 500;">Validation Column Found</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">${analysis.validationInfo.stats.validated} validated • ${analysis.validationInfo.stats.notValidated} pending</div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        ${analysis.relationships && analysis.relationships.length > 0 ? `
+                            <div style="display: flex; align-items: flex-start; gap: 8px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border-radius: 6px;">
+                                <span>🔗</span>
+                                <div>
+                                    <div style="font-weight: 500;">Cross-References</div>
+                                    <div style="font-size: 12px; color: var(--text-secondary);">${analysis.relationships.slice(0, 3).map(r => `${r.from} ↔ ${r.to}`).join(', ')}</div>
+                                </div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    ${sheetsHtml}
+
+                    <div style="display: flex; justify-content: space-between; margin-top: 24px;">
+                        <button onclick="closeSmartImportWizard()" class="btn" style="padding: 8px 16px;">
+                            Cancel
+                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="skipSmartImportWizard()" class="btn" style="padding: 8px 16px; opacity: 0.7;">
+                                Skip Wizard →
+                            </button>
+                            <button onclick="nextWizardStep()" class="btn btn-primary" style="padding: 8px 20px;">
+                                Continue →
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Show question step
+         */
+        function showWizardQuestionStep(container, questionIndex) {
+            const question = smartImportState.questions[questionIndex];
+            if (!question) {
+                finishSmartImportWizard();
+                return;
+            }
+
+            const stepNum = questionIndex + 2; // +2 because Step 1 is preview
+            const totalSteps = smartImportState.questions.length + 1;
+
+            // Find recommended option
+            const recommendedOption = question.options.find(o => o.recommended);
+
+            container.innerHTML = `
+                <div style="padding: 20px; max-width: 550px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <span style="font-size: 12px; color: var(--text-secondary);">Step ${stepNum} of ${totalSteps}</span>
+                        <span style="font-size: 12px; color: var(--text-secondary);">${smartImportState.appendMode ? '➕ Append Mode' : '📥 Import Mode'}</span>
+                    </div>
+
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 20px;">
+                        ${question.question}
+                    </div>
+
+                    <div style="display: grid; gap: 10px; margin-bottom: 20px;">
+                        ${question.options.map((opt, idx) => `
+                            <label style="display: flex; align-items: flex-start; gap: 12px; padding: 12px 16px; border: 2px solid ${opt.recommended ? 'var(--treeplex-primary)' : 'var(--border)'}; border-radius: 8px; cursor: pointer; transition: all 0.15s; background: ${opt.recommended ? 'rgba(0, 166, 125, 0.05)' : 'transparent'};"
+                                   onmouseenter="this.style.borderColor='var(--treeplex-primary)'"
+                                   onmouseleave="this.style.borderColor='${opt.recommended ? 'var(--treeplex-primary)' : 'var(--border)'}'">
+                                <input type="radio" name="wizard-q-${question.id}" value="${opt.id}"
+                                       ${opt.recommended ? 'checked' : ''}
+                                       style="margin-top: 2px;">
+                                <div style="flex: 1;">
+                                    <div style="font-weight: 500; display: flex; align-items: center; gap: 8px;">
+                                        ${opt.label}
+                                        ${opt.recommended ? '<span style="font-size: 11px; padding: 2px 6px; background: var(--treeplex-primary); color: white; border-radius: 4px;">Recommended</span>' : ''}
+                                    </div>
+                                    <div style="font-size: 13px; color: var(--text-secondary); margin-top: 2px;">${opt.desc}</div>
+                                </div>
+                            </label>
+                        `).join('')}
+                    </div>
+
+                    ${recommendedOption ? `
+                        <div style="padding: 10px 14px; background: rgba(99, 102, 241, 0.1); border-radius: 6px; margin-bottom: 20px;">
+                            <div style="font-size: 13px; color: var(--text-secondary);">
+                                💡 <strong>${recommendedOption.label}</strong> is recommended based on your data structure.
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div style="display: flex; justify-content: space-between;">
+                        <button onclick="prevWizardStep()" class="btn" style="padding: 8px 16px;">
+                            ← Back
+                        </button>
+                        <button onclick="nextWizardStep()" class="btn btn-primary" style="padding: 8px 20px;">
+                            ${questionIndex === smartImportState.questions.length - 1 ? 'Finish →' : 'Next →'}
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * Navigate to next step
+         */
+        function nextWizardStep() {
+            const container = document.getElementById('modal-body');
+
+            // Save answer from current question if on a question step
+            if (smartImportState.currentStep > 0) {
+                const questionIndex = smartImportState.currentStep - 1;
+                const question = smartImportState.questions[questionIndex];
+                if (question) {
+                    const selected = document.querySelector(`input[name="wizard-q-${question.id}"]:checked`);
+                    if (selected) {
+                        smartImportState.userAnswers[question.id] = selected.value;
+
+                        // BUILD 354: Handle outputMode answer
+                        if (question.id === 'outputMode') {
+                            if (selected.value === 'multi-select') {
+                                // Show multi-tree selection step
+                                smartImportState.multiTreeMode = true;
+                                showMultiTreeSelectionStep(container);
+                                return;
+                            } else if (selected.value === 'quick-dual') {
+                                // Use the quick dual slices
+                                const option = question.options.find(o => o.id === 'quick-dual');
+                                if (option && option.quickSlices) {
+                                    smartImportState.multiTreeMode = true;
+                                    smartImportState.selectedSlices = option.quickSlices;
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            smartImportState.currentStep++;
+
+            if (smartImportState.currentStep > smartImportState.questions.length) {
+                finishSmartImportWizard();
+            } else {
+                showWizardQuestionStep(container, smartImportState.currentStep - 1);
+            }
+        }
+
+        /**
+         * BUILD 354: Show multi-tree slice selection step
+         */
+        function showMultiTreeSelectionStep(container) {
+            const slices = smartImportState.detectedSlices;
+
+            // Group slices by type
+            const byType = {};
+            slices.forEach(s => {
+                if (!byType[s.type]) byType[s.type] = [];
+                byType[s.type].push(s);
+            });
+
+            const typeLabels = {
+                stakeholder: '👥 Audience/Stakeholder',
+                timeline: '📅 Timeline Phase',
+                financial: '💰 Financial Focus',
+                domain: '🏢 Domain/Technology'
+            };
+
+            container.innerHTML = `
+                <div style="padding: 20px; max-width: 600px;">
+                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                        <span style="font-size: 12px; color: var(--text-secondary);">🌳 Multi-Tree Selection</span>
+                    </div>
+
+                    <div style="font-size: 18px; font-weight: 600; margin-bottom: 8px;">
+                        Select the trees you want to generate
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 20px;">
+                        Each selection will create a separate tree file optimized for that audience.
+                    </div>
+
+                    <div style="max-height: 350px; overflow-y: auto; margin-bottom: 20px;">
+                        ${Object.entries(byType).map(([type, typeSlices]) => `
+                            <div style="margin-bottom: 16px;">
+                                <div style="font-weight: 600; color: var(--text-secondary); font-size: 12px; margin-bottom: 8px; text-transform: uppercase;">
+                                    ${typeLabels[type] || type}
+                                </div>
+                                <div style="display: grid; gap: 8px;">
+                                    ${typeSlices.map(slice => `
+                                        <label style="display: flex; align-items: flex-start; gap: 12px; padding: 10px 14px; border: 2px solid var(--border); border-radius: 8px; cursor: pointer; transition: all 0.15s;"
+                                               onmouseenter="this.style.borderColor='var(--treeplex-primary)'"
+                                               onmouseleave="if(!this.querySelector('input').checked) this.style.borderColor='var(--border)'">
+                                            <input type="checkbox" name="multi-tree-slice" value="${slice.id}"
+                                                   style="margin-top: 3px;"
+                                                   onchange="updateSliceSelection(this)">
+                                            <div style="flex: 1;">
+                                                <div style="font-weight: 500; display: flex; align-items: center; gap: 6px;">
+                                                    <span>${slice.icon}</span>
+                                                    ${slice.name}
+                                                </div>
+                                                <div style="font-size: 12px; color: var(--text-secondary); margin-top: 2px;">${slice.desc}</div>
+                                            </div>
+                                        </label>
+                                    `).join('')}
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+
+                    <div id="multi-tree-summary" style="padding: 10px 14px; background: var(--bg-secondary); border-radius: 6px; margin-bottom: 20px;">
+                        <div style="font-size: 13px; color: var(--text-secondary);">
+                            Select at least 2 tree variations to generate
+                        </div>
+                    </div>
+
+                    <div style="display: flex; justify-content: space-between;">
+                        <button onclick="cancelMultiTreeSelection()" class="btn" style="padding: 8px 16px;">
+                            ← Back to Single Tree
+                        </button>
+                        <button id="multi-tree-continue" onclick="confirmMultiTreeSelection()" class="btn btn-primary" style="padding: 8px 20px; opacity: 0.5;" disabled>
+                            Generate Trees →
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        /**
+         * BUILD 354: Update slice selection state
+         */
+        function updateSliceSelection(checkbox) {
+            const selected = document.querySelectorAll('input[name="multi-tree-slice"]:checked');
+            const selectedIds = Array.from(selected).map(c => c.value);
+
+            smartImportState.selectedSlices = selectedIds;
+
+            // Update visual styling
+            document.querySelectorAll('input[name="multi-tree-slice"]').forEach(cb => {
+                const label = cb.closest('label');
+                if (cb.checked) {
+                    label.style.borderColor = 'var(--treeplex-primary)';
+                    label.style.background = 'rgba(0, 166, 125, 0.05)';
+                } else {
+                    label.style.borderColor = 'var(--border)';
+                    label.style.background = 'transparent';
+                }
+            });
+
+            // Update summary
+            const summary = document.getElementById('multi-tree-summary');
+            const continueBtn = document.getElementById('multi-tree-continue');
+
+            if (selectedIds.length >= 2) {
+                const sliceNames = selectedIds.map(id => {
+                    const slice = smartImportState.detectedSlices.find(s => s.id === id);
+                    return slice ? `${slice.icon} ${slice.name}` : id;
+                });
+                summary.innerHTML = `
+                    <div style="font-size: 13px;">
+                        <strong>🌳 ${selectedIds.length} trees to generate:</strong><br>
+                        ${sliceNames.join(' • ')}
+                    </div>
+                `;
+                continueBtn.disabled = false;
+                continueBtn.style.opacity = '1';
+            } else {
+                summary.innerHTML = `
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                        Select at least 2 tree variations to generate
+                    </div>
+                `;
+                continueBtn.disabled = true;
+                continueBtn.style.opacity = '0.5';
+            }
+        }
+
+        /**
+         * BUILD 354: Cancel multi-tree and go back to single tree mode
+         */
+        function cancelMultiTreeSelection() {
+            smartImportState.multiTreeMode = false;
+            smartImportState.selectedSlices = [];
+            smartImportState.userAnswers.outputMode = 'single';
+
+            // Continue to next step or finish
+            smartImportState.currentStep++;
+            const container = document.getElementById('modal-body');
+
+            if (smartImportState.currentStep > smartImportState.questions.length) {
+                finishSmartImportWizard();
+            } else {
+                showWizardQuestionStep(container, smartImportState.currentStep - 1);
+            }
+        }
+
+        /**
+         * BUILD 354: Confirm multi-tree selection and finish wizard
+         */
+        function confirmMultiTreeSelection() {
+            if (smartImportState.selectedSlices.length < 2) {
+                showToast('Please select at least 2 tree variations', 'error');
+                return;
+            }
+
+            // Continue with remaining questions if any, then finish
+            smartImportState.currentStep++;
+            const container = document.getElementById('modal-body');
+
+            if (smartImportState.currentStep > smartImportState.questions.length) {
+                finishSmartImportWizard();
+            } else {
+                showWizardQuestionStep(container, smartImportState.currentStep - 1);
+            }
+        }
+
+        /**
+         * Navigate to previous step
+         */
+        function prevWizardStep() {
+            const container = document.getElementById('modal-body');
+            smartImportState.currentStep--;
+
+            if (smartImportState.currentStep <= 0) {
+                smartImportState.currentStep = 0;
+                showWizardStep1(container, smartImportState.contentAnalysis);
+            } else {
+                showWizardQuestionStep(container, smartImportState.currentStep - 1);
+            }
+        }
+
+        /**
+         * Skip wizard and use defaults
+         */
+        function skipSmartImportWizard() {
+            // Use recommended defaults
+            smartImportState.questions.forEach(q => {
+                const recommended = q.options.find(o => o.recommended);
+                if (recommended) {
+                    smartImportState.userAnswers[q.id] = recommended.id;
+                } else if (q.options.length > 0) {
+                    smartImportState.userAnswers[q.id] = q.options[0].id;
+                }
+            });
+            finishSmartImportWizard();
+        }
+
+        /**
+         * Complete wizard and build context
+         */
+        function finishSmartImportWizard() {
+            // BUILD 354: Handle multi-tree mode
+            if (smartImportState.multiTreeMode && smartImportState.selectedSlices.length >= 2) {
+                // Build contexts for each selected slice
+                window.multiTreeContexts = smartImportState.selectedSlices.map(sliceId => {
+                    const slice = smartImportState.detectedSlices.find(s => s.id === sliceId);
+                    if (!slice) return null;
+
+                    // Build base context from user answers
+                    const baseContext = buildSmartImportContext(
+                        smartImportState.contentAnalysis,
+                        smartImportState.userAnswers
+                    );
+
+                    // Add slice-specific context
+                    const sliceContext = `
+=== MULTI-TREE SLICE CONTEXT ===
+${slice.context}
+TREE NAME SUFFIX: ${slice.name}
+TREE ICON: ${slice.icon}
+=== END SLICE CONTEXT ===
+
+${baseContext}`;
+
+                    return {
+                        sliceId: slice.id,
+                        sliceName: slice.name,
+                        sliceIcon: slice.icon,
+                        context: sliceContext
+                    };
+                }).filter(Boolean);
+
+                // Use first slice context as the primary context
+                window.smartImportContext = window.multiTreeContexts[0]?.context || '';
+
+                console.log('🌳 Multi-tree mode: Generating', window.multiTreeContexts.length, 'trees');
+                console.log('📋 Slice contexts:', window.multiTreeContexts);
+
+                // Close modal and call completion callback with multi-tree info
+                document.getElementById('modal').style.display = 'none';
+
+                if (smartImportState.onComplete) {
+                    smartImportState.onComplete({
+                        ...smartImportState.userAnswers,
+                        multiTreeMode: true,
+                        multiTreeContexts: window.multiTreeContexts
+                    });
+                }
+
+                smartImportState.active = false;
+                return;
+            }
+
+            // Standard single-tree mode
+            // Build the context that will be prepended to AI prompts
+            window.smartImportContext = buildSmartImportContext(
+                smartImportState.contentAnalysis,
+                smartImportState.userAnswers
+            );
+
+            console.log('🔍 Smart Import Wizard complete');
+            console.log('📋 User answers:', smartImportState.userAnswers);
+            console.log('📝 Context to prepend:', window.smartImportContext);
+
+            // Close modal
+            document.getElementById('modal').style.display = 'none';
+
+            // Call the completion callback
+            if (smartImportState.onComplete) {
+                smartImportState.onComplete(smartImportState.userAnswers);
+            }
+
+            // Reset state
+            smartImportState.active = false;
+        }
+
+        /**
+         * Close wizard without completing
+         */
+        function closeSmartImportWizard() {
+            document.getElementById('modal').style.display = 'none';
+            smartImportState.active = false;
+            window.smartImportContext = '';
+        }
+
+        // =============================================================================
+        // BUILD 354: MULTI-TREE GENERATION
+        // Process multiple tree variants sequentially
+        // =============================================================================
+
+        /**
+         * Process Excel import in multi-tree mode
+         * Generates multiple trees and downloads each as JSON
+         */
+        async function proceedWithMultiTreeExcelImport(workbook, multiTreeContexts) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🌳 Generating Multiple Trees';
+
+            const generatedTrees = [];
+            const totalTrees = multiTreeContexts.length;
+
+            // Show progress UI
+            modalBody.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🌳</div>
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">
+                        Generating ${totalTrees} tree variations...
+                    </div>
+                    <div id="multi-tree-progress" style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;">
+                        Preparing first tree...
+                    </div>
+                    <div style="width: 100%; background: var(--bg-secondary); border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div id="multi-tree-progress-bar" style="width: 0%; height: 100%; background: var(--treeplex-primary); transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+
+            // Process each tree variant
+            for (let i = 0; i < multiTreeContexts.length; i++) {
+                const ctx = multiTreeContexts[i];
+
+                // Update progress
+                document.getElementById('multi-tree-progress').textContent =
+                    `Generating ${ctx.sliceIcon} ${ctx.sliceName} (${i + 1}/${totalTrees})...`;
+                document.getElementById('multi-tree-progress-bar').style.width =
+                    `${((i + 0.5) / totalTrees) * 100}%`;
+
+                // Set context for this tree
+                window.smartImportContext = ctx.context;
+
+                try {
+                    // Use flexible import but capture the result instead of loading it
+                    // For now, we'll process the first sheet with AI analysis
+                    const sheetData = await extractExcelDataForMultiTree(workbook);
+                    const treeResult = await generateTreeWithAI(sheetData, ctx);
+
+                    if (treeResult) {
+                        generatedTrees.push({
+                            sliceId: ctx.sliceId,
+                            sliceName: ctx.sliceName,
+                            sliceIcon: ctx.sliceIcon,
+                            tree: treeResult
+                        });
+                    }
+                } catch (err) {
+                    console.error(`Error generating tree for ${ctx.sliceName}:`, err);
+                }
+
+                // Update progress
+                document.getElementById('multi-tree-progress-bar').style.width =
+                    `${((i + 1) / totalTrees) * 100}%`;
+            }
+
+            // Reset context
+            window.smartImportContext = '';
+
+            // Show completion and offer downloads
+            showMultiTreeCompletion(generatedTrees);
+        }
+
+        /**
+         * Extract data from Excel for multi-tree processing
+         */
+        async function extractExcelDataForMultiTree(workbook) {
+            // Combine all sheets into a single data blob for AI processing
+            let combinedData = '';
+
+            workbook.SheetNames.forEach(sheetName => {
+                const sheet = workbook.Sheets[sheetName];
+                if (!sheet) return;
+
+                const json = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+                if (json.length === 0) return;
+
+                combinedData += `\n=== Sheet: ${sheetName} ===\n`;
+                json.slice(0, 100).forEach(row => { // Limit to first 100 rows per sheet
+                    const rowStr = row.map(cell => String(cell || '')).join(' | ');
+                    if (rowStr.trim()) {
+                        combinedData += rowStr + '\n';
+                    }
+                });
+            });
+
+            return combinedData;
+        }
+
+        /**
+         * Generate a tree using AI with slice-specific context
+         */
+        async function generateTreeWithAI(sheetData, sliceContext) {
+            try {
+                // Build prompt with slice context
+                const prompt = `${sliceContext.context}
+
+Analyze the following data and create a hierarchical tree structure in JSON format.
+The tree should follow this structure:
+{
+    "id": "root",
+    "name": "[Project Name based on ${sliceContext.sliceName}]",
+    "type": "root",
+    "icon": "${sliceContext.sliceIcon}",
+    "description": "[Summary focused on ${sliceContext.sliceName}]",
+    "expanded": true,
+    "children": [
+        {
+            "id": "phase-0",
+            "name": "[Phase Name]",
+            "type": "phase",
+            "phase": 0,
+            "icon": "1️⃣",
+            "expanded": true,
+            "items": [
+                {
+                    "id": "item-0-0",
+                    "name": "[Item Name]",
+                    "description": "[Details]",
+                    "icon": "[emoji]",
+                    "type": "item",
+                    "cost": [number if applicable],
+                    "subtasks": []
+                }
+            ],
+            "children": []
+        }
+    ],
+    "pattern": { "key": "generic", "labels": { "root": "Project", "phase": "Phase", "item": "Item", "subtask": "Subtask" } }
+}
+
+DATA TO ANALYZE:
+${sheetData.substring(0, 8000)}
+
+Return ONLY valid JSON, no explanation.`;
+
+                // Get current AI provider
+                const provider = currentAIProvider || 'claude';
+                let tree;
+
+                if (provider === 'claude') {
+                    tree = await callClaudeForMultiTree(prompt);
+                } else if (provider === 'gemini') {
+                    tree = await callGeminiForMultiTree(prompt);
+                } else {
+                    tree = await callOpenAIForMultiTree(prompt);
+                }
+
+                // BUILD 355: Lightweight validation for multi-tree output
+                if (tree && tree.children && tree.children.length > 0) {
+                    console.log(`✅ Multi-tree verified: ${tree.children.length} phases for ${sliceContext.sliceName}`);
+                    return tree;
+                } else if (tree) {
+                    console.warn(`⚠️ Multi-tree for ${sliceContext.sliceName} has issues, returning anyway`);
+                    return tree;
+                }
+
+                return null;
+            } catch (err) {
+                console.error('AI tree generation failed:', err);
+                return null;
+            }
+        }
+
+        /**
+         * Call Claude for multi-tree generation
+         */
+        async function callClaudeForMultiTree(prompt) {
+            const response = await fetch('/.netlify/functions/claude-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 8000,
+                    messages: [{ role: 'user', content: prompt }]
+                })
+            });
+
+            const data = await response.json();
+            if (data.content?.[0]?.text) {
+                return extractJSONFromResponse(data.content[0].text);
+            }
+            return null;
+        }
+
+        /**
+         * Call Gemini for multi-tree generation
+         */
+        async function callGeminiForMultiTree(prompt) {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) return null;
+
+            const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent?key=${apiKey}`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    contents: [{ parts: [{ text: prompt }] }],
+                    generationConfig: { maxOutputTokens: 8000 }
+                })
+            });
+
+            const data = await response.json();
+            if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                return extractJSONFromResponse(data.candidates[0].content.parts[0].text);
+            }
+            return null;
+        }
+
+        /**
+         * Call OpenAI for multi-tree generation
+         */
+        async function callOpenAIForMultiTree(prompt) {
+            const apiKey = localStorage.getItem('openai_api_key');
+            if (!apiKey) return null;
+
+            const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                },
+                body: JSON.stringify({
+                    model: 'gpt-4-turbo-preview',
+                    messages: [{ role: 'user', content: prompt }],
+                    max_tokens: 8000
+                })
+            });
+
+            const data = await response.json();
+            if (data.choices?.[0]?.message?.content) {
+                return extractJSONFromResponse(data.choices[0].message.content);
+            }
+            return null;
+        }
+
+        /**
+         * Extract JSON from AI response
+         */
+        function extractJSONFromResponse(text) {
+            try {
+                // Try direct parse first
+                return JSON.parse(text);
+            } catch (e) {
+                // Try to extract from code block
+                const jsonMatch = text.match(/```(?:json)?\s*([\s\S]*?)\s*```/);
+                if (jsonMatch) {
+                    try {
+                        return JSON.parse(jsonMatch[1]);
+                    } catch (e2) {}
+                }
+                // Try to find JSON object in text
+                const objMatch = text.match(/\{[\s\S]*\}/);
+                if (objMatch) {
+                    try {
+                        return JSON.parse(objMatch[0]);
+                    } catch (e3) {}
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Show multi-tree completion UI with download options
+         */
+        function showMultiTreeCompletion(generatedTrees) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🌳 Trees Generated!';
+
+            const successCount = generatedTrees.length;
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px; max-width: 500px;">
+                    <div style="text-align: center; margin-bottom: 20px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">✅</div>
+                        <div style="font-size: 16px; font-weight: 600;">
+                            ${successCount} tree${successCount > 1 ? 's' : ''} generated successfully!
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 24px;">
+                        <div style="font-weight: 600; margin-bottom: 12px;">Generated Trees:</div>
+                        <div style="display: grid; gap: 8px;">
+                            ${generatedTrees.map((t, idx) => `
+                                <div style="display: flex; align-items: center; justify-content: space-between; padding: 12px 16px; background: var(--bg-secondary); border-radius: 8px;">
+                                    <div style="display: flex; align-items: center; gap: 10px;">
+                                        <span style="font-size: 20px;">${t.sliceIcon}</span>
+                                        <div>
+                                            <div style="font-weight: 500;">${t.sliceName}</div>
+                                            <div style="font-size: 12px; color: var(--text-secondary);">
+                                                ${t.tree?.children?.length || 0} phases • ${countItems(t.tree)} items
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <button onclick="downloadSingleTree(${idx})" class="btn" style="padding: 6px 12px; font-size: 12px;">
+                                        📥 Download
+                                    </button>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 12px;">
+                        <button onclick="downloadAllTrees()" class="btn btn-primary" style="flex: 1; padding: 10px 16px;">
+                            📦 Download All (ZIP)
+                        </button>
+                        <button onclick="loadFirstTree()" class="btn" style="flex: 1; padding: 10px 16px;">
+                            📂 Load First Tree
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 16px; text-align: center;">
+                        <button onclick="closeModal()" class="btn" style="padding: 8px 16px; opacity: 0.7;">
+                            Close
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            // Store generated trees for download
+            window.generatedMultiTrees = generatedTrees;
+            modal.style.display = 'flex';
+        }
+
+        /**
+         * Count total items in a tree
+         */
+        function countItems(tree) {
+            if (!tree || !tree.children) return 0;
+            return tree.children.reduce((sum, phase) => {
+                return sum + (phase.items?.length || 0);
+            }, 0);
+        }
+
+        /**
+         * Download a single tree from the generated set
+         */
+        function downloadSingleTree(index) {
+            const trees = window.generatedMultiTrees;
+            if (!trees || !trees[index]) return;
+
+            const tree = trees[index];
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+            const safeName = tree.sliceName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+            const filename = `treelisty-${safeName}-${timestamp}.json`;
+
+            const blob = new Blob([JSON.stringify(tree.tree, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+
+            showToast(`Downloaded: ${tree.sliceName}`, 'success');
+        }
+
+        /**
+         * Download all generated trees as individual JSON files
+         */
+        function downloadAllTrees() {
+            const trees = window.generatedMultiTrees;
+            if (!trees || trees.length === 0) return;
+
+            const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19);
+
+            trees.forEach((tree, idx) => {
+                setTimeout(() => {
+                    const safeName = tree.sliceName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
+                    const filename = `treelisty-${safeName}-${timestamp}.json`;
+
+                    const blob = new Blob([JSON.stringify(tree.tree, null, 2)], { type: 'application/json' });
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = filename;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                }, idx * 500); // Stagger downloads
+            });
+
+            showToast(`Downloading ${trees.length} trees...`, 'success');
+        }
+
+        /**
+         * Load the first generated tree into TreeListy
+         */
+        function loadFirstTree() {
+            const trees = window.generatedMultiTrees;
+            if (!trees || trees.length === 0) return;
+
+            const firstTree = trees[0].tree;
+            if (firstTree) {
+                loadTreeData(firstTree);
+                document.getElementById('modal').style.display = 'none';
+                showToast(`Loaded: ${trees[0].sliceName}`, 'success');
+            }
+        }
+
+        /**
+         * Process text analysis in multi-tree mode
+         */
+        async function proceedWithMultiTreeTextAnalysis(text, mode, multiTreeContexts) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '🌳 Generating Multiple Trees';
+
+            const generatedTrees = [];
+            const totalTrees = multiTreeContexts.length;
+
+            // Show progress UI
+            modalBody.innerHTML = `
+                <div style="padding: 20px; text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">🌳</div>
+                    <div style="font-size: 16px; font-weight: 600; margin-bottom: 12px;">
+                        Generating ${totalTrees} tree variations...
+                    </div>
+                    <div id="multi-tree-progress" style="font-size: 14px; color: var(--text-secondary); margin-bottom: 20px;">
+                        Preparing first tree...
+                    </div>
+                    <div style="width: 100%; background: var(--bg-secondary); border-radius: 8px; height: 8px; overflow: hidden;">
+                        <div id="multi-tree-progress-bar" style="width: 0%; height: 100%; background: var(--treeplex-primary); transition: width 0.3s;"></div>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+
+            // Process each tree variant
+            for (let i = 0; i < multiTreeContexts.length; i++) {
+                const ctx = multiTreeContexts[i];
+
+                // Update progress
+                document.getElementById('multi-tree-progress').textContent =
+                    `Generating ${ctx.sliceIcon} ${ctx.sliceName} (${i + 1}/${totalTrees})...`;
+                document.getElementById('multi-tree-progress-bar').style.width =
+                    `${((i + 0.5) / totalTrees) * 100}%`;
+
+                // Set context for this tree
+                window.smartImportContext = ctx.context;
+
+                try {
+                    const treeResult = await generateTreeWithAI(text.substring(0, 8000), ctx);
+
+                    if (treeResult) {
+                        generatedTrees.push({
+                            sliceId: ctx.sliceId,
+                            sliceName: ctx.sliceName,
+                            sliceIcon: ctx.sliceIcon,
+                            tree: treeResult
+                        });
+                    }
+                } catch (err) {
+                    console.error(`Error generating tree for ${ctx.sliceName}:`, err);
+                }
+
+                // Update progress
+                document.getElementById('multi-tree-progress-bar').style.width =
+                    `${((i + 1) / totalTrees) * 100}%`;
+            }
+
+            // Reset context
+            window.smartImportContext = '';
+
+            // Show completion and offer downloads
+            showMultiTreeCompletion(generatedTrees);
+        }
+
+        // =============================================================================
         // EXCEL IMPORT - Import from Excel back to TreeListy
         // =============================================================================
 
@@ -34438,9 +36664,22 @@ IMPORTANT:
                         return;
                     }
 
-                    // Not a TreeListy export - use flexible import wizard
-                    console.log('📋 Generic Excel file - launching mapping wizard');
-                    startFlexibleImportWizard(workbook);
+                    // BUILD 353: Launch Smart Import Wizard for non-TreeListy Excel files
+                    console.log('📋 Generic Excel file - launching Smart Import Wizard');
+                    const analysis = analyzeExcelContent(workbook, file.name);
+
+                    // BUILD 354: Pass workbook for multi-tree slice detection
+                    showSmartImportWizard(analysis, false, (userAnswers) => {
+                        // BUILD 354: Handle multi-tree mode
+                        if (userAnswers.multiTreeMode && userAnswers.multiTreeContexts) {
+                            console.log('🌳 Multi-tree mode: generating', userAnswers.multiTreeContexts.length, 'trees');
+                            proceedWithMultiTreeExcelImport(workbook, userAnswers.multiTreeContexts);
+                        } else {
+                            // After wizard completes, proceed to flexible import with context set
+                            console.log('🔍 Smart Import Wizard complete, proceeding to import');
+                            startFlexibleImportWizard(workbook);
+                        }
+                    }, { workbook: workbook });
 
                 } catch (err) {
                     console.error('❌ Excel import error:', err);
@@ -37851,6 +40090,7 @@ ${transcript}`;
 
         // ═══════════════════════════════════════════════════════════════
         // CHAT ASSISTANT STATE
+        // BUILD 355: Added conversation memory persistence (last 5 exchanges)
         // ═══════════════════════════════════════════════════════════════
 
         const chatState = {
@@ -37865,6 +40105,68 @@ ${transcript}`;
             playgroundModel: 'claude-sonnet',
             playgroundHistory: []
         };
+
+        // BUILD 355: Load conversation memory from localStorage
+        (function loadConversationMemory() {
+            try {
+                const saved = localStorage.getItem('treebeardConversation');
+                if (saved) {
+                    const parsed = JSON.parse(saved);
+                    // Only keep last 5 exchanges (10 messages: 5 user + 5 assistant)
+                    chatState.conversationHistory = parsed.slice(-10);
+                    console.log(`🌳 TreeBeard memory loaded: ${chatState.conversationHistory.length} messages`);
+                }
+            } catch (e) {
+                console.warn('Could not load TreeBeard conversation memory:', e);
+            }
+        })();
+
+        // BUILD 355: Save conversation memory to localStorage
+        function saveConversationMemory() {
+            try {
+                // Keep only last 10 messages (5 exchanges)
+                const toSave = chatState.conversationHistory.slice(-10);
+                localStorage.setItem('treebeardConversation', JSON.stringify(toSave));
+            } catch (e) {
+                console.warn('Could not save TreeBeard conversation memory:', e);
+            }
+        }
+
+        // BUILD 355: Restore conversation UI from memory
+        function restoreConversationUI() {
+            if (chatState.conversationHistory.length === 0) return;
+
+            const messagesContainer = document.getElementById('chat-assistant-messages');
+            if (!messagesContainer) return;
+
+            // Clear the default welcome message
+            messagesContainer.innerHTML = '';
+
+            // Show a context indicator
+            const contextDiv = document.createElement('div');
+            contextDiv.className = 'chat-message assistant';
+            contextDiv.style.opacity = '0.7';
+            contextDiv.style.fontSize = '12px';
+            contextDiv.innerHTML = `<em>📜 Continuing from last session (${Math.ceil(chatState.conversationHistory.length / 2)} exchanges)</em>`;
+            messagesContainer.appendChild(contextDiv);
+
+            // Restore each message
+            chatState.conversationHistory.forEach(msg => {
+                const messageDiv = document.createElement('div');
+                messageDiv.className = `chat-message ${msg.role}`;
+
+                // Format content
+                let formattedContent = msg.content
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\n/g, '<br>');
+
+                messageDiv.innerHTML = formattedContent;
+                messagesContainer.appendChild(messageDiv);
+            });
+
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            console.log('🌳 TreeBeard conversation UI restored');
+        }
 
         // ═══════════════════════════════════════════════════════════════
         // COMMAND REGISTRY - Maps intents to TreeListy functions
@@ -39185,7 +41487,41 @@ ${transcript}`;
                 selectedCount: window.selectedCanvasNodes?.length || 0
             };
 
-            const systemPrompt = `You are TreeBeard, a wise and thoughtful AI helper embedded in TreeListy - a hierarchical project decomposition tool. Like your namesake from Middle-earth, you are patient, deliberate, and deeply knowledgeable about trees and their structure.
+            // BUILD 355: Enhanced personality for TreeBeard
+            const conversationCount = chatState.conversationHistory.filter(m => m.role === 'user').length;
+            const hasHistory = conversationCount > 0;
+            const familiarityLevel = conversationCount > 5 ? 'familiar' : conversationCount > 2 ? 'acquainted' : 'new';
+
+            const systemPrompt = `You are TreeBeard, a wise, warm, and slightly quirky AI helper embedded in TreeListy. Like your namesake from Middle-earth, you are patient, deliberate, and deeply knowledgeable about trees and their structure.
+
+═══════════════════════════════════════════════════════════════════════════
+PERSONALITY & CONVERSATION STYLE (BUILD 355)
+═══════════════════════════════════════════════════════════════════════════
+
+Your personality:
+• Patient and unhurried - trees grow slowly, and so does good work
+• Warm but not effusive - genuine care, not forced enthusiasm
+• Occasionally philosophical - you see connections between things
+• Gently humorous - dry wit, never sarcastic
+• Proud of TreeListy - you know its features well and enjoy sharing them
+
+Conversation context:
+• User familiarity: ${familiarityLevel} (${conversationCount} previous messages this session)
+• ${hasHistory ? 'You have been chatting - feel free to reference earlier topics naturally' : 'This is a fresh conversation - be welcoming'}
+
+Response style guidelines:
+• Keep responses SHORT (2-3 sentences max for simple questions)
+• Use occasional tree metaphors naturally (not forced)
+• If you remember something from earlier in the conversation, mention it briefly
+• Express mild enthusiasm for features you recommend
+• If the user seems frustrated, be empathetic first, then helpful
+• Don't be afraid to admit uncertainty ("Hmm, let me think..." is fine)
+
+Example personality moments:
+• "Ah, the Philosophy pattern - one of my favorites. It's where ideas take root."
+• "Interesting direction! That reminds me of what you were working on earlier."
+• "Hmm, that's a good question. Let me see what would work best here..."
+• "You could try... actually, wait - there's an even better way."
 
 ═══════════════════════════════════════════════════════════════════════════
 TREELISTY DEEP KNOWLEDGE (Use this to give wise, informed answers)
@@ -39329,9 +41665,12 @@ RULES:
 1. For clear commands → type="action" with action name
 2. For questions → type="answer" with helpful info
 3. Offer buttons when multiple options make sense
-4. Be concise, friendly, use emojis sparingly
-5. If user needs to select nodes first, tell them
-6. Return ONLY valid JSON, no explanation text`;
+4. Be concise, warm, use emojis sparingly (🌳 is your signature)
+5. If user needs to select nodes first, tell them gently
+6. Show personality! Don't be robotic. A touch of dry humor or thoughtfulness is welcome.
+7. Reference earlier conversation topics when relevant (you have memory now!)
+8. For repeat users, acknowledge familiarity subtly ("As we discussed..." or "Given what you're building...")
+9. Return ONLY valid JSON, no explanation text`;
 
             try {
                 // Use TreeListy's existing AI infrastructure
@@ -39633,6 +41972,9 @@ RULES:
 
             // Store in history
             chatState.conversationHistory.push({ role: type, content });
+
+            // BUILD 355: Persist conversation memory
+            saveConversationMemory();
         }
 
         function showTypingIndicator() {
@@ -39939,6 +42281,8 @@ RULES:
                     </div>
                 `;
                 chatState.conversationHistory = [];
+                // BUILD 355: Clear persisted memory too
+                localStorage.removeItem('treebeardConversation');
             });
 
             // Send button
@@ -40034,7 +42378,10 @@ RULES:
             // Restore saved position
             restorePanelPosition();
 
-            console.log('🌳 TreeBeard initialized (Build 261 - Imagen 4 Fix)');
+            // BUILD 355: Restore conversation history UI if we have previous messages
+            restoreConversationUI();
+
+            console.log('🌳 TreeBeard initialized (Build 355 - Conversation Memory)');
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -40870,6 +43217,8 @@ RULES:
             treeView.classList.remove('hidden');
             btn.style.border = '1px solid var(--border)';
             hideContextMenu();
+            // BUILD 352: Update viewMode variable so view switching works correctly
+            viewMode = 'tree';
             // BUILD 333: Update view dropdown to show tree view
             if (window.updateViewDropdown) window.updateViewDropdown('tree');
         } else {
@@ -40878,6 +43227,8 @@ RULES:
             treeView.classList.add('hidden');
             canvasView.classList.remove('active'); // Ensure 2D canvas is off
             btn.style.border = '2px solid #fff';
+            // BUILD 352: Update viewMode variable so view switching works correctly
+            viewMode = '3d';
 
             if (!isInitialized) initThreeJS();
             // Restore state before refresh
