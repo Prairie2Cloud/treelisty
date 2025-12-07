@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 369 | 2025-12-07
+    TreeListy v2.17.0 | Build 370 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 369): 🔧 Fix TreeBeard Button - Syntax Error Fix
-    - Fixed JavaScript parsing error that prevented TreeBeard modal from opening
-    - Extracted LifeTree biographer prompt into separate function
-    - Resolved template literal nesting issue in Build 368
+    Changelog (Build 370): 🎤 Voice Capture System
+    - Voice Inbox: FAB on mobile, TreeBeard mic on desktop
+    - Live transcript recording with Web Speech API
+    - Captures section in TreeBeard with processing prompts
+    - Mobile full-screen TreeBeard for focused voice capture
+    - Guided processing: Add to tree, New branch, Save as note, Psych analysis
+    - Per-tree capture storage with IndexedDB persistence
 
+    Previous (Build 369): 🔧 Fix TreeBeard Button - Syntax Error Fix
     Previous (Build 368): 🧠 Conversation Mode - Full AI Intelligence
     Previous (Build 367): 🎂 TreeBeard Birthday Method - Proactive Biographer
     Previous (Build 366): 🎙️ TreeBeard Biographer Mode (LifeTree)
@@ -612,7 +616,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 369,
+            build: 370,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3464,6 +3468,460 @@
     .quick-action-chip:hover {
         background: rgba(99, 102, 241, 0.3);
         color: var(--text-primary, #fff);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       BUILD 370: VOICE CAPTURE SYSTEM
+       - Mobile full-screen TreeBeard
+       - FAB (Floating Action Button) for voice capture
+       - Voice capture UI with live transcript
+       - Captures section in TreeBeard
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    /* Mobile Full-Screen TreeBeard */
+    @media screen and (max-width: 768px), (max-device-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+        #chat-assistant-panel.open {
+            position: fixed !important;
+            top: 0 !important;
+            left: 0 !important;
+            right: 0 !important;
+            bottom: 0 !important;
+            width: 100vw !important;
+            height: 100vh !important;
+            max-width: 100vw !important;
+            max-height: 100vh !important;
+            min-width: 100vw !important;
+            min-height: 100vh !important;
+            border-radius: 0 !important;
+            z-index: 10001 !important;
+            resize: none !important;
+            animation: none !important;
+        }
+
+        #chat-assistant-panel.open #chat-assistant-header {
+            padding: 16px !important;
+            padding-top: max(16px, env(safe-area-inset-top)) !important;
+        }
+
+        #chat-assistant-panel.open #chat-assistant-input-area {
+            padding: 16px !important;
+            padding-bottom: max(16px, env(safe-area-inset-bottom)) !important;
+        }
+
+        /* Hide original bubble on mobile when panel is open */
+        #chat-assistant-bubble.panel-open {
+            display: none !important;
+        }
+    }
+
+    /* Voice Capture FAB (Floating Action Button) */
+    #voice-capture-fab {
+        position: fixed;
+        bottom: 100px;
+        right: 24px;
+        width: 60px;
+        height: 60px;
+        border-radius: 50%;
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        cursor: pointer;
+        box-shadow: 0 4px 20px rgba(16, 185, 129, 0.4);
+        z-index: 9998;
+        display: none; /* Hidden by default, shown on mobile */
+        align-items: center;
+        justify-content: center;
+        font-size: 28px;
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #voice-capture-fab:hover {
+        transform: scale(1.1);
+        box-shadow: 0 6px 28px rgba(16, 185, 129, 0.5);
+    }
+
+    #voice-capture-fab:active {
+        transform: scale(0.95);
+    }
+
+    #voice-capture-fab.recording {
+        background: linear-gradient(135deg, #ef4444, #dc2626);
+        box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5);
+        animation: fabPulse 1.5s ease-in-out infinite;
+    }
+
+    #voice-capture-fab .fab-badge {
+        position: absolute;
+        top: -4px;
+        right: -4px;
+        min-width: 22px;
+        height: 22px;
+        background: #ef4444;
+        border-radius: 11px;
+        color: white;
+        font-size: 12px;
+        font-weight: 700;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 6px;
+        border: 2px solid var(--bg-primary, #0f172a);
+    }
+
+    @keyframes fabPulse {
+        0%, 100% { box-shadow: 0 4px 20px rgba(239, 68, 68, 0.5); }
+        50% { box-shadow: 0 4px 30px rgba(239, 68, 68, 0.8); }
+    }
+
+    /* Show FAB on mobile */
+    @media screen and (max-width: 768px), (max-device-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+        #voice-capture-fab {
+            display: flex;
+        }
+
+        /* Hide FAB when TreeBeard is open, during modals, or 3D view */
+        body.treebeard-open #voice-capture-fab,
+        body.modal-open #voice-capture-fab,
+        body.view-3d-active #voice-capture-fab {
+            display: none !important;
+        }
+    }
+
+    /* Voice Capture Section in TreeBeard */
+    #voice-captures-section {
+        border-bottom: 1px solid var(--border, #3f3f5a);
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    #voice-captures-section.collapsed {
+        max-height: 44px;
+        overflow: hidden;
+    }
+
+    .captures-header {
+        padding: 10px 12px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        cursor: pointer;
+        background: rgba(16, 185, 129, 0.1);
+        transition: background 0.2s;
+    }
+
+    .captures-header:hover {
+        background: rgba(16, 185, 129, 0.15);
+    }
+
+    .captures-header h4 {
+        margin: 0;
+        font-size: 12px;
+        font-weight: 600;
+        color: #10b981;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .captures-header .capture-count {
+        background: #10b981;
+        color: white;
+        font-size: 10px;
+        padding: 2px 6px;
+        border-radius: 10px;
+        font-weight: 700;
+    }
+
+    .captures-header .toggle-icon {
+        color: var(--text-secondary);
+        font-size: 12px;
+        transition: transform 0.2s;
+    }
+
+    #voice-captures-section.collapsed .toggle-icon {
+        transform: rotate(-90deg);
+    }
+
+    .captures-list {
+        padding: 8px;
+    }
+
+    .capture-item {
+        background: var(--item-bg, #2a2a3e);
+        border: 1px solid var(--border, #3f3f5a);
+        border-radius: 8px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .capture-item:hover {
+        border-color: #10b981;
+        background: rgba(16, 185, 129, 0.1);
+    }
+
+    .capture-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .capture-item .capture-preview {
+        font-size: 13px;
+        color: var(--text-primary);
+        line-height: 1.4;
+        display: -webkit-box;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+    }
+
+    .capture-item.expanded .capture-preview {
+        -webkit-line-clamp: unset;
+        display: block;
+    }
+
+    .capture-item .capture-meta {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 6px;
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+
+    .capture-item .capture-meta .word-count {
+        background: rgba(99, 102, 241, 0.2);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #a5b4fc;
+    }
+
+    .capture-actions {
+        display: none;
+        gap: 6px;
+        margin-top: 10px;
+        padding-top: 10px;
+        border-top: 1px solid var(--border, #3f3f5a);
+    }
+
+    .capture-item.expanded .capture-actions {
+        display: flex;
+        flex-wrap: wrap;
+    }
+
+    .capture-action-btn {
+        padding: 6px 10px;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 6px;
+        color: var(--text-primary);
+        font-size: 11px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .capture-action-btn:hover {
+        background: rgba(99, 102, 241, 0.4);
+    }
+
+    .capture-action-btn.delete {
+        background: rgba(239, 68, 68, 0.2);
+        border-color: rgba(239, 68, 68, 0.3);
+    }
+
+    .capture-action-btn.delete:hover {
+        background: rgba(239, 68, 68, 0.4);
+    }
+
+    /* Voice Recording UI in TreeBeard */
+    #voice-recording-ui {
+        display: none;
+        flex-direction: column;
+        align-items: center;
+        padding: 24px;
+        background: linear-gradient(180deg, rgba(16, 185, 129, 0.1), transparent);
+        border-bottom: 1px solid var(--border, #3f3f5a);
+    }
+
+    #voice-recording-ui.active {
+        display: flex;
+    }
+
+    .recording-status {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 16px;
+    }
+
+    .recording-dot {
+        width: 12px;
+        height: 12px;
+        background: #ef4444;
+        border-radius: 50%;
+        animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.4; }
+    }
+
+    .recording-duration {
+        font-size: 24px;
+        font-weight: 700;
+        color: #10b981;
+        font-family: 'SF Mono', 'Monaco', monospace;
+    }
+
+    .live-transcript-area {
+        width: 100%;
+        min-height: 100px;
+        max-height: 200px;
+        overflow-y: auto;
+        background: var(--item-bg, #2a2a3e);
+        border: 1px solid var(--border, #3f3f5a);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 16px;
+        font-size: 14px;
+        line-height: 1.6;
+        color: var(--text-primary);
+    }
+
+    .live-transcript-area .interim {
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    .live-transcript-area .final {
+        color: var(--text-primary);
+    }
+
+    .live-transcript-placeholder {
+        color: var(--text-secondary);
+        font-style: italic;
+        text-align: center;
+    }
+
+    .recording-controls {
+        display: flex;
+        gap: 12px;
+    }
+
+    .recording-stop-btn {
+        padding: 12px 24px;
+        background: linear-gradient(135deg, #10b981, #059669);
+        border: none;
+        border-radius: 8px;
+        color: white;
+        font-size: 14px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .recording-stop-btn:hover {
+        transform: scale(1.02);
+    }
+
+    .recording-cancel-btn {
+        padding: 12px 24px;
+        background: var(--item-bg, #2a2a3e);
+        border: 1px solid var(--border, #3f3f5a);
+        border-radius: 8px;
+        color: var(--text-secondary);
+        font-size: 14px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .recording-cancel-btn:hover {
+        border-color: #ef4444;
+        color: #ef4444;
+    }
+
+    .recording-warning {
+        margin-top: 12px;
+        padding: 8px 12px;
+        background: rgba(245, 158, 11, 0.2);
+        border-radius: 6px;
+        color: #f59e0b;
+        font-size: 12px;
+        display: none;
+    }
+
+    .recording-warning.show {
+        display: block;
+    }
+
+    /* Capture Processing Modal in TreeBeard */
+    .capture-processing-prompt {
+        padding: 16px;
+        background: rgba(16, 185, 129, 0.1);
+        border-bottom: 1px solid var(--border, #3f3f5a);
+    }
+
+    .capture-processing-prompt .prompt-header {
+        font-size: 12px;
+        color: #10b981;
+        font-weight: 600;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .capture-processing-prompt .transcript-preview {
+        background: var(--item-bg, #2a2a3e);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        max-height: 120px;
+        overflow-y: auto;
+    }
+
+    .capture-processing-prompt .quick-actions {
+        display: flex;
+        gap: 8px;
+        flex-wrap: wrap;
+        margin-bottom: 8px;
+    }
+
+    .capture-processing-prompt .quick-action {
+        padding: 8px 14px;
+        background: rgba(99, 102, 241, 0.2);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .capture-processing-prompt .quick-action:hover {
+        background: rgba(99, 102, 241, 0.4);
+        border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    .capture-processing-prompt .instruction-hint {
+        font-size: 11px;
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    /* Artifact Badge Indicators */
+    .artifact-badge {
+        display: inline-flex;
+        align-items: center;
+        gap: 2px;
+        padding: 2px 6px;
+        background: rgba(99, 102, 241, 0.2);
+        border-radius: 4px;
+        font-size: 11px;
+        color: #a5b4fc;
+        margin-left: 6px;
     }
 
     </style>
@@ -44544,6 +45002,600 @@ RULES:
             restoreConversationUI();
 
             console.log('🌳 TreeBeard initialized (Build 355 - Conversation Memory)');
+
+            // BUILD 370: Initialize Voice Capture system
+            initVoiceCaptureSystem();
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 370: VOICE CAPTURE SYSTEM
+        // - Voice Inbox with FAB (mobile) + TreeBeard mic entry points
+        // - Live transcript recording
+        // - Captures section in TreeBeard
+        // - Processing flow with guided prompts
+        // ═══════════════════════════════════════════════════════════════
+
+        const voiceCaptureState = {
+            isRecording: false,
+            recognition: null,
+            finalTranscript: '',
+            interimTranscript: '',
+            startTime: null,
+            durationTimer: null,
+            warningShown: false,
+            captures: [], // Per-tree captures loaded from capexTree.captures
+            processingCaptureId: null
+        };
+
+        function initVoiceCaptureSystem() {
+            // Load captures from tree if available
+            loadCapturesFromTree();
+
+            // FAB click handler
+            const fab = document.getElementById('voice-capture-fab');
+            if (fab) {
+                fab.addEventListener('click', () => {
+                    openTreeBeardWithVoice();
+                });
+            }
+
+            // Quick action buttons in processing prompt
+            document.querySelectorAll('#capture-processing-prompt .quick-action').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const action = btn.dataset.action;
+                    handleCaptureAction(action);
+                });
+            });
+
+            // Update body class when TreeBeard opens/closes
+            const panel = document.getElementById('chat-assistant-panel');
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    if (mutation.attributeName === 'class') {
+                        if (panel.classList.contains('open')) {
+                            document.body.classList.add('treebeard-open');
+                            document.getElementById('chat-assistant-bubble')?.classList.add('panel-open');
+                        } else {
+                            document.body.classList.remove('treebeard-open');
+                            document.getElementById('chat-assistant-bubble')?.classList.remove('panel-open');
+                        }
+                    }
+                });
+            });
+            if (panel) {
+                observer.observe(panel, { attributes: true });
+            }
+
+            // Initialize Web Speech API for voice capture
+            initVoiceCaptureRecognition();
+
+            console.log('🎤 Voice Capture system initialized (Build 370)');
+        }
+
+        function initVoiceCaptureRecognition() {
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            if (!SpeechRecognition) {
+                console.warn('Web Speech API not supported');
+                return;
+            }
+
+            voiceCaptureState.recognition = new SpeechRecognition();
+            voiceCaptureState.recognition.continuous = true;
+            voiceCaptureState.recognition.interimResults = true;
+            voiceCaptureState.recognition.lang = 'en-US';
+
+            voiceCaptureState.recognition.onresult = (event) => {
+                let interim = '';
+                let final = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        final += transcript + ' ';
+                    } else {
+                        interim += transcript;
+                    }
+                }
+
+                if (final) {
+                    voiceCaptureState.finalTranscript += final;
+                }
+                voiceCaptureState.interimTranscript = interim;
+
+                updateLiveTranscriptUI();
+            };
+
+            voiceCaptureState.recognition.onerror = (event) => {
+                console.error('Voice capture error:', event.error);
+                if (event.error === 'not-allowed') {
+                    addMessage('🎤 Microphone access denied. Please allow microphone permission.', 'error');
+                    cancelVoiceCapture();
+                } else if (event.error === 'network') {
+                    addMessage('🎤 Voice capture requires internet connection.', 'error');
+                    cancelVoiceCapture();
+                }
+            };
+
+            voiceCaptureState.recognition.onend = () => {
+                // If still supposed to be recording, restart (for continuous recording)
+                if (voiceCaptureState.isRecording) {
+                    try {
+                        voiceCaptureState.recognition.start();
+                    } catch (e) {
+                        // Ignore restart errors
+                    }
+                }
+            };
+        }
+
+        function openTreeBeardWithVoice() {
+            // Open TreeBeard panel
+            const panel = document.getElementById('chat-assistant-panel');
+            if (panel && !panel.classList.contains('open')) {
+                panel.classList.add('open');
+            }
+
+            // Start voice capture
+            setTimeout(() => startVoiceCapture(), 100);
+        }
+
+        window.startVoiceCapture = async function() {
+            if (!voiceCaptureState.recognition) {
+                addMessage('🎤 Voice capture not available. Please use Chrome, Edge, or Safari.', 'error');
+                return;
+            }
+
+            if (voiceCaptureState.isRecording) return;
+
+            // Check for internet connection
+            if (!navigator.onLine) {
+                addMessage('🎤 Voice capture requires internet for transcription.', 'error');
+                return;
+            }
+
+            // Request microphone permission
+            if (!micPermissionGranted) {
+                const granted = await requestMicrophonePermission();
+                if (!granted) return;
+            }
+
+            voiceCaptureState.isRecording = true;
+            voiceCaptureState.finalTranscript = '';
+            voiceCaptureState.interimTranscript = '';
+            voiceCaptureState.startTime = Date.now();
+            voiceCaptureState.warningShown = false;
+
+            // Show recording UI
+            const recordingUI = document.getElementById('voice-recording-ui');
+            if (recordingUI) {
+                recordingUI.classList.add('active');
+            }
+
+            // Hide captures section while recording
+            const capturesSection = document.getElementById('voice-captures-section');
+            if (capturesSection) {
+                capturesSection.style.display = 'none';
+            }
+
+            // Update FAB if visible
+            const fab = document.getElementById('voice-capture-fab');
+            if (fab) {
+                fab.classList.add('recording');
+            }
+
+            // Update voice button
+            const voiceBtn = document.getElementById('chat-voice-btn');
+            if (voiceBtn) {
+                voiceBtn.classList.add('recording');
+            }
+
+            // Reset transcript display
+            updateLiveTranscriptUI();
+
+            // Start duration timer
+            voiceCaptureState.durationTimer = setInterval(updateDurationDisplay, 1000);
+
+            // Start recognition
+            try {
+                voiceCaptureState.recognition.start();
+                console.log('🎤 Voice capture started');
+            } catch (e) {
+                console.error('Voice capture start error:', e);
+                cancelVoiceCapture();
+            }
+        };
+
+        window.stopVoiceCapture = function() {
+            if (!voiceCaptureState.isRecording) return;
+
+            voiceCaptureState.isRecording = false;
+
+            // Stop recognition
+            try {
+                voiceCaptureState.recognition?.stop();
+            } catch (e) {
+                // Ignore stop errors
+            }
+
+            // Stop duration timer
+            if (voiceCaptureState.durationTimer) {
+                clearInterval(voiceCaptureState.durationTimer);
+                voiceCaptureState.durationTimer = null;
+            }
+
+            // Hide recording UI
+            const recordingUI = document.getElementById('voice-recording-ui');
+            if (recordingUI) {
+                recordingUI.classList.remove('active');
+            }
+
+            // Update FAB
+            const fab = document.getElementById('voice-capture-fab');
+            if (fab) {
+                fab.classList.remove('recording');
+            }
+
+            // Update voice button
+            const voiceBtn = document.getElementById('chat-voice-btn');
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+            }
+
+            // Get final transcript
+            const transcript = voiceCaptureState.finalTranscript.trim();
+
+            if (transcript.length > 0) {
+                // Create capture
+                const capture = {
+                    id: 'cap-' + Date.now(),
+                    transcript: transcript,
+                    wordCount: transcript.split(/\s+/).filter(w => w).length,
+                    createdAt: new Date().toISOString(),
+                    artifacts: []
+                };
+
+                // Add to captures
+                voiceCaptureState.captures.push(capture);
+                saveCaptureToTree();
+                updateCapturesUI();
+
+                // Show processing prompt for this capture
+                showCaptureProcessingPrompt(capture);
+
+                console.log('🎤 Voice capture saved:', capture.id);
+            } else {
+                addMessage('🎤 No speech detected. Please try again.', 'error');
+                // Show captures section again
+                updateCapturesUI();
+            }
+        };
+
+        window.cancelVoiceCapture = function() {
+            voiceCaptureState.isRecording = false;
+
+            // Stop recognition
+            try {
+                voiceCaptureState.recognition?.stop();
+            } catch (e) {
+                // Ignore stop errors
+            }
+
+            // Stop duration timer
+            if (voiceCaptureState.durationTimer) {
+                clearInterval(voiceCaptureState.durationTimer);
+                voiceCaptureState.durationTimer = null;
+            }
+
+            // Hide recording UI
+            const recordingUI = document.getElementById('voice-recording-ui');
+            if (recordingUI) {
+                recordingUI.classList.remove('active');
+            }
+
+            // Update FAB
+            const fab = document.getElementById('voice-capture-fab');
+            if (fab) {
+                fab.classList.remove('recording');
+            }
+
+            // Update voice button
+            const voiceBtn = document.getElementById('chat-voice-btn');
+            if (voiceBtn) {
+                voiceBtn.classList.remove('recording');
+            }
+
+            // Show captures section again
+            updateCapturesUI();
+
+            console.log('🎤 Voice capture cancelled');
+        };
+
+        function updateLiveTranscriptUI() {
+            const area = document.querySelector('.live-transcript-area');
+            if (!area) return;
+
+            const placeholder = area.querySelector('.live-transcript-placeholder');
+            const finalSpan = area.querySelector('.final');
+            const interimSpan = area.querySelector('.interim');
+
+            const hasText = voiceCaptureState.finalTranscript || voiceCaptureState.interimTranscript;
+
+            if (placeholder) {
+                placeholder.style.display = hasText ? 'none' : 'block';
+            }
+
+            if (finalSpan) {
+                finalSpan.textContent = voiceCaptureState.finalTranscript;
+            }
+
+            if (interimSpan) {
+                interimSpan.textContent = voiceCaptureState.interimTranscript;
+            }
+
+            // Auto-scroll to bottom
+            area.scrollTop = area.scrollHeight;
+        }
+
+        function updateDurationDisplay() {
+            const elapsed = Math.floor((Date.now() - voiceCaptureState.startTime) / 1000);
+            const minutes = Math.floor(elapsed / 60);
+            const seconds = elapsed % 60;
+
+            const display = document.querySelector('.recording-duration');
+            if (display) {
+                display.textContent = `${minutes}:${seconds.toString().padStart(2, '0')}`;
+            }
+
+            // Show warning after 5 minutes
+            if (elapsed >= 300 && !voiceCaptureState.warningShown) {
+                voiceCaptureState.warningShown = true;
+                const warning = document.querySelector('.recording-warning');
+                if (warning) {
+                    warning.classList.add('show');
+                }
+            }
+        }
+
+        function loadCapturesFromTree() {
+            voiceCaptureState.captures = capexTree?.captures || [];
+            updateCapturesUI();
+        }
+
+        function saveCaptureToTree() {
+            if (!capexTree) return;
+            capexTree.captures = voiceCaptureState.captures;
+            // Save to localStorage
+            saveToLocalStorage();
+        }
+
+        function updateCapturesUI() {
+            const section = document.getElementById('voice-captures-section');
+            const list = section?.querySelector('.captures-list');
+            const countBadge = section?.querySelector('.capture-count');
+            const fabBadge = document.querySelector('#voice-capture-fab .fab-badge');
+
+            const captures = voiceCaptureState.captures;
+
+            // Update count badges
+            if (countBadge) {
+                countBadge.textContent = captures.length;
+            }
+            if (fabBadge) {
+                fabBadge.textContent = captures.length;
+                fabBadge.style.display = captures.length > 0 ? 'flex' : 'none';
+            }
+
+            // Show/hide section
+            if (section) {
+                section.style.display = captures.length > 0 ? 'block' : 'none';
+            }
+
+            // Render captures list
+            if (list) {
+                list.innerHTML = captures.map(cap => {
+                    const preview = cap.transcript.substring(0, 100) + (cap.transcript.length > 100 ? '...' : '');
+                    const timeAgo = getTimeAgo(new Date(cap.createdAt));
+                    return `
+                        <div class="capture-item" data-id="${cap.id}" onclick="window.toggleCaptureExpand(this)">
+                            <div class="capture-preview">${escapeHtml(cap.transcript)}</div>
+                            <div class="capture-meta">
+                                <span class="word-count">${cap.wordCount} words</span>
+                                <span>${timeAgo}</span>
+                            </div>
+                            <div class="capture-actions">
+                                <button class="capture-action-btn" onclick="event.stopPropagation(); window.processCaptureById('${cap.id}')">Process</button>
+                                <button class="capture-action-btn" onclick="event.stopPropagation(); window.editCaptureById('${cap.id}')">Edit</button>
+                                <button class="capture-action-btn delete" onclick="event.stopPropagation(); window.deleteCaptureById('${cap.id}')">Delete</button>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            }
+
+            // Show nudge if 3+ captures
+            if (captures.length >= 3) {
+                // Could show a gentle reminder in TreeBeard
+            }
+        }
+
+        window.toggleCapturesSection = function() {
+            const section = document.getElementById('voice-captures-section');
+            if (section) {
+                section.classList.toggle('collapsed');
+            }
+        };
+
+        window.toggleCaptureExpand = function(element) {
+            element.classList.toggle('expanded');
+        };
+
+        window.processCaptureById = function(captureId) {
+            const capture = voiceCaptureState.captures.find(c => c.id === captureId);
+            if (capture) {
+                showCaptureProcessingPrompt(capture);
+            }
+        };
+
+        window.editCaptureById = function(captureId) {
+            const capture = voiceCaptureState.captures.find(c => c.id === captureId);
+            if (!capture) return;
+
+            // Simple edit via prompt
+            const newText = prompt('Edit transcript:', capture.transcript);
+            if (newText !== null && newText.trim()) {
+                capture.transcript = newText.trim();
+                capture.wordCount = newText.trim().split(/\s+/).filter(w => w).length;
+                saveCaptureToTree();
+                updateCapturesUI();
+            }
+        };
+
+        window.deleteCaptureById = function(captureId) {
+            if (!confirm('Delete this capture permanently?')) return;
+
+            voiceCaptureState.captures = voiceCaptureState.captures.filter(c => c.id !== captureId);
+            saveCaptureToTree();
+            updateCapturesUI();
+
+            // Hide processing prompt if this was the one being processed
+            if (voiceCaptureState.processingCaptureId === captureId) {
+                hideCaptureProcessingPrompt();
+            }
+        };
+
+        function showCaptureProcessingPrompt(capture) {
+            voiceCaptureState.processingCaptureId = capture.id;
+
+            const prompt = document.getElementById('capture-processing-prompt');
+            const preview = prompt?.querySelector('.transcript-preview');
+
+            if (preview) {
+                preview.textContent = capture.transcript;
+            }
+
+            if (prompt) {
+                prompt.style.display = 'block';
+            }
+
+            // Focus the input for custom instruction
+            const input = document.getElementById('chat-assistant-input');
+            if (input) {
+                input.placeholder = 'Or type custom instruction...';
+                input.focus();
+            }
+        }
+
+        function hideCaptureProcessingPrompt() {
+            voiceCaptureState.processingCaptureId = null;
+
+            const prompt = document.getElementById('capture-processing-prompt');
+            if (prompt) {
+                prompt.style.display = 'none';
+            }
+
+            const input = document.getElementById('chat-assistant-input');
+            if (input) {
+                input.placeholder = 'Ask anything or give a command...';
+            }
+        }
+
+        function handleCaptureAction(action) {
+            const captureId = voiceCaptureState.processingCaptureId;
+            const capture = voiceCaptureState.captures.find(c => c.id === captureId);
+            if (!capture) return;
+
+            let instruction = '';
+
+            switch (action) {
+                case 'add-to-tree':
+                    instruction = `Structure this voice capture and add it to the current tree:\n\n"${capture.transcript}"`;
+                    break;
+                case 'new-branch':
+                    instruction = `Create a new branch/phase from this voice capture:\n\n"${capture.transcript}"`;
+                    break;
+                case 'save-as-note':
+                    // Add as raw note directly
+                    addCaptureAsRawNote(capture);
+                    return;
+                case 'psych-analysis':
+                    // Trigger Free Speech analysis
+                    instruction = `Perform psychological pattern analysis on this voice capture (like Free Speech mode):\n\n"${capture.transcript}"`;
+                    break;
+            }
+
+            // Send to TreeBeard
+            if (instruction) {
+                const input = document.getElementById('chat-assistant-input');
+                if (input) {
+                    input.value = instruction;
+                }
+                handleSendMessage();
+
+                // Remove the capture after processing
+                removeCaptureAfterProcessing(captureId);
+            }
+        }
+
+        function addCaptureAsRawNote(capture) {
+            // Find or create a "Voice Notes" phase
+            let notesPhase = capexTree.children.find(p => p.name === 'Voice Notes');
+            if (!notesPhase) {
+                notesPhase = {
+                    id: 'phase-voice-notes-' + Date.now(),
+                    name: 'Voice Notes',
+                    type: 'phase',
+                    items: []
+                };
+                capexTree.children.push(notesPhase);
+            }
+
+            // Add the capture as an item
+            const noteItem = {
+                id: 'item-' + Date.now(),
+                name: capture.transcript.substring(0, 60) + (capture.transcript.length > 60 ? '...' : ''),
+                type: 'item',
+                description: capture.transcript,
+                raw_transcript: capture.transcript,
+                capture_mode: 'voice',
+                createdAt: capture.createdAt
+            };
+
+            notesPhase.items = notesPhase.items || [];
+            notesPhase.items.push(noteItem);
+
+            // Save and render
+            saveState('Added voice note');
+            render();
+            saveToLocalStorage();
+
+            // Remove the capture
+            removeCaptureAfterProcessing(capture.id);
+
+            addMessage(`✓ Added as note in "Voice Notes" phase`, 'system');
+        }
+
+        function removeCaptureAfterProcessing(captureId) {
+            voiceCaptureState.captures = voiceCaptureState.captures.filter(c => c.id !== captureId);
+            saveCaptureToTree();
+            updateCapturesUI();
+            hideCaptureProcessingPrompt();
+        }
+
+        function getTimeAgo(date) {
+            const seconds = Math.floor((new Date() - date) / 1000);
+            if (seconds < 60) return 'just now';
+            const minutes = Math.floor(seconds / 60);
+            if (minutes < 60) return `${minutes}m ago`;
+            const hours = Math.floor(minutes / 60);
+            if (hours < 24) return `${hours}h ago`;
+            const days = Math.floor(hours / 24);
+            return `${days}d ago`;
+        }
+
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -44988,6 +46040,12 @@ RULES:
          CHAT ASSISTANT BUBBLE & PANEL
          ═══════════════════════════════════════════════════════════════ -->
 
+    <!-- BUILD 370: Voice Capture FAB (Floating Action Button) - Mobile only -->
+    <button id="voice-capture-fab" title="Voice Capture">
+        🎤
+        <span class="fab-badge" style="display: none;">0</span>
+    </button>
+
     <!-- Floating Chat Bubble -->
     <button id="chat-assistant-bubble" title="TreeBeard (Ctrl+/)">
         💬
@@ -45007,6 +46065,48 @@ RULES:
             </div>
         </div>
 
+        <!-- BUILD 370: Voice Recording UI -->
+        <div id="voice-recording-ui">
+            <div class="recording-status">
+                <div class="recording-dot"></div>
+                <span class="recording-duration">0:00</span>
+            </div>
+            <div class="live-transcript-area">
+                <span class="live-transcript-placeholder">Start speaking... your words will appear here</span>
+                <span class="final"></span>
+                <span class="interim"></span>
+            </div>
+            <div class="recording-controls">
+                <button class="recording-stop-btn" onclick="window.stopVoiceCapture()">✓ Done</button>
+                <button class="recording-cancel-btn" onclick="window.cancelVoiceCapture()">Cancel</button>
+            </div>
+            <div class="recording-warning">Recording for over 5 minutes. Tap "Done" when ready.</div>
+        </div>
+
+        <!-- BUILD 370: Voice Captures Section -->
+        <div id="voice-captures-section" style="display: none;">
+            <div class="captures-header" onclick="window.toggleCapturesSection()">
+                <h4>📎 Captures <span class="capture-count">0</span></h4>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="captures-list">
+                <!-- Captures populated dynamically -->
+            </div>
+        </div>
+
+        <!-- BUILD 370: Capture Processing Prompt (shown when processing a capture) -->
+        <div id="capture-processing-prompt" class="capture-processing-prompt" style="display: none;">
+            <div class="prompt-header">📎 Voice Capture</div>
+            <div class="transcript-preview"></div>
+            <div class="quick-actions">
+                <button class="quick-action" data-action="add-to-tree">Add to tree</button>
+                <button class="quick-action" data-action="new-branch">New branch</button>
+                <button class="quick-action" data-action="save-as-note">Save as note</button>
+                <button class="quick-action" data-action="psych-analysis">🧠 Psychological analysis</button>
+            </div>
+            <div class="instruction-hint">Or type your own instruction below...</div>
+        </div>
+
         <div id="chat-assistant-messages">
             <!-- Welcome message -->
             <div class="chat-message assistant">
@@ -45022,7 +46122,7 @@ RULES:
 
         <div id="chat-assistant-input-area">
             <textarea id="chat-assistant-input" placeholder="Ask anything or give a command..." rows="1"></textarea>
-            <button id="chat-voice-btn" title="Voice input (hold to speak)">🎤</button>
+            <button id="chat-voice-btn" title="Voice capture" onclick="window.startVoiceCapture()">🎤</button>
             <button id="chat-send-btn" title="Send message">➤</button>
         </div>
     </div>
