@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 361 | 2025-12-06
+    TreeListy v2.17.0 | Build 362 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 361): 🔗 Pivot-Style Smart Hyperedges
-    - Fix: Hyperedge labels no longer show "undefined"
-    - Smart auto-grouping: Suggests hyperedges based on status, assignee, priority, cost
-    - Query builder: Create hyperedges with filter conditions (status=X, cost>Y)
-    - Live aggregates: Show totals ($2.3M • 67% • 4 nodes) on hyperedges
-    - TreeBeard integration: Natural language queries ("show items over $500K")
-    - Pattern-aware detection: CAPEX (cost tiers), Philosophy (philosophers), Sales (deal stages)
+    Changelog (Build 362): 🧹 UX Polish & Quick Wins
+    - TreeBeard: Added Query chip for quick hyperedge discovery
+    - Welcome tree: Added 3D Knowledge Navigator feature description
+    - Hyperedge panel: Empty state with helpful guidance and example queries
+    - Docs cleanup: Removed 30+ obsolete markdown files
 
+    Previous (Build 361): 🔗 Pivot-Style Smart Hyperedges
     Previous (Build 360): 🔧 Fix Syntax Error - Splash Screen Freeze
     Previous (Build 359): 🔧 Fix CORS for Local Version Check
     Previous (Build 358): 🔄 Check for Updates Button
@@ -610,7 +609,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 361,
+            build: 362,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -9707,11 +9706,8 @@ Focus on logical structure and content organization best practices.`;
             const hyperedges = capexTree.hyperedges || [];
             const suggestions = suggestedHyperedges || [];
 
-            // Allow panel to open even with no hyperedges if there are suggestions
-            if (hyperedges.length === 0 && suggestions.length === 0) {
-                showToast('No hyperedges or suggestions available', 'info');
-                return;
-            }
+            // Always allow panel to open - show empty state with Query option
+            const isEmpty = hyperedges.length === 0 && suggestions.length === 0;
 
             // Check if info panel is open to adjust position
             const infoPanel = document.getElementById('info-panel');
@@ -9814,6 +9810,38 @@ Focus on logical structure and content organization best practices.`;
                 });
 
                 list.appendChild(suggestionsHeader);
+            }
+
+            // BUILD 361: Empty state with helpful guidance
+            if (isEmpty) {
+                const emptyState = document.createElement('div');
+                emptyState.style.cssText = `
+                    padding: 24px 16px;
+                    text-align: center;
+                `;
+                emptyState.innerHTML = `
+                    <div style="font-size: 40px; margin-bottom: 12px; opacity: 0.6;">🔗</div>
+                    <div style="font-size: 14px; color: var(--text-primary); margin-bottom: 8px;">
+                        No hyperedges yet
+                    </div>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; line-height: 1.5;">
+                        Hyperedges group related nodes across your tree.<br>
+                        Create one using the Query button above!
+                    </div>
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 12px;">Try queries like:</div>
+                    <div style="display: flex; flex-direction: column; gap: 6px; font-size: 11px;">
+                        <code style="background: rgba(99, 102, 241, 0.1); padding: 6px 10px; border-radius: 4px; color: #818cf8;">
+                            "show items over $500K"
+                        </code>
+                        <code style="background: rgba(99, 102, 241, 0.1); padding: 6px 10px; border-radius: 4px; color: #818cf8;">
+                            "find blocked items"
+                        </code>
+                        <code style="background: rgba(99, 102, 241, 0.1); padding: 6px 10px; border-radius: 4px; color: #818cf8;">
+                            "group by status"
+                        </code>
+                    </div>
+                `;
+                list.appendChild(emptyState);
             }
 
             // Existing hyperedges with aggregates
@@ -43564,6 +43592,8 @@ RULES:
                         executeAction('open_wizard');
                     } else if (action === 'enhance') {
                         addMessage('Select some items in Canvas view, then ask me to "enhance selected items"!', 'assistant');
+                    } else if (action === 'query') {
+                        addMessage('Try queries like:\n• "show items over $500K"\n• "find blocked items"\n• "show Sarah\'s items"\n\nOr click 🔗 Hyperedges → 🔍 Query for the visual builder!', 'assistant');
                     }
                 });
             });
@@ -44056,6 +44086,7 @@ RULES:
                     <button class="action-btn" data-action="help">📖 Features</button>
                     <button class="action-btn" data-action="create">🌳 New tree</button>
                     <button class="action-btn" data-action="enhance">✨ Enhance</button>
+                    <button class="action-btn" data-action="query">🔍 Query</button>
                 </div>
             </div>
         </div>
