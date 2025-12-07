@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-**Current Version**: v2.17.0 (Build 322)
+**Current Version**: v2.17.0 (Build 361)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -117,7 +117,15 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Recent Features (Builds 318-322)
+## Recent Features (Builds 318-361)
+
+### Build 361: Pivot-Style Smart Hyperedges
+- **Smart auto-grouping**: Suggests hyperedges based on patterns
+  - Universal: status clusters, assignee clusters, priority, blocked items
+  - Pattern-specific: CAPEX (cost tiers), Philosophy (philosophers), Sales (deal stages)
+- **Query builder**: Filter conditions (status=X, cost>$500K) → create hyperedge
+- **Live aggregates**: Show totals ($2.3M • 67% • 4 nodes) on hyperedges
+- **TreeBeard integration**: "show items over $500K" → find and group
 
 ### Build 322: Voice Chat for Collaboration
 - Jitsi Meet integration for live sessions
@@ -178,5 +186,5 @@ treeplexity.html (single file ~1.3MB)
 See `docs/AI-CONTEXT.md` for:
 - Full pattern list with fields (19 patterns)
 - Data model details
-- Build history (262-322)
+- Build history (262-361)
 - Known constraints

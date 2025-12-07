@@ -1,6 +1,6 @@
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.17.0 (Build 322)
+**Version**: 2.17.0 (Build 361)
 **Author**: TreeListy Team
 **Description**: Work with TreeListy hierarchical project trees using natural language and AI
 
@@ -36,7 +36,23 @@ git push origin main
 
 ---
 
-## What's New in v2.17.0 (Builds 263-322)
+## What's New in v2.17.0 (Builds 263-361)
+
+### 🔗 Build 361: Pivot-Style Smart Hyperedges
+- **Smart Auto-Grouping**: Detects patterns and suggests hyperedges automatically
+  - Universal rules: status clusters, assignee clusters, priority clusters, blocked items
+  - Pattern-specific: CAPEX (cost tiers >$1M, >$500K, >$100K), Philosophy (philosophers), Sales (deal stages)
+- **Query Builder Modal**: Create hyperedges with filter conditions
+  - Fields: status, priority, assignee, cost, progress, due date
+  - Operators: equals, contains, >, <, between
+  - Live preview of matching nodes
+- **Live Aggregates**: Shows totals on hyperedges ($2.3M • 67% • 4 nodes)
+  - Pattern-aware metrics: cost for CAPEX, deal value for Sales, node count for Philosophy
+- **TreeBeard Integration**: Natural language queries create hyperedges
+  - "show items over $500K" → finds matching items, offers hyperedge creation
+  - "show Sarah's items" → filters by assignee
+  - "show blocked items" → filters by status
+- **Fixed "undefined" Labels**: Hyperedges now properly display names
 
 ### 🎙️ Build 322: Voice Chat for Collaboration
 - **Jitsi Meet Integration**: One-click voice chat during live sessions
@@ -98,7 +114,13 @@ git push origin main
 - **API Key Sharing**: Optional key sharing with collaborators
 - **One-Click Start**: Streamlined session creation
 
-**Key New Functions (Builds 263-322)**:
+**Key New Functions (Builds 263-361)**:
+- `detectSuggestedHyperedges()` - Auto-detect groupable patterns in tree
+- `calculateHyperedgeAggregates(hyperedge)` - Calculate cost, progress, count totals
+- `showQueryBuilderModal()` - Open filter builder for hyperedge creation
+- `detectHyperedgeQuery(message)` - Parse natural language queries
+- `executeHyperedgeQuery(conditions)` - Filter nodes by conditions
+- `getHyperedgeDisplayLabel(hyperedge)` - Get label from name/label/description
 - `startVoiceChat()` - Launch Jitsi voice room for session
 - `detectTranscriptMode(text)` - Check if text is meeting transcript
 - `extractContacts(parsed)` - Pull contacts from AI response
@@ -110,6 +132,7 @@ git push origin main
 - `capexTree.extractedContacts` (array): Contacts from transcript analysis
 - `capexTree.researchRequests` (array): Research items to follow up
 - `capexTree.itemUpdates` (array): Updates detected from appended content
+- `suggestedHyperedges` (array, in-memory): Auto-detected grouping suggestions
 
 ---
 

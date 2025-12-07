@@ -1,7 +1,7 @@
 # TreeListy AI Context Document
 
-**Current Version**: v2.17.0 (Build 322)
-**Last Updated**: 2025-12-05
+**Current Version**: v2.17.0 (Build 361)
+**Last Updated**: 2025-12-07
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -64,27 +64,33 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Current Version Highlights (Builds 263-322)
+## Current Version Highlights (Builds 263-361)
 
-### Recent Features (Builds 318-322)
-1. **🎙️ Voice Chat** (Build 322): Jitsi Meet integration for live collaboration
-2. **📋 Meeting Transcript Analysis** (Build 321): Extract contacts, research requests from transcripts
-3. **🎯 Optimized Import Prompts** (Build 320): Pattern-specific prompts for CAPEX/Philosophy
-4. **🔀 Smart Append + Deduplication** (Build 319): Semantic duplicate detection (60% Jaccard)
-5. **⏱️ Edge Function Streaming** (Build 318): Fixed timeouts with streaming responses
+### Recent Features (Builds 318-361)
+1. **🔗 Pivot-Style Smart Hyperedges** (Build 361): Intelligent hyperedge system
+   - Smart auto-grouping: Suggests hyperedges based on status, assignee, cost patterns
+   - Query builder: Create hyperedges with filter conditions (status=X, cost>$500K)
+   - Live aggregates: Shows totals ($2.3M • 67% • 4 nodes) on each hyperedge
+   - TreeBeard integration: Natural language queries ("show items over $500K")
+   - Pattern-aware detection: CAPEX (cost tiers), Philosophy (philosophers), Sales (deal stages)
+2. **🎙️ Voice Chat** (Build 322): Jitsi Meet integration for live collaboration
+3. **📋 Meeting Transcript Analysis** (Build 321): Extract contacts, research requests from transcripts
+4. **🎯 Optimized Import Prompts** (Build 320): Pattern-specific prompts for CAPEX/Philosophy
+5. **🔀 Smart Append + Deduplication** (Build 319): Semantic duplicate detection (60% Jaccard)
+6. **⏱️ Edge Function Streaming** (Build 318): Fixed timeouts with streaming responses
 
 ### 3D View & Visualization (Builds 296-317)
-6. **🌐 3D Knowledge Navigator** (Builds 296-303): Three.js-powered 3D visualization
-7. **Interactive 3D Nodes**: Hover, click, orbit in 3D space
-8. **Sort-Aware 3D Layouts**: 3D respects current sort order
-9. **Nano Banana Pro** (Build 317): Enhanced Imagen 4 image generation
+7. **🌐 3D Knowledge Navigator** (Builds 296-303): Three.js-powered 3D visualization
+8. **Interactive 3D Nodes**: Hover, click, orbit in 3D space
+9. **Sort-Aware 3D Layouts**: 3D respects current sort order
+10. **Nano Banana Pro** (Build 317): Enhanced Imagen 4 image generation
 
 ### Collaboration Overhaul (Builds 263-295)
-10. **Firebase Live Sync**: Real-time multi-user editing
-11. **Floating Chat Box**: Draggable team chat during sessions
-12. **Presence Badges**: See who's online in real-time
-13. **Auto-Update Notifications** (Build 280): Detect new versions
-14. **Editable Hyperedges** (Build 282): Modify cross-phase connections
+11. **Firebase Live Sync**: Real-time multi-user editing
+12. **Floating Chat Box**: Draggable team chat during sessions
+13. **Presence Badges**: See who's online in real-time
+14. **Auto-Update Notifications** (Build 280): Detect new versions
+15. **Editable Hyperedges** (Build 282): Modify cross-phase connections
 
 ---
 
@@ -256,6 +262,12 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 | Build | Date | Key Feature |
 |-------|------|-------------|
+| 361 | 2025-12-07 | Pivot-Style Smart Hyperedges (auto-grouping, query builder, aggregates) |
+| 360 | 2025-12-06 | Fix Syntax Error - Splash Screen Freeze |
+| 359 | 2025-12-06 | Fix CORS for Local Version Check |
+| 358 | 2025-12-06 | Check for Updates Button |
+| 357 | 2025-12-06 | Version Check Fix for Local Files |
+| 355 | 2025-12-06 | TreeBeard Phase 1 - Smarter & More Personal |
 | 322 | 2025-12-05 | Voice Chat for Collaboration (Jitsi Meet) |
 | 321 | 2025-12-05 | Meeting Transcript Analysis (contacts, research) |
 | 320 | 2025-12-05 | Optimized Import Prompts (CAPEX, Philosophy) |
@@ -283,4 +295,4 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 ---
 
-*This document provides quick context for AI assistants working with the TreeListy codebase. Updated for Build 322.*
+*This document provides quick context for AI assistants working with the TreeListy codebase. Updated for Build 361.*
