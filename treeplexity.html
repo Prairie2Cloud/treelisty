@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 356 | 2025-12-06
+    TreeListy v2.17.0 | Build 357 | 2025-12-06
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 356): 🎤 Microphone Permission Fix
-    - FIX: Mic permission now requested once per session, not every button press
-    - NEW: Pre-checks existing permission via Permissions API (HTTPS)
-    - NEW: Tracks permission grant state within session for file:// users
-    - Clearer error messages for denied/blocked microphone access
+    Changelog (Build 357): 🔔 Version Check Fix for Local Files
+    - FIX: Update notifications now work for file:// users
+    - Checks against Netlify production URL instead of local file
+    - Local users will now see "New version available" prompts
 
+    Previous (Build 356): 🎤 Microphone Permission Fix
     Previous (Build 355): 🌳 TreeBeard Phase 1 - Smarter & More Personal
     Previous (Build 354): 🌳 Multi-Tree Import Option
     Previous (Build 353): 🔍 Smart Import Wizard
@@ -604,7 +604,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 356,
+            build: 357,
             date: '2025-12-06',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -42638,8 +42638,13 @@ RULES:
             if (updateToastShown) return;
 
             try {
-                // Fetch the live HTML with cache-busting
-                const response = await fetch(window.location.pathname + '?_nocache=' + Date.now(), {
+                // BUILD 357: Always check against Netlify (works for both file:// and https://)
+                const NETLIFY_URL = 'https://treelisty.netlify.app/treeplexity.html';
+                const checkUrl = window.location.protocol === 'file:'
+                    ? NETLIFY_URL
+                    : window.location.pathname + '?_nocache=' + Date.now();
+
+                const response = await fetch(checkUrl + (checkUrl.includes('?') ? '&' : '?') + '_v=' + Date.now(), {
                     cache: 'no-store',
                     headers: { 'Cache-Control': 'no-cache' }
                 });
