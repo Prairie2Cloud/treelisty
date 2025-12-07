@@ -1,5 +1,6 @@
 // Netlify serverless function to proxy Claude API requests
 // This avoids CORS issues and keeps API key secure server-side
+// Build 222: Added session token support for live collaboration
 
 const CORS_HEADERS = {
   'Access-Control-Allow-Origin': '*',
@@ -112,16 +113,68 @@ exports.handler = async (event, context) => {
     // Parse the request body
     const requestBody = JSON.parse(event.body);
 
-    // Extract userApiKey if provided (for users testing with their own key)
-    const { userApiKey, ...anthropicRequestBody } = requestBody;
+    // Extract userApiKey and sessionToken if provided
+    const { userApiKey, sessionToken, ...anthropicRequestBody } = requestBody;
+
+    // If sessionToken provided, try to get host's API keys from collab-session
+    let sessionApiKey = null;
+    let sessionHostName = null;
+
+    if (sessionToken && !userApiKey) {
+      try {
+        // Call collab-session function to get decrypted keys
+        const INTERNAL_PROXY_SECRET = process.env.INTERNAL_PROXY_SECRET;
+
+        if (INTERNAL_PROXY_SECRET) {
+          // Import and call the collab-session handler directly (same Netlify instance)
+          const { getStore } = require('@netlify/blobs');
+          const crypto = require('crypto');
+
+          const COLLAB_ENCRYPTION_SECRET = process.env.COLLAB_ENCRYPTION_SECRET;
+
+          if (COLLAB_ENCRYPTION_SECRET && COLLAB_ENCRYPTION_SECRET.length === 64) {
+            const store = getStore('collab-sessions');
+            const sessionDataStr = await store.get(sessionToken);
+
+            if (sessionDataStr) {
+              const sessionData = JSON.parse(sessionDataStr);
+
+              // Check expiration
+              if (Date.now() <= sessionData.expiresAt) {
+                // Decrypt keys
+                const [ivHex, encrypted] = sessionData.encryptedKeys.split(':');
+                const iv = Buffer.from(ivHex, 'hex');
+                const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(COLLAB_ENCRYPTION_SECRET, 'hex'), iv);
+                let decrypted = decipher.update(encrypted, 'hex', 'utf8');
+                decrypted += decipher.final('utf8');
+                const apiKeys = JSON.parse(decrypted);
+
+                // Get the appropriate API key based on model being requested
+                if (apiKeys.anthropic) {
+                  sessionApiKey = apiKeys.anthropic;
+                  sessionHostName = sessionData.hostName;
+                  console.log(`Using session API key from host: ${sessionHostName}`);
+                }
+              } else {
+                console.log('Session expired, deleting...');
+                await store.delete(sessionToken);
+              }
+            }
+          }
+        }
+      } catch (sessionError) {
+        console.error('Error retrieving session keys:', sessionError.message);
+        // Fall through to use server key or fail
+      }
+    }
 
     // Get client IP for rate limiting
     const clientIP = event.headers['x-forwarded-for']?.split(',')[0] ||
                      event.headers['client-ip'] ||
                      'unknown';
 
-    // Check rate limit
-    const rateLimitResult = checkRateLimit(clientIP, !!userApiKey);
+    // Check rate limit (bypass for users with own key or valid session)
+    const rateLimitResult = checkRateLimit(clientIP, !!userApiKey || !!sessionApiKey);
 
     if (!rateLimitResult.allowed) {
       console.warn(`Rate limit exceeded for IP: ${clientIP}`);
@@ -158,8 +211,8 @@ exports.handler = async (event, context) => {
       };
     }
 
-    // Use user's API key if provided, otherwise use server's key
-    const apiKeyToUse = userApiKey || ANTHROPIC_API_KEY;
+    // Use user's API key if provided, then session key, then server's key
+    const apiKeyToUse = userApiKey || sessionApiKey || ANTHROPIC_API_KEY;
 
     if (!apiKeyToUse) {
       console.error('No API key available (neither user-provided nor server-side)');
@@ -174,7 +227,9 @@ exports.handler = async (event, context) => {
       };
     }
 
-    console.log(userApiKey ? 'Using user-provided API key (rate limit bypassed)' : 'Using server API key');
+    console.log(userApiKey ? 'Using user-provided API key (rate limit bypassed)' :
+                sessionApiKey ? `Using session API key from host: ${sessionHostName}` :
+                'Using server API key');
     console.log('Proxying request to Anthropic API...');
 
     // Forward request to Anthropic API (without userApiKey field)

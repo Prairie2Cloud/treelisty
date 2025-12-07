@@ -66,19 +66,37 @@ export default defineConfig({
         actionTimeout: 10000
     },
     
-    // Browser projects - Chromium only for now
-    // Run `npx playwright install firefox webkit` to enable other browsers
+    // Browser projects - Desktop + Mobile
+    // Run `npx playwright install webkit` to enable Safari/iOS
     projects: [
         {
             name: 'chromium',
             use: {
                 ...devices['Desktop Chrome'],
                 launchOptions: {
-                    args: ['--disable-web-security']  // Allow local file access
+                    args: ['--disable-web-security']
                 }
             }
+        },
+        // Mobile devices for responsive testing
+        {
+            name: 'mobile-chrome',
+            use: {
+                ...devices['Pixel 5'],
+                launchOptions: {
+                    args: ['--disable-web-security']
+                }
+            }
+        },
+        {
+            name: 'mobile-safari',
+            use: { ...devices['iPhone 12'] }
+        },
+        {
+            name: 'tablet',
+            use: { ...devices['iPad Pro 11'] }
         }
-        // Uncomment after installing: npx playwright install firefox webkit
+        // Desktop Firefox/Safari - uncomment after: npx playwright install firefox webkit
         // {
         //     name: 'firefox',
         //     use: { ...devices['Desktop Firefox'] }
@@ -86,14 +104,6 @@ export default defineConfig({
         // {
         //     name: 'webkit',
         //     use: { ...devices['Desktop Safari'] }
-        // },
-        // {
-        //     name: 'mobile-chrome',
-        //     use: { ...devices['Pixel 5'] }
-        // },
-        // {
-        //     name: 'mobile-safari',
-        //     use: { ...devices['iPhone 12'] }
         // }
     ],
     
