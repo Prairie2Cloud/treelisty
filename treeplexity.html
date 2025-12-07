@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 363 | 2025-12-07
+    TreeListy v2.17.0 | Build 364 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 363): 🎨 Fix Query Modal Dropdown Contrast
-    - Fixed: Select dropdowns now have proper dark background (#1e293b) with light text (#f8fafc)
-    - Applies to both field and operator selects in Query Builder modal
+    Changelog (Build 364): 🔗 Enhanced Hyperedge Info Modal
+    - Inline-editable name, description, and color (auto-saves on blur)
+    - Live aggregates: Shows total cost, avg progress, status breakdown
+    - Query conditions display: Shows filter criteria for query-generated hyperedges
+    - Member nodes list: Visual status indicators with costs
+    - AI Analyze button: Generate insights about why nodes are grouped
+    - Simplified actions: Analyze, Focus View, Delete
+    - 3D view integration: Clicking hyperedge now opens enhanced modal
 
-    Previous (Build 362): 🧹 UX Polish & Quick Wins
+    Previous (Build 363): 🎨 Fix Query Modal Dropdown Contrast
     Previous (Build 360): 🔧 Fix Syntax Error - Splash Screen Freeze
     Previous (Build 359): 🔧 Fix CORS for Local Version Check
     Previous (Build 358): 🔄 Check for Updates Button
@@ -607,7 +612,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 363,
+            build: 364,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -11675,162 +11680,295 @@ Focus on logical structure and content organization best practices.`;
         function showHyperedgeInfo(hyperedge) {
             const modal = document.getElementById('modal');
             const modalBody = document.getElementById('modal-body');
+            document.getElementById('modal-title').textContent = '🔗 Hyperedge Details';
 
             const meta = hyperedge.metadata || {};
             const philo = meta.philosophyFields || {};
             const isPhilosophy = currentPattern === 'philosophy';
+            const pattern = capexTree.pattern?.key || 'generic';
 
-            // Build analyzed nodes list
-            const analyzedNodesList = (meta.analyzedNodes || []).map(n =>
-                `<li style="margin-bottom: 8px;">
-                    <strong>${n.name}</strong>
-                    ${n.itemType ? `<span style="margin-left: 8px; padding: 2px 8px; background: rgba(99, 102, 241, 0.2); border-radius: 4px; font-size: 11px;">${n.itemType}</span>` : ''}
-                </li>`
-            ).join('');
+            // Calculate live aggregates
+            const aggregates = calculateHyperedgeAggregates(hyperedge);
+            const nodeCount = hyperedge.nodeIds?.length || 0;
 
-            // Philosophy-specific fields
+            // Get member nodes for display
+            const memberNodes = [];
+            function findMemberNodes(node) {
+                if (hyperedge.nodeIds?.includes(node.id)) {
+                    memberNodes.push(node);
+                }
+                if (node.subItems) node.subItems.forEach(findMemberNodes);
+                if (node.children) node.children.forEach(findMemberNodes);
+            }
+            capexTree.children?.forEach(phase => {
+                (phase.items || phase.children || []).forEach(findMemberNodes);
+            });
+
+            // Build aggregates display
+            let aggregatesHTML = '';
+            if (aggregates.count > 0) {
+                const parts = [];
+                if (aggregates.totalCost) parts.push(`<span style="color: #22c55e;">💰 ${formatCost(aggregates.totalCost)}</span>`);
+                if (aggregates.avgProgress > 0) parts.push(`<span style="color: #6366f1;">📊 ${Math.round(aggregates.avgProgress)}% avg</span>`);
+
+                // Status breakdown
+                const statusColors = { 'Done': '#22c55e', 'In Progress': '#f59e0b', 'To Do': '#94a3b8', 'Blocked': '#ef4444' };
+                const statusParts = Object.entries(aggregates.statusCounts || {})
+                    .map(([status, count]) => `<span style="color: ${statusColors[status] || '#94a3b8'};">${count} ${status}</span>`)
+                    .join(' • ');
+
+                aggregatesHTML = `
+                    <div style="padding: 16px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 10px; margin-bottom: 16px;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">📊 Live Aggregates</div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 16px; font-size: 14px; font-weight: 500;">
+                            ${parts.join('')}
+                        </div>
+                        ${statusParts ? `<div style="margin-top: 10px; font-size: 12px; color: var(--text-secondary);">${statusParts}</div>` : ''}
+                    </div>
+                `;
+            }
+
+            // Build query conditions display (for query-generated hyperedges)
+            let queryHTML = '';
+            if (hyperedge.query?.conditions?.length > 0) {
+                const conditionsList = hyperedge.query.conditions.map(c =>
+                    `<div style="padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border-radius: 4px; font-size: 12px;">
+                        <span style="color: #818cf8;">${c.field}</span>
+                        <span style="color: var(--text-secondary);">${c.operator}</span>
+                        <span style="color: #22c55e;">"${c.value}"</span>
+                    </div>`
+                ).join('');
+                queryHTML = `
+                    <div style="padding: 16px; background: rgba(251, 191, 36, 0.1); border: 1px solid rgba(251, 191, 36, 0.3); border-radius: 10px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-size: 14px;">🔍</span>
+                            <span style="font-size: 11px; color: #fbbf24; text-transform: uppercase; letter-spacing: 1px;">Query-Based Grouping</span>
+                            ${hyperedge.dynamic ? '<span style="padding: 2px 8px; background: rgba(34, 197, 94, 0.2); border-radius: 4px; font-size: 10px; color: #22c55e;">DYNAMIC</span>' : ''}
+                        </div>
+                        <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                            ${conditionsList}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // Build member nodes list with status indicators
+            let memberNodesHTML = '';
+            if (memberNodes.length > 0) {
+                const nodeItems = memberNodes.slice(0, 8).map(n => {
+                    const statusColor = { 'Done': '#22c55e', 'In Progress': '#f59e0b', 'To Do': '#94a3b8', 'Blocked': '#ef4444' }[n.pmStatus] || '#94a3b8';
+                    return `
+                        <div style="display: flex; align-items: center; gap: 8px; padding: 8px 10px; background: rgba(0,0,0,0.2); border-radius: 6px;">
+                            <span style="width: 8px; height: 8px; border-radius: 50%; background: ${statusColor};"></span>
+                            <span style="flex: 1; font-size: 13px; color: var(--text-primary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${n.name}</span>
+                            ${n.cost ? `<span style="font-size: 11px; color: #22c55e;">${formatCost(n.cost)}</span>` : ''}
+                        </div>
+                    `;
+                }).join('');
+                const moreCount = memberNodes.length - 8;
+                memberNodesHTML = `
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px;">📍 Member Nodes (${nodeCount})</div>
+                        <div style="display: grid; gap: 6px; max-height: 200px; overflow-y: auto;">
+                            ${nodeItems}
+                            ${moreCount > 0 ? `<div style="padding: 8px; text-align: center; font-size: 12px; color: var(--text-secondary);">+ ${moreCount} more nodes</div>` : ''}
+                        </div>
+                    </div>
+                `;
+            }
+
+            // AI Analysis section
+            let analysisHTML = '';
+            if (meta.aiAnalysis || hyperedge.aiInsight) {
+                analysisHTML = `
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-size: 14px;">🧠</span>
+                            <span style="font-size: 11px; color: #a78bfa; text-transform: uppercase; letter-spacing: 1px;">AI Analysis</span>
+                        </div>
+                        <p style="margin: 0; color: var(--text-primary); line-height: 1.6; font-size: 13px;">
+                            ${meta.aiAnalysis || hyperedge.aiInsight}
+                        </p>
+                    </div>
+                `;
+            }
+
+            // Philosophy-specific fields (condensed)
             let philosophySection = '';
             if (isPhilosophy && Object.keys(philo).length > 0) {
+                const philoItems = [];
+                if (philo.dialecticalRelation) philoItems.push(`<div><strong>Dialectical:</strong> ${philo.dialecticalRelation}</div>`);
+                if (philo.argumentativeFlow) philoItems.push(`<div><strong>Flow:</strong> ${philo.argumentativeFlow}</div>`);
+                if (philo.conceptualBridge) philoItems.push(`<div><strong>Bridge:</strong> ${philo.conceptualBridge}</div>`);
+                if (philo.tension) philoItems.push(`<div style="color: #f87171;"><strong>Tension:</strong> ${philo.tension}</div>`);
+                if (philo.synthesis) philoItems.push(`<div style="color: #4ade80;"><strong>Synthesis:</strong> ${philo.synthesis}</div>`);
+
                 philosophySection = `
-                    <div style="margin-top: 20px; padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px;">
-                        <h4 style="color: rgba(139, 92, 246, 1); margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 20px;">🏛️</span> Philosophy Relationship Analysis
-                        </h4>
-
-                        <div style="display: grid; gap: 12px;">
-                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Dialectical Relation</div>
-                                <div style="font-size: 14px; color: var(--text-primary);">${philo.dialecticalRelation || 'Not determined'}</div>
-                            </div>
-
-                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Argumentative Flow</div>
-                                <div style="font-size: 14px; color: var(--text-primary);">${philo.argumentativeFlow || 'Not determined'}</div>
-                            </div>
-
-                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Conceptual Bridge</div>
-                                <div style="font-size: 14px; color: var(--text-primary);">${philo.conceptualBridge || 'Not determined'}</div>
-                            </div>
-
-                            ${philo.tension ? `
-                            <div style="padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 6px;">
-                                <div style="font-size: 11px; color: rgba(239, 68, 68, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">⚡ Philosophical Tension</div>
-                                <div style="font-size: 14px; color: var(--text-primary);">${philo.tension}</div>
-                            </div>
-                            ` : ''}
-
-                            ${philo.synthesis ? `
-                            <div style="padding: 12px; background: rgba(34, 197, 94, 0.1); border: 1px solid rgba(34, 197, 94, 0.2); border-radius: 6px;">
-                                <div style="font-size: 11px; color: rgba(34, 197, 94, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">🔄 Synthesis</div>
-                                <div style="font-size: 14px; color: var(--text-primary);">${philo.synthesis}</div>
-                            </div>
-                            ` : ''}
-
-                            ${philo.speakers && philo.speakers.length > 0 ? `
-                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Speakers/Interlocutors</div>
-                                <div style="display: flex; flex-wrap: wrap; gap: 6px; margin-top: 4px;">
-                                    ${philo.speakers.map(s => `<span style="padding: 4px 10px; background: rgba(99, 102, 241, 0.2); border-radius: 12px; font-size: 12px;">${s}</span>`).join('')}
-                                </div>
-                            </div>
-                            ` : ''}
-
-                            ${philo.tradition ? `
-                            <div style="padding: 12px; background: rgba(0,0,0,0.2); border-radius: 6px;">
-                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px;">Philosophical Tradition</div>
-                                <div style="font-size: 14px; color: var(--text-primary);">${philo.tradition}</div>
-                            </div>
-                            ` : ''}
+                    <div style="padding: 16px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 10px; margin-bottom: 16px;">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 10px;">
+                            <span style="font-size: 14px;">🏛️</span>
+                            <span style="font-size: 11px; color: #a78bfa; text-transform: uppercase; letter-spacing: 1px;">Philosophy Analysis</span>
                         </div>
-
-                        ${philo.aiGenerated ? `
-                        <div style="margin-top: 12px; padding: 8px 12px; background: rgba(139, 92, 246, 0.1); border-radius: 4px; display: flex; align-items: center; gap: 8px;">
-                            <span style="font-size: 14px;">🧠</span>
-                            <span style="font-size: 11px; color: rgba(139, 92, 246, 0.8);">Analysis generated by AI based on node content</span>
+                        <div style="display: grid; gap: 8px; font-size: 13px; color: var(--text-primary); line-height: 1.5;">
+                            ${philoItems.join('')}
                         </div>
-                        ` : ''}
                     </div>
                 `;
             }
 
             modalBody.innerHTML = `
-                <div style="padding: 30px; max-width: 600px;">
-                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-                        <div style="font-size: 48px;">🔗</div>
-                        <div>
-                            <h3 style="color: var(--treeplex-primary); margin-bottom: 4px;">${getHyperedgeDisplayLabel(hyperedge)}</h3>
-                            <div style="font-size: 12px; color: var(--text-secondary);">
-                                ${hyperedge.type} hyperedge • ${hyperedge.nodeIds?.length || 0} connected nodes
-                            </div>
+                <div style="padding: 24px; max-width: 550px;">
+                    <!-- Editable Header -->
+                    <div style="margin-bottom: 20px;">
+                        <input type="text" id="hyperedge-name-input" value="${(hyperedge.name || hyperedge.label || '').replace(/"/g, '&quot;')}"
+                            placeholder="Hyperedge name..."
+                            style="width: 100%; padding: 12px; font-size: 18px; font-weight: 600; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary);">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-top: 8px;">
+                            <span style="font-size: 12px; color: var(--text-secondary);">${hyperedge.type || 'manual'} • ${nodeCount} nodes</span>
+                            <span style="font-size: 12px; color: var(--text-secondary);">${hyperedge.createdAt ? new Date(hyperedge.createdAt).toLocaleDateString() : ''}</span>
+                            <input type="color" id="hyperedge-color-input" value="${hyperedge.color || '#8b5cf6'}"
+                                style="width: 24px; height: 24px; border: none; border-radius: 4px; cursor: pointer;" title="Change color">
                         </div>
                     </div>
 
-                    <div style="margin-bottom: 20px;">
-                        <p style="color: var(--text-secondary); line-height: 1.6; margin: 0;">
-                            ${hyperedge.description || 'No description available.'}
-                        </p>
+                    <!-- Description -->
+                    <div style="margin-bottom: 16px;">
+                        <textarea id="hyperedge-desc-input" rows="2" placeholder="Describe why these nodes are grouped together..."
+                            style="width: 100%; padding: 10px; font-size: 13px; background: rgba(0,0,0,0.2); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); resize: vertical; line-height: 1.5;">${hyperedge.description || ''}</textarea>
                     </div>
 
-                    <div style="padding: 16px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; margin-bottom: 16px;">
-                        <h4 style="color: var(--treeplex-primary); margin-bottom: 12px;">📊 Analysis Summary</h4>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; font-size: 13px;">
-                            <div>
-                                <div style="color: var(--text-secondary);">Method</div>
-                                <div style="color: var(--text-primary); font-weight: 600;">${meta.analysisMethod || 'Manual'}</div>
-                            </div>
-                            <div>
-                                <div style="color: var(--text-secondary);">Pattern</div>
-                                <div style="color: var(--text-primary); font-weight: 600;">${meta.pattern || currentPattern}</div>
-                            </div>
-                            <div>
-                                <div style="color: var(--text-secondary);">SubItems Generated</div>
-                                <div style="color: var(--text-primary); font-weight: 600;">${meta.totalSubItemsGenerated || 0}</div>
-                            </div>
-                            <div>
-                                <div style="color: var(--text-secondary);">Created</div>
-                                <div style="color: var(--text-primary); font-weight: 600;">${hyperedge.createdAt ? new Date(hyperedge.createdAt).toLocaleDateString() : 'Unknown'}</div>
-                            </div>
-                        </div>
-                    </div>
-
-                    ${analyzedNodesList ? `
-                    <div style="margin-bottom: 20px;">
-                        <h4 style="color: var(--text-primary); margin-bottom: 12px;">📍 Analyzed Nodes</h4>
-                        <ul style="margin: 0; padding-left: 20px; color: var(--text-secondary); line-height: 1.8;">
-                            ${analyzedNodesList}
-                        </ul>
-                    </div>
-                    ` : ''}
-
+                    ${aggregatesHTML}
+                    ${queryHTML}
+                    ${analysisHTML}
                     ${philosophySection}
+                    ${memberNodesHTML}
 
-                    <div style="margin-top: 24px; display: flex; flex-wrap: wrap; gap: 12px; justify-content: flex-end;">
-                        <button onclick="deleteHyperedgeWithConfirm('${hyperedge.id}')"
-                            style="padding: 10px 20px; background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
-                            🗑️ Delete
-                        </button>
-                        <button onclick="editHyperedge('${hyperedge.id}')"
-                            style="padding: 10px 20px; background: rgba(59, 130, 246, 0.2); color: #3B82F6; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
-                            ✏️ Edit
-                        </button>
-                        <button onclick="deepDiveHyperedge('${hyperedge.id}')"
-                            style="padding: 10px 20px; background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
-                            🎓 Deep Dive
+                    <!-- Action Buttons -->
+                    <div style="display: flex; flex-wrap: wrap; gap: 10px; margin-top: 20px;">
+                        <button onclick="analyzeHyperedgeWithAI('${hyperedge.id}')"
+                            style="flex: 1; min-width: 120px; padding: 10px 16px; background: rgba(139, 92, 246, 0.2); color: #a78bfa; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span>🧠</span> Analyze
                         </button>
                         <button onclick="document.getElementById('modal').style.display='none'; focusOnHyperedge('${hyperedge.id}')"
-                            style="padding: 10px 20px; background: rgba(139, 92, 246, 0.2); color: #8B5CF6; border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
-                            🎯 Focus View
+                            style="flex: 1; min-width: 120px; padding: 10px 16px; background: rgba(99, 102, 241, 0.2); color: #818cf8; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; cursor: pointer; font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 6px;">
+                            <span>🎯</span> Focus View
                         </button>
-                        <button onclick="document.getElementById('modal').style.display='none'"
-                            style="padding: 10px 20px; background: var(--treeplex-primary); color: white; border: none; border-radius: 6px; cursor: pointer; font-size: 13px;">
-                            Close
+                        <button onclick="deleteHyperedgeWithConfirm('${hyperedge.id}')"
+                            style="padding: 10px 16px; background: rgba(239, 68, 68, 0.1); color: #ef4444; border: 1px solid rgba(239, 68, 68, 0.2); border-radius: 8px; cursor: pointer; font-size: 13px;">
+                            🗑️
                         </button>
                     </div>
                 </div>
             `;
 
+            // Set up auto-save on blur
+            setTimeout(() => {
+                const nameInput = document.getElementById('hyperedge-name-input');
+                const descInput = document.getElementById('hyperedge-desc-input');
+                const colorInput = document.getElementById('hyperedge-color-input');
+
+                const saveChanges = () => {
+                    const he = capexTree.hyperedges?.find(h => h.id === hyperedge.id);
+                    if (!he) return;
+
+                    const newName = nameInput?.value?.trim();
+                    const newDesc = descInput?.value?.trim();
+                    const newColor = colorInput?.value;
+
+                    let changed = false;
+                    if (newName && newName !== (he.name || he.label)) {
+                        he.name = newName;
+                        he.label = newName;
+                        changed = true;
+                    }
+                    if (newDesc !== he.description) {
+                        he.description = newDesc;
+                        changed = true;
+                    }
+                    if (newColor !== he.color) {
+                        he.color = newColor;
+                        changed = true;
+                    }
+
+                    if (changed) {
+                        saveState('Edit Hyperedge');
+                        renderCanvas();
+                    }
+                };
+
+                nameInput?.addEventListener('blur', saveChanges);
+                descInput?.addEventListener('blur', saveChanges);
+                colorInput?.addEventListener('change', saveChanges);
+            }, 100);
+
+            document.querySelector('#modal .modal-footer').innerHTML = `
+                <button class="btn btn-primary" onclick="document.getElementById('modal').style.display='none'">Done</button>
+            `;
+
             modal.style.display = 'flex';
+        }
+
+        /**
+         * BUILD 364: Analyze hyperedge relationship with AI
+         */
+        async function analyzeHyperedgeWithAI(hyperedgeId) {
+            const hyperedge = capexTree.hyperedges?.find(h => h.id === hyperedgeId);
+            if (!hyperedge) return;
+
+            // Get member nodes
+            const memberNodes = [];
+            function findNodes(node) {
+                if (hyperedge.nodeIds?.includes(node.id)) {
+                    memberNodes.push({ name: node.name, description: node.description, status: node.pmStatus, cost: node.cost });
+                }
+                if (node.subItems) node.subItems.forEach(findNodes);
+                if (node.children) node.children.forEach(findNodes);
+            }
+            capexTree.children?.forEach(phase => {
+                (phase.items || phase.children || []).forEach(findNodes);
+            });
+
+            const pattern = capexTree.pattern?.key || 'generic';
+            const nodesSummary = memberNodes.map(n => `- ${n.name}${n.description ? ': ' + n.description.slice(0, 100) : ''}`).join('\n');
+
+            const prompt = `Analyze why these ${memberNodes.length} items are grouped together in this "${hyperedge.name || hyperedge.label || 'hyperedge'}" relationship.
+
+Pattern: ${pattern}
+Hyperedge type: ${hyperedge.type || 'manual'}
+${hyperedge.query?.conditions ? 'Query conditions: ' + hyperedge.query.conditions.map(c => `${c.field} ${c.operator} "${c.value}"`).join(' AND ') : ''}
+
+Member nodes:
+${nodesSummary}
+
+Provide a concise (2-3 sentences) analysis explaining:
+1. The key relationship or theme connecting these items
+2. Why this grouping is meaningful for the ${pattern} context
+3. Any insights or patterns you notice
+
+Be specific and insightful, not generic.`;
+
+            showToast('Analyzing relationship...', 'info');
+
+            try {
+                const response = await callAIWithStreaming(prompt, 'Analyze hyperedge relationship', false);
+
+                if (response) {
+                    // Save analysis to hyperedge
+                    hyperedge.aiInsight = response;
+                    if (!hyperedge.metadata) hyperedge.metadata = {};
+                    hyperedge.metadata.aiAnalysis = response;
+                    hyperedge.metadata.analysisDate = new Date().toISOString();
+
+                    saveState('AI Hyperedge Analysis');
+
+                    // Refresh the modal
+                    showHyperedgeInfo(hyperedge);
+                    showToast('Analysis complete!', 'success');
+                }
+            } catch (error) {
+                console.error('AI analysis failed:', error);
+                showToast('Analysis failed. Check API key.', 'error');
+            }
         }
 
         /**
@@ -44845,12 +44983,12 @@ RULES:
         const view3D = document.getElementById('view-3d');
         if (view3D) view3D.classList.remove('active');
 
-        // Find and trigger hyperedge edit
+        // Find and show hyperedge info
         const tree = window.capexTree;
         if (tree && tree.hyperedges) {
-            const idx = tree.hyperedges.findIndex(e => e.id === selectedHyperedge.id);
-            if (idx >= 0 && typeof window.editHyperedge === 'function') {
-                window.editHyperedge(idx);
+            const hyperedge = tree.hyperedges.find(e => e.id === selectedHyperedge.id);
+            if (hyperedge && typeof window.showHyperedgeInfo === 'function') {
+                window.showHyperedgeInfo(hyperedge);
             }
         }
     };
