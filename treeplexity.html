@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 355 | 2025-12-06
+    TreeListy v2.17.0 | Build 356 | 2025-12-06
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 19 specialized patterns (Generic, CAPEX, Philosophy, Free Speech, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 355): 🌳 TreeBeard Phase 1 - Smarter & More Personal
-    - NEW: AI Verification Pass - validates trees before preview, auto-fixes issues
-    - NEW: Conversation Memory - TreeBeard remembers last 5 exchanges across sessions
-    - NEW: Enhanced Personality - warmer, more personable responses with dry wit
-    - NEW: Familiarity tracking - TreeBeard adapts tone based on conversation history
-    - Reduces malformed tree output with Generator→Critic→Revise pattern
-    - Chat history persists in localStorage and restores on page load
+    Changelog (Build 356): 🎤 Microphone Permission Fix
+    - FIX: Mic permission now requested once per session, not every button press
+    - NEW: Pre-checks existing permission via Permissions API (HTTPS)
+    - NEW: Tracks permission grant state within session for file:// users
+    - Clearer error messages for denied/blocked microphone access
 
+    Previous (Build 355): 🌳 TreeBeard Phase 1 - Smarter & More Personal
     Previous (Build 354): 🌳 Multi-Tree Import Option
     Previous (Build 353): 🔍 Smart Import Wizard
 
@@ -605,7 +604,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 355,
+            build: 356,
             date: '2025-12-06',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -42201,7 +42200,62 @@ RULES:
             };
         }
 
-        function startVoiceRecording() {
+        // BUILD 356: Track microphone permission state
+        let micPermissionGranted = false;
+
+        // BUILD 356: Check if permission was already granted (HTTPS only)
+        async function checkExistingMicPermission() {
+            try {
+                if (navigator.permissions) {
+                    const result = await navigator.permissions.query({ name: 'microphone' });
+                    if (result.state === 'granted') {
+                        micPermissionGranted = true;
+                        console.log('🎤 Microphone permission already granted');
+                    }
+                    // Listen for permission changes
+                    result.onchange = () => {
+                        micPermissionGranted = result.state === 'granted';
+                        console.log('🎤 Microphone permission changed to:', result.state);
+                    };
+                }
+            } catch (e) {
+                // Permissions API not supported or microphone query not allowed
+                console.log('🎤 Cannot query microphone permission:', e.message);
+            }
+        }
+
+        // Run permission check on load
+        checkExistingMicPermission();
+
+        async function requestMicrophonePermission() {
+            // Check if we're on file:// protocol
+            const isFileProtocol = window.location.protocol === 'file:';
+
+            try {
+                // Try to get microphone access
+                const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                // Stop the stream immediately - we just needed to get permission
+                stream.getTracks().forEach(track => track.stop());
+                micPermissionGranted = true;
+
+                if (isFileProtocol) {
+                    console.log('🎤 Mic permission granted (file:// - will not persist)');
+                } else {
+                    console.log('🎤 Mic permission granted and persisted');
+                }
+                return true;
+            } catch (err) {
+                console.error('🎤 Mic permission denied:', err);
+                if (err.name === 'NotAllowedError') {
+                    addMessage('🎤 Microphone access denied. Click the lock icon in your browser address bar to allow microphone access.', 'error');
+                } else {
+                    addMessage(`🎤 Could not access microphone: ${err.message}`, 'error');
+                }
+                return false;
+            }
+        }
+
+        async function startVoiceRecording() {
             if (!chatState.voiceRecognition) {
                 addMessage('🎤 Voice input not available. Please use Chrome, Edge, or Safari.', 'error');
                 return;
@@ -42209,6 +42263,12 @@ RULES:
 
             // Prevent double-start
             if (chatState.isRecording) return;
+
+            // BUILD 356: Request permission first if not already granted
+            if (!micPermissionGranted) {
+                const granted = await requestMicrophonePermission();
+                if (!granted) return;
+            }
 
             chatState.isRecording = true;
             chatState.voiceFinalText = '';
