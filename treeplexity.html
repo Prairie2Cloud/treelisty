@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 376 | 2025-12-07
+    TreeListy v2.17.0 | Build 377 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 376): 🔍 Smart Decade Search in find_node
-    - "60's", "60s", "the 60s" now matches "1960s" nodes
-    - Handles apostrophe variations and century inference
-    - Works for all decades (50s->1950s, 00s->2000s)
+    Changelog (Build 377): 🧠 TreeBeard Conversation Mode - Natural Language Actions
+    - Conversation mode now includes full action vocabulary
+    - Understands natural phrases: "build out the 60s", "start working on X"
+    - Normalizes decade references: "60's" → "1960s"
+    - Workflow guidance: navigate first, then act
 
+    Previous (Build 376): 🔍 Smart Decade Search in find_node
     Previous (Build 375): 🌳 LifeTree Biographer - Structured Data Gathering
     Previous (Build 374): 🌳 LifeTree Quick Insight Context
     Previous (Build 373): 📝 Simplified Save/Open Labels
@@ -619,7 +621,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 376,
+            build: 377,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -44068,12 +44070,36 @@ CONVERSATION GUIDELINES:
 • Be warm, insightful, and genuinely helpful
 • Reference what you know about the project
 • Ask follow-up questions to deepen understanding
-• If the user wants to DO something (add, edit, delete, navigate), acknowledge it and describe what should happen
+• If the user wants to DO something (add, edit, delete, navigate), figure out the appropriate action
 • Use your full intelligence - this is a real conversation
 
-ACTIONS: If you determine the user wants to perform an action, end your response with a line like:
-[ACTION: add_child:Event Name] or [ACTION: find_node:Something] or [ACTION: none]
-This helps the system know what to do, but keep it at the END after your natural response.`;
+UNDERSTANDING NATURAL LANGUAGE (BUILD 377):
+• "the 60s", "60's", "the sixties" → means "1960s" decade
+• "build out" → means add_child to create new items
+• "start working on X" → first find_node:X, then add content
+• When user mentions a decade/phase, FIRST navigate there with find_node
+
+AVAILABLE ACTIONS (use these exact names):
+- find_node:{query} → Search & select by name (e.g., find_node:1960s)
+- expand_node → Expand the focused node to show children
+- add_child:{name} → Add child to focused node
+- set_field:{field}:{value} → Set any field on focused node
+- switch_to_canvas / switch_to_tree → Change view
+- open_wizard → Launch AI Wizard for conversational building
+- deep_dive → AI analysis of selected nodes
+
+WORKFLOW EXAMPLE:
+User: "let's build out the 60s"
+1. First: find_node:1960s (navigate to that decade)
+2. Then: Ask what events/memories to add
+3. Then: add_child:{event name} for each
+
+ACTIONS: End your response with [ACTION: command:param] or [ACTION: none]
+Examples:
+• [ACTION: find_node:1960s]
+• [ACTION: add_child:Started kindergarten]
+• [ACTION: expand_node]
+• [ACTION: none]`;
 
             try {
                 const aiMode = document.getElementById('unified-ai-mode-select')?.value || 'server-sonnet';
