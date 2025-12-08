@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 384 | 2025-12-07
+    TreeListy v2.17.0 | Build 385 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 384): 🔧 Fix Undefined Nodes + Repair Command
+    Changelog (Build 385): 🔧 Fix Undefined Node Display + Debug Logging
+    - Canvas now shows "⚠️ Unnamed" for undefined/missing name nodes
+    - Added debug logging to trace add_child JSON parsing
+    - Trim whitespace before checking JSON format
+
+    Previous (Build 384): 🔧 Fix Undefined Nodes + Repair Command
     - Validates node names before creation - rejects undefined/empty names
     - Extracts name from description if name field missing in JSON
     - New repair_tree command: finds and lets you fix malformed nodes
@@ -626,7 +631,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 384,
+            build: 385,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -13546,7 +13551,7 @@ Be specific and insightful, not generic.`;
                     <div style="font-size: 24px;">${item.icon || '📦'}</div>
                     <div style="flex: 1;">
                         <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">
-                            ${item.name}${ragHtml}${canvasCollabHtml}
+                            ${(item.name && item.name !== 'undefined') ? item.name : (item.title || '⚠️ Unnamed')}${ragHtml}${canvasCollabHtml}
                         </div>
                         <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
                             ${(item.description || 'No description').substring(0, 100)}${item.description?.length > 100 ? '...' : ''}
@@ -43094,12 +43099,18 @@ ${transcript}`;
                 let newChild;
 
                 // BUILD 384: Support rich JSON data OR simple string with validation
-                if (childData.startsWith('{')) {
+                const trimmedData = childData.trim();
+                console.log('🔧 add_child raw input:', childData);
+                console.log('🔧 add_child trimmed:', trimmedData);
+
+                if (trimmedData.startsWith('{')) {
                     try {
-                        const parsed = JSON.parse(childData);
+                        const parsed = JSON.parse(trimmedData);
+                        console.log('🔧 add_child parsed:', parsed);
 
                         // BUILD 384: Extract name from multiple sources, validate it exists
                         let nodeName = parsed.name || parsed.title;
+                        console.log('🔧 add_child nodeName extracted:', nodeName);
 
                         // If no name, try to extract from description
                         if (!nodeName && parsed.description) {
