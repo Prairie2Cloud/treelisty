@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 383 | 2025-12-07
+    TreeListy v2.17.0 | Build 384 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 383): 🧠 TreeBeard Memory Mining + Real-Time Saves
-    - Rich context mining: TreeBeard now sees ALL captured details (people, places, dates)
-    - Multi-action support: Can navigate AND add in single response for real-time saves
-    - Context-first workflow: Scans known facts before asking, never asks redundant questions
-    - People/Places index: Extracted summary of everyone and everywhere mentioned
+    Changelog (Build 384): 🔧 Fix Undefined Nodes + Repair Command
+    - Validates node names before creation - rejects undefined/empty names
+    - Extracts name from description if name field missing in JSON
+    - New repair_tree command: finds and lets you fix malformed nodes
+    - TreeBeard can now say "repair tree" to scan for issues
 
-    Previous (Build 382): 📝 Rich LifeTree Data Capture
+    Previous (Build 383): 🧠 TreeBeard Memory Mining + Real-Time Saves
     Previous (Build 380): 🎙️ Larry King Mode Indicator
     Previous (Build 379): 🔧 Fix: Pattern Restored on Page Reload
     Previous (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
@@ -626,7 +626,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 383,
+            build: 384,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -43093,13 +43093,33 @@ ${transcript}`;
 
                 let newChild;
 
-                // BUILD 382: Support rich JSON data OR simple string
+                // BUILD 384: Support rich JSON data OR simple string with validation
                 if (childData.startsWith('{')) {
                     try {
                         const parsed = JSON.parse(childData);
+
+                        // BUILD 384: Extract name from multiple sources, validate it exists
+                        let nodeName = parsed.name || parsed.title;
+
+                        // If no name, try to extract from description
+                        if (!nodeName && parsed.description) {
+                            // Take first sentence or first 50 chars of description
+                            nodeName = parsed.description.split(/[.!?]/)[0].trim().substring(0, 50);
+                        }
+
+                        // If still no name, try location + eventDate combo
+                        if (!nodeName && (parsed.location || parsed.eventDate)) {
+                            nodeName = [parsed.eventDate, parsed.location].filter(Boolean).join(' - ');
+                        }
+
+                        // Final validation - reject undefined/empty names
+                        if (!nodeName || nodeName === 'undefined' || nodeName.trim() === '') {
+                            return '⚠️ Cannot create node without a name. Please include "name" in the JSON.';
+                        }
+
                         newChild = {
                             id: 'chat_' + Date.now(),
-                            name: parsed.name || parsed.title || 'Untitled',
+                            name: nodeName,
                             expanded: true,
                             // LifeTree fields
                             eventDate: parsed.eventDate || parsed.when || parsed.date || '',
@@ -43120,7 +43140,10 @@ ${transcript}`;
                             }
                         });
                     } catch (e) {
-                        // Fallback to simple string
+                        // Fallback to simple string - but validate it's not undefined
+                        if (childData === 'undefined' || childData.trim() === '') {
+                            return '⚠️ Cannot create node with empty name.';
+                        }
                         newChild = {
                             id: 'chat_' + Date.now(),
                             name: childData,
@@ -43128,7 +43151,10 @@ ${transcript}`;
                         };
                     }
                 } else {
-                    // Simple string format
+                    // Simple string format - validate
+                    if (childData === 'undefined' || childData.trim() === '') {
+                        return '⚠️ Cannot create node with empty name.';
+                    }
                     newChild = {
                         id: 'chat_' + Date.now(),
                         name: childData,
@@ -43209,6 +43235,285 @@ ${transcript}`;
                 const fields = Object.keys(node).filter(k => !['children', 'items', 'subItems', 'canvasX', 'canvasY', 'id'].includes(k));
 
                 return `📍 **Focused Node:**\n• Name: ${node.name || node.title || 'Untitled'}\n• ID: ${node.id}\n• Children: ${children}\n• Fields: ${fields.join(', ')}`;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 384: REPAIR TREE - Find and fix bad nodes
+            // ═══════════════════════════════════════════════════════════════
+
+            'repair_tree': () => {
+                const issues = [];
+
+                // Helper: Calculate string similarity (Jaccard-ish)
+                function similarity(a, b) {
+                    if (!a || !b) return 0;
+                    const setA = new Set(a.toLowerCase().split(/\s+/));
+                    const setB = new Set(b.toLowerCase().split(/\s+/));
+                    const intersection = [...setA].filter(x => setB.has(x)).length;
+                    const union = new Set([...setA, ...setB]).size;
+                    return union > 0 ? intersection / union : 0;
+                }
+
+                // Helper: Generate smart name suggestion from children
+                function suggestName(node) {
+                    const children = node.children || node.items || node.subItems || [];
+                    if (children.length === 0) return 'Unnamed memory';
+
+                    const firstChild = children[0];
+                    const childName = firstChild.name || firstChild.title || '';
+                    const location = firstChild.location || '';
+                    const eventDate = firstChild.eventDate || '';
+
+                    // Try to create a descriptive name
+                    if (location) {
+                        return `${location} memories`;
+                    } else if (eventDate) {
+                        return `${eventDate} - ${childName.substring(0, 30)}`;
+                    } else if (childName) {
+                        // Shorten if too long
+                        return childName.length > 40 ? childName.substring(0, 37) + '...' : childName;
+                    }
+                    return 'Memory group';
+                }
+
+                // Helper: Get parent path for context
+                function getNodePath(targetNode, current = capexTree, path = []) {
+                    if (current.id === targetNode.id) return path;
+                    const children = current.children || current.items || current.subItems || [];
+                    for (const child of children) {
+                        const result = getNodePath(targetNode, child, [...path, current.name || current.title || '?']);
+                        if (result) return result;
+                    }
+                    return null;
+                }
+
+                // Recursive scan for issues
+                function scanNode(node, parent = null, phase = null) {
+                    const nodeName = node.name || node.title || '';
+                    const nodeId = node.id || '';
+
+                    // Check 1: Undefined/empty names
+                    if (!nodeName || nodeName === 'undefined' || nodeName.trim() === '') {
+                        issues.push({
+                            type: 'undefined',
+                            node: node,
+                            parent: parent,
+                            phase: phase,
+                            suggestion: suggestName(node)
+                        });
+                    }
+
+                    // Check 2: Malformed data - missing ID
+                    if (!nodeId) {
+                        issues.push({
+                            type: 'missing_id',
+                            node: node,
+                            parent: parent,
+                            phase: phase
+                        });
+                    }
+
+                    // Recurse into children
+                    const children = node.children || node.items || node.subItems || [];
+                    const currentPhase = node.type === 'phase' ? node : phase;
+                    children.forEach(child => scanNode(child, node, currentPhase));
+                }
+
+                // Start scan from root
+                scanNode(capexTree);
+
+                // Check 3: Duplicates within same phase
+                const phases = capexTree.children || capexTree.phases || [];
+                phases.forEach(phase => {
+                    const items = phase.items || phase.children || [];
+                    for (let i = 0; i < items.length; i++) {
+                        for (let j = i + 1; j < items.length; j++) {
+                            const nameA = (items[i].name || items[i].title || '').toLowerCase();
+                            const nameB = (items[j].name || items[j].title || '').toLowerCase();
+
+                            // Skip if either is already flagged as undefined
+                            if (!nameA || nameA === 'undefined' || !nameB || nameB === 'undefined') continue;
+
+                            // Exact match or high similarity
+                            if (nameA === nameB || similarity(nameA, nameB) >= 0.8) {
+                                // Check if we already flagged this pair
+                                const alreadyFlagged = issues.some(iss =>
+                                    iss.type === 'duplicate' &&
+                                    ((iss.node.id === items[i].id && iss.duplicate.id === items[j].id) ||
+                                     (iss.node.id === items[j].id && iss.duplicate.id === items[i].id))
+                                );
+                                if (!alreadyFlagged) {
+                                    issues.push({
+                                        type: 'duplicate',
+                                        node: items[i],
+                                        duplicate: items[j],
+                                        phase: phase,
+                                        similarity: nameA === nameB ? 1.0 : similarity(nameA, nameB)
+                                    });
+                                }
+                            }
+                        }
+                    }
+                });
+
+                // Store issues for interactive repair
+                window.repairQueue = issues;
+                window.repairIndex = 0;
+
+                if (issues.length === 0) {
+                    return '✅ **Tree health check complete!** No issues found. Your tree is clean.';
+                }
+
+                // Count by type
+                const undefinedCount = issues.filter(i => i.type === 'undefined').length;
+                const duplicateCount = issues.filter(i => i.type === 'duplicate').length;
+                const malformedCount = issues.filter(i => i.type === 'missing_id').length;
+
+                let summary = `🔧 **Found ${issues.length} issue${issues.length > 1 ? 's' : ''}:**\n`;
+                if (undefinedCount > 0) summary += `• ${undefinedCount} undefined/empty name${undefinedCount > 1 ? 's' : ''}\n`;
+                if (duplicateCount > 0) summary += `• ${duplicateCount} duplicate pair${duplicateCount > 1 ? 's' : ''}\n`;
+                if (malformedCount > 0) summary += `• ${malformedCount} missing ID${malformedCount > 1 ? 's' : ''}\n`;
+
+                summary += '\nLet\'s fix them one at a time.';
+
+                // Show first issue
+                setTimeout(() => {
+                    if (window.repairQueue && window.repairQueue.length > 0) {
+                        showRepairIssue(0);
+                    }
+                }, 500);
+
+                return summary;
+            },
+
+            // Repair action: Rename a node
+            'repair_rename': (newName) => {
+                if (!window.repairQueue || window.repairIndex >= window.repairQueue.length) {
+                    return '⚠️ No active repair session. Use "repair tree" to start.';
+                }
+
+                const issue = window.repairQueue[window.repairIndex];
+                if (!newName || newName.trim() === '') {
+                    return '⚠️ Please provide a name.';
+                }
+
+                issue.node.name = newName.trim();
+                if (typeof saveState === 'function') saveState('Repair: Renamed node');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                const result = `✅ Renamed to "${newName}"`;
+
+                // Move to next issue
+                window.repairIndex++;
+                setTimeout(() => showRepairIssue(window.repairIndex), 300);
+
+                return result;
+            },
+
+            // Repair action: Delete node and promote children
+            'repair_delete_promote': () => {
+                if (!window.repairQueue || window.repairIndex >= window.repairQueue.length) {
+                    return '⚠️ No active repair session. Use "repair tree" to start.';
+                }
+
+                const issue = window.repairQueue[window.repairIndex];
+                const node = issue.node;
+                const parent = issue.parent;
+
+                if (!parent) {
+                    return '❌ Cannot delete root node.';
+                }
+
+                const nodeChildren = node.children || node.items || node.subItems || [];
+
+                // Find which array the node is in
+                const arrays = ['children', 'items', 'subItems'];
+                for (const arr of arrays) {
+                    if (parent[arr]) {
+                        const idx = parent[arr].findIndex(c => c.id === node.id);
+                        if (idx >= 0) {
+                            // Remove the bad node
+                            parent[arr].splice(idx, 1);
+                            // Insert its children at the same position
+                            parent[arr].splice(idx, 0, ...nodeChildren);
+                            break;
+                        }
+                    }
+                }
+
+                if (typeof saveState === 'function') saveState('Repair: Deleted & promoted children');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                const result = `🗑️ Deleted bad node, promoted ${nodeChildren.length} child${nodeChildren.length !== 1 ? 'ren' : ''}`;
+
+                // Move to next issue
+                window.repairIndex++;
+                setTimeout(() => showRepairIssue(window.repairIndex), 300);
+
+                return result;
+            },
+
+            // Repair action: Merge duplicates
+            'repair_merge': () => {
+                if (!window.repairQueue || window.repairIndex >= window.repairQueue.length) {
+                    return '⚠️ No active repair session. Use "repair tree" to start.';
+                }
+
+                const issue = window.repairQueue[window.repairIndex];
+                if (issue.type !== 'duplicate') {
+                    return '⚠️ Current issue is not a duplicate.';
+                }
+
+                const keep = issue.node;
+                const remove = issue.duplicate;
+                const phase = issue.phase;
+
+                // Merge children from duplicate into keeper
+                const removeChildren = remove.children || remove.items || remove.subItems || [];
+                if (removeChildren.length > 0) {
+                    if (!keep.subItems) keep.subItems = [];
+                    keep.subItems.push(...removeChildren);
+                }
+
+                // Merge description if duplicate has one and keeper doesn't
+                if (remove.description && !keep.description) {
+                    keep.description = remove.description;
+                } else if (remove.description && keep.description) {
+                    keep.description += '\n\n' + remove.description;
+                }
+
+                // Remove the duplicate from phase
+                const phaseItems = phase.items || phase.children || [];
+                const idx = phaseItems.findIndex(c => c.id === remove.id);
+                if (idx >= 0) {
+                    phaseItems.splice(idx, 1);
+                }
+
+                if (typeof saveState === 'function') saveState('Repair: Merged duplicates');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                const result = `🔗 Merged "${remove.name}" into "${keep.name}"`;
+
+                // Move to next issue
+                window.repairIndex++;
+                setTimeout(() => showRepairIssue(window.repairIndex), 300);
+
+                return result;
+            },
+
+            // Repair action: Skip current issue
+            'repair_skip': () => {
+                if (!window.repairQueue || window.repairIndex >= window.repairQueue.length) {
+                    return '⚠️ No active repair session.';
+                }
+
+                window.repairIndex++;
+                setTimeout(() => showRepairIssue(window.repairIndex), 100);
+
+                return '⏭️ Skipped';
             },
 
             // ═══════════════════════════════════════════════════════════════
@@ -44863,6 +45168,71 @@ THE THREE NEVERS:
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 384: REPAIR ISSUE DISPLAY - Show issues one at a time
+        // ═══════════════════════════════════════════════════════════════
+
+        function showRepairIssue(index) {
+            if (!window.repairQueue || index >= window.repairQueue.length) {
+                // All done
+                const fixed = window.repairIndex || 0;
+                const total = window.repairQueue?.length || 0;
+                const skipped = total - fixed;
+                addMessage(`✅ **Repair complete!** Fixed ${fixed} issue${fixed !== 1 ? 's' : ''}${skipped > 0 ? `, skipped ${skipped}` : ''}.`, 'assistant');
+                window.repairQueue = null;
+                window.repairIndex = 0;
+                return;
+            }
+
+            const issue = window.repairQueue[index];
+            const remaining = window.repairQueue.length - index;
+            let message = `\n**Issue ${index + 1}/${window.repairQueue.length}:**\n`;
+
+            if (issue.type === 'undefined') {
+                const phaseName = issue.phase?.name || 'Unknown phase';
+                const children = issue.node.children || issue.node.items || issue.node.subItems || [];
+                const childList = children.slice(0, 3).map(c => c.name || c.title || '?').join(', ');
+                const moreChildren = children.length > 3 ? ` +${children.length - 3} more` : '';
+
+                message += `🔴 **Undefined node** in ${phaseName}\n`;
+                if (children.length > 0) {
+                    message += `   └─ Contains: ${childList}${moreChildren}\n`;
+                }
+                message += `\n💡 Suggested name: "${issue.suggestion}"`;
+
+                addMessage(message, 'assistant', [
+                    { label: `✓ Rename to "${issue.suggestion}"`, action: 'repair_rename', param: issue.suggestion },
+                    { label: '🗑️ Delete & Keep Children', action: 'repair_delete_promote' },
+                    { label: '✏️ Custom Name...', action: 'repair_custom_name' },
+                    { label: '⏭️ Skip', action: 'repair_skip' }
+                ]);
+
+            } else if (issue.type === 'duplicate') {
+                const phaseName = issue.phase?.name || 'Unknown phase';
+                const similarity = Math.round(issue.similarity * 100);
+
+                message += `🟡 **Duplicate found** in ${phaseName} (${similarity}% similar)\n`;
+                message += `   • "${issue.node.name || issue.node.title}"\n`;
+                message += `   • "${issue.duplicate.name || issue.duplicate.title}"`;
+
+                addMessage(message, 'assistant', [
+                    { label: '🔗 Merge Into One', action: 'repair_merge' },
+                    { label: '✓ Keep Both', action: 'repair_skip' },
+                    { label: '✏️ Rename Second', action: 'repair_rename_duplicate' }
+                ]);
+
+            } else if (issue.type === 'missing_id') {
+                // Auto-fix missing IDs
+                issue.node.id = 'repair_' + Date.now() + '_' + Math.random().toString(36).substr(2, 5);
+                message += `🟢 **Fixed:** Added missing ID to "${issue.node.name || 'node'}"`;
+                addMessage(message, 'assistant');
+
+                // Auto-advance
+                window.repairIndex++;
+                setTimeout(() => showRepairIssue(window.repairIndex), 300);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // AI COMMAND INTERPRETER - BUILD 378: TIERED PROMPT SYSTEM
         // ═══════════════════════════════════════════════════════════════
 
@@ -45030,6 +45400,15 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             }
             if (lower.includes('node info') || lower.includes('current node') || lower.includes('what node')) {
                 return { type: 'action', message: '📍 Node info:', action: 'node_info' };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 384: REPAIR TREE COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            if (lower.includes('repair') || lower.includes('fix bad') || lower.includes('fix undefined') ||
+                lower.includes('find duplicate') || lower.includes('health check') || lower.includes('clean up tree')) {
+                return { type: 'action', message: '🔧 Scanning tree for issues...', action: 'repair_tree' };
             }
 
             // ═══════════════════════════════════════════════════════════════
