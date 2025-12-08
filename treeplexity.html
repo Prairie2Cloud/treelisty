@@ -617,7 +617,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 373,
+            build: 374,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -9237,6 +9237,33 @@ Provide a genealogical analysis covering:
 4. **Research Gaps** - What additional records or information should be sought?
 5. **Conflicting Data** - Are there any inconsistencies to resolve?
 6. **Recommendations** - Next steps for strengthening this family branch documentation`;
+
+                } else if (currentPattern === 'lifetree') {
+                    // BUILD 374: LifeTree biographical event analysis
+                    const subjectName = capexTree?.name?.replace(/^.*?['']s?\s*Life(tree)?$/i, '').trim() ||
+                                       capexTree?.name?.replace(/\s*Life(tree)?$/i, '').trim() ||
+                                       'the subject';
+
+                    systemPrompt = `You are a compassionate oral historian and biographer helping document ${subjectName}'s life story. You specialize in:
+- Helping people capture and preserve meaningful memories
+- Asking thoughtful follow-up questions to enrich stories
+- Providing historical and cultural context for time periods
+- Connecting individual experiences to broader family narratives
+
+Be warm, curious, and respectful. This is someone's precious life story.`;
+
+                    userPrompt = `Help me understand and enrich this life event for ${subjectName}:
+
+**Event:** ${item.name}
+**When:** ${item.eventDate || item.description || 'Unknown time period'}
+${item.location ? `**Where:** ${item.location}\n` : ''}${item.people ? `**Who was involved:** ${item.people}\n` : ''}${item.emotion ? `**Feeling/Tone:** ${item.emotion}\n` : ''}${item.source ? `**Remembered by:** ${item.source}\n` : ''}${item.confidence ? `**Certainty:** ${item.confidence}\n` : ''}${item.description ? `**Description:** ${item.description}\n` : ''}${item.notes ? `**Notes:** ${item.notes}\n` : ''}
+
+Please provide:
+1. **Historical Context** - What was happening in the world/community during this time that might relate to this event?
+2. **Questions to Explore** - 2-3 thoughtful follow-up questions that could enrich this memory
+3. **Connections** - How might this event connect to other life stages or family patterns?
+4. **Details to Capture** - What sensory details, emotions, or specifics would make this memory more vivid?
+5. **Preservation Notes** - Any documents, photos, or artifacts that might help verify or illustrate this event`;
 
                 } else if (currentPattern === 'dialogue') {
                     systemPrompt = `You are a rhetoric and argumentation expert specializing in debate analysis, logical fallacies, persuasive communication, and interpersonal psychology. Your expertise includes classical rhetoric (Aristotle, Cicero), modern argumentation theory, and political theater analysis.`;
