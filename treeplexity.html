@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 378 | 2025-12-07
+    TreeListy v2.17.0 | Build 379 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
-    - Tiered prompt system: ~60% token reduction (2500→800 avg)
-    - Intent detection loads only needed context
-    - Larry King interviewing style for LifeTree
-    - +1 scoring system for captured life events
-    - Modular skill sections (commands, features, patterns)
+    Changelog (Build 379): 🔧 Fix: Pattern Restored on Page Reload
+    - Pattern now persists across browser refreshes and deploys
+    - LifeTree, Philosophy, etc. no longer reset to Generic
+    - Pattern selector UI syncs on load
 
+    Previous (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
     Previous (Build 377): 🧠 TreeBeard Conversation Mode - Natural Language Actions
     Previous (Build 376): 🔍 Smart Decade Search in find_node
     Previous (Build 375): 🌳 LifeTree Biographer - Structured Data Gathering
@@ -623,7 +622,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 378,
+            build: 379,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -21461,13 +21460,36 @@ Your response:`;
                 if (treeData) {
                     try {
                         const tree = JSON.parse(treeData);
-                        
+
                         // Migrate tree to current schema (Cognitive Citadel Foundation)
                         migrateTree(tree);
-                        
+
                         console.log('📥 Loaded tree from LocalStorage:', treeId);
                         Object.assign(capexTree, tree);
                         this.currentTreeId = treeId;
+
+                        // BUILD 379: Restore pattern from saved tree
+                        if (tree.pattern) {
+                            const patternKey = typeof tree.pattern === 'string'
+                                ? tree.pattern
+                                : (tree.pattern.key || 'generic');
+
+                            if (PATTERNS[patternKey]) {
+                                currentPattern = patternKey;
+                                console.log(`🎨 Restored pattern: ${patternKey}`);
+
+                                // Update pattern selector UI
+                                const patternSelect = document.getElementById('pattern-select');
+                                if (patternSelect) {
+                                    patternSelect.value = patternKey;
+                                }
+
+                                // Handle custom pattern labels
+                                if (patternKey === 'custom' && tree.pattern.labels) {
+                                    customPatternNames = tree.pattern.labels;
+                                }
+                            }
+                        }
                     } catch (error) {
                         console.error('❌ Failed to load tree from LocalStorage:', error);
                     }
