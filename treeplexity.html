@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 375 | 2025-12-07
+    TreeListy v2.17.0 | Build 376 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 375): 🌳 LifeTree Biographer - Structured Data Gathering
-    - TreeBeard prioritizes 12 core biographical categories
-    - Easy-to-answer questions: multiple choice, yes/no, true/false
-    - One question at a time, confirm and move on
-    - Extracts data points from long stories automatically
+    Changelog (Build 376): 🔍 Smart Decade Search in find_node
+    - "60's", "60s", "the 60s" now matches "1960s" nodes
+    - Handles apostrophe variations and century inference
+    - Works for all decades (50s->1950s, 00s->2000s)
 
+    Previous (Build 375): 🌳 LifeTree Biographer - Structured Data Gathering
     Previous (Build 374): 🌳 LifeTree Quick Insight Context
     Previous (Build 373): 📝 Simplified Save/Open Labels
     Previous (Build 372): 📦 .treelisty Bundle Export/Import
@@ -619,7 +619,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 375,
+            build: 376,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -42641,11 +42641,35 @@ ${transcript}`;
             'find_node': (query) => {
                 if (!query) return '⚠️ Please specify what to search for. Example: "find Becoming"';
 
+                // BUILD 376: Normalize search term for flexible matching
+                const normalizeForSearch = (text) => {
+                    if (!text) return '';
+                    let normalized = text.toLowerCase();
+                    // Handle decade variations: "60's", "60s", "the 60s" -> matches "1960s"
+                    normalized = normalized.replace(/[''`]/g, ''); // Remove apostrophes
+                    normalized = normalized.replace(/^the\s+/i, ''); // Remove leading "the"
+                    // Extract decade pattern: "60s" -> "1960s", "70s" -> "1970s"
+                    const decadeMatch = normalized.match(/^(\d{2})s?$/);
+                    if (decadeMatch) {
+                        const decade = parseInt(decadeMatch[1]);
+                        // Assume 20th century for 20-99, 21st for 00-19
+                        const century = decade >= 20 ? 1900 : 2000;
+                        normalized = (century + decade) + 's';
+                    }
+                    return normalized;
+                };
+
+                const searchNormalized = normalizeForSearch(query);
+
                 const results = [];
                 function searchTree(node, path = []) {
-                    const nameMatch = node.name && node.name.toLowerCase().includes(query.toLowerCase());
-                    const titleMatch = node.title && node.title.toLowerCase().includes(query.toLowerCase());
-                    const descMatch = node.description && node.description.toLowerCase().includes(query.toLowerCase());
+                    const nodeName = normalizeForSearch(node.name);
+                    const nodeTitle = normalizeForSearch(node.title);
+                    const nodeDesc = normalizeForSearch(node.description);
+
+                    const nameMatch = nodeName.includes(searchNormalized) || (node.name && node.name.toLowerCase().includes(query.toLowerCase()));
+                    const titleMatch = nodeTitle.includes(searchNormalized) || (node.title && node.title.toLowerCase().includes(query.toLowerCase()));
+                    const descMatch = nodeDesc.includes(searchNormalized) || (node.description && node.description.toLowerCase().includes(query.toLowerCase()));
 
                     if (nameMatch || titleMatch || descMatch) {
                         results.push({ node, path: [...path], matchField: nameMatch ? 'name' : titleMatch ? 'title' : 'description' });
