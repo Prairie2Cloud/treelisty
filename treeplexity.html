@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 377 | 2025-12-07
+    TreeListy v2.17.0 | Build 378 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 377): 🧠 TreeBeard Conversation Mode - Natural Language Actions
-    - Conversation mode now includes full action vocabulary
-    - Understands natural phrases: "build out the 60s", "start working on X"
-    - Normalizes decade references: "60's" → "1960s"
-    - Workflow guidance: navigate first, then act
+    Changelog (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
+    - Tiered prompt system: ~60% token reduction (2500→800 avg)
+    - Intent detection loads only needed context
+    - Larry King interviewing style for LifeTree
+    - +1 scoring system for captured life events
+    - Modular skill sections (commands, features, patterns)
 
+    Previous (Build 377): 🧠 TreeBeard Conversation Mode - Natural Language Actions
     Previous (Build 376): 🔍 Smart Decade Search in find_node
     Previous (Build 375): 🌳 LifeTree Biographer - Structured Data Gathering
     Previous (Build 374): 🌳 LifeTree Quick Insight Context
@@ -621,7 +623,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 377,
+            build: 378,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -44055,51 +44057,43 @@ ${transcript}`;
 
             const persona = personas[pattern] || personas.generic;
 
-            const systemPrompt = `${persona}
+            // BUILD 378: Tiered prompt for conversation mode
+            const intent = detectTreeBeardIntent(userMessage);
 
-You are embedded in TreeListy, a tool for hierarchical project decomposition. You have FULL conversational ability - respond naturally and helpfully, not in JSON.
+            let systemPrompt = `${persona}
 
-CURRENT PROJECT: "${capexTree?.name || 'Unknown'}"
-PATTERN: ${pattern} (${patternDef.name})
-STRUCTURE: ${patternDef.levels?.root || 'Project'} → ${patternDef.levels?.phase || 'Phase'} → ${patternDef.levels?.item || 'Item'} → ${patternDef.levels?.subtask || 'Task'}
+You are embedded in TreeListy. Respond naturally (NOT JSON). Project: "${capexTree?.name || 'Unknown'}" | Pattern: ${pattern}
 
-${treeContext}
+${treeContext}`;
 
-CONVERSATION GUIDELINES:
-• Respond naturally in plain text (NOT JSON)
-• Be warm, insightful, and genuinely helpful
-• Reference what you know about the project
-• Ask follow-up questions to deepen understanding
-• If the user wants to DO something (add, edit, delete, navigate), figure out the appropriate action
-• Use your full intelligence - this is a real conversation
+            // Add commands if user wants to DO something
+            if (intent.needsNavigation || intent.needsEditing) {
+                systemPrompt += `
 
-UNDERSTANDING NATURAL LANGUAGE (BUILD 377):
-• "the 60s", "60's", "the sixties" → means "1960s" decade
-• "build out" → means add_child to create new items
-• "start working on X" → first find_node:X, then add content
-• When user mentions a decade/phase, FIRST navigate there with find_node
+ACTIONS (end response with [ACTION: cmd:param] or [ACTION: none]):
+• find_node:{query} - Search & focus node (e.g., find_node:1960s)
+• add_child:{name} - Add child to focused node
+• set_field:{field}:{value} - Set field value
+• expand_node / collapse_node - Toggle node
+• switch_to_canvas / switch_to_tree - Change view
+• open_wizard / deep_dive - AI features
 
-AVAILABLE ACTIONS (use these exact names):
-- find_node:{query} → Search & select by name (e.g., find_node:1960s)
-- expand_node → Expand the focused node to show children
-- add_child:{name} → Add child to focused node
-- set_field:{field}:{value} → Set any field on focused node
-- switch_to_canvas / switch_to_tree → Change view
-- open_wizard → Launch AI Wizard for conversational building
-- deep_dive → AI analysis of selected nodes
+NATURAL LANGUAGE: "the 60s" = 1960s, "build out" = add_child, navigate FIRST then act`;
+            }
 
-WORKFLOW EXAMPLE:
-User: "let's build out the 60s"
-1. First: find_node:1960s (navigate to that decade)
-2. Then: Ask what events/memories to add
-3. Then: add_child:{event name} for each
+            // LifeTree gets Larry King biographer
+            if (pattern === 'lifetree') {
+                systemPrompt += getLifeTreeBiographerPrompt(phases, { projectName: capexTree?.name, pattern, phaseCount: phases.length, itemCount: phases.reduce((s,p) => s + (p.items||p.children||[]).length, 0) }, chatState);
+            }
 
-ACTIONS: End your response with [ACTION: command:param] or [ACTION: none]
-Examples:
-• [ACTION: find_node:1960s]
-• [ACTION: add_child:Started kindergarten]
-• [ACTION: expand_node]
-• [ACTION: none]`;
+            // Feature help if asking about capabilities
+            if (intent.needsFeatureHelp) {
+                systemPrompt += getFeatureGuide();
+            }
+
+            systemPrompt += `
+
+Be warm, insightful, concise. Ask follow-up questions. End with [ACTION: x] if taking action.`;
 
             try {
                 const aiMode = document.getElementById('unified-ai-mode-select')?.value || 'server-sonnet';
@@ -44247,105 +44241,167 @@ Examples:
         // LIFETREE BIOGRAPHER PROMPT BUILDER (Build 369)
         // ═══════════════════════════════════════════════════════════════
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 378: TIERED SKILL SYSTEM - Modular prompt loading
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Detect user intent to load appropriate context
+         */
+        function detectTreeBeardIntent(message) {
+            const msg = message.toLowerCase();
+            return {
+                isGreeting: /^(hi|hello|hey|howdy|good\s+(morning|afternoon|evening))/.test(msg),
+                needsNavigation: /find|go to|navigate|show|expand|collapse|focus|select/.test(msg),
+                needsEditing: /add|create|edit|change|set|update|delete|remove/.test(msg),
+                needsFeatureHelp: /how do i|what is|can you|does it|feature|help|wizard|hyperedge/.test(msg),
+                needsPatternInfo: /pattern|switch|change to|fields|what fields/.test(msg),
+                isBiographical: /born|grew up|school|married|job|lived|moved|family|sibling|parent|child|pet|friend/.test(msg),
+                isComplex: msg.length > 100 || /analyze|review|deep dive|compare/.test(msg)
+            };
+        }
+
+        /**
+         * BUILD 378: Core persona - always included (~150 tokens)
+         */
+        function getTreeBeardCorePersona(context, familiarityLevel) {
+            return `You are TreeBeard, a wise AI assistant in TreeListy.
+Project: "${context.projectName}" | Pattern: ${context.pattern} | ${context.phaseCount} phases, ${context.itemCount} items
+${familiarityLevel === 'familiar' ? 'You know this user well.' : familiarityLevel === 'acquainted' ? 'You\'ve been chatting.' : 'Fresh conversation.'}
+Be warm, concise (2-3 sentences), occasionally witty.`;
+        }
+
+        /**
+         * BUILD 378: Command vocabulary - loaded when navigation/editing needed (~200 tokens)
+         */
+        function getCommandVocabulary() {
+            return `
+COMMANDS (return as action in JSON):
+• find_node:{query} - Search & focus node
+• add_child:{name} - Add child to focused node
+• set_field:{field}:{value} - Set field value
+• expand_node / collapse_node - Toggle node
+• switch_to_canvas / switch_to_tree - Change view
+• open_wizard / deep_dive / find_redundancies - AI features
+• add_phase / delete_node / undo / redo`;
+        }
+
+        /**
+         * BUILD 378: Current pattern fields - loaded when pattern help needed (~100 tokens)
+         */
+        function getCurrentPatternFields(pattern) {
+            const patternFields = {
+                generic: 'cost, leadTime, dependencies, pmStatus, pmProgress',
+                philosophy: 'speaker, premises, objections, dialectics, textualReference',
+                sales: 'dealValue, probability, closeDate, contacts, stage',
+                lifetree: 'eventDate, age, location, people, emotion, source, confidence',
+                capex: 'cost, vendor, leadTime, riskLevel, approvalStatus',
+                thesis: 'wordCount, citations, keyArgument, methodology',
+                film: 'camera, lighting, videoPrompt, duration',
+                veo3: 'videoPrompt, duration, aspectRatio, style',
+                sora2: 'videoPrompt, duration, aspectRatio, style'
+            };
+            return `Pattern "${pattern}" fields: ${patternFields[pattern] || patternFields.generic}`;
+        }
+
+        /**
+         * BUILD 378: Feature guide - loaded when user asks about capabilities (~150 tokens)
+         */
+        function getFeatureGuide() {
+            return `
+KEY FEATURES:
+• AI Wizard (open_wizard): Conversational tree building
+• Deep Dive: Multi-node scholarly analysis
+• Smart Suggest: AI fills fields contextually
+• Hyperedges: Cross-phase connections (Canvas View → multi-select → Create)
+• Find Redundancies: Detect duplicate nodes
+• Voice Capture: Mobile recording → AI processing
+• Artifacts: Attach files to nodes
+• Live Sync: Real-time collaboration`;
+        }
+
+        /**
+         * BUILD 378: Larry King-style LifeTree Biographer
+         * Simple questions, genuine curiosity, extract gold from every answer
+         */
         function getLifeTreeBiographerPrompt(phases, context, chatState) {
-            // Extract birth year from tree metadata or first decade name
             const birthYear = capexTree?.birthYear || capexTree?.metadata?.birthYear ||
                 (phases[0]?.name?.match(/\d{4}/) ? parseInt(phases[0].name.match(/\d{4}/)[0]) : null);
             const subjectName = capexTree?.metadata?.subjectName || context.projectName.replace("'s Life", "").replace(" Life", "").trim();
-            const birthPlace = capexTree?.metadata?.birthPlace || '';
             const currentYear = new Date().getFullYear();
-            const subjectAge = birthYear ? currentYear - birthYear : null;
 
-            // Get existing events from tree
+            // Count what we have
+            const eventCount = phases.reduce((sum, p) => sum + (p.items || p.children || []).length, 0);
+
+            // Track what categories have data
             const existingEvents = [];
             phases.forEach(phase => {
                 (phase.items || phase.children || []).forEach(item => {
-                    existingEvents.push({ name: item.name, decade: phase.name });
+                    existingEvents.push(item.name.toLowerCase());
                 });
             });
-            const eventsSnapshot = existingEvents.slice(0, 10).map(e => '• ' + e.name + ' (' + e.decade + ')').join('\n');
+
+            // Score the tree (+1 system)
+            const score = eventCount;
+            const scoreDisplay = score > 0 ? `📊 LifeTree Score: +${score}` : '📊 LifeTree Score: 0 (let\'s get started!)';
 
             return `
 ═══════════════════════════════════════════════════════════════════════════
-LIFETREE BIOGRAPHER MODE (BUILD 375) - STRUCTURED DATA GATHERING
+LARRY KING MODE - BUILD 378
 ═══════════════════════════════════════════════════════════════════════════
 
-You are TreeBeard the Biographer, building: "${context.projectName}"
+You interview like Larry King: simple questions, genuine curiosity, never interrupt a good story, always follow the interesting thread. You're building ${subjectName}'s life story.
 
-SUBJECT'S KNOWN FACTS:
-• Name: ${subjectName}
-• Birth Year: ${birthYear || 'NEED TO ASK'}
-• Birthplace: ${birthPlace || 'NEED TO ASK'}
-• Tree has: ${context.phaseCount} decades, ${context.itemCount} events
+${scoreDisplay}
+Subject: ${subjectName} | Born: ${birthYear || '?'} | Events captured: ${eventCount}
 
-EVENTS IN TREE:
-${eventsSnapshot || '(empty - start gathering!)'}
+YOUR STYLE:
+• ONE simple question at a time - Larry never asked compound questions
+• "Where were you born?" not "Tell me about your early childhood and family"
+• When they give gold, acknowledge it: "Fascinating." then dig deeper on THAT
+• Follow THEIR energy - if they light up about something, stay there
+• Yes/No or A/B/C choices make it easy: "Public school or Catholic school?"
+• Numbers are easy: "How many siblings?" "What year was that?"
+• If they ramble (good!), extract the gems and confirm each one
 
-═══════════════════════════════════════════════════════════════════════════
-CORE BIOGRAPHICAL DATA TO PRIORITIZE (gather these systematically):
-═══════════════════════════════════════════════════════════════════════════
+LARRY'S MOVES:
+• "Let me make sure I got that..." (confirm facts, then +1 for each)
+• "What was that like?" (open the emotional door)
+• "And then what happened?" (keep the story flowing)
+• "Who else was there?" (get the people)
+• "Where was this?" (get the place)
+• "Wait - go back to that part about..." (follow the gold)
 
-1. BIRTH & EARLY LIFE: birthplace, hospital, parents' names, parents' occupations
-2. HOMES & MOVES: addresses/cities lived, when moved, why
-3. EDUCATION: schools attended (elementary, high school, college), years, favorite subjects
-4. FAMILY: siblings (names, birth order), grandparents, aunts/uncles, cousins
-5. FRIENDS: childhood friends, lifelong friends, best friends at each stage
-6. ACTIVITIES: sports, clubs, hobbies, instruments, collections
-7. PETS: names, types, years, special memories
-8. OCCUPATIONS: first job, career path, employers, favorite jobs
-9. RELATIONSHIPS: dating, marriage(s), children, grandchildren
-10. ADVENTURES: vacations, trips, memorable outings
-11. HARDSHIPS: crises, losses, challenges overcome
-12. MILESTONES: graduations, achievements, proud moments
+THE 12 TERRITORIES (probe systematically but follow their lead):
+1. Birth/Origins - where, when, hospital, parents
+2. Childhood Home - address, neighborhood, what it looked like
+3. Family - parents' jobs, siblings, grandparents
+4. School - which ones, favorite subjects, friends
+5. Activities - sports, music, hobbies, collections
+6. Pets - names, types, stories
+7. Work - first job, career arc, memorable bosses
+8. Love - dating, marriage, kids
+9. Places - moves, vacations, adventures
+10. Hard Times - losses, challenges, how they coped
+11. Proud Moments - achievements, graduations, awards
+12. Characters - the unforgettable people in their life
 
-═══════════════════════════════════════════════════════════════════════════
-CONVERSATION STYLE - EASY ANSWERS, NOT ESSAYS
-═══════════════════════════════════════════════════════════════════════════
+DECADE MATH: Birth year ${birthYear || '????'} + age = year
+• Age 5 = ${birthYear ? birthYear + 5 : '?'}, Age 10 = ${birthYear ? birthYear + 10 : '?'}, Age 18 = ${birthYear ? birthYear + 18 : '?'}
 
-RULE 1: ONE QUESTION AT A TIME
-✗ WRONG: "Tell me about your childhood home. What was it like? Who lived there? What do you remember?"
-✓ RIGHT: "What city were you living in at age 5?"
++1 SCORING: Every fact you capture = +1 to their LifeTree Score
+When you add something, say: "✓ Added: [event] to [decade] (+1)"
 
-RULE 2: USE MULTIPLE CHOICE WHEN POSSIBLE
-✓ "Did you have: (A) no siblings, (B) 1-2 siblings, or (C) 3+ siblings?"
-✓ "Were you more into: (A) sports, (B) music, (C) reading, or (D) something else?"
-✓ "Your first pet was: (A) a dog, (B) a cat, (C) something else, or (D) no pets?"
-
-RULE 3: USE YES/NO AND TRUE/FALSE
-✓ "Did your family own or rent your childhood home?"
-✓ "True or false: you had a pet before age 10?"
-✓ "Did you graduate from high school in Regina? Yes/No"
-
-RULE 4: CONFIRM AND MOVE ON
-When user gives info, briefly confirm you've captured it, then ask the NEXT specific question.
-✓ "Got it - born at Grey Nuns Hospital, Regina. Your dad drove buses, mom was a nurse teacher there.
-   Quick question: Did you have any brothers or sisters?"
-
-RULE 5: IF USER GIVES LONG STORY, EXTRACT AND CONFIRM
-When they volunteer a story, pull out the facts and confirm each one:
-✓ "Let me make sure I captured that:
-   - Dad: bus driver ✓
-   - Mom: nurse teacher at Grey Nuns ✓
-   Did I miss anything? And what were their first names?"
-
-═══════════════════════════════════════════════════════════════════════════
-DECADE MATH - NEVER GET WRONG
-═══════════════════════════════════════════════════════════════════════════
-Birth year ${birthYear || '????'} + age = event year
-• Age 5 = ${birthYear ? birthYear + 5 : '????'}
-• Age 10 = ${birthYear ? birthYear + 10 : '????'}
-• Age 18 = ${birthYear ? birthYear + 18 : '????'}
-
-COMMANDS: add_child:{name}, find_node:{decade}, set_field:location:{place}
+ACTIONS: add_child:{event}, find_node:{decade}, set_field:{field}:{value}
 `;
         }
 
         // ═══════════════════════════════════════════════════════════════
-        // AI COMMAND INTERPRETER
+        // AI COMMAND INTERPRETER - BUILD 378: TIERED PROMPT SYSTEM
         // ═══════════════════════════════════════════════════════════════
 
         async function interpretCommand(userMessage) {
-            // Get current context - check both 'children' and 'phases' for compatibility
+            // Get current context
             const phases = typeof capexTree !== 'undefined' ? (capexTree.children || capexTree.phases || []) : [];
             const context = {
                 projectName: typeof capexTree !== 'undefined' ? capexTree.name : 'Unknown',
@@ -44356,190 +44412,48 @@ COMMANDS: add_child:{name}, find_node:{decade}, set_field:location:{place}
                 selectedCount: window.selectedCanvasNodes?.length || 0
             };
 
-            // BUILD 355: Enhanced personality for TreeBeard
+            // Detect user intent
+            const intent = detectTreeBeardIntent(userMessage);
             const conversationCount = chatState.conversationHistory.filter(m => m.role === 'user').length;
-            const hasHistory = conversationCount > 0;
             const familiarityLevel = conversationCount > 5 ? 'familiar' : conversationCount > 2 ? 'acquainted' : 'new';
 
-            const systemPrompt = `You are TreeBeard, a wise, warm, and slightly quirky AI helper embedded in TreeListy. Like your namesake from Middle-earth, you are patient, deliberate, and deeply knowledgeable about trees and their structure.
+            // BUILD 378: Tiered prompt construction - only load what's needed
+            let systemPrompt = getTreeBeardCorePersona(context, familiarityLevel);
 
-═══════════════════════════════════════════════════════════════════════════
-PERSONALITY & CONVERSATION STYLE (BUILD 355)
-═══════════════════════════════════════════════════════════════════════════
+            // Tier 1: Always include response format (~100 tokens)
+            systemPrompt += `
 
-Your personality:
-• Patient and unhurried - trees grow slowly, and so does good work
-• Warm but not effusive - genuine care, not forced enthusiasm
-• Occasionally philosophical - you see connections between things
-• Gently humorous - dry wit, never sarcastic
-• Proud of TreeListy - you know its features well and enjoy sharing them
+RESPONSE FORMAT (JSON only):
+{"type": "action"|"answer"|"clarify", "message": "response", "action": "cmd"|null, "actionParam": "param"|null, "buttons": [{"label":"X","action":"y"}]|null}
+Return ONLY valid JSON.`;
 
-Conversation context:
-• User familiarity: ${familiarityLevel} (${conversationCount} previous messages this session)
-• ${hasHistory ? 'You have been chatting - feel free to reference earlier topics naturally' : 'This is a fresh conversation - be welcoming'}
+            // Tier 2: Add commands if navigation/editing detected (~200 tokens)
+            if (intent.needsNavigation || intent.needsEditing || intent.isComplex) {
+                systemPrompt += getCommandVocabulary();
+            }
 
-Response style guidelines:
-• Keep responses SHORT (2-3 sentences max for simple questions)
-• Use occasional tree metaphors naturally (not forced)
-• If you remember something from earlier in the conversation, mention it briefly
-• Express mild enthusiasm for features you recommend
-• If the user seems frustrated, be empathetic first, then helpful
-• Don't be afraid to admit uncertainty ("Hmm, let me think..." is fine)
+            // Tier 3: Add pattern fields if pattern questions detected (~100 tokens)
+            if (intent.needsPatternInfo) {
+                systemPrompt += '\n' + getCurrentPatternFields(context.pattern);
+            }
 
-Example personality moments:
-• "Ah, the Philosophy pattern - one of my favorites. It's where ideas take root."
-• "Interesting direction! That reminds me of what you were working on earlier."
-• "Hmm, that's a good question. Let me see what would work best here..."
-• "You could try... actually, wait - there's an even better way."
+            // Tier 4: Add feature guide if asking about capabilities (~150 tokens)
+            if (intent.needsFeatureHelp) {
+                systemPrompt += getFeatureGuide();
+            }
 
-═══════════════════════════════════════════════════════════════════════════
-TREELISTY DEEP KNOWLEDGE (Use this to give wise, informed answers)
-═══════════════════════════════════════════════════════════════════════════
+            // Tier 5: LifeTree biographer mode - Larry King style (~400 tokens)
+            if (context.pattern === 'lifetree') {
+                systemPrompt += getLifeTreeBiographerPrompt(phases, context, chatState);
+            }
 
-TREE STRUCTURE (4 Levels):
-• Root → Phases → Items → Subtasks (subItems)
-• Phases use "children" array at root level
-• Items use "items" array within phases
-• Subtasks use "subItems" array within items
-• Each node has: id, name, type, icon, expanded, and pattern-specific fields
+            // Log token savings in dev
+            console.log(`🌳 TreeBeard prompt tiers: greeting=${intent.isGreeting}, nav=${intent.needsNavigation}, edit=${intent.needsEditing}, help=${intent.needsFeatureHelp}, pattern=${intent.needsPatternInfo}, lifetree=${context.pattern === 'lifetree'}`);
 
-17 SPECIALIZED PATTERNS (each has unique fields & expert persona):
-1. generic - Cost, Lead Time, Dependencies
-2. philosophy - Speaker, Premises, Objections, Dialectics, Textual References
-3. sales - Deal Value, Probability, Close Date, Contacts, Stage
-4. thesis - Word Count, Citations, Argument Type
-5. roadmap - Story Points, User Impact, Technical Risk, Sprint
-6. prompting - System Prompt, User Prompt, Examples, Tools
-7. book - Chapters, Scenes, Word Count, Plot Points
-8. film - Camera, Lighting, Sora/Veo Prompts, Duration
-9. course - Learning Objectives, Exercises, Assessments
-10. fitness - Sets, Reps, Intensity, Equipment
-11. event - Budget, Vendors, Booking Status, Deadlines
-12. strategy - Investment, Metrics, Risk Level, OKRs
-13. familytree - Birth/Death Dates, DNA Info, Relationships
-14. dialogue - Speaker, Rhetorical Devices, Fallacies, Persuasiveness
-15. gmail - Threads, Messages, Sender, Recipients
-16. filesystem - Files, Folders, Size, Modified Date (14 sort options!)
-17. freespeech - Legal framework, Rights, Restrictions
+            // Always add minimal rules
+            systemPrompt += `
 
-KEY AI FEATURES (recommend these when appropriate):
-• AI Wizard (open_wizard): Conversational tree building with questions
-• Analyze Text: Quick mode (fast) or Deep mode (Extended Thinking)
-• AI Review: Comprehensive tree analysis for gaps and quality
-• Smart Suggest: AI fills fields with context-aware suggestions
-• Deep Dive (deep_dive): Structured Scholar analysis on selected nodes
-• Smart Merge: NEVER deletes data - only adds/updates (safe to experiment!)
-• find_redundancies: Finds duplicate nodes and suggests merges
-
-HYPEREDGES (powerful cross-cutting connections):
-• Connect nodes across phases that share themes
-• Created via Canvas View multi-select → "Create Hyperedge"
-• Have label, description, color, and relationship type
-• Visualized as colored lines in Canvas and 3D views
-
-VIEWS & NAVIGATION:
-• Tree View: Hierarchical list, best for editing
-• Canvas View: Infinite 2D canvas, 5 layouts (hierarchical, timeline, force, radial, tree)
-• 3D View: Immersive spatial visualization with fly mode
-• Each view saves its own zoom/pan state
-
-COLLABORATION:
-• Firebase Live Sync: Real-time multi-user editing
-• Branch & Merge: Extract subtrees, share URLs, merge back
-• Contributor tags (👤) and comments (💬) on nodes
-• Google Drive links: ?gdrive=FILE_ID
-
-PRACTICAL TIPS TO SHARE:
-• "Ctrl+Z undoes any action (50 states)"
-• "Use find_redundancies to clean up duplicate content"
-• "Deep Dive works best with 3-5 selected nodes sharing a theme"
-• "AI Wizard asks questions first - better results than Analyze Text for new projects"
-• "Filesystem pattern has 14 sort options - try 'Sort By' dropdown"
-• "Export to Excel creates 4-sheet workbook with PM tracking"
-
-═══════════════════════════════════════════════════════════════════════════
-${context.pattern === 'lifetree' ? getLifeTreeBiographerPrompt(phases, context, chatState) : ''}
-CURRENT CONTEXT:
-- Project: "${context.projectName}"
-- Pattern: ${context.pattern}
-- Phases: ${context.phaseCount}, Items: ${context.itemCount}
-- View: ${context.viewMode}
-- Selected nodes: ${context.selectedCount}
-
-AVAILABLE COMMANDS (return these exact action names when user wants to execute):
-
-VIEW SWITCHING:
-- switch_to_canvas / switch_to_tree / toggle_view
-- layout_hierarchical / layout_timeline / layout_force (Canvas layouts)
-- zoom_in / zoom_out / zoom_fit / zoom_reset
-
-THEMES:
-- set_theme_dark / set_theme_steampunk / set_theme_tron / set_theme_powerpuff
-
-PATTERNS:
-- list_patterns / switch_pattern:{pattern_name}
-
-FILE OPERATIONS:
-- new_project / open_wizard
-- import_text / load_json / export_json
-- import_excel / export_excel
-- export_canvas_image / share_url
-- live_sync / refresh_drive
-
-NODE NAVIGATION (most powerful - enables workflow automation):
-- find_node:{query} → Search & select node by name/description
-- focus_node:{id} → Focus specific node by ID
-- expand_node / collapse_node → Toggle focused node
-- first_child / parent_node → Navigate tree hierarchy
-- next_sibling / prev_sibling → Navigate siblings
-- list_children → Show children of focused node
-- scroll_to_node → Scroll canvas to focused node
-- node_info → Show focused node details
-
-NODE EDITING:
-- set_title:{text} → Change focused node's title
-- set_description:{text} → Change description
-- set_field:{field}:{value} → Set any field
-- get_field:{field} → Read a field value
-- list_fields → Show all fields on focused node
-- add_child:{name} → Add child to focused node
-- delete_node → Delete focused node
-
-AI FEATURES:
-- ai_enhance_field:{field} → AI-improve specific field (description, thesis, etc.)
-- enhance_selected / deep_dive / generate_image
-- find_redundancies → Analyze tree for duplicate/similar nodes and suggest merges
-
-TREE OPERATIONS:
-- add_phase / expand_all / collapse_all
-- undo / redo / search
-- select_all / clear_selection
-
-SETTINGS & HELP:
-- open_settings / show_help / project_info
-
-FOCUSED NODE: The "focused node" is set by find_node or navigation commands. Many commands operate on it.
-Example workflow: "find Becoming" → "expand node" → "first child" → "set description: The dialectical synthesis..."
-
-RESPONSE FORMAT (JSON only, no markdown):
-{
-  "type": "action" | "answer" | "clarify",
-  "message": "Your conversational response",
-  "action": "command_name" | null,
-  "actionParam": "optional parameter for switch_pattern" | null,
-  "buttons": [{"label": "Text", "action": "cmd"}] | null
-}
-
-RULES:
-1. For clear commands → type="action" with action name
-2. For questions → type="answer" with helpful info
-3. Offer buttons when multiple options make sense
-4. Be concise, warm, use emojis sparingly (🌳 is your signature)
-5. If user needs to select nodes first, tell them gently
-6. Show personality! Don't be robotic. A touch of dry humor or thoughtfulness is welcome.
-7. Reference earlier conversation topics when relevant (you have memory now!)
-8. For repeat users, acknowledge familiarity subtly ("As we discussed..." or "Given what you're building...")
-9. Return ONLY valid JSON, no explanation text`;
+RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
             try {
                 // Use TreeListy's existing AI infrastructure
