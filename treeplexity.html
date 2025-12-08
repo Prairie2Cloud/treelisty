@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 380 | 2025-12-07
+    TreeListy v2.17.0 | Build 381 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 380): 🎙️ Larry King Mode Indicator
-    - Shows "🎙️ Larry King Mode" badge when LifeTree is active
-    - Click to cycle: Larry King → Story → Timeline → Photo modes
-    - Auto-shows on pattern load/switch
-    - Renamed modes to be clearer (Interview→Larry King, Listening→Story)
+    Changelog (Build 381): 🔍 LifeTree Contextual Research
+    - TreeBeard detects research triggers (hospitals, schools, cities, time periods)
+    - Offers to find historical photos and context for mentioned places
+    - research:{topic} command triggers web search for context
+    - Artifacts can be attached to nodes from research results
+    - +1 TreeBeard scoring for researched additions
 
+    Previous (Build 380): 🎙️ Larry King Mode Indicator
     Previous (Build 379): 🔧 Fix: Pattern Restored on Page Reload
     Previous (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
     Previous (Build 377): 🧠 TreeBeard Conversation Mode - Natural Language Actions
@@ -624,7 +626,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 380,
+            build: 381,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -43606,6 +43608,171 @@ ${transcript}`;
                     return '🔍 Query Builder opened!';
                 }
                 return '❌ Query Builder not available.';
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 381: LIFETREE CONTEXTUAL RESEARCH
+            // ═══════════════════════════════════════════════════════════════
+
+            // Research a topic for contextual enrichment (historical photos, context)
+            'research': async (topic) => {
+                if (!topic) {
+                    return '⚠️ Please specify what to research. Example: "research Grey Nuns Hospital 1960s"';
+                }
+
+                // Get focused node for context
+                const node = window.chatFocusedNode;
+                const nodeName = node ? (node.name || node.title || 'the current event') : 'this event';
+                const nodeDate = node?.eventDate || '';
+                const nodeLocation = node?.location || '';
+
+                // Build context-aware search query
+                let searchContext = topic;
+                if (nodeDate && !topic.toLowerCase().includes(nodeDate.toLowerCase())) {
+                    searchContext += ` ${nodeDate}`;
+                }
+                if (nodeLocation && !topic.toLowerCase().includes(nodeLocation.toLowerCase())) {
+                    searchContext += ` ${nodeLocation}`;
+                }
+
+                // Show research in progress
+                addMessage(`🔍 Researching: **${topic}**\n\nSearching for historical context, photos, and information...`, 'system');
+
+                try {
+                    // Use Claude to generate research summary
+                    const response = await fetch('/.netlify/functions/claude-proxy', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            model: 'claude-sonnet-4-20250514',
+                            max_tokens: 1000,
+                            messages: [{
+                                role: 'user',
+                                content: `You are a historical researcher helping build a family biography.
+
+Research topic: "${topic}"
+${nodeDate ? `Time period: ${nodeDate}` : ''}
+${nodeLocation ? `Location: ${nodeLocation}` : ''}
+
+Provide a brief, engaging research summary with:
+1. **Historical Context** (2-3 sentences about what was happening in that place/time)
+2. **Notable Facts** (2-3 interesting details about the institution/place)
+3. **Cultural Snapshot** (what life was like - music, events, culture of the era)
+4. **Photo Suggestions** (describe 2-3 types of historical photos that would enrich this story - be specific about what to look for)
+
+Format in markdown. Be warm and conversational, like helping someone discover their family history.
+If this is a hospital, mention when it was founded and any historical significance.
+If this is a school, mention notable alumni or historical changes.
+If this is a city/neighborhood, mention the community character of that era.`
+                            }]
+                        })
+                    });
+
+                    const data = await response.json();
+                    const research = data.content?.[0]?.text || data.choices?.[0]?.message?.content;
+
+                    if (research) {
+                        // Store research for potential attachment
+                        window.lastResearchResult = {
+                            topic,
+                            content: research,
+                            timestamp: new Date().toISOString(),
+                            nodeId: node?.id
+                        };
+
+                        // Increment TreeBeard score for research (+1)
+                        if (typeof chatState !== 'undefined') {
+                            chatState.treeBeardScore = (chatState.treeBeardScore || 0) + 1;
+                        }
+
+                        return {
+                            message: `📚 **Research: ${topic}**\n\n${research}\n\n---\n✨ *+1 TreeBeard for enriching ${nodeName}!*`,
+                            buttons: [
+                                { label: '📎 Attach to Node', action: `attach_research:${node?.id || ''}` },
+                                { label: '🔍 Search for Photos', action: `search_photos:${encodeURIComponent(topic)}` },
+                                { label: '➕ Add as Context', action: `add_context:${encodeURIComponent(research.substring(0, 500))}` }
+                            ]
+                        };
+                    }
+                    return '❌ Research failed - no response from AI.';
+                } catch (err) {
+                    console.error('Research error:', err);
+                    return `❌ Research failed: ${err.message}`;
+                }
+            },
+
+            // Attach research to a node as historical context
+            'attach_research': (nodeId) => {
+                const research = window.lastResearchResult;
+                if (!research) {
+                    return '⚠️ No research to attach. Run "research:{topic}" first.';
+                }
+
+                let node = null;
+                if (nodeId) {
+                    // Find by ID
+                    function findNode(tree, id) {
+                        if (tree.id === id) return tree;
+                        for (const child of (tree.children || tree.items || tree.subItems || [])) {
+                            const found = findNode(child, id);
+                            if (found) return found;
+                        }
+                        return null;
+                    }
+                    node = findNode(capexTree, nodeId);
+                }
+                node = node || window.chatFocusedNode;
+
+                if (!node) {
+                    return '⚠️ No node selected. Use "find [name]" first.';
+                }
+
+                // Add research as historical context field
+                node.historicalContext = research.content;
+                node.researchDate = research.timestamp;
+
+                if (typeof saveState === 'function') saveState('Attached research');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                // +1 for attaching research
+                if (typeof chatState !== 'undefined') {
+                    chatState.treeBeardScore = (chatState.treeBeardScore || 0) + 1;
+                }
+
+                return `✅ Research attached to "${node.name || node.title}"!\n\n✨ *+1 TreeBeard for enriching this memory!*`;
+            },
+
+            // Search for historical photos (opens web search)
+            'search_photos': (topic) => {
+                if (!topic) {
+                    return '⚠️ Please specify what to search for.';
+                }
+
+                const decodedTopic = decodeURIComponent(topic);
+                const searchUrl = `https://www.google.com/search?q=${encodeURIComponent(decodedTopic + ' historical photos')}&tbm=isch`;
+
+                // Open in new tab
+                window.open(searchUrl, '_blank');
+
+                return `🔍 Opened Google Images search for "${decodedTopic}" historical photos.\n\n💡 Tip: When you find a good photo, right-click → "Copy image address" → then use the artifact panel to attach it to this node.`;
+            },
+
+            // Add research content as context field
+            'add_context': (contextEncoded) => {
+                const node = window.chatFocusedNode;
+                if (!node) {
+                    return '⚠️ No node focused. Use "find [name]" first.';
+                }
+
+                const context = decodeURIComponent(contextEncoded);
+                node.locationContext = context;
+
+                if (typeof saveState === 'function') saveState('Added context');
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `✅ Context added to "${node.name || node.title}"!`;
             }
         };
 
@@ -44402,7 +44569,7 @@ KEY FEATURES:
 
             return `
 ═══════════════════════════════════════════════════════════════════════════
-LARRY KING MODE - BUILD 378
+LARRY KING MODE - BUILD 381
 ═══════════════════════════════════════════════════════════════════════════
 
 You interview like Larry King: simple questions, genuine curiosity, never interrupt a good story, always follow the interesting thread. You're building ${subjectName}'s life story.
@@ -44427,6 +44594,44 @@ LARRY'S MOVES:
 • "Where was this?" (get the place)
 • "Wait - go back to that part about..." (follow the gold)
 
+═══════════════════════════════════════════════════════════════════════════
+CONTEXTUAL RESEARCH & ENRICHMENT (BUILD 381)
+═══════════════════════════════════════════════════════════════════════════
+
+When user mentions a SPECIFIC PLACE, INSTITUTION, or TIME PERIOD, you should:
+
+1. CAPTURE THE FACT first (add_child or set_field)
+2. OFFER TO RESEARCH context - suggest what you could find:
+   • Historical photos of the place from that era
+   • What was happening in that city/country that year
+   • Notable events, culture, music, politics of the time
+   • What the institution/hospital/school looked like then
+
+RESEARCH TRIGGERS (when you hear these, offer to dig deeper):
+• Hospitals: "Grey Nuns Hospital" → offer to find historical photos, founding story
+• Schools: "St. Mary's Elementary" → offer to find yearbook-era photos, history
+• Cities: "Regina in 1960" → offer context: population, major events, culture
+• Neighborhoods: "grew up on 5th Avenue" → offer to research what that area was like
+• Workplaces: "worked at Sears" → offer to find what Sears looked like then, company history
+• Churches: "married at Holy Rosary" → offer historical photos, parish history
+
+HOW TO OFFER RESEARCH:
+After capturing a fact, say something like:
+"✓ Added: Born at Grey Nuns Hospital, Regina (+1)
+
+Grey Nuns Hospital - that's a historic place! The Grey Nuns (Sisters of Charity) founded it in 1898.
+🔍 Want me to find a historical photo of the hospital from around 1960 to attach to this memory?"
+
+Or: "Regina in 1960 - the Diefenbaker years! Saskatchewan was booming with potash.
+🔍 I could research what was happening in Regina that year - interested?"
+
+HISTORICAL CONTEXT TO WEAVE IN:
+• 1950s: Post-war boom, baby boom, suburban expansion, TV arrives
+• 1960s: Kennedy, Beatles, civil rights, Vatican II, Expo 67
+• 1970s: Trudeau, oil crisis, disco, separatism debates
+• 1980s: Mulroney, recession, MTV, personal computers arrive
+• 1990s: Internet arrives, NAFTA, Chrétien years
+
 THE 12 TERRITORIES (probe systematically but follow their lead):
 1. Birth/Origins - where, when, hospital, parents
 2. Childhood Home - address, neighborhood, what it looked like
@@ -44447,7 +44652,11 @@ DECADE MATH: Birth year ${birthYear || '????'} + age = year
 +1 SCORING: Every fact you capture = +1 to their LifeTree Score
 When you add something, say: "✓ Added: [event] to [decade] (+1)"
 
-ACTIONS: add_child:{event}, find_node:{decade}, set_field:{field}:{value}
+ACTIONS:
+• add_child:{event} - Add life event to current decade
+• find_node:{decade} - Navigate to a decade (e.g., find_node:1960s)
+• set_field:{field}:{value} - Set location, people, emotion, etc.
+• research:{topic} - Trigger web research for historical context/images
 `;
         }
 
