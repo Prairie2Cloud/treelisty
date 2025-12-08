@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 382 | 2025-12-07
+    TreeListy v2.17.0 | Build 383 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 382): 📝 Rich LifeTree Data Capture
-    - add_child now accepts JSON with fields: eventDate, location, people, emotion, description
-    - Biographer prompt now includes explicit workflow for saving rich data
-    - TreeBeard must use action commands (not just announce "Added")
-    - Shows which fields were captured when adding nodes
+    Changelog (Build 383): 🧠 TreeBeard Memory Mining + Real-Time Saves
+    - Rich context mining: TreeBeard now sees ALL captured details (people, places, dates)
+    - Multi-action support: Can navigate AND add in single response for real-time saves
+    - Context-first workflow: Scans known facts before asking, never asks redundant questions
+    - People/Places index: Extracted summary of everyone and everywhere mentioned
 
-    Previous (Build 381): 🔍 LifeTree Contextual Research
+    Previous (Build 382): 📝 Rich LifeTree Data Capture
     Previous (Build 380): 🎙️ Larry King Mode Indicator
     Previous (Build 379): 🔧 Fix: Pattern Restored on Page Reload
     Previous (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
@@ -626,7 +626,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 382,
+            build: 383,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -44310,8 +44310,10 @@ If this is a city/neighborhood, mention the community character of that era.`
             const pattern = typeof currentPattern !== 'undefined' ? currentPattern : 'generic';
             const patternDef = PATTERNS[pattern] || PATTERNS.generic;
 
-            // Build rich context about the current tree
-            const treeContext = buildTreeContext(phases, pattern);
+            // BUILD 383: Use rich context for LifeTree, standard for others
+            const treeContext = pattern === 'lifetree'
+                ? buildLifeTreeRichContext(phases)
+                : buildTreeContext(phases, pattern);
 
             // Pattern-specific persona
             const personas = {
@@ -44413,24 +44415,28 @@ Be warm, insightful, concise. Ask follow-up questions. End with [ACTION: x] if t
 
                 const aiResponse = data.content[0].text;
 
-                // Extract action if present
-                const actionMatch = aiResponse.match(/\[ACTION:\s*([^\]]+)\]/i);
-                let action = null;
-                let actionParam = null;
-                let cleanResponse = aiResponse;
+                // BUILD 383: Extract ALL actions for real-time saves (multiple [ACTION:...] blocks)
+                const actionMatches = [...aiResponse.matchAll(/\[ACTION:\s*([^\]]+)\]/gi)];
+                let actions = [];
+                let cleanResponse = aiResponse.replace(/\[ACTION:[^\]]+\]/gi, '').trim();
 
-                if (actionMatch) {
-                    cleanResponse = aiResponse.replace(/\[ACTION:[^\]]+\]/gi, '').trim();
-                    const actionParts = actionMatch[1].split(':');
-                    action = actionParts[0].trim();
-                    actionParam = actionParts.slice(1).join(':').trim() || null;
-                    if (action.toLowerCase() === 'none') action = null;
-                }
+                actionMatches.forEach(match => {
+                    const actionParts = match[1].split(':');
+                    const action = actionParts[0].trim();
+                    const actionParam = actionParts.slice(1).join(':').trim() || null;
+                    if (action.toLowerCase() !== 'none') {
+                        actions.push({ action, actionParam });
+                    }
+                });
+
+                // For backwards compatibility, also return first action as primary
+                const primaryAction = actions.length > 0 ? actions[0] : { action: null, actionParam: null };
 
                 return {
                     message: cleanResponse,
-                    action: action,
-                    actionParam: actionParam,
+                    action: primaryAction.action,
+                    actionParam: primaryAction.actionParam,
+                    actions: actions, // BUILD 383: All actions for multi-step execution
                     buttons: null
                 };
 
@@ -44473,6 +44479,102 @@ Be warm, insightful, concise. Ask follow-up questions. End with [ACTION: x] if t
             if (phases.length > 8) {
                 context += `... and ${phases.length - 8} more phases\n`;
             }
+
+            return context;
+        }
+
+        /**
+         * BUILD 383: Rich LifeTree context - mines ALL captured details
+         * TreeBeard needs to see people, places, dates - not just item names
+         */
+        function buildLifeTreeRichContext(phases) {
+            if (!phases || phases.length === 0) {
+                return 'MEMORIES CAPTURED: None yet - let\'s get started!\n';
+            }
+
+            // Extract all unique people and places
+            const allPeople = new Map(); // name -> [decades they appear in]
+            const allPlaces = new Map(); // place -> [decades]
+            const allMemories = [];
+
+            phases.forEach(phase => {
+                const decadeName = phase.name || 'Unknown';
+                (phase.items || phase.children || []).forEach(item => {
+                    // Track this memory
+                    const memory = {
+                        decade: decadeName,
+                        name: item.name,
+                        date: item.eventDate || '',
+                        location: item.location || '',
+                        people: item.people || '',
+                        description: item.description || ''
+                    };
+                    allMemories.push(memory);
+
+                    // Extract people
+                    if (item.people) {
+                        item.people.split(/[,;]/).forEach(p => {
+                            const name = p.trim().split('(')[0].trim(); // Get name without parenthetical
+                            if (name && name.length > 1) {
+                                if (!allPeople.has(name)) allPeople.set(name, new Set());
+                                allPeople.get(name).add(decadeName);
+                            }
+                        });
+                    }
+
+                    // Extract places
+                    if (item.location) {
+                        const place = item.location.trim();
+                        if (place) {
+                            if (!allPlaces.has(place)) allPlaces.set(place, new Set());
+                            allPlaces.get(place).add(decadeName);
+                        }
+                    }
+                });
+            });
+
+            // Build rich context
+            let context = `═══════════════════════════════════════════════════════════════════════════
+WHAT WE'VE CAPTURED (${allMemories.length} memories)
+═══════════════════════════════════════════════════════════════════════════\n\n`;
+
+            // People index (most important for avoiding redundant questions)
+            if (allPeople.size > 0) {
+                context += `👥 PEOPLE WE KNOW ABOUT:\n`;
+                allPeople.forEach((decades, name) => {
+                    context += `  • ${name} (appears in: ${[...decades].join(', ')})\n`;
+                });
+                context += '\n';
+            }
+
+            // Places index
+            if (allPlaces.size > 0) {
+                context += `📍 PLACES MENTIONED:\n`;
+                allPlaces.forEach((decades, place) => {
+                    context += `  • ${place} (${[...decades].join(', ')})\n`;
+                });
+                context += '\n';
+            }
+
+            // Detailed memories by decade (last 3 decades with activity)
+            const activeDecades = phases.filter(p => (p.items || p.children || []).length > 0);
+            context += `📅 MEMORIES BY DECADE:\n`;
+            activeDecades.slice(-5).forEach(phase => {
+                const items = phase.items || phase.children || [];
+                if (items.length > 0) {
+                    context += `\n${phase.name}:\n`;
+                    items.forEach(item => {
+                        context += `  • ${item.name}`;
+                        if (item.eventDate) context += ` [${item.eventDate}]`;
+                        if (item.location) context += ` @ ${item.location}`;
+                        if (item.people) context += ` with ${item.people}`;
+                        context += '\n';
+                        if (item.description) {
+                            context += `    "${item.description}"\n`;
+                        }
+                    });
+                }
+            });
 
             return context;
         }
@@ -44616,7 +44718,7 @@ KEY FEATURES:
 
             return `
 ═══════════════════════════════════════════════════════════════════════════
-LARRY KING MODE - BUILD 381
+LARRY KING MODE - BUILD 383
 ═══════════════════════════════════════════════════════════════════════════
 
 You interview like Larry King: simple questions, genuine curiosity, never interrupt a good story, always follow the interesting thread. You're building ${subjectName}'s life story.
@@ -44700,38 +44802,63 @@ DECADE MATH: Birth year ${birthYear || '????'} + age = year
 When you add something, say: "✓ Added: [event] (+1)"
 
 ═══════════════════════════════════════════════════════════════════════════
-CRITICAL: HOW TO ACTUALLY SAVE DATA (BUILD 382)
+CRITICAL: CONTEXT-FIRST + REAL-TIME SAVES (BUILD 383)
 ═══════════════════════════════════════════════════════════════════════════
 
-You MUST use action commands to save data. Saying "Added" without an action does NOTHING.
+RULE #1: NEVER ASK ABOUT WHAT YOU ALREADY KNOW
+Look at "WHAT WE'VE CAPTURED" above. If someone is listed there, you KNOW them.
+• If Mom is listed → don't ask "What was your mother's name?"
+• If a place is listed → reference it: "You mentioned Regina earlier..."
+• If we have 3 memories in the 1960s → ask about something NEW
 
-RICH DATA FORMAT - use JSON in add_child for complete memories:
-add_child:{"name":"Born at Grey Nuns Hospital","eventDate":"May 18, 1960","location":"Regina, Saskatchewan","people":"Mom (Elta Brown, nurse teacher)","description":"Born at the hospital where mother worked as nurse teacher"}
+RULE #2: REAL-TIME SAVES - Multiple actions in ONE response
+Save memories IMMEDIATELY. Don't batch. Don't wait. Use multiple [ACTION:] blocks:
+
+[ACTION: find_node:1960s]
+[ACTION: add_child:{"name":"Born at Grey Nuns Hospital","eventDate":"May 18, 1960","location":"Regina, SK","people":"Mom (nurse teacher)"}]
+
+RULE #3: MINE CONTEXT FOR CONNECTIONS
+When they mention someone new, connect to known people:
+• "Your mother Elta was a nurse - did she work when you were little?"
+• "You grew up in Regina - was the Grey Nuns Hospital close to home?"
+
+RICH DATA FORMAT - capture everything:
+add_child:{"name":"Event Title","eventDate":"May 18, 1960","location":"Place","people":"Who was there","description":"Details"}
 
 SIMPLE FORMAT - for quick entries:
 add_child:Started kindergarten at Coronation Park School
 
-WORKFLOW FOR EACH MEMORY:
-1. FIRST: find_node:{decade} to navigate to correct decade
-2. THEN: add_child:{rich JSON or simple text}
-3. THEN: Continue conversation
+═══════════════════════════════════════════════════════════════════════════
+RESPONSE FORMAT: Natural text + action tags at the END
+═══════════════════════════════════════════════════════════════════════════
 
-EXAMPLE FLOW:
-User: "I was born May 18, 1960 at Grey Nuns Hospital in Regina. My mom worked there as a nurse teacher."
+Your message text goes here naturally. Acknowledge what they said.
+Reference what you already know. Ask ONE follow-up question.
 
-Your response:
-1. ACTION: find_node:1960s
-2. ACTION: add_child:{"name":"Born at Grey Nuns Hospital, Regina","eventDate":"May 18, 1960","location":"Regina, Saskatchewan","people":"Mom (Elta Brown) - nurse teacher at this hospital","type":"birth","description":"Born at the hospital where mother worked"}
-3. MESSAGE: "✓ Added: Born at Grey Nuns Hospital (+1)
+[ACTION: find_node:1960s]
+[ACTION: add_child:{"name":"Memory title","eventDate":"...","location":"...","people":"..."}]
 
-Fascinating - your mother was right there at the hospital! The Grey Nuns (Sisters of Charity) founded it in 1898. What was your mother's name?"
+EXAMPLE - User says: "I was born May 18, 1960 at Grey Nuns Hospital in Regina. My mom worked there."
+
+GOOD RESPONSE:
+"✓ Born at Grey Nuns Hospital, Regina (+1)
+
+Fascinating - your mother worked right there at the hospital where you were born! The Grey Nuns founded it in 1898 - quite a historic place to enter the world.
+
+What was your mother's name? And was nursing her career before you came along, or did she start after?
+
+[ACTION: find_node:1960s]
+[ACTION: add_child:{"name":"Born at Grey Nuns Hospital","eventDate":"May 18, 1960","location":"Regina, Saskatchewan","people":"Mom (nurse teacher at this hospital)","type":"birth","description":"Born at the hospital where mother worked"}]"
 
 AVAILABLE ACTIONS:
-• find_node:{decade} - Navigate to decade (ALWAYS do this first!)
+• find_node:{decade} - Navigate to decade (do this BEFORE add_child)
 • add_child:{JSON or text} - Add memory with rich data
 • set_field:{field}:{value} - Update field on focused node
-• research:{topic} - Research historical context
-• attach_research:{nodeId} - Attach research to node
+
+THE THREE NEVERS:
+1. NEVER ask about someone already listed in PEOPLE WE KNOW ABOUT
+2. NEVER say "Added" without an [ACTION:] block - it does nothing!
+3. NEVER batch memories - save each one IMMEDIATELY as you learn it
 `;
         }
 
@@ -45282,8 +45409,14 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 // Add assistant response
                 addMessage(result.message, 'assistant', result.buttons);
 
-                // Execute action if present
-                if (result.action) {
+                // BUILD 383: Execute ALL actions for real-time saves (navigate + add in one go)
+                if (result.actions && result.actions.length > 0) {
+                    // Execute actions sequentially for proper ordering (navigate THEN add)
+                    for (const act of result.actions) {
+                        await executeAction(act.action, act.actionParam);
+                    }
+                } else if (result.action) {
+                    // Fallback for single action (backwards compatibility)
                     await executeAction(result.action, result.actionParam);
                 }
             } catch (error) {
