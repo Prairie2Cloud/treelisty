@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 381 | 2025-12-07
+    TreeListy v2.17.0 | Build 382 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 381): 🔍 LifeTree Contextual Research
-    - TreeBeard detects research triggers (hospitals, schools, cities, time periods)
-    - Offers to find historical photos and context for mentioned places
-    - research:{topic} command triggers web search for context
-    - Artifacts can be attached to nodes from research results
-    - +1 TreeBeard scoring for researched additions
+    Changelog (Build 382): 📝 Rich LifeTree Data Capture
+    - add_child now accepts JSON with fields: eventDate, location, people, emotion, description
+    - Biographer prompt now includes explicit workflow for saving rich data
+    - TreeBeard must use action commands (not just announce "Added")
+    - Shows which fields were captured when adding nodes
 
+    Previous (Build 381): 🔍 LifeTree Contextual Research
     Previous (Build 380): 🎙️ Larry King Mode Indicator
     Previous (Build 379): 🔧 Fix: Pattern Restored on Page Reload
     Previous (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
@@ -626,7 +626,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 381,
+            build: 382,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -43085,17 +43085,56 @@ ${transcript}`;
                 }
             },
 
-            // Add a child node
-            'add_child': (childName) => {
+            // Add a child node - BUILD 382: Enhanced to accept rich JSON data
+            'add_child': (childData) => {
                 const node = window.chatFocusedNode;
                 if (!node) return '⚠️ No node focused. Use "find [name]" first.';
-                if (!childName) return '⚠️ Please provide a name for the new child';
+                if (!childData) return '⚠️ Please provide a name for the new child';
 
-                const newChild = {
-                    id: 'chat_' + Date.now(),
-                    name: childName,
-                    expanded: true
-                };
+                let newChild;
+
+                // BUILD 382: Support rich JSON data OR simple string
+                if (childData.startsWith('{')) {
+                    try {
+                        const parsed = JSON.parse(childData);
+                        newChild = {
+                            id: 'chat_' + Date.now(),
+                            name: parsed.name || parsed.title || 'Untitled',
+                            expanded: true,
+                            // LifeTree fields
+                            eventDate: parsed.eventDate || parsed.when || parsed.date || '',
+                            location: parsed.location || parsed.where || parsed.place || '',
+                            people: parsed.people || parsed.who || '',
+                            emotion: parsed.emotion || parsed.feeling || '',
+                            source: parsed.source || parsed.rememberedBy || 'Subject',
+                            confidence: parsed.confidence || 'Exact',
+                            description: parsed.description || parsed.details || '',
+                            historicalContext: parsed.historicalContext || '',
+                            // Standard fields
+                            type: parsed.type || 'memory'
+                        };
+                        // Clean out empty fields
+                        Object.keys(newChild).forEach(k => {
+                            if (newChild[k] === '' || newChild[k] === null || newChild[k] === undefined) {
+                                if (!['id', 'name', 'expanded'].includes(k)) delete newChild[k];
+                            }
+                        });
+                    } catch (e) {
+                        // Fallback to simple string
+                        newChild = {
+                            id: 'chat_' + Date.now(),
+                            name: childData,
+                            expanded: true
+                        };
+                    }
+                } else {
+                    // Simple string format
+                    newChild = {
+                        id: 'chat_' + Date.now(),
+                        name: childData,
+                        expanded: true
+                    };
+                }
 
                 // Determine which array to use
                 if (node.subItems) {
@@ -43115,7 +43154,15 @@ ${transcript}`;
                 // Focus the new child
                 window.chatFocusedNode = newChild;
 
-                return `➕ Added child "${childName}" to "${node.name || node.title}"`;
+                // BUILD 382: Show what fields were captured
+                const fieldsAdded = Object.keys(newChild).filter(k =>
+                    !['id', 'name', 'expanded'].includes(k) && newChild[k]
+                );
+                const fieldsSummary = fieldsAdded.length > 0
+                    ? ` (${fieldsAdded.join(', ')})`
+                    : '';
+
+                return `➕ Added child "${newChild.name}" to "${node.name || node.title}"${fieldsSummary}`;
             },
 
             // Delete focused node
@@ -44650,13 +44697,41 @@ DECADE MATH: Birth year ${birthYear || '????'} + age = year
 • Age 5 = ${birthYear ? birthYear + 5 : '?'}, Age 10 = ${birthYear ? birthYear + 10 : '?'}, Age 18 = ${birthYear ? birthYear + 18 : '?'}
 
 +1 SCORING: Every fact you capture = +1 to their LifeTree Score
-When you add something, say: "✓ Added: [event] to [decade] (+1)"
+When you add something, say: "✓ Added: [event] (+1)"
 
-ACTIONS:
-• add_child:{event} - Add life event to current decade
-• find_node:{decade} - Navigate to a decade (e.g., find_node:1960s)
-• set_field:{field}:{value} - Set location, people, emotion, etc.
-• research:{topic} - Trigger web research for historical context/images
+═══════════════════════════════════════════════════════════════════════════
+CRITICAL: HOW TO ACTUALLY SAVE DATA (BUILD 382)
+═══════════════════════════════════════════════════════════════════════════
+
+You MUST use action commands to save data. Saying "Added" without an action does NOTHING.
+
+RICH DATA FORMAT - use JSON in add_child for complete memories:
+add_child:{"name":"Born at Grey Nuns Hospital","eventDate":"May 18, 1960","location":"Regina, Saskatchewan","people":"Mom (Elta Brown, nurse teacher)","description":"Born at the hospital where mother worked as nurse teacher"}
+
+SIMPLE FORMAT - for quick entries:
+add_child:Started kindergarten at Coronation Park School
+
+WORKFLOW FOR EACH MEMORY:
+1. FIRST: find_node:{decade} to navigate to correct decade
+2. THEN: add_child:{rich JSON or simple text}
+3. THEN: Continue conversation
+
+EXAMPLE FLOW:
+User: "I was born May 18, 1960 at Grey Nuns Hospital in Regina. My mom worked there as a nurse teacher."
+
+Your response:
+1. ACTION: find_node:1960s
+2. ACTION: add_child:{"name":"Born at Grey Nuns Hospital, Regina","eventDate":"May 18, 1960","location":"Regina, Saskatchewan","people":"Mom (Elta Brown) - nurse teacher at this hospital","type":"birth","description":"Born at the hospital where mother worked"}
+3. MESSAGE: "✓ Added: Born at Grey Nuns Hospital (+1)
+
+Fascinating - your mother was right there at the hospital! The Grey Nuns (Sisters of Charity) founded it in 1898. What was your mother's name?"
+
+AVAILABLE ACTIONS:
+• find_node:{decade} - Navigate to decade (ALWAYS do this first!)
+• add_child:{JSON or text} - Add memory with rich data
+• set_field:{field}:{value} - Update field on focused node
+• research:{topic} - Research historical context
+• attach_research:{nodeId} - Attach research to node
 `;
         }
 
