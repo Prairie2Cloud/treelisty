@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 379 | 2025-12-07
+    TreeListy v2.17.0 | Build 380 | 2025-12-07
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 379): 🔧 Fix: Pattern Restored on Page Reload
-    - Pattern now persists across browser refreshes and deploys
-    - LifeTree, Philosophy, etc. no longer reset to Generic
-    - Pattern selector UI syncs on load
+    Changelog (Build 380): 🎙️ Larry King Mode Indicator
+    - Shows "🎙️ Larry King Mode" badge when LifeTree is active
+    - Click to cycle: Larry King → Story → Timeline → Photo modes
+    - Auto-shows on pattern load/switch
+    - Renamed modes to be clearer (Interview→Larry King, Listening→Story)
 
+    Previous (Build 379): 🔧 Fix: Pattern Restored on Page Reload
     Previous (Build 378): 🎙️ TreeBeard Tiered Skills + Larry King Biographer
     Previous (Build 377): 🧠 TreeBeard Conversation Mode - Natural Language Actions
     Previous (Build 376): 🔍 Smart Decade Search in find_node
@@ -622,7 +624,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 379,
+            build: 380,
             date: '2025-12-07',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -16605,6 +16607,11 @@ function applyPattern(patternKey) {
 
         // Update AI button label to match pattern
         updateAIButtonLabel();
+
+        // BUILD 380: Update biographer indicator for LifeTree
+        if (typeof checkBiographerIndicator === 'function') {
+            checkBiographerIndicator();
+        }
     }
 }
 
@@ -21488,6 +21495,13 @@ Your response:`;
                                 if (patternKey === 'custom' && tree.pattern.labels) {
                                     customPatternNames = tree.pattern.labels;
                                 }
+
+                                // BUILD 380: Show biographer indicator for LifeTree
+                                setTimeout(() => {
+                                    if (typeof checkBiographerIndicator === 'function') {
+                                        checkBiographerIndicator();
+                                    }
+                                }, 100);
                             }
                         }
                     } catch (error) {
@@ -43965,16 +43979,35 @@ ${transcript}`;
         }
 
         /**
-         * Get mode display info for the indicator
+         * BUILD 380: Get mode display info for the indicator - Larry King style
          */
         function getBiographerModeInfo(mode) {
             const modes = {
-                'guided': { icon: '🎙️', label: 'Interview', description: 'One question at a time, patient & gentle' },
-                'listening': { icon: '📖', label: 'Listening', description: 'Absorbing your story, minimal interruption' },
-                'scaffolding': { icon: '🏗️', label: 'Scaffolding', description: 'Building timeline structure rapidly' },
-                'artifact': { icon: '📸', label: 'Artifact', description: 'Exploring photos, letters, documents' }
+                'guided': { icon: '🎙️', label: 'Larry King Mode', description: 'Simple questions, genuine curiosity, one at a time' },
+                'listening': { icon: '📖', label: 'Story Mode', description: 'Tell me everything - I\'ll extract the gold' },
+                'scaffolding': { icon: '🏗️', label: 'Timeline Mode', description: 'Let\'s build the structure - major events first' },
+                'artifact': { icon: '📸', label: 'Photo Mode', description: 'What am I looking at? When was this?' }
             };
             return modes[mode] || { icon: '🌳', label: 'TreeBeard', description: 'AI assistant' };
+        }
+
+        /**
+         * BUILD 380: Check and show biographer indicator based on current pattern
+         */
+        function checkBiographerIndicator() {
+            const indicator = document.getElementById('biographer-mode-indicator');
+            if (!indicator) return;
+
+            if (typeof currentPattern !== 'undefined' && currentPattern === 'lifetree') {
+                // Show Larry King mode by default for LifeTree
+                if (!chatState.biographerMode) {
+                    chatState.biographerMode = 'guided';
+                }
+                updateBiographerModeIndicator(chatState.biographerMode);
+            } else {
+                // Hide for non-LifeTree patterns
+                indicator.style.display = 'none';
+            }
         }
 
         /**
