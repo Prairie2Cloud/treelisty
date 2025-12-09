@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 385 | 2025-12-07
+    TreeListy v2.17.0 | Build 386 | 2025-12-09
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 385): 🔧 Fix Undefined Node Display + Repair Aliases
-    - Canvas now shows "⚠️ Unnamed" for undefined/missing name nodes
-    - Added debug logging to trace add_child JSON parsing
-    - Trim whitespace before checking JSON format
-    - Added aliases: repair, fix_tree, health_check → repair_tree
+    Changelog (Build 386): 🔧 Fix Undefined Nodes in Tree View
+    - Added safeNodeName() helper for consistent undefined handling
+    - Tree View now shows "⚠️ Unnamed" for undefined/missing names
+    - Fixed item, subtask, phase, and node name rendering
+    - Canvas already had the fix; now Tree View matches
 
-    Previous (Build 384): 🔧 Fix Undefined Nodes + Repair Command
+    Previous (Build 385): 🔧 Fix Undefined Node Display + Repair Aliases
     - Validates node names before creation - rejects undefined/empty names
     - Extracts name from description if name field missing in JSON
     - New repair_tree command: finds and lets you fix malformed nodes
@@ -632,8 +632,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 385,
-            date: '2025-12-07',
+            build: 386,
+            date: '2025-12-09',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -16926,6 +16926,15 @@ function hidePatternDescription() {
             return '$' + numCost.toLocaleString();
         }
 
+        // BUILD 386: Safe node name helper - prevents "undefined" from displaying
+        function safeNodeName(node) {
+            const name = node?.name || node?.title;
+            if (!name || name === 'undefined' || name.trim() === '') {
+                return '⚠️ Unnamed';
+            }
+            return name;
+        }
+
         // Calculate total including all children (for root node)
         function calculateTotal(node) {
             let total = node.cost || 0;
@@ -17003,7 +17012,7 @@ function hidePatternDescription() {
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
                                 <span class="node-icon">${node.icon || '📁'}</span>
                                 <div class="node-content">
-                                    <div class="node-title">${node.name}</div>
+                                    <div class="node-title">${safeNodeName(node)}</div>
                                 </div>
                             </div>
                         `;
@@ -17015,7 +17024,7 @@ function hidePatternDescription() {
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
                                 <span class="node-icon">${node.icon || '📋'}</span>
                                 <div class="node-content">
-                                    <div class="node-title">${node.name}</div>
+                                    <div class="node-title">${safeNodeName(node)}</div>
                                 </div>
                                 <button class="canvas-visibility-toggle" title="${isVisibleInCanvas ? 'Hide from Canvas View' : 'Show in Canvas View'}" style="background: none; border: none; cursor: pointer; padding: 4px; margin-left: 8px; font-size: 16px; opacity: ${isVisibleInCanvas ? '1' : '0.3'};">
                                     ${isVisibleInCanvas ? '👁️' : '👁️'}
@@ -17034,7 +17043,7 @@ function hidePatternDescription() {
                                 ${hasChildren ? '<span class="expand-toggle">' + (node.expanded ? '▼' : '▶') + '</span>' : ''}
                                 <span class="node-icon">${node.icon || '📄'}</span>
                                 <div class="node-content">
-                                    <span class="item-name">${node.name}</span>
+                                    <span class="item-name">${safeNodeName(node)}</span>
                                     ${fsContributorBadge}
                                     ${fsCollabIndicator}
                                 </div>
@@ -17165,7 +17174,7 @@ function hidePatternDescription() {
                         <div class="node-header">
                             <span class="node-icon">${node.icon || '🌳'}</span>
                             <div class="node-content">
-                                <div class="node-title">${node.name}</div>
+                                <div class="node-title">${safeNodeName(node)}</div>
                                 <div class="node-subtitle">by geej</div>
                             </div>
                             ${node.children ? '<span class="expand-toggle">▶</span>' : ''}
@@ -17178,7 +17187,7 @@ function hidePatternDescription() {
                         <div class="node-header">
                             <span class="node-icon">${node.icon || '📋'}</span>
                             <div class="node-content">
-                                <div class="node-title">${node.name}</div>
+                                <div class="node-title">${safeNodeName(node)}</div>
                                 ${node.subtitle ? `<div class="node-subtitle">${node.subtitle}</div>` : ''}
                                 ${PATTERNS[currentPattern].fields && PATTERNS[currentPattern].fields.cost && total > 0 ? `<div class="node-cost">${formatCost(total)}</div>` : ''}
                             </div>
@@ -17197,7 +17206,7 @@ function hidePatternDescription() {
                         <div class="node-header">
                             <span class="node-icon">${node.icon || '📄'}</span>
                             <div class="node-content">
-                                <div class="item-name">${node.name}</div>
+                                <div class="item-name">${safeNodeName(node)}</div>
                                 ${node.description ? `<div class="item-description">${node.description}</div>` : ''}
                                 <div class="item-meta">
                                     ${node.itemType ? `<span class="badge badge-${node.itemType}">${node.itemType}</span>` : ''}
@@ -17417,13 +17426,13 @@ function hidePatternDescription() {
                                     <span class="node-icon">${item.icon}</span>
                                     <div class="node-content">
                                         <div class="item-name">
-                                            ${item.name}
+                                            ${safeNodeName(item)}
                                             ${ragIndicator}
                                             ${pmStatusBadge}
                                             ${expandIndicator}
                                             ${hasSubtasks ? `<span style="font-size: 10px; color: var(--text-secondary); margin-left: 8px;">(${item.subItems.length} tasks)</span>` : ''}
                                         </div>
-                                        <div class="item-description">${item.description}</div>
+                                        <div class="item-description">${item.description || ''}</div>
                                         <div class="item-meta">
                                             ${item.itemType ? `<span class="badge badge-${item.itemType}">${item.itemType}</span>` : ''}
                                             ${PATTERNS[currentPattern].fields && PATTERNS[currentPattern].fields.cost && item.cost > 0 ? `<span class="item-cost">${formatCost(item.cost)}</span>` : ''}
@@ -17563,7 +17572,7 @@ function hidePatternDescription() {
                                             <div style="display: flex; align-items: flex-start; gap: 4px;">
                                                 ${chevronIcon ? `<span style="font-size: 8px; color: var(--text-secondary); cursor: pointer; margin-top: 2px;" class="task-chevron">${chevronIcon}</span>` : ''}
                                                 <div style="font-size: 11px; font-weight: 600; line-height: 1.2; color: var(--text-primary); flex: 1; overflow: hidden; text-overflow: ellipsis; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;">
-                                                    ${subItem.name}
+                                                    ${safeNodeName(subItem)}
                                                 </div>
                                             </div>
 
