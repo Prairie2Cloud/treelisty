@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 388 | 2025-12-09
+    TreeListy v2.17.0 | Build 389 | 2025-12-09
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 388): 🔧 Edit Any Depth Node
-    - handleEdit() now supports all non-root/non-phase nodes
-    - Deep nested nodes (subItems, children) are now editable
-    - No longer restricted to just type="item" or type="subtask"
+    Changelog (Build 389): ♟️ Semantic Type Indicators (Chess-like Variations)
+    - Infer structure from position, not type field (Option B)
+    - Subtle type indicators: ⚔critique ↩response ◆argument ⚠risk
+    - Works with semantic types like 'risk-factor', 'sub-node', etc.
+    - Tree View and Canvas View both show type markers
+    - Tooltip on hover shows full type name
 
-    Previous (Build 387): 🔧 Fix LifeTree JSON Schema + Edit Support
+    Previous (Build 388): 🔧 Edit Any Depth Node
     - Validates node names before creation - rejects undefined/empty names
     - Extracts name from description if name field missing in JSON
     - New repair_tree command: finds and lets you fix malformed nodes
@@ -631,7 +633,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 388,
+            build: 389,
             date: '2025-12-09',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -13551,7 +13553,7 @@ Be specific and insightful, not generic.`;
                     <div style="font-size: 24px;">${item.icon || '📦'}</div>
                     <div style="flex: 1;">
                         <div style="font-size: 14px; font-weight: 600; margin-bottom: 4px;">
-                            ${(item.name && item.name !== 'undefined') ? item.name : (item.title || '⚠️ Unnamed')}${ragHtml}${canvasCollabHtml}
+                            ${(item.name && item.name !== 'undefined') ? item.name : (item.title || '⚠️ Unnamed')}${typeof getTypeIndicator === 'function' ? getTypeIndicator(item) : ''}${ragHtml}${canvasCollabHtml}
                         </div>
                         <div style="font-size: 12px; color: var(--text-secondary); line-height: 1.4;">
                             ${(item.description || 'No description').substring(0, 100)}${item.description?.length > 100 ? '...' : ''}
@@ -16935,6 +16937,57 @@ function hidePatternDescription() {
             return name;
         }
 
+        // BUILD 389: Get semantic type for display (when type field is used for categorization)
+        // Structural types (root, phase, item, subtask) are inferred from position, not displayed
+        const STRUCTURAL_TYPES = ['root', 'phase', 'item', 'subtask', 'subItem', 'child', undefined, null, ''];
+        function getSemanticType(node) {
+            if (!node || !node.type) return null;
+            // If it's a structural type, check itemType instead
+            if (STRUCTURAL_TYPES.includes(node.type)) {
+                return node.itemType || null;
+            }
+            // Otherwise, the type IS the semantic type (e.g., 'risk-factor', 'critique')
+            return node.type;
+        }
+
+        // BUILD 389: Subtle type indicator - small colored pip or abbreviated label
+        // Chess-like notation: different paths/variations get subtle markers
+        function getTypeIndicator(node) {
+            const semType = getSemanticType(node);
+            if (!semType) return '';
+
+            // Map semantic types to subtle indicators (short, unobtrusive)
+            const typeStyles = {
+                // Philosophy pattern
+                'critique': { icon: '⚔', color: '#EF4444', abbr: 'crit' },
+                'response': { icon: '↩', color: '#3B82F6', abbr: 'resp' },
+                'argument': { icon: '◆', color: '#8B5CF6', abbr: 'arg' },
+                'counter': { icon: '⇄', color: '#F59E0B', abbr: 'ctr' },
+                'risk-factor': { icon: '⚠', color: '#EF4444', abbr: 'risk' },
+                'sub-node': { icon: '↳', color: '#6B7280', abbr: 'sub' },
+                'synthesis': { icon: '∴', color: '#10B981', abbr: 'syn' },
+                'thesis': { icon: '→', color: '#3B82F6', abbr: 'th' },
+                'antithesis': { icon: '←', color: '#EF4444', abbr: 'anti' },
+                // LifeTree pattern
+                'birth': { icon: '★', color: '#EC4899', abbr: 'birth' },
+                'education': { icon: '📚', color: '#3B82F6', abbr: 'edu' },
+                'career': { icon: '💼', color: '#10B981', abbr: 'work' },
+                'relationship': { icon: '❤', color: '#EC4899', abbr: 'rel' },
+                'milestone': { icon: '🏆', color: '#F59E0B', abbr: 'mile' },
+                'loss': { icon: '◇', color: '#6B7280', abbr: 'loss' },
+                'achievement': { icon: '⭐', color: '#F59E0B', abbr: 'achv' },
+                'travel': { icon: '✈', color: '#06B6D4', abbr: 'trvl' },
+                'residence': { icon: '🏠', color: '#8B5CF6', abbr: 'home' },
+                'family': { icon: '👨‍👩‍👧', color: '#EC4899', abbr: 'fam' },
+                'memory': { icon: '💭', color: '#6B7280', abbr: 'mem' },
+                'health': { icon: '❤️‍🩹', color: '#EF4444', abbr: 'hlth' }
+            };
+
+            const style = typeStyles[semType] || { icon: '•', color: '#6B7280', abbr: semType.substring(0, 4) };
+            // Return subtle inline indicator - just a small colored marker with tooltip
+            return `<span class="type-indicator" style="color: ${style.color}; font-size: 10px; margin-left: 6px; opacity: 0.8;" title="${semType}">${style.icon}</span>`;
+        }
+
         // Calculate total including all children (for root node)
         function calculateTotal(node) {
             let total = node.cost || 0;
@@ -17201,12 +17254,14 @@ function hidePatternDescription() {
                     // Build contributor badge HTML if contributor exists
                     const contributorBadge = node.contributor ? `<span class="contributor-badge" title="Last edited by ${node.contributor}${node.contributorTimestamp ? ' on ' + new Date(node.contributorTimestamp).toLocaleDateString() : ''}">👤 ${node.contributor}</span>` : '';
                     const collabIndicator = node.collabComments ? `<span class="collab-indicator" title="${node.collabComments.substring(0, 100)}${node.collabComments.length > 100 ? '...' : ''}">💬</span>` : '';
+                    // BUILD 389: Subtle type indicator for semantic types (like chess variation markers)
+                    const typeIndicator = typeof getTypeIndicator === 'function' ? getTypeIndicator(node) : '';
 
                     nodeDiv.innerHTML = `
                         <div class="node-header">
                             <span class="node-icon">${node.icon || '📄'}</span>
                             <div class="node-content">
-                                <div class="item-name">${safeNodeName(node)}</div>
+                                <div class="item-name">${safeNodeName(node)}${typeIndicator}</div>
                                 ${node.description ? `<div class="item-description">${node.description}</div>` : ''}
                                 <div class="item-meta">
                                     ${node.itemType ? `<span class="badge badge-${node.itemType}">${node.itemType}</span>` : ''}
