@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 386 | 2025-12-09
+    TreeListy v2.17.0 | Build 387 | 2025-12-09
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 386): 🔧 Fix Undefined Nodes in Tree View
-    - Added safeNodeName() helper for consistent undefined handling
-    - Tree View now shows "⚠️ Unnamed" for undefined/missing names
-    - Fixed item, subtask, phase, and node name rendering
-    - Canvas already had the fix; now Tree View matches
+    Changelog (Build 387): 🔧 Fix LifeTree JSON Schema + Edit Support
+    - Fixed LifeTree items: use type="item" + itemType="birth|career|etc"
+    - Napoleon JSON corrected: all events now use proper schema
+    - Root nodes auto-assigned type="root" on load if missing
+    - Hyperedges now correctly find nodes by ID
 
-    Previous (Build 385): 🔧 Fix Undefined Node Display + Repair Aliases
+    Previous (Build 386): 🔧 Fix Undefined Nodes in Tree View
     - Validates node names before creation - rejects undefined/empty names
     - Extracts name from description if name field missing in JSON
     - New repair_tree command: finds and lets you fix malformed nodes
@@ -632,7 +632,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 386,
+            build: 387,
             date: '2025-12-09',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -16926,10 +16926,11 @@ function hidePatternDescription() {
             return '$' + numCost.toLocaleString();
         }
 
-        // BUILD 386: Safe node name helper - prevents "undefined" from displaying
+        // BUILD 387: Safe node name helper - prevents "undefined" from displaying
         function safeNodeName(node) {
-            const name = node?.name || node?.title;
-            if (!name || name === 'undefined' || name.trim() === '') {
+            if (!node) return '⚠️ Unnamed';
+            const name = node.name || node.title;
+            if (!name || name === 'undefined' || (typeof name === 'string' && name.trim() === '')) {
                 return '⚠️ Unnamed';
             }
             return name;
@@ -20973,6 +20974,11 @@ Your response:`;
 
             // Replace the tree data
             Object.assign(capexTree, data);
+
+            // BUILD 387: Ensure root node has type="root" for editing support
+            if (!capexTree.type) {
+                capexTree.type = 'root';
+            }
 
             // Restore pattern if saved
             if (capexTree.pattern) {
