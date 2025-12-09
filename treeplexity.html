@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 387 | 2025-12-09
+    TreeListy v2.17.0 | Build 388 | 2025-12-09
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 387): 🔧 Fix LifeTree JSON Schema + Edit Support
-    - Fixed LifeTree items: use type="item" + itemType="birth|career|etc"
-    - Napoleon JSON corrected: all events now use proper schema
-    - Root nodes auto-assigned type="root" on load if missing
-    - Hyperedges now correctly find nodes by ID
+    Changelog (Build 388): 🔧 Edit Any Depth Node
+    - handleEdit() now supports all non-root/non-phase nodes
+    - Deep nested nodes (subItems, children) are now editable
+    - No longer restricted to just type="item" or type="subtask"
 
-    Previous (Build 386): 🔧 Fix Undefined Nodes in Tree View
+    Previous (Build 387): 🔧 Fix LifeTree JSON Schema + Edit Support
     - Validates node names before creation - rejects undefined/empty names
     - Extracts name from description if name field missing in JSON
     - New repair_tree command: finds and lets you fix malformed nodes
@@ -632,7 +631,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 387,
+            build: 388,
             date: '2025-12-09',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -20440,8 +20439,9 @@ Your response:`;
                 return;
             }
 
-            // Full edit modal for items and subtasks
-            if (activeNode.type === 'item' || activeNode.type === 'subtask') {
+            // BUILD 388: Full edit modal for any non-root/non-phase node (items, subtasks, subItems, deep nodes)
+            // This enables editing at any depth in the tree
+            if (activeNode.type !== 'root' && activeNode.type !== 'phase') {
                 const modal = document.getElementById('edit-modal');
                 const body = document.getElementById('edit-modal-body');
 
