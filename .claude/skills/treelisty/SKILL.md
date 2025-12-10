@@ -1,3 +1,8 @@
+---
+name: treelisty
+description: Work with TreeListy hierarchical project trees. Use when developing, debugging, or adding features to the TreeListy single-file HTML application (~1.3MB), including AI integration, 21 patterns, collaboration, canvas/3D views, hyperedges, LifeTree biographer, and voice capture.
+---
+
 # TreeListy - Hierarchical Project Management Skill
 
 **Version**: 2.17.0 (Build 377)
