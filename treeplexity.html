@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 395 | 2025-12-12
+    TreeListy v2.17.0 | Build 396 | 2025-12-12
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 395): 🌈 Visual Feedback System
-    - Real-time node highlighting: Found, New, Edited, Enhanced labels
-    - Colored overlays with pulse animation on affected nodes
-    - Works in both Tree View and Canvas View
-    - Connection lines for hyperedge visualization
-    - Auto-cleanup after configurable duration
-    - Integrated with find_node command
+    Changelog (Build 396): ⚙️ Settings Toggle + Keyboard Shortcut
+    - Settings toggle: "Use Classic Chat Panel" in AI Settings modal
+    - Keyboard shortcut: Ctrl+/ (Cmd+/ on Mac) toggles chat
+    - Settings persist to localStorage across sessions
+    - Smooth transition when switching UI modes
+    - Polish: Improved integration with existing keyboard shortcuts
 
+    Previous (Build 395): 🌈 Visual Feedback System
     Previous (Build 394): 🎯 Context-Aware Action Buttons
     Previous (Build 393): 🎯 Floating Command Frame (New Chat UI)
     Previous (Build 392): 🩺 LifeTree Health Check + 💬 GPT-5.2 Support
@@ -640,7 +640,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 395,
+            build: 396,
             date: '2025-12-12',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -5408,6 +5408,20 @@ The AI will analyze the structure and convert it to a tree."
                 </label>
             </div>
 
+            <!-- BUILD 396: Chat UI Style Toggle -->
+            <div style="margin-bottom: 25px; padding: 15px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px;">
+                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                    <input type="checkbox" id="use-classic-chat" style="width: 18px; height: 18px; accent-color: #6366f1; margin-top: 2px;">
+                    <div>
+                        <strong style="color: #a5b4fc;">💬 Use Classic Chat Panel</strong>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px;">
+                            Switch to the traditional slide-out panel instead of the new floating command frame.
+                            <br><span style="color: rgba(255,255,255,0.5);">Keyboard shortcut: Ctrl+/ or Cmd+/</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
             <!-- Live Preview -->
             <div style="margin-bottom: 25px; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
                 <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
@@ -7864,6 +7878,9 @@ Do not ask permission—just provide the critique, then help.
             // Load Dialectic Mode (Cognitive Citadel)
             document.getElementById('ai-dialectic-mode').checked = config.dialecticMode || false;
 
+            // BUILD 396: Load Chat UI preference
+            document.getElementById('use-classic-chat').checked = !window.useNewChatUI;
+
             // Update preview
             updateAIPreview();
 
@@ -7922,6 +7939,16 @@ Do not ask permission—just provide the critique, then help.
             const customInstructions = document.getElementById('custom-instructions').value;
             const dialecticMode = document.getElementById('ai-dialectic-mode').checked;
 
+            // BUILD 396: Save Chat UI preference
+            const useClassic = document.getElementById('use-classic-chat').checked;
+            window.useNewChatUI = !useClassic;
+            localStorage.setItem('useNewChatUI', String(!useClassic));
+
+            // Close any open chat panels if switching UI mode
+            if (chatState.isOpen) {
+                toggleChatPanel();
+            }
+
             // Save to tree
             capexTree.aiConfig = {
                 tone,
@@ -7937,7 +7964,8 @@ Do not ask permission—just provide the critique, then help.
             console.log('✅ AI Settings saved:', capexTree.aiConfig);
 
             // Show toast notification
-            showToast('✅ AI Settings Saved - Your AI persona preferences have been saved to this tree.');
+            const uiMode = window.useNewChatUI ? 'Command Frame' : 'Classic Panel';
+            showToast(`✅ AI Settings Saved - Chat UI: ${uiMode}`);
 
             closeAISettingsModal();
         }
@@ -15554,6 +15582,24 @@ Be specific and insightful, not generic.`;
                     treeManager.save(capexTree, { forceSaveAs: false });
                 } else {
                     console.warn('TreeManager not initialized yet');
+                }
+            }
+
+            // BUILD 396: Ctrl+/ or Cmd+/ - Toggle Chat Panel
+            if ((e.ctrlKey || e.metaKey) && e.key === '/') {
+                // Don't toggle if user is typing in an input/textarea
+                const activeElement = document.activeElement;
+                if (activeElement &&
+                    (activeElement.tagName === 'INPUT' ||
+                     activeElement.tagName === 'TEXTAREA' ||
+                     activeElement.isContentEditable)) {
+                    return;
+                }
+
+                e.preventDefault();
+                console.log('⌨️ Ctrl+/ pressed - toggling chat');
+                if (typeof toggleChatPanel === 'function') {
+                    toggleChatPanel();
                 }
             }
 
@@ -49656,7 +49702,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 395; // Update this with each build
+                    const KNOWN_LATEST = 396; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
