@@ -24018,7 +24018,23 @@ Return ONLY the JSON array.`
             // Add click handlers
             document.getElementById('mode-enhance').onclick = () => {
                 modal.style.display = 'none';
-                startWizard(true); // true = enhance mode
+                // BUILD 397: Route to TreeBeard command frame for enhancement
+                if (window.useNewChatUI && typeof toggleChatPanel === 'function') {
+                    // Open command frame
+                    if (typeof chatState !== 'undefined' && !chatState.isOpen) {
+                        toggleChatPanel();
+                    }
+                    // Pre-fill with enhance prompt
+                    setTimeout(() => {
+                        const input = document.getElementById('command-input');
+                        if (input) {
+                            input.value = 'enhance this tree';
+                            input.focus();
+                        }
+                    }, 100);
+                } else {
+                    startWizard(true); // Fallback to classic wizard
+                }
             };
 
             document.getElementById('mode-fresh').onclick = () => {
