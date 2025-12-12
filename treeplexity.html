@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 392 | 2025-12-11
+    TreeListy v2.17.0 | Build 393 | 2025-12-12
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,20 +18,18 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 392): 🩺 LifeTree Health Check + 💬 GPT-5.2 Support
-    - NEW: "health check" command in TreeBeard for LifeTree diagnostics
-    - Detects: empty phases, redundant periods, chronology issues, sparse events
-    - Priority-sequenced cleanup actions (Pri 1 → Pri 2 → Pri 3 → Pri 4)
-    - "Consolidate Legacy" auto-merges redundant time period sections
-    - "Fix Order" sorts phases chronologically
-    - Clickable action buttons for each fix
-    - Includes delete_phase command for direct phase removal
-    - NEW: OpenAI GPT-5.2 models (released Dec 11, 2025)
-      - GPT-5.2 Pro (👑 Most accurate, $21/M input)
-      - GPT-5.2 (🌟 Flagship)
-      - GPT-5.2 Chat (💬 ChatGPT model)
-    - Updated version notification system (KNOWN_LATEST = 392)
+    Changelog (Build 393): 🎯 Floating Command Frame (New Chat UI)
+    - NEW: Spotlight-style floating command frame at top-center
+    - Replaces cramped right-panel with compact horizontal design
+    - Always-visible action buttons (Find, Add, Enhance, Help)
+    - Mode toggle: Quick ⚡ (commands) vs Deep 🧠 (conversation)
+    - Context bar shows focused node with breadcrumb path
+    - Collapsible message history (expands on response)
+    - Feature flag: window.useNewChatUI (default: true)
+    - Settings toggle to switch back to classic panel
+    - Full mobile support (goes full-screen on small devices)
 
+    Previous (Build 392): 🩺 LifeTree Health Check + 💬 GPT-5.2 Support
     Previous (Build 391): 🗑️ Phase Delete Support
     Previous (Build 390): 🎨 Visual Type Distinction for Canvas Nodes
     Previous (Build 389): ♟️ Semantic Type Indicators (Chess-like Variations)
@@ -643,8 +641,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 392,
-            date: '2025-12-11',
+            build: 393,
+            date: '2025-12-12',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -3495,6 +3493,365 @@
     .quick-action-chip:hover {
         background: rgba(99, 102, 241, 0.3);
         color: var(--text-primary, #fff);
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       BUILD 393: FLOATING COMMAND FRAME (New Chat UI)
+       - Spotlight-style floating frame at top-center
+       - Always-visible action buttons
+       - Collapsible history
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    #command-frame {
+        position: fixed;
+        top: 80px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 560px;
+        max-width: calc(100vw - 48px);
+        background: linear-gradient(180deg, rgba(30, 30, 46, 0.98), rgba(24, 24, 38, 0.99));
+        border: 2px solid rgba(139, 92, 246, 0.35);
+        border-radius: 16px;
+        box-shadow:
+            0 0 0 1px rgba(139, 92, 246, 0.15),
+            0 8px 32px rgba(0, 0, 0, 0.5),
+            0 0 60px rgba(139, 92, 246, 0.1);
+        z-index: 9999;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+    }
+
+    #command-frame.open {
+        display: flex;
+        animation: frameSlideDown 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #command-frame.minimized {
+        width: 220px;
+        top: 16px;
+    }
+
+    #command-frame.minimized .command-context-bar,
+    #command-frame.minimized .command-actions,
+    #command-frame.minimized .command-input-area,
+    #command-frame.minimized .command-history {
+        display: none;
+    }
+
+    @keyframes frameSlideDown {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(-20px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+
+    /* Command Frame Header */
+    .command-frame-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 14px;
+        background: rgba(139, 92, 246, 0.08);
+        border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        cursor: grab;
+        user-select: none;
+    }
+
+    .command-frame-header:active { cursor: grabbing; }
+
+    .frame-icon { font-size: 16px; }
+    .frame-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: #a5b4fc;
+        flex: 1;
+    }
+
+    /* Mode Pills */
+    .mode-pills {
+        display: flex;
+        gap: 4px;
+        background: rgba(0, 0, 0, 0.25);
+        padding: 3px;
+        border-radius: 10px;
+    }
+
+    .mode-pill {
+        padding: 5px 10px;
+        border: none;
+        border-radius: 8px;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 12px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .mode-pill:hover { color: #e5e7eb; }
+
+    .mode-pill.active {
+        background: rgba(139, 92, 246, 0.4);
+        color: white;
+    }
+
+    .frame-minimize, .frame-close {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: #9ca3af;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .frame-minimize:hover, .frame-close:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    /* Context Bar */
+    .command-context-bar {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 14px;
+        background: rgba(16, 185, 129, 0.1);
+        border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+        font-size: 12px;
+        color: #10b981;
+    }
+
+    .command-context-bar.no-focus {
+        background: rgba(107, 114, 128, 0.1);
+        border-color: rgba(107, 114, 128, 0.2);
+        color: #9ca3af;
+    }
+
+    .context-icon { font-size: 14px; }
+
+    .context-text {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .context-action {
+        padding: 4px 8px;
+        border: none;
+        border-radius: 4px;
+        background: rgba(16, 185, 129, 0.2);
+        color: #10b981;
+        cursor: pointer;
+        font-size: 12px;
+        transition: all 0.2s;
+    }
+
+    .context-action:hover { background: rgba(16, 185, 129, 0.3); }
+
+    /* Action Buttons Grid */
+    .command-actions {
+        padding: 10px 14px;
+        border-bottom: 1px solid rgba(139, 92, 246, 0.15);
+    }
+
+    .action-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+
+    .action-row.secondary-actions {
+        margin-top: 8px;
+    }
+
+    .action-row.secondary-actions.collapsed {
+        display: none;
+    }
+
+    .cmd-btn {
+        padding: 8px 14px;
+        background: rgba(99, 102, 241, 0.15);
+        border: 1px solid rgba(99, 102, 241, 0.25);
+        border-radius: 10px;
+        color: #e5e7eb;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.15s;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .cmd-btn:hover {
+        background: rgba(99, 102, 241, 0.3);
+        border-color: rgba(99, 102, 241, 0.4);
+        transform: translateY(-1px);
+    }
+
+    .cmd-btn:active { transform: translateY(0); }
+
+    .cmd-btn .btn-icon { font-size: 14px; }
+    .cmd-btn .btn-label { font-weight: 500; }
+
+    .cmd-btn.highlight {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: rgba(16, 185, 129, 0.3);
+        color: #34d399;
+    }
+
+    /* Input Area */
+    .command-input-area {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px;
+    }
+
+    #command-input {
+        flex: 1;
+        padding: 11px 16px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(139, 92, 246, 0.25);
+        border-radius: 12px;
+        color: white;
+        font-size: 14px;
+        outline: none;
+        transition: all 0.2s;
+    }
+
+    #command-input:focus {
+        border-color: rgba(139, 92, 246, 0.5);
+        box-shadow: 0 0 0 3px rgba(139, 92, 246, 0.1);
+    }
+
+    #command-input::placeholder { color: #6b7280; }
+
+    .command-btn {
+        width: 40px;
+        height: 40px;
+        border: none;
+        border-radius: 10px;
+        background: rgba(139, 92, 246, 0.2);
+        color: #a5b4fc;
+        cursor: pointer;
+        font-size: 18px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .command-btn:hover {
+        background: rgba(139, 92, 246, 0.35);
+        color: white;
+    }
+
+    .command-btn.primary {
+        background: linear-gradient(135deg, #8b5cf6, #6366f1);
+        color: white;
+    }
+
+    .command-btn.primary:hover {
+        transform: scale(1.05);
+    }
+
+    /* Collapsible History */
+    .command-history {
+        border-top: 1px solid rgba(139, 92, 246, 0.15);
+    }
+
+    .history-toggle {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 10px 14px;
+        cursor: pointer;
+        font-size: 12px;
+        color: #9ca3af;
+        transition: background 0.2s;
+    }
+
+    .history-toggle:hover { background: rgba(139, 92, 246, 0.05); }
+
+    .command-history.collapsed .history-messages { display: none; }
+    .command-history.collapsed .toggle-icon { transform: rotate(0deg); }
+    .command-history:not(.collapsed) .toggle-icon { transform: rotate(180deg); }
+
+    .toggle-icon { transition: transform 0.2s; }
+
+    .history-messages {
+        max-height: 180px;
+        overflow-y: auto;
+        padding: 0 14px 14px;
+    }
+
+    .history-msg {
+        padding: 8px 12px;
+        margin-bottom: 8px;
+        border-radius: 10px;
+        font-size: 13px;
+        line-height: 1.45;
+    }
+
+    .history-msg.user {
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.4), rgba(99, 102, 241, 0.4));
+        color: white;
+        margin-left: 25%;
+        border-bottom-right-radius: 4px;
+    }
+
+    .history-msg.assistant {
+        background: rgba(45, 45, 65, 0.8);
+        color: #e5e7eb;
+        margin-right: 25%;
+        border-bottom-left-radius: 4px;
+    }
+
+    /* Visual Feedback Overlay */
+    .feedback-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        pointer-events: none;
+        z-index: 9998;
+    }
+
+    /* Mobile: Full-screen command frame */
+    @media screen and (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+        #command-frame.open {
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            max-width: 100vw;
+            height: 100vh;
+            transform: none;
+            border-radius: 0;
+            animation: none;
+        }
+
+        .command-frame-header {
+            padding-top: max(12px, env(safe-area-inset-top));
+        }
+
+        .command-input-area {
+            padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
     }
 
     /* ═══════════════════════════════════════════════════════════════════════════
@@ -42578,8 +42935,14 @@ ${transcript}`;
             biographerMode: null, // null, 'guided', 'listening', 'scaffolding', 'artifact'
             // BUILD 368: Conversation Mode - Full AI intelligence
             conversationMode: false, // When true, uses full AI conversation instead of command mode
-            lastConversationContext: null // Stores context for action extraction
+            lastConversationContext: null, // Stores context for action extraction
+            // BUILD 393: New Command Frame UI
+            commandFrameMinimized: false
         };
+
+        // BUILD 393: Feature flag for new Command Frame UI
+        // Users can toggle via settings - stored in localStorage
+        window.useNewChatUI = localStorage.getItem('useNewChatUI') !== 'false'; // Default: true (new UI)
 
         // BUILD 355: Load conversation memory from localStorage
         (function loadConversationMemory() {
@@ -46226,7 +46589,17 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         // UI FUNCTIONS
         // ═══════════════════════════════════════════════════════════════
 
+        // BUILD 393: Unified toggle - opens appropriate UI based on preference
         function toggleChatPanel() {
+            if (window.useNewChatUI) {
+                toggleCommandFrame();
+            } else {
+                toggleClassicPanel();
+            }
+        }
+
+        // Classic panel toggle (original implementation)
+        function toggleClassicPanel() {
             const panel = document.getElementById('chat-assistant-panel');
             const bubble = document.getElementById('chat-assistant-bubble');
 
@@ -46242,6 +46615,191 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 bubble.classList.remove('active');
                 bubble.textContent = '💬';
             }
+        }
+
+        // BUILD 393: Command Frame toggle
+        function toggleCommandFrame() {
+            const frame = document.getElementById('command-frame');
+            const bubble = document.getElementById('chat-assistant-bubble');
+
+            chatState.isOpen = !chatState.isOpen;
+
+            if (chatState.isOpen) {
+                frame.classList.add('open');
+                frame.classList.remove('minimized');
+                chatState.commandFrameMinimized = false;
+                bubble.classList.add('active');
+                bubble.textContent = '✕';
+                document.getElementById('command-input')?.focus();
+            } else {
+                frame.classList.remove('open');
+                bubble.classList.remove('active');
+                bubble.textContent = '💬';
+            }
+        }
+        window.toggleCommandFrame = toggleCommandFrame;
+
+        // BUILD 393: Minimize Command Frame
+        function minimizeCommandFrame() {
+            const frame = document.getElementById('command-frame');
+            chatState.commandFrameMinimized = !chatState.commandFrameMinimized;
+            frame.classList.toggle('minimized', chatState.commandFrameMinimized);
+        }
+        window.minimizeCommandFrame = minimizeCommandFrame;
+
+        // BUILD 393: Toggle command history section
+        function toggleCommandHistory() {
+            const history = document.querySelector('.command-history');
+            history?.classList.toggle('collapsed');
+        }
+        window.toggleCommandHistory = toggleCommandHistory;
+
+        // BUILD 393: Handle send from Command Frame
+        async function handleCommandSend() {
+            const input = document.getElementById('command-input');
+            const message = input?.value?.trim();
+
+            if (!message) return;
+
+            // Add to history display
+            addCommandMessage(message, 'user');
+            input.value = '';
+
+            // Process via existing handleSendMessage logic
+            // This reuses the existing TreeBeard intelligence
+            await processCommandInput(message);
+        }
+        window.handleCommandSend = handleCommandSend;
+
+        // BUILD 393: Add message to Command Frame history
+        function addCommandMessage(content, type = 'assistant') {
+            const historyMessages = document.querySelector('.history-messages');
+            if (!historyMessages) return;
+
+            const msg = document.createElement('div');
+            msg.className = `history-msg ${type}`;
+
+            // Format content
+            let formatted = content
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+
+            // Truncate long messages for history
+            if (formatted.length > 200) {
+                formatted = formatted.substring(0, 200) + '...';
+            }
+
+            msg.innerHTML = formatted;
+            historyMessages.appendChild(msg);
+            historyMessages.scrollTop = historyMessages.scrollHeight;
+
+            // Expand history if it was collapsed and we have a response
+            if (type === 'assistant') {
+                const history = document.querySelector('.command-history');
+                history?.classList.remove('collapsed');
+            }
+
+            // Store in shared chatState
+            chatState.conversationHistory.push({ role: type, content });
+            saveConversationMemory();
+        }
+
+        // BUILD 393: Process input from Command Frame (routes to existing TreeBeard logic)
+        async function processCommandInput(message) {
+            // Show processing state
+            const sendBtn = document.getElementById('command-send-btn');
+            if (sendBtn) {
+                sendBtn.disabled = true;
+                sendBtn.textContent = '⏳';
+            }
+
+            try {
+                // Route to existing handleSendMessage which has all the TreeBeard intelligence
+                // We temporarily set the classic input value so handleSendMessage can process it
+                const classicInput = document.getElementById('chat-assistant-input');
+                const originalValue = classicInput?.value;
+
+                if (classicInput) {
+                    classicInput.value = message;
+                }
+
+                // Call the main send handler (it handles all AI routing, commands, etc.)
+                await handleSendMessage();
+
+                // Restore classic input
+                if (classicInput) {
+                    classicInput.value = originalValue || '';
+                }
+
+                // Get the last assistant response from chatState and show in Command Frame
+                const lastResponse = chatState.conversationHistory
+                    .filter(m => m.role === 'assistant')
+                    .pop();
+
+                if (lastResponse) {
+                    addCommandMessage(lastResponse.content, 'assistant');
+                }
+
+            } catch (error) {
+                console.error('Command processing error:', error);
+                addCommandMessage('Sorry, something went wrong. Please try again.', 'assistant');
+            } finally {
+                if (sendBtn) {
+                    sendBtn.disabled = false;
+                    sendBtn.textContent = '➤';
+                }
+            }
+        }
+
+        // BUILD 393: Wire up Command Frame action buttons
+        function initCommandFrameButtons() {
+            document.querySelectorAll('#command-frame .cmd-btn[data-action]').forEach(btn => {
+                btn.addEventListener('click', async () => {
+                    const action = btn.dataset.action;
+
+                    // Handle prompt actions (prefill input)
+                    if (action.startsWith('prompt_')) {
+                        const input = document.getElementById('command-input');
+                        const prompts = {
+                            'prompt_find': 'find ',
+                            'prompt_add': 'add '
+                        };
+                        if (input) {
+                            input.value = prompts[action] || '';
+                            input.focus();
+                            input.setSelectionRange(input.value.length, input.value.length);
+                        }
+                    } else {
+                        // Execute action via existing COMMAND_REGISTRY
+                        await executeAction(action);
+                    }
+                });
+            });
+
+            // Mode pill clicks
+            document.querySelectorAll('#command-frame .mode-pill').forEach(pill => {
+                pill.addEventListener('click', () => {
+                    document.querySelectorAll('#command-frame .mode-pill').forEach(p => p.classList.remove('active'));
+                    pill.classList.add('active');
+
+                    const mode = pill.dataset.mode;
+                    if (mode === 'deep') {
+                        chatState.conversationMode = true;
+                        showToast('Deep Conversation mode - full AI intelligence', 'info');
+                    } else {
+                        chatState.conversationMode = false;
+                        showToast('Quick mode - fast commands', 'info');
+                    }
+                });
+            });
+
+            // Enter key to send
+            document.getElementById('command-input')?.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleCommandSend();
+                }
+            });
         }
 
         function addMessage(content, type = 'assistant', buttons = null) {
@@ -46689,11 +47247,14 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         // ═══════════════════════════════════════════════════════════════
 
         function initChatAssistant() {
-            // Toggle button
+            // Toggle button (opens either classic panel or Command Frame based on preference)
             document.getElementById('chat-assistant-bubble')?.addEventListener('click', toggleChatPanel);
 
-            // Close button
+            // Classic panel: Close button
             document.getElementById('chat-close-btn')?.addEventListener('click', toggleChatPanel);
+
+            // BUILD 393: Initialize Command Frame
+            initCommandFrameButtons();
 
             // Clear button
             document.getElementById('chat-clear-btn')?.addEventListener('click', () => {
@@ -48344,7 +48905,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 392; // Update this with each build
+                    const KNOWN_LATEST = 393; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -48669,6 +49230,62 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             <button id="chat-send-btn" title="Send message">➤</button>
         </div>
     </div>
+
+    <!-- BUILD 393: Floating Command Frame (New Chat UI) -->
+    <div id="command-frame">
+        <!-- Compact Header with Mode Toggle -->
+        <div class="command-frame-header">
+            <span class="frame-icon">🌳</span>
+            <span class="frame-title">TreeBeard</span>
+            <div class="mode-pills">
+                <button class="mode-pill active" data-mode="quick" title="Quick Commands">⚡ Quick</button>
+                <button class="mode-pill" data-mode="deep" title="Deep Conversation">🧠 Deep</button>
+            </div>
+            <button class="frame-minimize" title="Minimize" onclick="minimizeCommandFrame()">−</button>
+            <button class="frame-close" title="Close" onclick="toggleCommandFrame()">✕</button>
+        </div>
+
+        <!-- Context Bar - Shows current selection/focus -->
+        <div class="command-context-bar no-focus">
+            <span class="context-icon">📍</span>
+            <span class="context-text">No node focused — use Find or click a node</span>
+            <button class="context-action" data-action="show_info" title="Show Details" style="display: none;">ℹ️</button>
+        </div>
+
+        <!-- Action Button Grid - Always Visible -->
+        <div class="command-actions">
+            <div class="action-row primary-actions">
+                <button class="cmd-btn" data-action="prompt_find"><span class="btn-icon">🔍</span><span class="btn-label">Find</span></button>
+                <button class="cmd-btn" data-action="prompt_add"><span class="btn-icon">➕</span><span class="btn-label">Add</span></button>
+                <button class="cmd-btn" data-action="ai_enhance"><span class="btn-icon">✨</span><span class="btn-label">Enhance</span></button>
+                <button class="cmd-btn" data-action="show_help"><span class="btn-icon">📖</span><span class="btn-label">Help</span></button>
+            </div>
+            <div class="action-row secondary-actions collapsed">
+                <!-- Populated dynamically based on context -->
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="command-input-area">
+            <input type="text" id="command-input" placeholder="Type command or question..." autocomplete="off">
+            <button id="command-voice-btn" class="command-btn" title="Voice" onclick="window.startVoiceCapture()">🎤</button>
+            <button id="command-send-btn" class="command-btn primary" title="Send" onclick="handleCommandSend()">➤</button>
+        </div>
+
+        <!-- Collapsible Message History -->
+        <div class="command-history collapsed">
+            <div class="history-toggle" onclick="toggleCommandHistory()">
+                <span>💬 History</span>
+                <span class="toggle-icon">▼</span>
+            </div>
+            <div class="history-messages">
+                <!-- Messages populated dynamically -->
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 393: Visual Feedback Overlay -->
+    <div id="tree-feedback-overlay" class="feedback-overlay"></div>
 
     <!-- BUILD 371: Artifact Side Panel -->
     <div id="artifact-panel">
