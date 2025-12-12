@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 393 | 2025-12-12
+    TreeListy v2.17.0 | Build 394 | 2025-12-12
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,17 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 393): 🎯 Floating Command Frame (New Chat UI)
-    - NEW: Spotlight-style floating command frame at top-center
-    - Replaces cramped right-panel with compact horizontal design
-    - Always-visible action buttons (Find, Add, Enhance, Help)
-    - Mode toggle: Quick ⚡ (commands) vs Deep 🧠 (conversation)
+    Changelog (Build 394): 🎯 Context-Aware Action Buttons
+    - Dynamic button generation based on selection state
+    - Node-focused buttons: Edit, Deep Dive, Expand, Insight (when node selected)
+    - Multi-select buttons: Hyperedge, Compare, Group (2+ nodes)
+    - Pattern-specific buttons for LifeTree, Philosophy, Sales, CAPEX
     - Context bar shows focused node with breadcrumb path
-    - Collapsible message history (expands on response)
-    - Feature flag: window.useNewChatUI (default: true)
-    - Settings toggle to switch back to classic panel
-    - Full mobile support (goes full-screen on small devices)
+    - Auto-refresh on node clicks and after command execution
 
+    Previous (Build 393): 🎯 Floating Command Frame (New Chat UI)
     Previous (Build 392): 🩺 LifeTree Health Check + 💬 GPT-5.2 Support
     Previous (Build 391): 🗑️ Phase Delete Support
     Previous (Build 390): 🎨 Visual Type Distinction for Canvas Nodes
@@ -641,7 +639,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 393,
+            build: 394,
             date: '2025-12-12',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -43393,6 +43391,127 @@ ${transcript}`;
                 return `⬆️ Collapsed "${node.name || node.title}"`;
             },
 
+            // BUILD 394: Edit focused node
+            'edit_node': () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ No node selected. Click a node or use "find [name]" first.';
+
+                // Open the edit modal for this node
+                if (typeof showEditModal === 'function') {
+                    showEditModal(node);
+                    return `✏️ Opening editor for "${node.name || 'node'}"...`;
+                } else if (typeof openNodeEditor === 'function') {
+                    openNodeEditor(node);
+                    return `✏️ Opening editor for "${node.name || 'node'}"...`;
+                }
+
+                // Fallback: trigger edit on the node element
+                const nodeEl = document.querySelector(`[data-node-id="${node.id}"]`);
+                if (nodeEl) {
+                    const nameEl = nodeEl.querySelector('.node-name, .item-name, .phase-name');
+                    if (nameEl) {
+                        nameEl.click();
+                        return `✏️ Click on the node name to edit it.`;
+                    }
+                }
+
+                return '⚠️ Unable to open editor. Try clicking directly on the node.';
+            },
+
+            // BUILD 394: Quick insight on focused node
+            'quick_insight': () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ No node selected. Click a node or use "find [name]" first.';
+
+                // Build a quick summary
+                const info = [];
+                info.push(`📍 **${node.name || 'Unnamed Node'}**`);
+                info.push(`Type: ${node.type || 'unknown'}`);
+
+                if (node.description) info.push(`Description: ${node.description}`);
+                if (node.status) info.push(`Status: ${node.status}`);
+                if (node.cost) info.push(`Cost: ${node.cost}`);
+                if (node.eventDate) info.push(`Date: ${node.eventDate}`);
+                if (node.age) info.push(`Age: ${node.age}`);
+                if (node.location) info.push(`Location: ${node.location}`);
+
+                const children = node.children || node.items || node.subtasks || [];
+                if (children.length > 0) {
+                    info.push(`Children: ${children.length}`);
+                }
+
+                return info.join('\n');
+            },
+
+            // BUILD 394: Compare selected nodes
+            'compare_nodes': async () => {
+                const nodes = selectedNodes || [];
+                if (nodes.length < 2) return '⚠️ Select 2+ nodes to compare (Ctrl+click).';
+
+                const comparison = nodes.map(n => `• **${n.name}**: ${n.description || n.status || 'No description'}`).join('\n');
+                return `🔬 Comparing ${nodes.length} nodes:\n${comparison}`;
+            },
+
+            // BUILD 394: Pattern-specific placeholders
+            'refute_thesis': async () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ Select a thesis or argument node first.';
+                return `⚔️ Refutation analysis for "${node.name}":\nTo refute this thesis, consider:\n• Counter-examples\n• Logical inconsistencies\n• Alternative explanations\n\nUse "enhance" for AI-powered refutation.`;
+            },
+
+            'generate_dialogue': async () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ Select a node to generate dialogue about.';
+                return `💬 To generate Socratic dialogue about "${node.name}", use the AI enhancement feature with prompt: "Create a Socratic dialogue exploring this concept"`;
+            },
+
+            'analyze_argument': async () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ Select an argument node first.';
+                return `🔍 Argument structure for "${node.name}":\n• Premises: [Click to add]\n• Conclusion: ${node.description || '[Not specified]'}\n• Type: [Deductive/Inductive/Abductive]\n\nUse "deep dive" for detailed analysis.`;
+            },
+
+            'birthday_method': () => {
+                if (typeof window.startBirthdayMethod === 'function') {
+                    window.startBirthdayMethod();
+                    return '🎂 Starting Birthday Memory Method...';
+                }
+                return '🎂 Birthday Method: Start from a birthday memory and expand outward. What birthday do you remember most vividly?';
+            },
+
+            'generate_followup': () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ Select a lead or deal to generate follow-up for.';
+                return `📞 Follow-up suggestions for "${node.name}":\n• Schedule check-in call\n• Send relevant case study\n• Propose next steps meeting`;
+            },
+
+            'qualify_lead': () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ Select a lead to qualify.';
+                return `💰 Lead qualification for "${node.name}":\n• Budget: [TBD]\n• Authority: [TBD]\n• Need: [TBD]\n• Timeline: [TBD]\n\nUpdate the node fields to track qualification.`;
+            },
+
+            'show_pipeline': () => {
+                return '📈 Pipeline view: Switch to Canvas view for visual pipeline representation.';
+            },
+
+            'calculate_roi': () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ Select a CAPEX item to calculate ROI.';
+                const cost = node.cost || node.totalCost || 'Unknown';
+                return `💵 ROI Analysis for "${node.name}":\n• Investment: ${cost}\n• Expected Return: [TBD]\n• Payback Period: [TBD]\n\nAdd financial details to the node for accurate calculations.`;
+            },
+
+            'show_budget': () => {
+                return '📊 Budget Overview: Check the summary panel for total CAPEX allocation.';
+            },
+
+            'analyze_risks': () => {
+                const node = window.chatFocusedNode || activeNode;
+                if (!node) return '⚠️ Select an item to analyze risks.';
+                return `⚠️ Risk analysis for "${node.name}":\n• Technical Risks: [TBD]\n• Schedule Risks: [TBD]\n• Resource Risks: [TBD]\n• Mitigation: [TBD]`;
+            },
+
             // Navigate to first child
             'first_child': () => {
                 const node = window.chatFocusedNode;
@@ -46802,6 +46921,304 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             });
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 394: Context-Aware Action Button Generator
+        // ═══════════════════════════════════════════════════════════════
+
+        const actionButtonGenerator = {
+            // Universal buttons - always available
+            universal: [
+                { icon: '🔍', label: 'Find', action: 'prompt_find' },
+                { icon: '➕', label: 'Add', action: 'prompt_add' },
+                { icon: '✨', label: 'Enhance', action: 'ai_enhance' },
+                { icon: '📖', label: 'Help', action: 'show_help' }
+            ],
+
+            // Node-focused buttons - show when a node is selected
+            nodeFocused: [
+                { icon: '✏️', label: 'Edit', action: 'edit_node' },
+                { icon: '🧠', label: 'Deep Dive', action: 'deep_dive' },
+                { icon: '📊', label: 'Expand', action: 'expand_node' },
+                { icon: '💡', label: 'Insight', action: 'quick_insight' }
+            ],
+
+            // Multi-select buttons - show when 2+ nodes selected
+            multiSelect: [
+                { icon: '🔗', label: 'Hyperedge', action: 'create_hyperedge' },
+                { icon: '🔬', label: 'Compare', action: 'compare_nodes' },
+                { icon: '🎯', label: 'Group', action: 'smart_hyperedge' }
+            ],
+
+            // Pattern-specific buttons
+            patternSpecific: {
+                lifetree: [
+                    { icon: '📅', label: 'Add Event', action: 'prompt_add_event' },
+                    { icon: '🎂', label: 'Birthday', action: 'birthday_method' },
+                    { icon: '🩺', label: 'Health Check', action: 'lifetree_health_check' }
+                ],
+                philosophy: [
+                    { icon: '⚔️', label: 'Refute', action: 'refute_thesis' },
+                    { icon: '💬', label: 'Dialogue', action: 'generate_dialogue' },
+                    { icon: '🔍', label: 'Analyze', action: 'analyze_argument' }
+                ],
+                sales: [
+                    { icon: '📞', label: 'Follow-up', action: 'generate_followup' },
+                    { icon: '💰', label: 'Qualify', action: 'qualify_lead' },
+                    { icon: '📈', label: 'Pipeline', action: 'show_pipeline' }
+                ],
+                capex: [
+                    { icon: '💵', label: 'ROI', action: 'calculate_roi' },
+                    { icon: '📊', label: 'Budget', action: 'show_budget' },
+                    { icon: '⚠️', label: 'Risks', action: 'analyze_risks' }
+                ]
+            },
+
+            /**
+             * Get appropriate buttons based on current context
+             * @returns {Object} { primary: [], secondary: [] }
+             */
+            getButtonsForContext() {
+                const context = this.detectContext();
+                const primary = [...this.universal];
+                const secondary = [];
+
+                // Add node-focused buttons if a node is selected
+                if (context.hasActiveNode) {
+                    secondary.push(...this.nodeFocused);
+                }
+
+                // Add multi-select buttons if 2+ nodes selected
+                if (context.multiSelectCount >= 2) {
+                    secondary.push(...this.multiSelect);
+                }
+
+                // Add pattern-specific buttons
+                const patternButtons = this.patternSpecific[context.pattern] || [];
+                if (patternButtons.length > 0) {
+                    secondary.push(...patternButtons);
+                }
+
+                return { primary, secondary, context };
+            },
+
+            /**
+             * Detect current UI context
+             */
+            detectContext() {
+                return {
+                    hasActiveNode: typeof activeNode !== 'undefined' && activeNode !== null,
+                    activeNodeName: activeNode?.name || null,
+                    activeNodeType: activeNode?.type || null,
+                    multiSelectCount: typeof selectedNodes !== 'undefined' ? selectedNodes.length : 0,
+                    pattern: typeof currentPattern !== 'undefined' ? currentPattern : 'generic',
+                    isCanvasView: document.getElementById('canvas-container')?.classList.contains('active') || false
+                };
+            }
+        };
+
+        /**
+         * Refresh action buttons based on current context
+         */
+        function refreshActionButtons() {
+            const secondaryRow = document.querySelector('#command-frame .secondary-actions');
+            if (!secondaryRow) return;
+
+            const { primary, secondary, context } = actionButtonGenerator.getButtonsForContext();
+
+            // Clear and populate secondary row
+            secondaryRow.innerHTML = '';
+
+            if (secondary.length > 0) {
+                secondary.forEach(btn => {
+                    const button = document.createElement('button');
+                    button.className = 'cmd-btn';
+                    button.dataset.action = btn.action;
+                    button.innerHTML = `<span class="btn-icon">${btn.icon}</span><span class="btn-label">${btn.label}</span>`;
+                    button.addEventListener('click', async () => {
+                        if (btn.action.startsWith('prompt_')) {
+                            const input = document.getElementById('command-input');
+                            const prompts = {
+                                'prompt_find': 'find ',
+                                'prompt_add': 'add ',
+                                'prompt_add_event': 'add event: '
+                            };
+                            if (input) {
+                                input.value = prompts[btn.action] || '';
+                                input.focus();
+                            }
+                        } else {
+                            await executeAction(btn.action);
+                            refreshActionButtons(); // Refresh after action
+                        }
+                    });
+                    secondaryRow.appendChild(button);
+                });
+                secondaryRow.classList.remove('collapsed');
+            } else {
+                secondaryRow.classList.add('collapsed');
+            }
+
+            // Update context bar
+            updateContextBar(context);
+        }
+
+        /**
+         * Update the context bar with current node info
+         */
+        function updateContextBar(context) {
+            const contextBar = document.querySelector('#command-frame .command-context-bar');
+            if (!contextBar) return;
+
+            const contextIcon = contextBar.querySelector('.context-icon');
+            const contextText = contextBar.querySelector('.context-text');
+            const infoBtn = contextBar.querySelector('.context-action');
+
+            if (context.hasActiveNode) {
+                contextBar.classList.remove('no-focus');
+
+                // Build breadcrumb path
+                let path = '';
+                if (activeNode) {
+                    const parent = findParentOfNode(activeNode, capexTree);
+                    if (parent && parent.name) {
+                        path = `${parent.name} > `;
+                    }
+                    path += activeNode.name || 'Unnamed';
+                }
+
+                // Set icon based on node type
+                const typeIcons = {
+                    'phase': '📁',
+                    'item': '📄',
+                    'subtask': '📌',
+                    'root': '🌳'
+                };
+                contextIcon.textContent = typeIcons[context.activeNodeType] || '📍';
+                contextText.textContent = path || context.activeNodeName || 'Selected node';
+                contextText.title = `Type: ${context.activeNodeType || 'unknown'}`;
+
+                if (infoBtn) {
+                    infoBtn.style.display = 'inline-flex';
+                }
+            } else if (context.multiSelectCount >= 2) {
+                contextBar.classList.remove('no-focus');
+                contextIcon.textContent = '🔢';
+                contextText.textContent = `${context.multiSelectCount} nodes selected`;
+                if (infoBtn) infoBtn.style.display = 'none';
+            } else {
+                contextBar.classList.add('no-focus');
+                contextIcon.textContent = '📍';
+                contextText.textContent = 'No node focused — use Find or click a node';
+                if (infoBtn) infoBtn.style.display = 'none';
+            }
+        }
+
+        /**
+         * Helper: Find parent node of a given node
+         */
+        function findParentOfNode(targetNode, tree, parent = null) {
+            if (!tree) return null;
+            if (tree === targetNode) return parent;
+
+            // Check children
+            if (tree.children) {
+                for (const child of tree.children) {
+                    if (child === targetNode) return tree;
+                    const found = findParentOfNode(targetNode, child, tree);
+                    if (found) return found;
+                }
+            }
+
+            // Check items
+            if (tree.items) {
+                for (const item of tree.items) {
+                    if (item === targetNode) return tree;
+                    const found = findParentOfNode(targetNode, item, tree);
+                    if (found) return found;
+                }
+            }
+
+            // Check subtasks
+            if (tree.subtasks) {
+                for (const subtask of tree.subtasks) {
+                    if (subtask === targetNode) return tree;
+                    const found = findParentOfNode(targetNode, subtask, tree);
+                    if (found) return found;
+                }
+            }
+
+            return null;
+        }
+
+        // Hook into node selection events to refresh buttons
+        function hookNodeSelection() {
+            // Override or wrap existing click handlers
+            // This will be called when nodes are clicked in tree/canvas view
+            const origRender = window.render;
+            if (typeof origRender === 'function') {
+                window.render = function(...args) {
+                    origRender.apply(this, args);
+                    // After render, attach click listeners that trigger refresh
+                    setTimeout(() => attachNodeClickListeners(), 50);
+                };
+            }
+        }
+
+        function attachNodeClickListeners() {
+            // Tree view nodes
+            document.querySelectorAll('.tree-node').forEach(node => {
+                if (!node._commandFrameHooked) {
+                    node._commandFrameHooked = true;
+                    node.addEventListener('click', () => {
+                        setTimeout(refreshActionButtons, 10);
+                    });
+                }
+            });
+
+            // Canvas view nodes
+            document.querySelectorAll('.canvas-node').forEach(node => {
+                if (!node._commandFrameHooked) {
+                    node._commandFrameHooked = true;
+                    node.addEventListener('click', () => {
+                        setTimeout(refreshActionButtons, 10);
+                    });
+                }
+            });
+        }
+
+        // Initialize button refresh system
+        function initActionButtonRefresh() {
+            // Refresh when frame opens
+            const origToggleCommandFrame = window.toggleCommandFrame;
+            if (typeof origToggleCommandFrame === 'function') {
+                window.toggleCommandFrame = function() {
+                    origToggleCommandFrame();
+                    if (chatState.isOpen) {
+                        refreshActionButtons();
+                    }
+                };
+            }
+
+            // Initial hook
+            hookNodeSelection();
+            attachNodeClickListeners();
+
+            // Periodic check for stale context (every 2 seconds when open)
+            setInterval(() => {
+                if (chatState.isOpen && window.useNewChatUI) {
+                    refreshActionButtons();
+                }
+            }, 2000);
+        }
+
+        // Call during DOMContentLoaded
+        document.addEventListener('DOMContentLoaded', initActionButtonRefresh);
+
+        // Expose globally for other modules
+        window.refreshActionButtons = refreshActionButtons;
+        window.updateContextBar = updateContextBar;
+        window.actionButtonGenerator = actionButtonGenerator;
+
         function addMessage(content, type = 'assistant', buttons = null) {
             const messagesContainer = document.getElementById('chat-assistant-messages');
             const messageDiv = document.createElement('div');
@@ -48905,7 +49322,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 393; // Update this with each build
+                    const KNOWN_LATEST = 394; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
