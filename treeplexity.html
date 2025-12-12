@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 390 | 2025-12-09
+    TreeListy v2.17.0 | Build 392 | 2025-12-11
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,22 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 390): 🎨 Visual Type Distinction for Canvas Nodes
-    - Left border stripe (4px) colored by semantic type
-    - Subtle background tint for typed nodes
-    - Enhanced visual hierarchy: critique=red, response=blue, argument=purple
-    - Sub-nodes now visually distinct from parent nodes
-    - Expanded type color palette (objection, synthesis, thesis, antithesis, etc.)
+    Changelog (Build 392): 🩺 LifeTree Health Check + 💬 GPT-5.2 Support
+    - NEW: "health check" command in TreeBeard for LifeTree diagnostics
+    - Detects: empty phases, redundant periods, chronology issues, sparse events
+    - Priority-sequenced cleanup actions (Pri 1 → Pri 2 → Pri 3 → Pri 4)
+    - "Consolidate Legacy" auto-merges redundant time period sections
+    - "Fix Order" sorts phases chronologically
+    - Clickable action buttons for each fix
+    - Includes delete_phase command for direct phase removal
+    - NEW: OpenAI GPT-5.2 models (released Dec 11, 2025)
+      - GPT-5.2 Pro (👑 Most accurate, $21/M input)
+      - GPT-5.2 (🌟 Flagship)
+      - GPT-5.2 Chat (💬 ChatGPT model)
+    - Updated version notification system (KNOWN_LATEST = 392)
 
+    Previous (Build 391): 🗑️ Phase Delete Support
+    Previous (Build 390): 🎨 Visual Type Distinction for Canvas Nodes
     Previous (Build 389): ♟️ Semantic Type Indicators (Chess-like Variations)
     Previous (Build 388): 🔧 Edit Any Depth Node
     - Validates node names before creation - rejects undefined/empty names
@@ -634,8 +643,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 390,
-            date: '2025-12-09',
+            build: 392,
+            date: '2025-12-11',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -4439,11 +4448,14 @@
                             <option value="user-gemini-3-pro" title="Frontier - Gemini 3 Pro Preview (Nov 2025)">🌟 Pro 3 Preview</option>
                         </optgroup>
                         <optgroup label="💬 OpenAI (Your Key)">
+                            <option value="user-gpt52-pro" title="Most Accurate - GPT-5.2 Pro (Dec 2025)">👑 GPT-5.2 Pro</option>
+                            <option value="user-gpt52" title="Flagship - GPT-5.2 (Dec 2025)">🌟 GPT-5.2</option>
+                            <option value="user-gpt52-chat" title="ChatGPT Model - GPT-5.2 Chat">💬 GPT-5.2 Chat</option>
                             <option value="user-gpt5-mini" title="Fast - GPT-5 Mini">⚡ GPT-5 mini</option>
-                            <option value="user-gpt5" title="Flagship - GPT-5">🌟 GPT-5</option>
                             <option value="user-o4-mini" title="Fast reasoning - o4-mini">🔮 o4-mini</option>
                             <option value="user-o3" title="Best reasoning - o3">🔮 o3</option>
-                            <option value="user-gpt4o" title="Legacy - GPT-4o">🧠 GPT-4o</option>
+                            <option value="user-gpt5" title="Previous Gen - GPT-5">🧠 GPT-5</option>
+                            <option value="user-gpt4o" title="Legacy - GPT-4o">📦 GPT-4o</option>
                         </optgroup>
                         <optgroup label="Disable">
                             <option value="off">❌ Off</option>
@@ -8036,12 +8048,34 @@ Do not ask permission—just provide the critique, then help.
                     description: 'Gemini 2.5 Flash'
                 },
                 // OpenAI models (always user key, direct API = no timeout!)
+                // BUILD 392: Added GPT-5.2 models (released Dec 11, 2025)
+                'user-gpt52-pro': {
+                    provider: 'openai',
+                    model: 'gpt-5.2-pro',
+                    modelId: 'gpt-5.2-pro',
+                    useServerKey: false,
+                    description: 'Most Accurate - GPT-5.2 Pro (Dec 2025)'
+                },
+                'user-gpt52': {
+                    provider: 'openai',
+                    model: 'gpt-5.2',
+                    modelId: 'gpt-5.2',
+                    useServerKey: false,
+                    description: 'Flagship - GPT-5.2 (Dec 2025)'
+                },
+                'user-gpt52-chat': {
+                    provider: 'openai',
+                    model: 'gpt-5.2-chat-latest',
+                    modelId: 'gpt-5.2-chat-latest',
+                    useServerKey: false,
+                    description: 'ChatGPT Model - GPT-5.2 Chat'
+                },
                 'user-gpt5': {
                     provider: 'openai',
                     model: 'gpt-5',
                     modelId: 'gpt-5',
                     useServerKey: false,
-                    description: 'Flagship - GPT-5 (Aug 2025)'
+                    description: 'Previous Gen - GPT-5 (Aug 2025)'
                 },
                 'user-gpt5-mini': {
                     provider: 'openai',
@@ -8088,10 +8122,10 @@ Do not ask permission—just provide the critique, then help.
                 },
                 'user-chatgpt': {
                     provider: 'openai',
-                    model: 'gpt-5',
-                    modelId: 'gpt-5',
+                    model: 'gpt-5.2-chat-latest',
+                    modelId: 'gpt-5.2-chat-latest',
                     useServerKey: false,
-                    description: 'GPT-5'
+                    description: 'GPT-5.2 Chat (Latest)'
                 }
             };
 
@@ -19544,11 +19578,14 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
                 `;
             } else if (activeNode.type === 'phase') {
-                // Phase context menu
+                // Phase context menu (Build 391: Added delete option)
+                const itemCount = activeNode.items ? activeNode.items.length : 0;
+                const deleteWarning = itemCount > 0 ? ` (${itemCount} items)` : '';
                 menuHtml = `
                     <div class="context-item" id="ctx-view">📋 View Details</div>
                     <div class="context-item" id="ctx-edit">✏️ Edit ${labels.phase}</div>
                     <div class="context-item" id="ctx-create">➕ Add ${labels.item} to ${activeNode.name}</div>
+                    <div class="context-item" id="ctx-delete" style="color: #ef4444;">🗑️ Delete ${labels.phase}${deleteWarning}</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
                     <div class="context-divider"></div>
@@ -21028,9 +21065,25 @@ Your response:`;
         }
 
         function handleDelete() {
-            if (activeNode && (activeNode.type === 'item' || activeNode.type === 'subtask')) {
-                const itemType = activeNode.type === 'subtask' ? 'sub-task' : 'item';
-                if (confirm(`Delete "${activeNode.name}" ${itemType}?`)) {
+            // Build 391: Extended to support phase deletion
+            if (activeNode && (activeNode.type === 'item' || activeNode.type === 'subtask' || activeNode.type === 'phase')) {
+                const labels = getPatternLabels();
+                let itemType, confirmMsg;
+
+                if (activeNode.type === 'phase') {
+                    itemType = labels.phase || 'phase';
+                    const itemCount = activeNode.items ? activeNode.items.length : 0;
+                    if (itemCount > 0) {
+                        confirmMsg = `Delete "${activeNode.name}" ${itemType}?\n\n⚠️ This will also delete ${itemCount} item${itemCount > 1 ? 's' : ''} inside it.`;
+                    } else {
+                        confirmMsg = `Delete "${activeNode.name}" ${itemType}?`;
+                    }
+                } else {
+                    itemType = activeNode.type === 'subtask' ? 'sub-task' : 'item';
+                    confirmMsg = `Delete "${activeNode.name}" ${itemType}?`;
+                }
+
+                if (confirm(confirmMsg)) {
                     // Save state for undo
                     saveState(`Delete ${itemType}: ${activeNode.name}`);
                     if (activeNode.type === 'subtask') {
@@ -21076,6 +21129,15 @@ Your response:`;
                             return false;
                         }
                         removeSubtaskRecursive(activeNode.id);
+                    } else if (activeNode.type === 'phase') {
+                        // Build 391: Remove phase from root's children array
+                        if (capexTree.children) {
+                            const index = capexTree.children.findIndex(p => p.id === activeNode.id);
+                            if (index !== -1) {
+                                capexTree.children.splice(index, 1);
+                                console.log(`🗑️ Deleted phase: ${activeNode.name}`);
+                            }
+                        }
                     } else {
                         // Find and remove the item from its parent phase
                         function removeItem(itemId, node = capexTree) {
@@ -43407,6 +43469,32 @@ ${transcript}`;
                 return `🗑️ Deleted "${name}"`;
             },
 
+            // BUILD 392: Delete phase by ID (for health check integration)
+            'delete_phase': (phaseId) => {
+                if (!phaseId) return '⚠️ No phase ID provided.';
+
+                const phases = capexTree?.children || [];
+                const phaseIndex = phases.findIndex(p => p.id === phaseId);
+
+                if (phaseIndex < 0) {
+                    return `⚠️ Phase not found: ${phaseId}`;
+                }
+
+                const phase = phases[phaseIndex];
+                const itemCount = (phase.items || phase.children || []).length;
+
+                if (typeof saveState === 'function') {
+                    saveState(`Delete phase: ${phase.name}`);
+                }
+
+                capexTree.children.splice(phaseIndex, 1);
+
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `🗑️ Deleted phase "${phase.name}"${itemCount > 0 ? ` (including ${itemCount} items)` : ''}`;
+            },
+
             // Show focused node info
             'node_info': () => {
                 const node = window.chatFocusedNode;
@@ -44073,6 +44161,385 @@ ${transcript}`;
             },
 
             // ═══════════════════════════════════════════════════════════════
+            // BUILD 392: LIFETREE HEALTH CHECK - Proactive diagnostics
+            // ═══════════════════════════════════════════════════════════════
+
+            'lifetree_health_check': () => {
+                const phases = capexTree?.children || [];
+                const pattern = capexTree?.pattern?.key || 'generic';
+
+                // Only meaningful for lifetree pattern
+                if (pattern !== 'lifetree') {
+                    return '⚠️ Health check is optimized for LifeTree pattern. Current pattern: ' + pattern;
+                }
+
+                const issues = {
+                    emptyPhases: [],
+                    redundantPeriods: [],
+                    dataIntegrity: [],
+                    sparseItems: [],
+                    chronologyIssues: []
+                };
+
+                // 1. Empty phases detection
+                phases.forEach(phase => {
+                    const itemCount = (phase.items || phase.children || []).length;
+                    if (itemCount === 0) {
+                        issues.emptyPhases.push({ phase, name: phase.name });
+                    }
+                });
+
+                // 2. Redundant periods (overlapping decades/time ranges)
+                const periodPatterns = [];
+                phases.forEach(phase => {
+                    const name = (phase.name || '').toLowerCase();
+                    // Extract years from phase names
+                    const yearMatches = name.match(/\d{4}/g);
+                    const periodKeywords = ['legacy', 'rehabilitation', 'aftermath', 'canonization', 'memory', 'heritage'];
+                    const hasLegacyKeyword = periodKeywords.some(kw => name.includes(kw));
+
+                    if (yearMatches || hasLegacyKeyword) {
+                        periodPatterns.push({
+                            phase,
+                            years: yearMatches || [],
+                            isLegacy: hasLegacyKeyword,
+                            name: phase.name
+                        });
+                    }
+                });
+
+                // Find overlapping legacy sections
+                const legacyPhases = periodPatterns.filter(p => p.isLegacy);
+                if (legacyPhases.length > 1) {
+                    issues.redundantPeriods.push({
+                        type: 'legacy_overlap',
+                        phases: legacyPhases.map(p => p.name),
+                        suggestion: 'Consolidate into single "Afterlife & Legacy" section'
+                    });
+                }
+
+                // 3. Data integrity - count claimed vs actual events
+                let totalEvents = 0;
+                let phasesWithZeroDisplay = 0;
+                phases.forEach(phase => {
+                    const items = phase.items || phase.children || [];
+                    totalEvents += items.length;
+                    items.forEach(item => {
+                        totalEvents += (item.subItems || item.children || []).length;
+                    });
+                });
+
+                // 4. Sparse items (events without subtasks that should have detail)
+                const significantEvents = ['battle', 'siege', 'trial', 'execution', 'coronation', 'campaign'];
+                phases.forEach(phase => {
+                    (phase.items || phase.children || []).forEach(item => {
+                        const nameLower = (item.name || '').toLowerCase();
+                        const hasSubitems = (item.subItems || item.children || []).length > 0;
+                        if (!hasSubitems && significantEvents.some(evt => nameLower.includes(evt))) {
+                            issues.sparseItems.push({ item, phaseName: phase.name });
+                        }
+                    });
+                });
+
+                // 5. Chronology issues - check for out-of-order phases
+                const yearsInOrder = [];
+                phases.forEach(phase => {
+                    const match = (phase.name || '').match(/\d{4}/);
+                    if (match) yearsInOrder.push({ year: parseInt(match[0]), name: phase.name });
+                });
+                for (let i = 1; i < yearsInOrder.length; i++) {
+                    if (yearsInOrder[i].year < yearsInOrder[i-1].year) {
+                        issues.chronologyIssues.push({
+                            before: yearsInOrder[i-1].name,
+                            after: yearsInOrder[i].name
+                        });
+                    }
+                }
+
+                // Store for cleanup actions
+                window.lifetreeHealthIssues = issues;
+
+                // Build report
+                const totalIssues = issues.emptyPhases.length + issues.redundantPeriods.length +
+                    issues.sparseItems.length + issues.chronologyIssues.length;
+
+                if (totalIssues === 0) {
+                    return '✅ **LifeTree Health: Excellent!**\n\n' +
+                        `📊 ${phases.length} phases, ${totalEvents} total events\n\n` +
+                        'No structural issues detected. Your tree is well-organized!';
+                }
+
+                let report = `🩺 **LifeTree Health Check**\n\n`;
+                report += `📊 ${phases.length} phases • ${totalEvents} events\n\n`;
+
+                const priorities = [];
+
+                // Priority 1: Redundant periods (most impactful)
+                if (issues.redundantPeriods.length > 0) {
+                    const rp = issues.redundantPeriods[0];
+                    report += `🔴 **Pri 1: Redundant Sections** (${rp.phases.length} overlapping)\n`;
+                    report += `   ${rp.phases.slice(0, 3).join(', ')}${rp.phases.length > 3 ? '...' : ''}\n`;
+                    report += `   💡 ${rp.suggestion}\n\n`;
+                    priorities.push({ label: '🧹 Pri 1: Consolidate Legacy', action: 'lifetree_consolidate_legacy' });
+                }
+
+                // Priority 2: Chronology issues
+                if (issues.chronologyIssues.length > 0) {
+                    report += `🟠 **Pri 2: Out of Order** (${issues.chronologyIssues.length} issues)\n`;
+                    issues.chronologyIssues.slice(0, 2).forEach(ci => {
+                        report += `   "${ci.after}" appears after "${ci.before}"\n`;
+                    });
+                    report += '\n';
+                    priorities.push({ label: '🔄 Pri 2: Fix Order', action: 'lifetree_fix_chronology' });
+                }
+
+                // Priority 3: Empty phases
+                if (issues.emptyPhases.length > 0) {
+                    report += `🟡 **Pri 3: Empty Sections** (${issues.emptyPhases.length})\n`;
+                    issues.emptyPhases.slice(0, 3).forEach(ep => {
+                        report += `   "${ep.name}" has 0 events\n`;
+                    });
+                    report += '\n';
+                    priorities.push({ label: '➕ Pri 3: Fill Empty', action: 'lifetree_fill_empty' });
+                }
+
+                // Priority 4: Sparse items
+                if (issues.sparseItems.length > 0) {
+                    report += `🔵 **Pri 4: Sparse Events** (${issues.sparseItems.length} need detail)\n`;
+                    issues.sparseItems.slice(0, 3).forEach(si => {
+                        report += `   "${si.item.name}" lacks subtasks\n`;
+                    });
+                    report += '\n';
+                    priorities.push({ label: '📝 Pri 4: Add Detail', action: 'lifetree_enrich_sparse' });
+                }
+
+                report += `\nWhich fix should I execute first?`;
+
+                // Add "Execute All" if multiple priorities
+                if (priorities.length > 1) {
+                    priorities.push({ label: '⚡ Execute All', action: 'lifetree_execute_all_fixes' });
+                }
+
+                return { message: report, buttons: priorities };
+            },
+
+            // Consolidate legacy sections into one
+            'lifetree_consolidate_legacy': () => {
+                const issues = window.lifetreeHealthIssues;
+                if (!issues || !issues.redundantPeriods.length) {
+                    return '⚠️ No redundant sections found. Run health check first.';
+                }
+
+                const rp = issues.redundantPeriods[0];
+                const legacyPhaseNames = rp.phases;
+
+                // Find all legacy phases and their items
+                const allLegacyItems = [];
+                const phasesToRemove = [];
+
+                capexTree.children.forEach((phase, idx) => {
+                    if (legacyPhaseNames.includes(phase.name)) {
+                        (phase.items || phase.children || []).forEach(item => {
+                            allLegacyItems.push({ ...item, sourcePhase: phase.name });
+                        });
+                        phasesToRemove.push(idx);
+                    }
+                });
+
+                if (phasesToRemove.length < 2) {
+                    return '⚠️ Not enough legacy phases to consolidate.';
+                }
+
+                // Save state before changes
+                if (typeof saveState === 'function') {
+                    saveState('Consolidate legacy sections');
+                }
+
+                // Remove old phases (in reverse order to preserve indices)
+                phasesToRemove.sort((a, b) => b - a).forEach(idx => {
+                    capexTree.children.splice(idx, 1);
+                });
+
+                // Create consolidated phase
+                const consolidatedPhase = {
+                    id: 'phase-legacy-' + Date.now(),
+                    name: 'Afterlife & Legacy',
+                    type: 'phase',
+                    icon: '🏛️',
+                    expanded: true,
+                    description: 'Consolidated legacy, rehabilitation, and canonization events',
+                    items: allLegacyItems.map(item => ({
+                        ...item,
+                        id: item.id || 'item-' + Date.now() + '-' + Math.random().toString(36).substr(2, 5)
+                    }))
+                };
+
+                // Add to end
+                capexTree.children.push(consolidatedPhase);
+
+                // Re-render
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return {
+                    message: `✅ **Consolidated ${phasesToRemove.length} legacy sections!**\n\n` +
+                        `Created "Afterlife & Legacy" with ${allLegacyItems.length} events.\n\n` +
+                        `💡 Use Undo to revert if needed.`,
+                    buttons: [
+                        { label: '✅ Continue to Pri 2', action: 'lifetree_health_check' },
+                        { label: '↩️ Undo', action: 'undo' }
+                    ]
+                };
+            },
+
+            // Fix chronological order
+            'lifetree_fix_chronology': () => {
+                const phases = capexTree?.children || [];
+
+                // Extract year from each phase for sorting
+                const phasesWithYears = phases.map((phase, originalIndex) => {
+                    const match = (phase.name || '').match(/\d{4}/);
+                    return {
+                        phase,
+                        year: match ? parseInt(match[0]) : 9999, // Put no-year phases at end
+                        originalIndex
+                    };
+                });
+
+                // Check if already sorted
+                let needsSort = false;
+                for (let i = 1; i < phasesWithYears.length; i++) {
+                    if (phasesWithYears[i].year < phasesWithYears[i-1].year) {
+                        needsSort = true;
+                        break;
+                    }
+                }
+
+                if (!needsSort) {
+                    return '✅ Phases are already in chronological order!';
+                }
+
+                // Save state
+                if (typeof saveState === 'function') {
+                    saveState('Fix chronological order');
+                }
+
+                // Sort by year
+                phasesWithYears.sort((a, b) => a.year - b.year);
+                capexTree.children = phasesWithYears.map(p => p.phase);
+
+                // Re-render
+                if (typeof render === 'function') render();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return {
+                    message: `✅ **Phases reordered chronologically!**\n\n` +
+                        `${phases.length} phases sorted from earliest to latest.\n\n` +
+                        `💡 Use Undo to revert if needed.`,
+                    buttons: [
+                        { label: '✅ Continue Health Check', action: 'lifetree_health_check' },
+                        { label: '↩️ Undo', action: 'undo' }
+                    ]
+                };
+            },
+
+            // Navigate to first empty phase for filling
+            'lifetree_fill_empty': () => {
+                const issues = window.lifetreeHealthIssues;
+                if (!issues || !issues.emptyPhases.length) {
+                    return '✅ No empty phases found!';
+                }
+
+                const emptyPhase = issues.emptyPhases[0];
+
+                // Navigate to the empty phase
+                if (typeof window.chatFocusedNode !== 'undefined') {
+                    window.chatFocusedNode = emptyPhase.phase;
+                }
+
+                return {
+                    message: `📍 **Focused on: "${emptyPhase.name}"**\n\n` +
+                        `This section is empty. What would you like to add?\n\n` +
+                        `💡 Describe an event or memory for this period.`,
+                    buttons: [
+                        { label: '🗑️ Delete Empty Phase', action: `delete_phase:${emptyPhase.phase.id}` },
+                        { label: '⏭️ Skip to Next', action: 'lifetree_fill_empty_next' },
+                        { label: '↩️ Back to Health Check', action: 'lifetree_health_check' }
+                    ]
+                };
+            },
+
+            // Skip to next empty phase
+            'lifetree_fill_empty_next': () => {
+                const issues = window.lifetreeHealthIssues;
+                if (!issues || issues.emptyPhases.length <= 1) {
+                    return '✅ No more empty phases!';
+                }
+                issues.emptyPhases.shift(); // Remove first
+                return COMMAND_REGISTRY['lifetree_fill_empty']();
+            },
+
+            // Enrich sparse items with AI suggestions
+            'lifetree_enrich_sparse': () => {
+                const issues = window.lifetreeHealthIssues;
+                if (!issues || !issues.sparseItems.length) {
+                    return '✅ No sparse items found!';
+                }
+
+                const sparse = issues.sparseItems[0];
+
+                return {
+                    message: `📝 **Sparse Event: "${sparse.item.name}"**\n` +
+                        `In: ${sparse.phaseName}\n\n` +
+                        `This significant event has no subtasks. Would you like me to:\n\n` +
+                        `• Add detailed subtasks (who, what, when, where)\n` +
+                        `• Research historical context\n` +
+                        `• Generate scholarly analysis`,
+                    buttons: [
+                        { label: '✨ AI Deep Dive', action: `deep_dive:${sparse.item.id}` },
+                        { label: '⏭️ Skip', action: 'lifetree_enrich_next' },
+                        { label: '↩️ Back', action: 'lifetree_health_check' }
+                    ]
+                };
+            },
+
+            // Skip to next sparse item
+            'lifetree_enrich_next': () => {
+                const issues = window.lifetreeHealthIssues;
+                if (!issues || issues.sparseItems.length <= 1) {
+                    return '✅ No more sparse items!';
+                }
+                issues.sparseItems.shift();
+                return COMMAND_REGISTRY['lifetree_enrich_sparse']();
+            },
+
+            // Execute all fixes in sequence
+            'lifetree_execute_all_fixes': () => {
+                const issues = window.lifetreeHealthIssues;
+                if (!issues) {
+                    return '⚠️ Run health check first.';
+                }
+
+                let executed = [];
+
+                // Execute in priority order
+                if (issues.redundantPeriods.length > 0) {
+                    const result = COMMAND_REGISTRY['lifetree_consolidate_legacy']();
+                    executed.push('Consolidated legacy sections');
+                }
+
+                // Re-run health check after fixes
+                return {
+                    message: `⚡ **Executing Priority Fixes...**\n\n` +
+                        (executed.length > 0 ? `✅ ${executed.join('\n✅ ')}\n\n` : '') +
+                        `Checking for remaining issues...`,
+                    buttons: [
+                        { label: '🩺 Run Health Check Again', action: 'lifetree_health_check' }
+                    ]
+                };
+            },
+
+            // ═══════════════════════════════════════════════════════════════
             // BUILD 361: HYPEREDGE QUERY COMMANDS
             // ═══════════════════════════════════════════════════════════════
 
@@ -44524,13 +44991,25 @@ If this is a city/neighborhood, mention the community character of that era.`
             }
         }
 
-        async function handlePlaygroundMessage(message) {
-            // Add to playground history
-            chatState.playgroundHistory.push({ role: 'user', content: message });
+	        const KAI_KERNEL = `SYSTEM (Kai Kernel):
+Follow the task prompt’s formatting and constraints exactly.
+Do not restate instructions. If instructions conflict, prefer the more specific/local requirement.
+Be direct. Ask at most one clarifying question only if proceeding would likely be wrong/wasteful.
+If uncertain, say so briefly and propose a quick check.`;
 
-            try {
-                let response;
-                const model = chatState.playgroundModel;
+	        function applyKaiKernel(systemPrompt, contextTag) {
+	            if (contextTag === 'quick_command_json') return systemPrompt;
+	            if (systemPrompt.includes(KAI_KERNEL)) return systemPrompt;
+	            return KAI_KERNEL + "\n\n" + systemPrompt;
+	        }
+
+	        async function handlePlaygroundMessage(message) {
+	            // Add to playground history
+	            chatState.playgroundHistory.push({ role: 'user', content: message });
+
+	            try {
+	                let response;
+	                const model = chatState.playgroundModel;
 
                 if (model.startsWith('claude')) {
                     // Use Claude API
@@ -44569,15 +45048,15 @@ If this is a city/neighborhood, mention the community character of that era.`
                                 'anthropic-version': '2023-06-01',
                                 'anthropic-dangerous-direct-browser-access': 'true'
                             },
-                            body: JSON.stringify({
-                                model: modelId,
-                                max_tokens: 2000,
-                                system: chatState.playgroundSystemPrompt,
-                                messages: messages
-                            })
-                        });
-                        const data = await res.json();
-                        if (data.error) throw new Error(data.error.message);
+	                            body: JSON.stringify({
+	                                model: modelId,
+	                                max_tokens: 2000,
+	                                system: applyKaiKernel(chatState.playgroundSystemPrompt, 'playground_anthropic'),
+	                                messages: messages
+	                            })
+	                        });
+	                        const data = await res.json();
+	                        if (data.error) throw new Error(data.error.message);
                         response = data.content[0].text;
                     }
                 } else if (model.startsWith('gpt')) {
@@ -44796,10 +45275,10 @@ If this is a city/neighborhood, mention the community character of that era.`
         /**
          * Full conversation handler - uses AI naturally without JSON constraints
          */
-        async function handleConversation(userMessage) {
-            const phases = typeof capexTree !== 'undefined' ? (capexTree.children || capexTree.phases || []) : [];
-            const pattern = typeof currentPattern !== 'undefined' ? currentPattern : 'generic';
-            const patternDef = PATTERNS[pattern] || PATTERNS.generic;
+	        async function handleConversation(userMessage) {
+	            const phases = typeof capexTree !== 'undefined' ? (capexTree.children || capexTree.phases || []) : [];
+	            const pattern = typeof currentPattern !== 'undefined' ? currentPattern : 'generic';
+	            const patternDef = PATTERNS[pattern] || PATTERNS.generic;
 
             // BUILD 383: Use rich context for LifeTree, standard for others
             const treeContext = pattern === 'lifetree'
@@ -44853,9 +45332,9 @@ NATURAL LANGUAGE: "the 60s" = 1960s, "build out" = add_child, navigate FIRST the
                 systemPrompt += getFeatureGuide();
             }
 
-            systemPrompt += `
+	            systemPrompt += `
 
-Be warm, insightful, concise. Ask follow-up questions. End with [ACTION: x] if taking action.`;
+	Be warm, insightful, concise. Ask at most one follow-up question only if needed. End with [ACTION: x] if taking action.`;
 
             try {
                 const aiMode = document.getElementById('unified-ai-mode-select')?.value || 'server-sonnet';
@@ -44884,22 +45363,22 @@ Be warm, insightful, concise. Ask follow-up questions. End with [ACTION: x] if t
                     if (!anthropicKey) {
                         return { message: '🔑 Please set your API key or switch to Server mode.', action: null };
                     }
-                    response = await fetch('https://api.anthropic.com/v1/messages', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
+	                    response = await fetch('https://api.anthropic.com/v1/messages', {
+	                        method: 'POST',
+	                        headers: {
+	                            'Content-Type': 'application/json',
                             'x-api-key': anthropicKey,
                             'anthropic-version': '2023-06-01',
                             'anthropic-dangerous-direct-browser-access': 'true'
-                        },
-                        body: JSON.stringify({
-                            model: 'claude-sonnet-4-20250514',
-                            max_tokens: 1500,
-                            system: systemPrompt,
-                            messages: messages
-                        })
-                    });
-                }
+	                        },
+	                        body: JSON.stringify({
+	                            model: 'claude-sonnet-4-20250514',
+	                            max_tokens: 1500,
+	                            system: applyKaiKernel(systemPrompt, 'conversation_anthropic'),
+	                            messages: messages
+	                        })
+	                    });
+	                }
 
                 const data = await response.json();
                 if (data.error) throw new Error(data.error.message || data.error);
@@ -45119,7 +45598,8 @@ WHAT WE'VE CAPTURED (${allMemories.length} memories)
                 needsFeatureHelp: /how do i|what is|can you|does it|feature|help|wizard|hyperedge/.test(msg),
                 needsPatternInfo: /pattern|switch|change to|fields|what fields/.test(msg),
                 isBiographical: /born|grew up|school|married|job|lived|moved|family|sibling|parent|child|pet|friend/.test(msg),
-                isComplex: msg.length > 100 || /analyze|review|deep dive|compare/.test(msg)
+                isComplex: msg.length > 100 || /analyze|review|deep dive|compare/.test(msg),
+                needsHealthCheck: /health\s*check|check.*tree|diagnos|cleanup|fix.*structure|redundan.*phase|empty.*phase|consolidat/.test(msg)
             };
         }
 
@@ -45145,7 +45625,8 @@ COMMANDS (return as action in JSON):
 • expand_node / collapse_node - Toggle node
 • switch_to_canvas / switch_to_tree - Change view
 • open_wizard / deep_dive / find_redundancies - AI features
-• add_phase / delete_node / undo / redo`;
+• add_phase / delete_node / delete_phase:{id} / undo / redo
+• lifetree_health_check - (LifeTree only) Diagnose structure issues`;
         }
 
         /**
@@ -45177,6 +45658,7 @@ KEY FEATURES:
 • Smart Suggest: AI fills fields contextually
 • Hyperedges: Cross-phase connections (Canvas View → multi-select → Create)
 • Find Redundancies: Detect duplicate nodes
+• Health Check (lifetree_health_check): LifeTree diagnostics - empty phases, redundant periods, chronology
 • Voice Capture: Mobile recording → AI processing
 • Artifacts: Attach files to nodes
 • Live Sync: Real-time collaboration`;
@@ -45450,8 +45932,15 @@ RESPONSE FORMAT (JSON only):
 Return ONLY valid JSON.`;
 
             // Tier 2: Add commands if navigation/editing detected (~200 tokens)
-            if (intent.needsNavigation || intent.needsEditing || intent.isComplex) {
+            if (intent.needsNavigation || intent.needsEditing || intent.isComplex || intent.needsHealthCheck) {
                 systemPrompt += getCommandVocabulary();
+            }
+
+            // BUILD 392: Direct health check execution for LifeTree
+            if (intent.needsHealthCheck && context.pattern === 'lifetree') {
+                // Execute directly without AI call
+                const result = COMMAND_REGISTRY['lifetree_health_check']();
+                return typeof result === 'object' ? result : { message: result, buttons: null };
             }
 
             // Tier 3: Add pattern fields if pattern questions detected (~100 tokens)
@@ -45470,7 +45959,7 @@ Return ONLY valid JSON.`;
             }
 
             // Log token savings in dev
-            console.log(`🌳 TreeBeard prompt tiers: greeting=${intent.isGreeting}, nav=${intent.needsNavigation}, edit=${intent.needsEditing}, help=${intent.needsFeatureHelp}, pattern=${intent.needsPatternInfo}, lifetree=${context.pattern === 'lifetree'}`);
+            console.log(`🌳 TreeBeard prompt tiers: greeting=${intent.isGreeting}, nav=${intent.needsNavigation}, edit=${intent.needsEditing}, help=${intent.needsFeatureHelp}, pattern=${intent.needsPatternInfo}, lifetree=${context.pattern === 'lifetree'}, healthCheck=${intent.needsHealthCheck}`);
 
             // Always add minimal rules
             systemPrompt += `
@@ -47855,7 +48344,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 361; // Update this with each build
+                    const KNOWN_LATEST = 392; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
