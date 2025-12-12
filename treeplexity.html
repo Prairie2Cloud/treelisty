@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 394 | 2025-12-12
+    TreeListy v2.17.0 | Build 395 | 2025-12-12
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 394): 🎯 Context-Aware Action Buttons
-    - Dynamic button generation based on selection state
-    - Node-focused buttons: Edit, Deep Dive, Expand, Insight (when node selected)
-    - Multi-select buttons: Hyperedge, Compare, Group (2+ nodes)
-    - Pattern-specific buttons for LifeTree, Philosophy, Sales, CAPEX
-    - Context bar shows focused node with breadcrumb path
-    - Auto-refresh on node clicks and after command execution
+    Changelog (Build 395): 🌈 Visual Feedback System
+    - Real-time node highlighting: Found, New, Edited, Enhanced labels
+    - Colored overlays with pulse animation on affected nodes
+    - Works in both Tree View and Canvas View
+    - Connection lines for hyperedge visualization
+    - Auto-cleanup after configurable duration
+    - Integrated with find_node command
 
+    Previous (Build 394): 🎯 Context-Aware Action Buttons
     Previous (Build 393): 🎯 Floating Command Frame (New Chat UI)
     Previous (Build 392): 🩺 LifeTree Health Check + 💬 GPT-5.2 Support
     Previous (Build 391): 🗑️ Phase Delete Support
@@ -639,7 +640,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 394,
+            build: 395,
             date: '2025-12-12',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3547,6 +3548,39 @@
             opacity: 1;
             transform: translateX(-50%) translateY(0);
         }
+    }
+
+    /* BUILD 395: Visual Feedback Animations */
+    @keyframes vfPulse {
+        0%, 100% { opacity: 1; }
+        50% { opacity: 0.6; }
+    }
+
+    @keyframes vfBadgeFloat {
+        from {
+            opacity: 0;
+            transform: translateX(-50%) translateY(10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+    }
+
+    @keyframes vfLineDash {
+        to { stroke-dashoffset: -12; }
+    }
+
+    .vf-pulse {
+        animation: vfPulse 1s ease-in-out infinite;
+    }
+
+    .vf-overlay {
+        transition: opacity 0.3s ease-out;
+    }
+
+    .vf-badge, .vf-canvas-badge {
+        animation: vfBadgeFloat 0.3s ease-out;
     }
 
     /* Command Frame Header */
@@ -43338,6 +43372,11 @@ ${transcript}`;
                     nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
 
+                // BUILD 395: Visual feedback for found node
+                if (window.visualFeedback) {
+                    window.visualFeedback.highlight(firstMatch.id, 'found', 4000);
+                }
+
                 const matchList = results.slice(0, 5).map((r, i) =>
                     `${i + 1}. "${r.node.name || r.node.title}" (${r.matchField})`
                 ).join('\n');
@@ -47219,6 +47258,301 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         window.updateContextBar = updateContextBar;
         window.actionButtonGenerator = actionButtonGenerator;
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 395: Visual Feedback System
+        // ═══════════════════════════════════════════════════════════════
+
+        const visualFeedback = {
+            // Feedback types with colors and icons
+            types: {
+                found: { color: 'rgba(34, 197, 94, 0.4)', border: '#22c55e', icon: '🔍', label: 'Found' },
+                added: { color: 'rgba(59, 130, 246, 0.4)', border: '#3b82f6', icon: '➕', label: 'New' },
+                edited: { color: 'rgba(249, 115, 22, 0.4)', border: '#f97316', icon: '✏️', label: 'Edited' },
+                enhanced: { color: 'rgba(168, 85, 247, 0.4)', border: '#a855f7', icon: '✨', label: 'Enhanced' },
+                deleted: { color: 'rgba(239, 68, 68, 0.4)', border: '#ef4444', icon: '🗑️', label: 'Deleted' },
+                focused: { color: 'rgba(99, 102, 241, 0.4)', border: '#6366f1', icon: '📍', label: 'Focused' }
+            },
+
+            // Active overlays (for cleanup)
+            activeOverlays: [],
+
+            /**
+             * Highlight a node with visual feedback
+             * @param {string} nodeId - ID of the node to highlight
+             * @param {string} type - Feedback type (found, added, edited, enhanced, deleted, focused)
+             * @param {number} duration - How long to show (ms), 0 = permanent until clear
+             */
+            highlight(nodeId, type = 'found', duration = 3000) {
+                const feedback = this.types[type] || this.types.found;
+                const isCanvasView = document.getElementById('canvas-container')?.classList.contains('active');
+
+                if (isCanvasView) {
+                    this.highlightCanvasNode(nodeId, feedback, duration);
+                } else {
+                    this.highlightTreeNode(nodeId, feedback, duration);
+                }
+            },
+
+            /**
+             * Highlight node in tree view
+             */
+            highlightTreeNode(nodeId, feedback, duration) {
+                // Try multiple selectors
+                const selectors = [
+                    `[data-item-id="${nodeId}"]`,
+                    `[data-node-id="${nodeId}"]`,
+                    `[data-id="${nodeId}"]`
+                ];
+
+                let nodeEl = null;
+                for (const selector of selectors) {
+                    nodeEl = document.querySelector(selector);
+                    if (nodeEl) break;
+                }
+
+                if (!nodeEl) return;
+
+                // Scroll into view
+                nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+                // Create overlay
+                const overlay = document.createElement('div');
+                overlay.className = 'vf-overlay vf-pulse';
+                overlay.style.cssText = `
+                    position: absolute;
+                    top: 0; left: 0; right: 0; bottom: 0;
+                    background: ${feedback.color};
+                    border: 2px solid ${feedback.border};
+                    border-radius: 8px;
+                    pointer-events: none;
+                    z-index: 100;
+                `;
+
+                // Create label badge
+                const badge = document.createElement('div');
+                badge.className = 'vf-badge';
+                badge.style.cssText = `
+                    position: absolute;
+                    top: -8px; right: -8px;
+                    background: ${feedback.border};
+                    color: white;
+                    padding: 2px 8px;
+                    border-radius: 12px;
+                    font-size: 11px;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    z-index: 101;
+                    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+                `;
+                badge.innerHTML = `${feedback.icon} ${feedback.label}`;
+
+                // Ensure parent is positioned
+                const originalPosition = nodeEl.style.position;
+                if (!originalPosition || originalPosition === 'static') {
+                    nodeEl.style.position = 'relative';
+                }
+
+                nodeEl.appendChild(overlay);
+                nodeEl.appendChild(badge);
+                this.activeOverlays.push({ overlay, badge, nodeEl, originalPosition });
+
+                // Auto-remove after duration
+                if (duration > 0) {
+                    setTimeout(() => {
+                        this.removeOverlay(overlay, badge, nodeEl, originalPosition);
+                    }, duration);
+                }
+            },
+
+            /**
+             * Highlight node in canvas view
+             */
+            highlightCanvasNode(nodeId, feedback, duration) {
+                const nodeEl = document.querySelector(`.canvas-node[data-node-id="${nodeId}"]`);
+                if (!nodeEl) return;
+
+                // Pan to node if needed
+                const rect = nodeEl.getBoundingClientRect();
+                const container = document.getElementById('canvas-container');
+                if (container) {
+                    const containerRect = container.getBoundingClientRect();
+                    if (rect.left < containerRect.left || rect.right > containerRect.right ||
+                        rect.top < containerRect.top || rect.bottom > containerRect.bottom) {
+                        nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+                    }
+                }
+
+                // Apply glow effect
+                const originalBoxShadow = nodeEl.style.boxShadow;
+                const originalBorder = nodeEl.style.border;
+
+                nodeEl.style.boxShadow = `0 0 20px ${feedback.border}, 0 0 40px ${feedback.color}`;
+                nodeEl.style.border = `3px solid ${feedback.border}`;
+                nodeEl.classList.add('vf-pulse');
+
+                // Create floating badge
+                const badge = document.createElement('div');
+                badge.className = 'vf-canvas-badge';
+                badge.style.cssText = `
+                    position: absolute;
+                    top: -24px; left: 50%;
+                    transform: translateX(-50%);
+                    background: ${feedback.border};
+                    color: white;
+                    padding: 2px 10px;
+                    border-radius: 12px;
+                    font-size: 12px;
+                    font-weight: 600;
+                    white-space: nowrap;
+                    z-index: 1000;
+                    box-shadow: 0 2px 8px rgba(0,0,0,0.4);
+                    animation: vfBadgeFloat 0.5s ease-out;
+                `;
+                badge.innerHTML = `${feedback.icon} ${feedback.label}`;
+                nodeEl.style.position = 'relative';
+                nodeEl.appendChild(badge);
+
+                this.activeOverlays.push({
+                    nodeEl,
+                    badge,
+                    originalBoxShadow,
+                    originalBorder,
+                    isCanvas: true
+                });
+
+                // Auto-remove after duration
+                if (duration > 0) {
+                    setTimeout(() => {
+                        nodeEl.style.boxShadow = originalBoxShadow || '';
+                        nodeEl.style.border = originalBorder || '';
+                        nodeEl.classList.remove('vf-pulse');
+                        badge.remove();
+                    }, duration);
+                }
+            },
+
+            /**
+             * Highlight multiple nodes
+             */
+            highlightMultiple(nodeIds, type = 'found', duration = 3000, stagger = 100) {
+                nodeIds.forEach((id, index) => {
+                    setTimeout(() => {
+                        this.highlight(id, type, duration);
+                    }, index * stagger);
+                });
+            },
+
+            /**
+             * Show a connection line between nodes (for hyperedge visualization)
+             */
+            showConnection(fromId, toId, color = 'rgba(139, 92, 246, 0.6)', duration = 3000) {
+                const container = document.getElementById('canvas-container');
+                if (!container?.classList.contains('active')) return;
+
+                const fromEl = document.querySelector(`.canvas-node[data-node-id="${fromId}"]`);
+                const toEl = document.querySelector(`.canvas-node[data-node-id="${toId}"]`);
+                if (!fromEl || !toEl) return;
+
+                const fromRect = fromEl.getBoundingClientRect();
+                const toRect = toEl.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+
+                const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+                svg.style.cssText = `
+                    position: fixed;
+                    top: 0; left: 0;
+                    width: 100%; height: 100%;
+                    pointer-events: none;
+                    z-index: 999;
+                `;
+
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', fromRect.left + fromRect.width / 2);
+                line.setAttribute('y1', fromRect.top + fromRect.height / 2);
+                line.setAttribute('x2', toRect.left + toRect.width / 2);
+                line.setAttribute('y2', toRect.top + toRect.height / 2);
+                line.setAttribute('stroke', color);
+                line.setAttribute('stroke-width', '3');
+                line.setAttribute('stroke-dasharray', '8,4');
+                line.style.animation = 'vfLineDash 0.5s linear infinite';
+
+                svg.appendChild(line);
+                document.body.appendChild(svg);
+
+                if (duration > 0) {
+                    setTimeout(() => svg.remove(), duration);
+                }
+
+                return svg;
+            },
+
+            /**
+             * Clear all visual feedback
+             */
+            clearAll() {
+                this.activeOverlays.forEach(item => {
+                    if (item.isCanvas) {
+                        item.nodeEl.style.boxShadow = item.originalBoxShadow || '';
+                        item.nodeEl.style.border = item.originalBorder || '';
+                        item.nodeEl.classList.remove('vf-pulse');
+                        item.badge?.remove();
+                    } else {
+                        this.removeOverlay(item.overlay, item.badge, item.nodeEl, item.originalPosition);
+                    }
+                });
+                this.activeOverlays = [];
+
+                // Remove any connection lines
+                document.querySelectorAll('svg[style*="pointer-events: none"]').forEach(svg => svg.remove());
+            },
+
+            /**
+             * Remove a specific overlay
+             */
+            removeOverlay(overlay, badge, nodeEl, originalPosition) {
+                overlay?.remove();
+                badge?.remove();
+                if (nodeEl && originalPosition !== undefined) {
+                    nodeEl.style.position = originalPosition || '';
+                }
+            },
+
+            /**
+             * Flash feedback (quick pulse without label)
+             */
+            flash(nodeId, type = 'focused', count = 2) {
+                const feedback = this.types[type] || this.types.focused;
+                const isCanvasView = document.getElementById('canvas-container')?.classList.contains('active');
+
+                const selectors = isCanvasView
+                    ? [`.canvas-node[data-node-id="${nodeId}"]`]
+                    : [`[data-item-id="${nodeId}"]`, `[data-node-id="${nodeId}"]`];
+
+                let nodeEl = null;
+                for (const selector of selectors) {
+                    nodeEl = document.querySelector(selector);
+                    if (nodeEl) break;
+                }
+
+                if (!nodeEl) return;
+
+                let flashCount = 0;
+                const interval = setInterval(() => {
+                    nodeEl.style.boxShadow = flashCount % 2 === 0
+                        ? `0 0 15px ${feedback.border}, inset 0 0 10px ${feedback.color}`
+                        : '';
+                    flashCount++;
+                    if (flashCount >= count * 2) {
+                        clearInterval(interval);
+                        nodeEl.style.boxShadow = '';
+                    }
+                }, 200);
+            }
+        };
+
+        // Expose globally
+        window.visualFeedback = visualFeedback;
+
         function addMessage(content, type = 'assistant', buttons = null) {
             const messagesContainer = document.getElementById('chat-assistant-messages');
             const messageDiv = document.createElement('div');
@@ -49322,7 +49656,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 394; // Update this with each build
+                    const KNOWN_LATEST = 395; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
