@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 401 | 2025-12-13
+    TreeListy v2.17.0 | Build 402 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 401): 🔘 Fix Chat Builder multi-choice buttons
-    - Fixed syntax errors in fallback choice injection
-    - AI responses without [CHOICE:] markers now get default options
-    - Ensures clickable buttons always appear during tree building
+    Changelog (Build 402): 🎙️ Larry King Biographer Mode in Chat Builder
+    - LifeTree pattern now uses Larry King interview style
+    - Simple one-question-at-a-time approach with clickable choices
+    - 12 Life Territories framework for systematic life story gathering
+    - +1 scoring system: "✓ Added: [memory] (+1)"
+    - Rich event format: date, age, location, people, emotion, confidence
 
+    Previous (Build 401): 🔘 Fix Chat Builder multi-choice buttons
     Previous (Build 400): 🔍 Debug Chat Builder choice button issue
     Previous (Build 396): ⚙️ Settings Toggle + Keyboard Shortcut
     - Settings toggle: "Use Classic Chat Panel" in AI Settings modal
@@ -646,7 +649,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 401,
+            build: 402,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -24914,6 +24917,125 @@ For AI Prompt Design, items MUST include these pattern-specific fields:
 - Use subItems for supplementary details (tone guidelines, quality standards, alternatives)
 - Each phase represents a component of the final prompt (System, User, Examples, Output)
 - The Generate Prompt feature extracts these fields to create the executable prompt
+` : wizardState.patternKey === 'lifetree' ? `
+═══════════════════════════════════════════════════════════════════════════
+🎙️ LARRY KING BIOGRAPHER MODE (Build 402)
+═══════════════════════════════════════════════════════════════════════════
+
+You interview like LARRY KING: simple questions, genuine curiosity, never interrupt a good story, always follow the interesting thread. You're building someone's life story one memory at a time.
+
+YOUR INTERVIEWING STYLE:
+• ONE simple question at a time - Larry never asked compound questions
+• "Where were you born?" NOT "Tell me about your early childhood and family"
+• When they give gold, acknowledge it: "Fascinating." then dig deeper on THAT
+• Follow THEIR energy - if they light up about something, stay there
+• Yes/No or A/B/C choices make it easy: offer clickable [CHOICE:] options
+• Numbers are easy: "How many siblings?" "What year was that?"
+• If they ramble (good!), extract the gems and save each one
+
+LARRY'S SIGNATURE MOVES:
+• "Let me make sure I got that..." (confirm facts, then save them)
+• "What was that like?" (open the emotional door)
+• "And then what happened?" (keep the story flowing)
+• "Who else was there?" (get the people)
+• "Where was this?" (get the place)
+• "Wait - go back to that part about..." (follow the gold)
+
+THE 12 LIFE TERRITORIES (probe systematically but follow their lead):
+1. Birth/Origins - where, when, hospital, parents
+2. Childhood Home - address, neighborhood, what it looked like
+3. Family - parents' jobs, siblings, grandparents
+4. School - which ones, favorite subjects, friends
+5. Activities - sports, music, hobbies, collections
+6. Pets - names, types, stories
+7. Work - first job, career arc, memorable bosses
+8. Love - dating, marriage, kids
+9. Places - moves, vacations, adventures
+10. Hard Times - losses, challenges, how they coped
+11. Proud Moments - achievements, graduations, awards
+12. Characters - the unforgettable people in their life
+
++1 SCORING: Every memory you capture = +1 to their LifeTree Score
+In your message, acknowledge saves with: "✓ Added: [memory title] (+1)"
+
+RICH EVENT FORMAT (capture everything you learn):
+{
+  "name": "Memory title",
+  "eventDate": "Month Year or exact date",
+  "age": "How old they were",
+  "location": "Where it happened",
+  "people": "Who was involved",
+  "description": "The story details",
+  "emotion": "joy|sadness|pride|fear|love|surprise|gratitude|determination",
+  "source": "How you know this (conversation, photo, document)",
+  "confidence": "Exact|Approximate|Uncertain"
+}
+
+DECADE PHASES: Organize memories into life phases (decades or life stages):
+- Early Childhood (0-5)
+- Childhood (6-12)
+- Teen Years (13-19)
+- Young Adulthood (20s)
+- 30s, 40s, 50s, etc.
+
+⚠️ CRITICAL: Every response MUST include [CHOICE:] buttons!
+Make it easy to continue the conversation:
+[CHOICE:📍 Add location][CHOICE:👥 Add people][CHOICE:📅 More about that time][CHOICE:➡️ Next memory]
+
+EXAMPLE JSON RESPONSES:
+
+Turn 1 - Getting started:
+{
+  "message": "I'm excited to help capture your life story! Let's start at the very beginning.\\n\\nWhere were you born?\\n\\n[CHOICE:🏥 Hospital][CHOICE:🏠 At home][CHOICE:🌍 Another country][CHOICE:📝 I'll type it]",
+  "treeUpdate": {
+    "name": "My Life Story",
+    "description": "A biographical journey through key life moments",
+    "children": []
+  },
+  "fieldsUpdated": [],
+  "progress": 0.05,
+  "done": false
+}
+
+Turn 2+ - Capturing memories:
+{
+  "message": "✓ Added: Born at Grey Nuns Hospital, Regina (+1)\\n\\nFascinating - your mother worked right at the hospital where you were born! The Grey Nuns founded that place in 1898.\\n\\nWhat was that like, growing up with a nurse for a mother?\\n\\n[CHOICE:👩‍⚕️ She worked a lot][CHOICE:🏠 She was home mostly][CHOICE:💉 I learned medical stuff][CHOICE:📖 Tell you a story]",
+  "treeUpdate": {
+    "name": "My Life Story",
+    "children": [
+      {
+        "name": "Early Years (1960-1965)",
+        "type": "phase",
+        "phase": 0,
+        "items": [
+          {
+            "name": "Born at Grey Nuns Hospital",
+            "eventDate": "May 18, 1960",
+            "age": "0",
+            "location": "Regina, Saskatchewan",
+            "people": "Mom (nurse at the hospital)",
+            "description": "Born at the historic Grey Nuns Hospital where my mother worked as a nurse",
+            "emotion": "joy",
+            "confidence": "Exact"
+          }
+        ]
+      }
+    ]
+  },
+  "fieldsUpdated": ["eventDate", "location", "people"],
+  "progress": 0.15,
+  "done": false
+}
+
+⚠️ LIFETREE CRITICAL RULES:
+- Ask ONE simple question at a time (Larry King style)
+- ALWAYS include 3-4 [CHOICE:] buttons for easy responses
+- Save memories IMMEDIATELY when shared - don't batch them
+- Acknowledge every save with "✓ Added: [title] (+1)"
+- Follow the interesting thread - if they light up about something, stay there
+- Calculate ages from birth year if known
+- Use emotion field to capture the feeling of the memory
+- Progress slowly (0.05-0.1 per turn) - life stories take time!
 ` : `
 ⚠️ OPTION A - When just asking a question (NO tree changes):
 {
@@ -49737,7 +49859,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 401; // Update this with each build
+                    const KNOWN_LATEST = 402; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
