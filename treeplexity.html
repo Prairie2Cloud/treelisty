@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 404 | 2025-12-13
+    TreeListy v2.17.0 | Build 405 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,16 +18,19 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 404): 💡 Quick/Deep Mode Tooltips
-    - Informative tooltips on TreeBeard mode indicator
-    - Quick Mode: "find, add, summarize, health check"
-    - Deep Mode: "patterns, compare, complex questions"
-    - Hover to understand which mode to use
+    Changelog (Build 405): 🤖 Live Tree Agent Frame (Phase 1)
+    - NEW floating frame for Chat Builder (top-left, draggable)
+    - Green accent color, compact 380px width
+    - Full scrollable chat history with choice buttons
+    - Progress bar synced with wizard state
+    - Minimize/close buttons with animations
+    - Mobile-responsive (full-screen on small devices)
+    - Foundation for watching tree build in real-time
 
+    Previous (Build 404): 💡 Quick/Deep Mode Tooltips
     Previous (Build 403): ⚡ TreeBeard LifeTree Utility Mode
     Previous (Build 402): 🎙️ Larry King Biographer Mode in Chat Builder
     Previous (Build 401): 🔘 Fix Chat Builder multi-choice buttons
-    Previous (Build 400): 🔍 Debug Chat Builder choice button issue
     Previous (Build 396): ⚙️ Settings Toggle + Keyboard Shortcut
     - Settings toggle: "Use Classic Chat Panel" in AI Settings modal
     - Keyboard shortcut: Ctrl+/ (Cmd+/ on Mac) toggles chat
@@ -650,7 +653,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 404,
+            build: 405,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3893,6 +3896,401 @@
 
         .command-input-area {
             padding-bottom: max(12px, env(safe-area-inset-bottom));
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       BUILD 405: LIVE TREE AGENT (Chat Builder Redesign)
+       - Floating frame for watching tree build in real-time
+       - Top-left position, draggable
+       - Full chat history with choices
+       - Visual node highlighting integration
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    #tree-agent-frame {
+        position: fixed;
+        top: 80px;
+        left: 20px;
+        width: 380px;
+        max-height: 600px;
+        background: linear-gradient(180deg, rgba(30, 30, 46, 0.97), rgba(24, 24, 38, 0.98));
+        border: 2px solid rgba(16, 185, 129, 0.35);
+        border-radius: 16px;
+        box-shadow:
+            0 0 0 1px rgba(16, 185, 129, 0.15),
+            0 8px 32px rgba(0, 0, 0, 0.5),
+            0 0 60px rgba(16, 185, 129, 0.08);
+        z-index: 9999;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+    }
+
+    #tree-agent-frame.open {
+        display: flex;
+        animation: agentSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #tree-agent-frame.minimized .agent-body {
+        display: none;
+    }
+
+    #tree-agent-frame.minimized {
+        max-height: 56px;
+    }
+
+    @keyframes agentSlideIn {
+        from {
+            opacity: 0;
+            transform: translateX(-20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0) scale(1);
+        }
+    }
+
+    /* Agent Header */
+    .agent-header {
+        display: flex;
+        flex-direction: column;
+        padding: 12px 14px;
+        background: rgba(16, 185, 129, 0.1);
+        border-bottom: 1px solid rgba(16, 185, 129, 0.2);
+        cursor: grab;
+        user-select: none;
+    }
+
+    .agent-header:active { cursor: grabbing; }
+
+    .agent-title-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .agent-icon {
+        font-size: 18px;
+        animation: agentPulse 2s ease-in-out infinite;
+    }
+
+    @keyframes agentPulse {
+        0%, 100% { opacity: 1; transform: scale(1); }
+        50% { opacity: 0.8; transform: scale(1.05); }
+    }
+
+    .agent-title {
+        flex: 1;
+        font-size: 14px;
+        font-weight: 600;
+        color: #34d399;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .agent-progress-row {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 8px;
+    }
+
+    .agent-progress-bar {
+        flex: 1;
+        height: 6px;
+        background: rgba(0, 0, 0, 0.3);
+        border-radius: 3px;
+        overflow: hidden;
+    }
+
+    .agent-progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #10b981, #34d399);
+        border-radius: 3px;
+        transition: width 0.4s ease-out;
+    }
+
+    .agent-progress-text {
+        font-size: 12px;
+        color: #9ca3af;
+        min-width: 36px;
+        text-align: right;
+    }
+
+    .agent-header-actions {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        gap: 4px;
+    }
+
+    .agent-btn {
+        width: 28px;
+        height: 28px;
+        border: none;
+        border-radius: 6px;
+        background: transparent;
+        color: #9ca3af;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .agent-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: white;
+    }
+
+    /* Agent Body */
+    .agent-body {
+        display: flex;
+        flex-direction: column;
+        flex: 1;
+        min-height: 0;
+    }
+
+    /* Messages Area */
+    .agent-messages {
+        flex: 1;
+        overflow-y: auto;
+        padding: 12px;
+        max-height: 350px;
+        min-height: 150px;
+    }
+
+    .agent-message {
+        padding: 10px 12px;
+        margin-bottom: 10px;
+        border-radius: 12px;
+        font-size: 13px;
+        line-height: 1.5;
+        animation: msgFadeIn 0.3s ease-out;
+    }
+
+    @keyframes msgFadeIn {
+        from { opacity: 0; transform: translateY(8px); }
+        to { opacity: 1; transform: translateY(0); }
+    }
+
+    .agent-message.user {
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.4), rgba(139, 92, 246, 0.4));
+        color: white;
+        margin-left: 20%;
+        border-bottom-right-radius: 4px;
+    }
+
+    .agent-message.assistant {
+        background: rgba(45, 45, 65, 0.8);
+        color: #e5e7eb;
+        margin-right: 10%;
+        border-bottom-left-radius: 4px;
+    }
+
+    .agent-message.system {
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        color: #34d399;
+        font-size: 12px;
+        text-align: center;
+    }
+
+    /* Choices Container */
+    .agent-choices {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        padding: 0 12px 12px;
+    }
+
+    .agent-choice-btn {
+        padding: 8px 14px;
+        background: rgba(16, 185, 129, 0.15);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 20px;
+        color: #34d399;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .agent-choice-btn:hover {
+        background: rgba(16, 185, 129, 0.3);
+        border-color: rgba(16, 185, 129, 0.5);
+        transform: translateY(-1px);
+    }
+
+    .agent-choice-btn:active {
+        transform: translateY(0);
+    }
+
+    /* Input Row */
+    .agent-input-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 12px;
+        border-top: 1px solid rgba(16, 185, 129, 0.15);
+        background: rgba(0, 0, 0, 0.15);
+    }
+
+    #agent-input {
+        flex: 1;
+        padding: 10px 14px;
+        background: rgba(0, 0, 0, 0.3);
+        border: 1px solid rgba(16, 185, 129, 0.25);
+        border-radius: 10px;
+        color: white;
+        font-size: 13px;
+        outline: none;
+        transition: all 0.2s;
+    }
+
+    #agent-input:focus {
+        border-color: rgba(16, 185, 129, 0.5);
+        box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.1);
+    }
+
+    #agent-input::placeholder { color: #6b7280; }
+
+    .agent-input-btn {
+        width: 36px;
+        height: 36px;
+        border: none;
+        border-radius: 8px;
+        background: rgba(16, 185, 129, 0.2);
+        color: #34d399;
+        cursor: pointer;
+        font-size: 16px;
+        transition: all 0.2s;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .agent-input-btn:hover {
+        background: rgba(16, 185, 129, 0.35);
+        color: white;
+    }
+
+    .agent-input-btn.primary {
+        background: linear-gradient(135deg, #10b981, #059669);
+        color: white;
+    }
+
+    .agent-input-btn.primary:hover {
+        transform: scale(1.05);
+    }
+
+    /* Footer Actions */
+    .agent-footer {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        padding: 10px 12px;
+        border-top: 1px solid rgba(16, 185, 129, 0.15);
+        background: rgba(16, 185, 129, 0.05);
+    }
+
+    .agent-action-btn {
+        flex: 1;
+        padding: 10px 16px;
+        border: 1px solid rgba(107, 114, 128, 0.3);
+        border-radius: 8px;
+        background: transparent;
+        color: #9ca3af;
+        font-size: 13px;
+        font-weight: 500;
+        cursor: pointer;
+        transition: all 0.2s;
+    }
+
+    .agent-action-btn:hover {
+        background: rgba(107, 114, 128, 0.15);
+        color: #e5e7eb;
+    }
+
+    .agent-action-btn.primary {
+        background: linear-gradient(135deg, #10b981, #059669);
+        border-color: transparent;
+        color: white;
+    }
+
+    .agent-action-btn.primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+    }
+
+    /* Node Highlight Animations (for tree view integration) */
+    .node-new-highlight {
+        animation: nodeNewPulse 2s ease-out;
+        box-shadow: 0 0 20px rgba(16, 185, 129, 0.6);
+    }
+
+    .node-modified-highlight {
+        animation: nodeModifiedPulse 2s ease-out;
+        box-shadow: 0 0 20px rgba(234, 179, 8, 0.6);
+    }
+
+    @keyframes nodeNewPulse {
+        0% {
+            box-shadow: 0 0 0 rgba(16, 185, 129, 0.8);
+            background-color: rgba(16, 185, 129, 0.3);
+        }
+        50% {
+            box-shadow: 0 0 25px rgba(16, 185, 129, 0.6);
+        }
+        100% {
+            box-shadow: 0 0 0 rgba(16, 185, 129, 0);
+            background-color: transparent;
+        }
+    }
+
+    @keyframes nodeModifiedPulse {
+        0% {
+            box-shadow: 0 0 0 rgba(234, 179, 8, 0.8);
+            background-color: rgba(234, 179, 8, 0.2);
+        }
+        50% {
+            box-shadow: 0 0 25px rgba(234, 179, 8, 0.6);
+        }
+        100% {
+            box-shadow: 0 0 0 rgba(234, 179, 8, 0);
+            background-color: transparent;
+        }
+    }
+
+    /* Mobile Responsive */
+    @media screen and (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+        #tree-agent-frame.open {
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            max-width: 100vw;
+            height: 100vh;
+            max-height: 100vh;
+            border-radius: 0;
+            animation: none;
+        }
+
+        .agent-header {
+            padding-top: max(12px, env(safe-area-inset-top));
+        }
+
+        .agent-footer {
+            padding-bottom: max(10px, env(safe-area-inset-bottom));
+        }
+
+        .agent-messages {
+            max-height: none;
+            flex: 1;
         }
     }
 
@@ -24080,8 +24478,14 @@ Return ONLY the JSON array.`
             document.getElementById('wizard-chat-history').innerHTML = '';
             updateWizardPreview();
 
-            // Show modal
+            // Show modal (legacy - will be removed in Build 408)
             document.getElementById('wizard-modal').style.display = 'flex';
+
+            // BUILD 405: Also open Tree Agent frame (floating overlay)
+            const agentTitle = `${modeLabel} ${pattern.name}`;
+            if (typeof openTreeAgent === 'function') {
+                openTreeAgent(agentTitle);
+            }
 
             // Hide chat bubble to prevent overlap with modal buttons
             const chatBubble = document.getElementById('chat-assistant-bubble');
@@ -24188,6 +24592,12 @@ Return ONLY the JSON array.`
 
             chatHistory.appendChild(messageDiv);
             chatHistory.scrollTop = chatHistory.scrollHeight;
+
+            // BUILD 405: Also mirror message to Tree Agent frame
+            if (typeof addAgentMessage === 'function' && treeAgentState?.open) {
+                const agentRole = role === 'ai' ? 'assistant' : 'user';
+                addAgentMessage(agentRole, content);
+            }
         }
 
         // Handle wizard choice button click
@@ -24483,6 +24893,11 @@ Return ONLY the JSON array.`
                     const percentComplete = Math.round(parsed.progress * 100);
                     document.getElementById('wizard-progress-percent').textContent = `${percentComplete}%`;
                     document.getElementById('wizard-progress-bar').style.width = `${percentComplete}%`;
+
+                    // BUILD 405: Also update Tree Agent progress
+                    if (typeof updateAgentProgress === 'function') {
+                        updateAgentProgress(percentComplete);
+                    }
                 }
 
                 // Check if done
@@ -24490,6 +24905,11 @@ Return ONLY the JSON array.`
                     document.getElementById('wizard-completion').style.display = 'block';
                     document.getElementById('wizard-progress-bar').style.width = '100%';
                     document.getElementById('wizard-progress-percent').textContent = '100%';
+
+                    // BUILD 405: Update Tree Agent to 100%
+                    if (typeof updateAgentProgress === 'function') {
+                        updateAgentProgress(100, '✓ Done!');
+                    }
                 }
 
             } catch (error) {
@@ -30429,6 +30849,228 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
                 if (chatBubble) chatBubble.style.display = 'flex';
             }
         });
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // BUILD 405: LIVE TREE AGENT (Chat Builder Redesign)
+        // Floating frame with real-time tree building visualization
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        // Tree Agent State
+        window.treeAgentState = {
+            open: false,
+            minimized: false,
+            position: { x: 20, y: 80 } // Default top-left
+        };
+
+        // Open the Tree Agent frame
+        function openTreeAgent(title = 'Building Tree...') {
+            const frame = document.getElementById('tree-agent-frame');
+            if (!frame) return;
+
+            // Set title
+            document.getElementById('agent-title').textContent = title;
+
+            // Reset progress
+            document.getElementById('agent-progress-fill').style.width = '0%';
+            document.getElementById('agent-progress-text').textContent = '0%';
+
+            // Clear messages
+            document.getElementById('agent-messages').innerHTML = '';
+
+            // Show frame
+            frame.classList.add('open');
+            frame.classList.remove('minimized');
+            treeAgentState.open = true;
+            treeAgentState.minimized = false;
+
+            // Hide chat bubble to prevent overlap
+            const chatBubble = document.getElementById('chat-assistant-bubble');
+            if (chatBubble) chatBubble.style.display = 'none';
+
+            console.log('🤖 Tree Agent opened');
+        }
+        window.openTreeAgent = openTreeAgent;
+
+        // Close the Tree Agent frame
+        function closeTreeAgent(forceClose = false) {
+            const frame = document.getElementById('tree-agent-frame');
+            if (!frame) return;
+
+            // If active session, confirm close
+            if (!forceClose && wizardState?.active && !wizardState?.conversation?.length === 0) {
+                if (!confirm('Close the Tree Agent? Your conversation will be preserved.')) {
+                    return;
+                }
+            }
+
+            frame.classList.remove('open', 'minimized');
+            treeAgentState.open = false;
+            treeAgentState.minimized = false;
+
+            // Restore chat bubble
+            const chatBubble = document.getElementById('chat-assistant-bubble');
+            if (chatBubble) chatBubble.style.display = 'flex';
+
+            console.log('🤖 Tree Agent closed');
+        }
+        window.closeTreeAgent = closeTreeAgent;
+
+        // Toggle minimize state
+        function toggleTreeAgentMinimize() {
+            const frame = document.getElementById('tree-agent-frame');
+            if (!frame || !treeAgentState.open) return;
+
+            treeAgentState.minimized = !treeAgentState.minimized;
+            frame.classList.toggle('minimized', treeAgentState.minimized);
+
+            console.log('🤖 Tree Agent', treeAgentState.minimized ? 'minimized' : 'expanded');
+        }
+        window.toggleTreeAgentMinimize = toggleTreeAgentMinimize;
+
+        // Add a message to the Tree Agent chat
+        function addAgentMessage(role, content, choices = null) {
+            const messagesDiv = document.getElementById('agent-messages');
+            if (!messagesDiv) return;
+
+            const msgDiv = document.createElement('div');
+            msgDiv.className = `agent-message ${role}`;
+
+            // Parse content for [CHOICE:] markers
+            let displayContent = content;
+            const choiceMatches = content.match(/\[CHOICE:([^\]]+)\]/g);
+
+            if (choiceMatches) {
+                displayContent = content.replace(/\[CHOICE:[^\]]+\]/g, '').trim();
+            }
+
+            msgDiv.innerHTML = displayContent.replace(/\n/g, '<br>');
+            messagesDiv.appendChild(msgDiv);
+
+            // Add choice buttons if present
+            if (choiceMatches && choiceMatches.length > 0) {
+                // Remove any existing choices
+                const existingChoices = messagesDiv.parentElement.querySelector('.agent-choices');
+                if (existingChoices) existingChoices.innerHTML = '';
+
+                // Create choice container if it doesn't exist
+                let choicesDiv = messagesDiv.parentElement.querySelector('.agent-choices');
+                if (!choicesDiv) {
+                    choicesDiv = document.createElement('div');
+                    choicesDiv.className = 'agent-choices';
+                    messagesDiv.parentElement.insertBefore(choicesDiv, messagesDiv.nextSibling);
+                }
+
+                choiceMatches.forEach(match => {
+                    const label = match.replace('[CHOICE:', '').replace(']', '');
+                    const btn = document.createElement('button');
+                    btn.className = 'agent-choice-btn';
+                    btn.textContent = label;
+                    btn.addEventListener('click', () => {
+                        // Handle choice selection
+                        handleAgentChoice(label);
+                    });
+                    choicesDiv.appendChild(btn);
+                });
+            }
+
+            // Auto-scroll to bottom
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        window.addAgentMessage = addAgentMessage;
+
+        // Handle choice selection in Tree Agent
+        function handleAgentChoice(choice) {
+            // Add user message showing the choice
+            addAgentMessage('user', choice);
+
+            // Clear choice buttons
+            const choicesDiv = document.querySelector('#tree-agent-frame .agent-choices');
+            if (choicesDiv) choicesDiv.innerHTML = '';
+
+            // Forward to wizard handler if active
+            if (wizardState?.active) {
+                handleWizardChoice(choice);
+            }
+        }
+        window.handleAgentChoice = handleAgentChoice;
+
+        // Update Tree Agent progress
+        function updateAgentProgress(percent, text = null) {
+            const fill = document.getElementById('agent-progress-fill');
+            const textEl = document.getElementById('agent-progress-text');
+            if (fill) fill.style.width = `${percent}%`;
+            if (textEl) textEl.textContent = text || `${Math.round(percent)}%`;
+        }
+        window.updateAgentProgress = updateAgentProgress;
+
+        // Tree Agent event listeners
+        document.getElementById('agent-minimize-btn')?.addEventListener('click', toggleTreeAgentMinimize);
+        document.getElementById('agent-close-btn')?.addEventListener('click', () => closeTreeAgent(false));
+
+        document.getElementById('agent-cancel-btn')?.addEventListener('click', () => {
+            if (confirm('Cancel the current session? Your progress will be lost.')) {
+                closeTreeAgent(true);
+                // Reset wizard state
+                if (wizardState) wizardState.active = false;
+            }
+        });
+
+        document.getElementById('agent-finish-btn')?.addEventListener('click', () => {
+            if (wizardState?.workingTree) {
+                // Save state for undo
+                saveState('Tree Agent: Apply changes');
+
+                // Apply working tree to main tree
+                capexTree = JSON.parse(JSON.stringify(wizardState.workingTree));
+                currentPattern = wizardState.patternKey || currentPattern;
+
+                // Close agent
+                closeTreeAgent(true);
+
+                // Reset wizard state
+                if (wizardState) wizardState.active = false;
+
+                // Render updated tree
+                render();
+
+                showToast('✅ Tree changes applied!', 'success');
+                console.log('🤖 Tree Agent: Changes applied');
+            } else {
+                closeTreeAgent(true);
+            }
+        });
+
+        // Send button handler
+        document.getElementById('agent-send-btn')?.addEventListener('click', () => {
+            const input = document.getElementById('agent-input');
+            if (input && input.value.trim()) {
+                const text = input.value.trim();
+                input.value = '';
+
+                // Add user message
+                addAgentMessage('user', text);
+
+                // Forward to wizard if active
+                if (wizardState?.active) {
+                    handleWizardChoice(text);
+                }
+            }
+        });
+
+        // Enter key handler
+        document.getElementById('agent-input')?.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                document.getElementById('agent-send-btn')?.click();
+            }
+        });
+
+        // Voice input button (placeholder for future implementation)
+        document.getElementById('agent-voice-btn')?.addEventListener('click', () => {
+            showToast('🎤 Voice input coming soon!', 'info');
+        });
+
+        console.log('🤖 BUILD 405: Tree Agent initialized');
 
         // Auto-Enhance: Run AI Review then enhance tree automatically
         async function runAutoEnhance() {
@@ -49758,7 +50400,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 404; // Update this with each build
+                    const KNOWN_LATEST = 405; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -50139,6 +50781,40 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
     <!-- BUILD 393: Visual Feedback Overlay -->
     <div id="tree-feedback-overlay" class="feedback-overlay"></div>
+
+    <!-- BUILD 405: Live Tree Agent Frame (Chat Builder Redesign) -->
+    <div id="tree-agent-frame" class="tree-agent" style="display: none;">
+        <div class="agent-header">
+            <div class="agent-title-row">
+                <span class="agent-icon">🤖</span>
+                <span class="agent-title" id="agent-title">Building Tree...</span>
+            </div>
+            <div class="agent-progress-row">
+                <div class="agent-progress-bar">
+                    <div class="agent-progress-fill" id="agent-progress-fill" style="width: 0%;"></div>
+                </div>
+                <span class="agent-progress-text" id="agent-progress-text">0%</span>
+            </div>
+            <div class="agent-header-actions">
+                <button class="agent-btn" id="agent-minimize-btn" title="Minimize">−</button>
+                <button class="agent-btn" id="agent-close-btn" title="Close">✕</button>
+            </div>
+        </div>
+        <div class="agent-body" id="agent-body">
+            <div class="agent-messages" id="agent-messages">
+                <!-- Chat messages populated dynamically -->
+            </div>
+            <div class="agent-input-row">
+                <input type="text" id="agent-input" placeholder="Type or click a choice..." autocomplete="off">
+                <button class="agent-input-btn" id="agent-voice-btn" title="Voice input">🎤</button>
+                <button class="agent-input-btn primary" id="agent-send-btn" title="Send">➤</button>
+            </div>
+            <div class="agent-footer">
+                <button class="agent-action-btn" id="agent-cancel-btn">Cancel</button>
+                <button class="agent-action-btn primary" id="agent-finish-btn">✅ Finish & Apply</button>
+            </div>
+        </div>
+    </div>
 
     <!-- BUILD 371: Artifact Side Panel -->
     <div id="artifact-panel">
