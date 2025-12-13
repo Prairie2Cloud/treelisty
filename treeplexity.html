@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 405 | 2025-12-13
+    TreeListy v2.17.0 | Build 406 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 405): 🤖 Live Tree Agent Frame (Phase 1)
-    - NEW floating frame for Chat Builder (top-left, draggable)
-    - Green accent color, compact 380px width
-    - Full scrollable chat history with choice buttons
-    - Progress bar synced with wizard state
-    - Minimize/close buttons with animations
-    - Mobile-responsive (full-screen on small devices)
-    - Foundation for watching tree build in real-time
+    Changelog (Build 406): ✨ Visual Node Highlighting
+    - NEW nodes pulse green when added during Chat Builder
+    - Modified nodes pulse yellow when updated
+    - Highlights fade after 5 seconds
+    - Auto-cleanup of tracked changes
+    - Works in both tree view patterns (filesystem + default)
+    - Tracking integrated with mergeTreeUpdate()
 
+    Previous (Build 405): 🤖 Live Tree Agent Frame (Phase 1)
     Previous (Build 404): 💡 Quick/Deep Mode Tooltips
     Previous (Build 403): ⚡ TreeBeard LifeTree Utility Mode
     Previous (Build 402): 🎙️ Larry King Biographer Mode in Chat Builder
@@ -653,7 +653,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 405,
+            build: 406,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -18002,6 +18002,14 @@ function hidePatternDescription() {
                     else nodeDiv.classList.add('collapsed');
                     nodeDiv.dataset.nodeId = node.id;
 
+                    // BUILD 406: Apply visual highlighting for recently changed nodes
+                    if (typeof hasRecentChange === 'function') {
+                        const change = hasRecentChange(node.id);
+                        if (change) {
+                            nodeDiv.classList.add(change.type === 'new' ? 'node-new-highlight' : 'node-modified-highlight');
+                        }
+                    }
+
                     // Build node content
                     if (node.type === 'root') {
                         const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0) || (node.children && node.children.length > 0);
@@ -18166,6 +18174,14 @@ function hidePatternDescription() {
                 else nodeDiv.classList.add('collapsed');
 
                 nodeDiv.dataset.nodeId = node.id;
+
+                // BUILD 406: Apply visual highlighting for recently changed nodes
+                if (typeof hasRecentChange === 'function') {
+                    const change = hasRecentChange(node.id);
+                    if (change) {
+                        nodeDiv.classList.add(change.type === 'new' ? 'node-new-highlight' : 'node-modified-highlight');
+                    }
+                }
 
                 if (node.type === 'root') {
                     nodeDiv.innerHTML = `
@@ -25619,6 +25635,11 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                     console.log(`  🔄 Merging item: ${updatedItem.name}`);
                                     matchedItemIds.add(existingItem.id);
 
+                                    // BUILD 406: Track as modified
+                                    if (typeof trackNodeChange === 'function') {
+                                        trackNodeChange(existingItem.id, 'modified');
+                                    }
+
                                     // Merge all fields (keep existing if not in update)
                                     Object.keys(updatedItem).forEach(key => {
                                         if (key !== 'subItems' && key !== 'children' && updatedItem[key] !== undefined && updatedItem[key] !== '') {
@@ -25704,6 +25725,11 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                         newItem[nestedArrayName] = addNestedItemIds(updatedItem[nestedArrayName], nestedArrayName, existingPhase.phase, newItemIdx);
                                     }
                                     existingPhase[itemsArrayName].push(newItem);
+
+                                    // BUILD 406: Track as new
+                                    if (typeof trackNodeChange === 'function') {
+                                        trackNodeChange(newItem.id, 'new');
+                                    }
                                 }
                             });
 
@@ -25730,7 +25756,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                             }));
                         }
 
-                        wizardState.workingTree.children.push({
+                        const newPhase = {
                             id: `phase-${newPhaseIdx}`,
                             type: 'phase',
                             phase: newPhaseIdx,
@@ -25753,7 +25779,17 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                                 },
                                 subItems: addSubItemIds(item.subItems, newPhaseIdx, itemIdx)
                             }))
-                        });
+                        };
+                        wizardState.workingTree.children.push(newPhase);
+
+                        // BUILD 406: Track new phase and its items
+                        if (typeof trackNodeChange === 'function') {
+                            trackNodeChange(newPhase.id, 'new');
+                            // Also track each new item in the phase
+                            (newPhase.items || []).forEach(item => {
+                                trackNodeChange(item.id, 'new');
+                            });
+                        }
                     }
                 });
 
@@ -30861,6 +30897,53 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
             minimized: false,
             position: { x: 20, y: 80 } // Default top-left
         };
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // BUILD 406: NODE CHANGE TRACKING (Visual Highlighting)
+        // Track recently changed nodes for visual feedback in tree view
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        // Map of nodeId → { type: 'new'|'modified', timestamp: Date.now() }
+        window.recentlyChangedNodes = new Map();
+
+        // Track a node as changed
+        function trackNodeChange(nodeId, changeType = 'new') {
+            if (!nodeId) return;
+            window.recentlyChangedNodes.set(nodeId, {
+                type: changeType,
+                timestamp: Date.now()
+            });
+            console.log(`✨ Node tracked: ${nodeId} (${changeType})`);
+        }
+        window.trackNodeChange = trackNodeChange;
+
+        // Check if a node has recent changes (within last 5 seconds)
+        function hasRecentChange(nodeId) {
+            const change = window.recentlyChangedNodes.get(nodeId);
+            if (!change) return null;
+            if (Date.now() - change.timestamp > 5000) {
+                window.recentlyChangedNodes.delete(nodeId);
+                return null;
+            }
+            return change;
+        }
+        window.hasRecentChange = hasRecentChange;
+
+        // Clear all tracked changes
+        function clearTrackedChanges() {
+            window.recentlyChangedNodes.clear();
+        }
+        window.clearTrackedChanges = clearTrackedChanges;
+
+        // Auto-cleanup old changes every 3 seconds
+        setInterval(() => {
+            const now = Date.now();
+            for (const [nodeId, change] of window.recentlyChangedNodes) {
+                if (now - change.timestamp > 5000) {
+                    window.recentlyChangedNodes.delete(nodeId);
+                }
+            }
+        }, 3000);
 
         // Open the Tree Agent frame
         function openTreeAgent(title = 'Building Tree...') {
@@ -50400,7 +50483,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 405; // Update this with each build
+                    const KNOWN_LATEST = 406; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
