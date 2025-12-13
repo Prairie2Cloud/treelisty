@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 408 | 2025-12-13
+    TreeListy v2.17.0 | Build 409 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 408): 🔗 Tree Agent Full Integration
-    - Tree Agent is now primary UI for Chat Builder
-    - Old wizard modal kept as fallback only
-    - Messages route to Tree Agent first
-    - Finish/Cancel buttons sync both UIs
-    - Complete Chat Builder redesign (Builds 405-408)
+    Changelog (Build 409): 🖱️ Fix Right-Click Context Menu
+    - Fixed context menu not appearing for items, phases, root nodes
+    - Added type-ensuring code for all node types (matches subtask behavior)
+    - Items without type property now get type='item' automatically
+    - Phases get type='phase', root gets type='root'
+    - Filesystem pattern also fixed
 
+    Previous (Build 408): 🔗 Tree Agent Full Integration
     Previous (Build 407): 🖱️ Draggable Agent Frame
     Previous (Build 406): ✨ Visual Node Highlighting
     Previous (Build 405): 🤖 Live Tree Agent Frame (Phase 1)
@@ -654,7 +655,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 408,
+            build: 409,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -17999,6 +18000,13 @@ function hidePatternDescription() {
                 tableEl.classList.add('filesystem-tree');
 
                 function buildFilesystemNode(node, depth = 0) {
+                    // BUILD 409: Ensure node has type set for context menu to work
+                    if (!node.type) {
+                        if (node.id === 'root' || depth === 0) node.type = 'root';
+                        else if (node.children && node.children.length > 0) node.type = 'phase'; // Folders
+                        else node.type = 'item'; // Files
+                    }
+
                     // Initialize expanded property if not set
                     if (node.expanded === undefined) {
                         node.expanded = (depth === 0 || depth === 1); // Auto-expand root and drives
@@ -18171,6 +18179,13 @@ function hidePatternDescription() {
             // DEFAULT PATTERN: Use horizontal column layout
             // Traverse and build columns
             function buildColumn(node) {
+                // BUILD 409: Ensure node has type set for context menu to work
+                if (!node.type) {
+                    if (node.id === 'root' || node.id === capexTree.id) node.type = 'root';
+                    else if (node.phase !== undefined || node.phaseNumber !== undefined) node.type = 'phase';
+                    else node.type = 'item';
+                }
+
                 const levelDiv = document.createElement('div');
                 levelDiv.className = 'tree-level';
 
@@ -18430,6 +18445,11 @@ function hidePatternDescription() {
                             : topologicalSort(node.items, phaseItemIds);  // Use dependency-based order otherwise
 
                         sortedItems.forEach(item => {
+                            // BUILD 409: Ensure item has type set (matches subtask behavior)
+                            if (!item.type) {
+                                item.type = 'item';
+                            }
+
                             const itemDiv = document.createElement('div');
                             itemDiv.className = `tree-node item phase-${node.phase}`;
                             itemDiv.dataset.itemId = item.id; // Add item ID for dependency linking
@@ -50634,7 +50654,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 408; // Update this with each build
+                    const KNOWN_LATEST = 409; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
