@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 407 | 2025-12-13
+    TreeListy v2.17.0 | Build 408 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 407): 🖱️ Draggable Agent Frame
-    - Drag agent frame by header to any position
-    - Position persists to localStorage
-    - Double-click header to reset position
-    - Touch support for mobile dragging
-    - Cursor changes to grabbing while dragging
-    - Bounds checking keeps frame on screen
+    Changelog (Build 408): 🔗 Tree Agent Full Integration
+    - Tree Agent is now primary UI for Chat Builder
+    - Old wizard modal kept as fallback only
+    - Messages route to Tree Agent first
+    - Finish/Cancel buttons sync both UIs
+    - Complete Chat Builder redesign (Builds 405-408)
 
+    Previous (Build 407): 🖱️ Draggable Agent Frame
     Previous (Build 406): ✨ Visual Node Highlighting
     Previous (Build 405): 🤖 Live Tree Agent Frame (Phase 1)
     Previous (Build 404): 💡 Quick/Deep Mode Tooltips
@@ -654,7 +654,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 407,
+            build: 408,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -24486,22 +24486,23 @@ Return ONLY the JSON array.`
             const patternFields = pattern.fields || {};
             wizardState.totalFields = Object.keys(patternFields).length;
 
-            // Update modal title
+            // Get pattern info
             const modeLabel = enhanceMode ? '✨ Enhancing' : '🪄 Building';
-            document.getElementById('wizard-title').textContent = `${modeLabel} Your ${pattern.name}`;
-            document.getElementById('wizard-fields-total').textContent = wizardState.totalFields;
 
-            // Clear chat and preview
-            document.getElementById('wizard-chat-history').innerHTML = '';
+            // BUILD 408: Clear old wizard history (still used internally for compatibility)
+            const wizardChatHistory = document.getElementById('wizard-chat-history');
+            if (wizardChatHistory) wizardChatHistory.innerHTML = '';
             updateWizardPreview();
 
-            // Show modal (legacy - will be removed in Build 408)
-            document.getElementById('wizard-modal').style.display = 'flex';
-
-            // BUILD 405: Also open Tree Agent frame (floating overlay)
+            // BUILD 408: Use Tree Agent as primary UI (replaces old wizard modal)
             const agentTitle = `${modeLabel} ${pattern.name}`;
             if (typeof openTreeAgent === 'function') {
                 openTreeAgent(agentTitle);
+            } else {
+                // Fallback to old modal if Tree Agent not available
+                document.getElementById('wizard-title').textContent = `${modeLabel} Your ${pattern.name}`;
+                document.getElementById('wizard-fields-total').textContent = wizardState.totalFields;
+                document.getElementById('wizard-modal').style.display = 'flex';
             }
 
             // Hide chat bubble to prevent overlap with modal buttons
@@ -24607,13 +24608,17 @@ Return ONLY the JSON array.`
                 messageDiv.textContent = content;
             }
 
-            chatHistory.appendChild(messageDiv);
-            chatHistory.scrollTop = chatHistory.scrollHeight;
-
-            // BUILD 405: Also mirror message to Tree Agent frame
+            // BUILD 408: Tree Agent is now primary UI
+            // Add to Tree Agent first (primary), then old wizard (secondary/fallback)
             if (typeof addAgentMessage === 'function' && treeAgentState?.open) {
                 const agentRole = role === 'ai' ? 'assistant' : 'user';
                 addAgentMessage(agentRole, content);
+            }
+
+            // Also add to old wizard chat history (for compatibility/fallback)
+            if (chatHistory) {
+                chatHistory.appendChild(messageDiv);
+                chatHistory.scrollTop = chatHistory.scrollHeight;
             }
         }
 
@@ -30855,7 +30860,7 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
             preview.innerHTML = html;
         }
 
-        // Finish wizard
+        // Finish wizard (old modal button - still kept for compatibility)
         document.getElementById('wizard-done').addEventListener('click', () => {
             // Save state for undo
             saveState('AI Wizard: Apply changes');
@@ -30867,6 +30872,11 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
             // Close modal
             document.getElementById('wizard-modal').style.display = 'none';
 
+            // BUILD 408: Also close Tree Agent if open
+            if (typeof closeTreeAgent === 'function') {
+                closeTreeAgent(true);
+            }
+
             // Restore chat bubble
             const chatBubbleRestore = document.getElementById('chat-assistant-bubble');
             if (chatBubbleRestore) chatBubbleRestore.style.display = 'flex';
@@ -30877,10 +30887,16 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
             console.log('🪄 Wizard complete! Tree applied.');
         });
 
-        // Cancel wizard
+        // Cancel wizard (old modal button - still kept for compatibility)
         document.getElementById('wizard-cancel').addEventListener('click', () => {
             if (confirm('Are you sure? Your progress will be lost.')) {
                 document.getElementById('wizard-modal').style.display = 'none';
+
+                // BUILD 408: Also close Tree Agent if open
+                if (typeof closeTreeAgent === 'function') {
+                    closeTreeAgent(true);
+                }
+
                 // Restore chat bubble
                 const chatBubble = document.getElementById('chat-assistant-bubble');
                 if (chatBubble) chatBubble.style.display = 'flex';
@@ -50608,7 +50624,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 407; // Update this with each build
+                    const KNOWN_LATEST = 408; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
