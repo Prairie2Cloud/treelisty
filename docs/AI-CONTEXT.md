@@ -1,7 +1,7 @@
 # TreeListy AI Context Document
 
-**Current Version**: v2.17.0 (Build 361)
-**Last Updated**: 2025-12-07
+**Current Version**: v2.17.0 (Build 408)
+**Last Updated**: 2025-12-13
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -64,10 +64,41 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Current Version Highlights (Builds 263-361)
+## Current Version Highlights (Builds 263-408)
+
+### Live Tree Agent (Builds 405-408)
+1. **🤖 Live Tree Agent Frame** (Build 405): Floating chat builder frame
+   - Replaces cramped wizard modal with draggable floating frame
+   - Full chat history with scrollable messages
+   - Progress bar synced with tree building
+   - Voice input and choice buttons
+2. **✨ Visual Node Highlighting** (Build 406): Real-time change indicators
+   - Green pulse animation for new nodes
+   - Yellow pulse animation for modified nodes
+   - 5-second highlight duration with fade
+   - Integrated with both Tree View and Filesystem pattern
+3. **📍 Draggable + Position Persistence** (Build 407): Frame positioning
+   - Drag header to move frame anywhere
+   - Position saved to localStorage
+   - Double-click header to reset to default
+   - Touch support for mobile devices
+4. **🔗 Wizard Integration** (Build 408): Full wizard system integration
+   - Tree Agent as primary UI (old wizard as fallback)
+   - Messages routed through Tree Agent first
+   - Cancel/Finish handlers close Tree Agent
+
+### LifeTree Health Check (Build 392)
+5. **🩺 LifeTree Health Diagnostics**: Proactive health checks
+   - Detects empty phases, redundant periods, chronology gaps
+   - Sparse event detection for incomplete records
+   - Fix commands: consolidate_legacy, fix_chronology, fill_empty
+   - TreeBeard integration: "check my life tree health"
+6. **🎯 GPT-5.2 Models**: New OpenAI model support
+   - GPT-5.2 Pro, GPT-5.2 base, GPT-5.2 Chat
+   - Added to model provider dropdown
 
 ### Recent Features (Builds 318-361)
-1. **🔗 Pivot-Style Smart Hyperedges** (Build 361): Intelligent hyperedge system
+7. **🔗 Pivot-Style Smart Hyperedges** (Build 361): Intelligent hyperedge system
    - Smart auto-grouping: Suggests hyperedges based on status, assignee, cost patterns
    - Query builder: Create hyperedges with filter conditions (status=X, cost>$500K)
    - Live aggregates: Shows totals ($2.3M • 67% • 4 nodes) on each hyperedge
@@ -262,6 +293,15 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 | Build | Date | Key Feature |
 |-------|------|-------------|
+| 408 | 2025-12-13 | Live Tree Agent - Full wizard integration |
+| 407 | 2025-12-13 | Draggable frame + position persistence |
+| 406 | 2025-12-13 | Visual node highlighting (new/modified pulse) |
+| 405 | 2025-12-13 | Live Tree Agent frame (replaces wizard modal) |
+| 392 | 2025-12-13 | LifeTree Health Check + GPT-5.2 support |
+| 390 | 2025-12-12 | Visual Type Distinction for Canvas Nodes |
+| 389 | 2025-12-12 | Semantic Type Indicators (chess-like variations) |
+| 388 | 2025-12-12 | Edit Any Depth Node |
+| 387 | 2025-12-11 | Fix LifeTree JSON Schema + Edit Support |
 | 361 | 2025-12-07 | Pivot-Style Smart Hyperedges (auto-grouping, query builder, aggregates) |
 | 360 | 2025-12-06 | Fix Syntax Error - Splash Screen Freeze |
 | 359 | 2025-12-06 | Fix CORS for Local Version Check |
@@ -295,4 +335,4 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 ---
 
-*This document provides quick context for AI assistants working with the TreeListy codebase. Updated for Build 361.*
+*This document provides quick context for AI assistants working with the TreeListy codebase. Updated for Build 408.*

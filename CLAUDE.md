@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-**Current Version**: v2.17.0 (Build 361)
+**Current Version**: v2.17.0 (Build 408)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -77,7 +77,7 @@ cd test/treelisty-test
 npm run test:unit
 ```
 
-All 141+ tests should pass.
+All 281 tests should pass.
 
 ---
 
@@ -117,7 +117,37 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Recent Features (Builds 318-361)
+## Recent Features (Builds 387-408)
+
+### Build 405-408: Live Tree Agent
+- **Floating frame** replaces cramped wizard modal
+- Draggable, position saved to localStorage
+- Visual node highlighting (green=new, yellow=modified)
+- Full chat history with scrollable messages
+- Progress bar synced with tree building
+- Voice input and choice buttons
+- **Key functions**:
+  - `openTreeAgent(title)` - open agent frame
+  - `closeTreeAgent()` - close agent frame
+  - `addAgentMessage(role, content)` - add chat message
+  - `trackNodeChange(nodeId, type)` - mark node as new/modified
+  - `hasRecentChange(nodeId)` - check if node recently changed
+- **State object**: `window.treeAgentState` (open, minimized, position)
+
+### Build 392: LifeTree Health Check + GPT-5.2
+- Health diagnostics for LifeTree pattern
+- Detects empty phases, redundant periods, chronology gaps
+- GPT-5.2 Pro/base/Chat model support
+- TreeBeard integration: "check my life tree health"
+
+### Build 387-390: Canvas + LifeTree Improvements
+- Edit Any Depth Node (Build 388)
+- Semantic Type Indicators for canvas nodes (Build 389-390)
+- Fix LifeTree JSON Schema (Build 387)
+
+---
+
+## Older Features (Builds 318-361)
 
 ### Build 361: Pivot-Style Smart Hyperedges
 - **Smart auto-grouping**: Suggests hyperedges based on patterns
@@ -184,7 +214,7 @@ treeplexity.html (single file ~1.3MB)
 ## Extended Documentation
 
 See `docs/AI-CONTEXT.md` for:
-- Full pattern list with fields (19 patterns)
+- Full pattern list with fields (21 patterns)
 - Data model details
-- Build history (262-361)
+- Build history (262-408)
 - Known constraints
