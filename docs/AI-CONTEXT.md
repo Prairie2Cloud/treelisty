@@ -1,6 +1,6 @@
 # TreeListy AI Context Document
 
-**Current Version**: v2.17.0 (Build 408)
+**Current Version**: v2.17.0 (Build 409)
 **Last Updated**: 2025-12-13
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
@@ -293,6 +293,7 @@ The site auto-deploys from GitHub. No manual Netlify action needed.
 
 | Build | Date | Key Feature |
 |-------|------|-------------|
+| 409 | 2025-12-13 | Fix right-click context menu for all node types |
 | 408 | 2025-12-13 | Live Tree Agent - Full wizard integration |
 | 407 | 2025-12-13 | Draggable frame + position persistence |
 | 406 | 2025-12-13 | Visual node highlighting (new/modified pulse) |
