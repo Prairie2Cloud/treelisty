@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 410 | 2025-12-13
+    TreeListy v2.17.0 | Build 411 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 410): 🔍 Zoom to Cursor
-    - Fixed zoom behavior in Tree View - now zooms toward cursor position
-    - Previously zoomed from transform origin, losing focus on current nodes
-    - Now content under cursor stays in place while zooming in/out
+    Changelog (Build 411): 📖 Reader Navigation
+    - Sequential prev/next navigation through all nodes in info panel
+    - Arrow keys (← →) navigate when panel is open
+    - Read mode toggle hides edit controls for distraction-free reading
+    - Tree view highlights and scrolls to current node
+    - Position indicator shows "3 of 24" style progress
 
+    Previous (Build 410): 🔍 Zoom to Cursor
     Previous (Build 409): 🖱️ Fix Right-Click Context Menu
     Previous (Build 408): 🔗 Tree Agent Full Integration
     Previous (Build 407): 🖱️ Draggable Agent Frame
@@ -32,7 +35,6 @@
     Previous (Build 403): ⚡ TreeBeard LifeTree Utility Mode
     Previous (Build 402): 🎙️ Larry King Biographer Mode in Chat Builder
     Previous (Build 401): 🔘 Fix Chat Builder multi-choice buttons
-    Previous (Build 396): ⚙️ Settings Toggle + Keyboard Shortcut
     - Settings toggle: "Use Classic Chat Panel" in AI Settings modal
     - Keyboard shortcut: Ctrl+/ (Cmd+/ on Mac) toggles chat
     - Settings persist to localStorage across sessions
@@ -654,7 +656,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 410,
+            build: 411,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2268,6 +2270,97 @@
 
         .close-btn:hover {
             background: var(--bg);
+        }
+
+        /* BUILD 411: Reader Navigation */
+        .reader-nav {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-right: 12px;
+            padding-right: 12px;
+            border-right: 1px solid var(--border);
+        }
+
+        .reader-nav-btn {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            width: 28px;
+            height: 28px;
+            border-radius: 4px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+            transition: all 0.15s;
+        }
+
+        .reader-nav-btn:hover:not(:disabled) {
+            background: var(--treeplex-primary);
+            border-color: var(--treeplex-primary);
+            color: white;
+        }
+
+        .reader-nav-btn:disabled {
+            opacity: 0.3;
+            cursor: not-allowed;
+        }
+
+        .reader-position {
+            font-size: 12px;
+            color: var(--text-secondary);
+            min-width: 50px;
+            text-align: center;
+        }
+
+        .reader-mode-btn {
+            background: none;
+            border: 1px solid transparent;
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px 8px;
+            border-radius: 4px;
+            transition: all 0.15s;
+            opacity: 0.6;
+        }
+
+        .reader-mode-btn:hover {
+            opacity: 1;
+            background: var(--bg);
+        }
+
+        .reader-mode-btn.active {
+            opacity: 1;
+            background: rgba(99, 102, 241, 0.2);
+            border-color: var(--treeplex-primary);
+        }
+
+        /* Read mode: hide edit controls */
+        .info-panel.read-mode .info-field input,
+        .info-panel.read-mode .info-field textarea,
+        .info-panel.read-mode .info-field select,
+        .info-panel.read-mode .edit-btn,
+        .info-panel.read-mode .delete-btn,
+        .info-panel.read-mode .pm-field-group input,
+        .info-panel.read-mode .pm-field-group select {
+            display: none !important;
+        }
+
+        .info-panel.read-mode .info-field-value {
+            display: block !important;
+        }
+
+        /* Current node highlight in tree */
+        .tree-node.reader-current {
+            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5), var(--shadow-md) !important;
+            animation: readerPulse 2s ease-in-out infinite;
+        }
+
+        @keyframes readerPulse {
+            0%, 100% { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5), var(--shadow-md); }
+            50% { box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.3), var(--shadow-md); }
         }
 
         .info-body {
@@ -5323,6 +5416,13 @@
     <!-- Info Panel -->
     <div class="info-panel" id="info-panel">
         <div class="info-header">
+            <!-- BUILD 411: Reader Navigation bar -->
+            <div class="reader-nav" id="reader-nav" style="display: none;">
+                <button class="reader-nav-btn" id="reader-prev" title="Previous node (←)">◀</button>
+                <button class="reader-nav-btn" id="reader-next" title="Next node (→)">▶</button>
+                <span class="reader-position" id="reader-position">1 of 1</span>
+                <button class="reader-mode-btn" id="reader-mode-toggle" title="Toggle read mode">📖</button>
+            </div>
             <div class="info-title" id="info-title">Details</div>
             <button class="close-btn" id="close-info">✕</button>
         </div>
@@ -20437,10 +20537,238 @@ function hidePatternDescription() {
 
             // Reposition hyperedge panel if it's open
             repositionHyperedgePanel(true);
+
+            // Build 411: Update reader navigation bar
+            updateReaderNav();
         }
 
         // Track which item's panel is currently open
         let currentOpenItemId = null;
+
+        // ========================================================================
+        // BUILD 411: READER NAVIGATION
+        // Sequential prev/next navigation through all nodes
+        // ========================================================================
+
+        // Reader navigation state
+        const readerNavState = {
+            linearList: [],      // Flattened list of all nodes
+            currentIndex: -1,    // Current position in the list
+            readModeActive: false // Read mode toggle state
+        };
+
+        // Load read mode preference from localStorage
+        readerNavState.readModeActive = localStorage.getItem('treelistyReadMode') === 'true';
+
+        /**
+         * Flatten tree into linear node list (depth-first traversal)
+         * Respects current sort/filter if active
+         * @returns {Array} Array of node objects
+         */
+        function getLinearNodeList() {
+            const list = [];
+
+            function traverse(node, depth = 0) {
+                // Add this node to the list
+                list.push({ node, depth });
+
+                // For root node, traverse children (phases)
+                if (node.type === 'root' && node.children) {
+                    node.children.forEach(phase => traverse(phase, depth + 1));
+                }
+
+                // For phases, traverse items
+                if (node.type === 'phase' && node.items) {
+                    node.items.forEach(item => traverse(item, depth + 1));
+                }
+
+                // For items and subtasks, traverse subtasks
+                if ((node.type === 'item' || node.type === 'subtask') && node.subtasks) {
+                    node.subtasks.forEach(subtask => traverse(subtask, depth + 1));
+                }
+            }
+
+            // Start from root
+            if (capexTree) {
+                traverse(capexTree, 0);
+            }
+
+            return list;
+        }
+
+        /**
+         * Update the reader nav bar in info panel
+         */
+        function updateReaderNav() {
+            const readerNav = document.getElementById('reader-nav');
+            const prevBtn = document.getElementById('reader-prev');
+            const nextBtn = document.getElementById('reader-next');
+            const positionText = document.getElementById('reader-position');
+            const readModeBtn = document.getElementById('reader-mode-toggle');
+            const infoPanel = document.getElementById('info-panel');
+
+            if (!readerNav || !currentOpenItemId) {
+                if (readerNav) readerNav.style.display = 'none';
+                return;
+            }
+
+            // Rebuild linear list
+            readerNavState.linearList = getLinearNodeList();
+
+            // Find current index
+            readerNavState.currentIndex = readerNavState.linearList.findIndex(
+                entry => entry.node.id === currentOpenItemId
+            );
+
+            const total = readerNavState.linearList.length;
+            const current = readerNavState.currentIndex + 1;
+
+            if (total <= 1) {
+                // Hide nav for single-node trees
+                readerNav.style.display = 'none';
+                return;
+            }
+
+            // Show nav bar
+            readerNav.style.display = 'flex';
+
+            // Update position text
+            positionText.textContent = `${current} of ${total}`;
+
+            // Update button states
+            prevBtn.disabled = readerNavState.currentIndex <= 0;
+            nextBtn.disabled = readerNavState.currentIndex >= total - 1;
+
+            // Update read mode button state
+            if (readModeBtn) {
+                readModeBtn.classList.toggle('active', readerNavState.readModeActive);
+            }
+
+            // Apply read mode class to info panel
+            if (infoPanel) {
+                infoPanel.classList.toggle('read-mode', readerNavState.readModeActive);
+            }
+
+            // Highlight current node in tree view
+            highlightCurrentNodeInTree();
+        }
+
+        /**
+         * Navigate to a specific node by index
+         * @param {number} index - Index in the linear list
+         */
+        function navigateToNode(index) {
+            if (index < 0 || index >= readerNavState.linearList.length) return;
+
+            const entry = readerNavState.linearList[index];
+            if (!entry || !entry.node) return;
+
+            // Show the node in the info panel
+            showInfo(entry.node);
+
+            // Scroll the tree view to the node
+            scrollToNodeInTree(entry.node.id);
+        }
+
+        /**
+         * Navigate to previous node
+         */
+        function navigatePrev() {
+            if (readerNavState.currentIndex > 0) {
+                navigateToNode(readerNavState.currentIndex - 1);
+            }
+        }
+
+        /**
+         * Navigate to next node
+         */
+        function navigateNext() {
+            if (readerNavState.currentIndex < readerNavState.linearList.length - 1) {
+                navigateToNode(readerNavState.currentIndex + 1);
+            }
+        }
+
+        /**
+         * Toggle read mode on/off
+         */
+        function toggleReadMode() {
+            readerNavState.readModeActive = !readerNavState.readModeActive;
+            localStorage.setItem('treelistyReadMode', readerNavState.readModeActive);
+            updateReaderNav();
+        }
+
+        /**
+         * Highlight the current node in tree view with visual indicator
+         */
+        function highlightCurrentNodeInTree() {
+            // Remove existing highlight
+            document.querySelectorAll('.tree-node.reader-current').forEach(el => {
+                el.classList.remove('reader-current');
+            });
+
+            if (readerNavState.currentIndex < 0) return;
+
+            const entry = readerNavState.linearList[readerNavState.currentIndex];
+            if (!entry || !entry.node) return;
+
+            // Find the node element in tree view
+            const nodeEl = document.querySelector(`[data-node-id="${entry.node.id}"]`);
+            if (nodeEl) {
+                nodeEl.classList.add('reader-current');
+            }
+        }
+
+        /**
+         * Scroll tree view to show a specific node
+         * @param {string} nodeId - ID of the node to scroll to
+         */
+        function scrollToNodeInTree(nodeId) {
+            const nodeEl = document.querySelector(`[data-node-id="${nodeId}"]`);
+            if (nodeEl) {
+                nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+        }
+
+        // Reader navigation button event listeners
+        document.addEventListener('DOMContentLoaded', () => {
+            const prevBtn = document.getElementById('reader-prev');
+            const nextBtn = document.getElementById('reader-next');
+            const readModeBtn = document.getElementById('reader-mode-toggle');
+
+            if (prevBtn) {
+                prevBtn.addEventListener('click', navigatePrev);
+            }
+            if (nextBtn) {
+                nextBtn.addEventListener('click', navigateNext);
+            }
+            if (readModeBtn) {
+                readModeBtn.addEventListener('click', toggleReadMode);
+            }
+        });
+
+        // Keyboard navigation (arrow keys when info panel is open)
+        document.addEventListener('keydown', (e) => {
+            const infoPanel = document.getElementById('info-panel');
+            if (!infoPanel || !infoPanel.classList.contains('open')) return;
+
+            // Don't trigger if user is typing in an input/textarea
+            const activeEl = document.activeElement;
+            if (activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'TEXTAREA' || activeEl.isContentEditable)) {
+                return;
+            }
+
+            if (e.key === 'ArrowLeft') {
+                e.preventDefault();
+                navigatePrev();
+            } else if (e.key === 'ArrowRight') {
+                e.preventDefault();
+                navigateNext();
+            }
+        });
+
+        // ========================================================================
+        // END BUILD 411: READER NAVIGATION
+        // ========================================================================
 
         /**
          * Reposition the hyperedge visibility panel based on info panel state
@@ -20460,6 +20788,11 @@ function hidePatternDescription() {
 
             // Reposition hyperedge panel back to right edge
             repositionHyperedgePanel(false);
+
+            // Build 411: Clear reader navigation highlight
+            document.querySelectorAll('.tree-node.reader-current').forEach(el => {
+                el.classList.remove('reader-current');
+            });
         });
 
         // Context Menu
@@ -50684,7 +51017,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 410; // Update this with each build
+                    const KNOWN_LATEST = 411; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
