@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 406 | 2025-12-13
+    TreeListy v2.17.0 | Build 407 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,15 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 406): ✨ Visual Node Highlighting
-    - NEW nodes pulse green when added during Chat Builder
-    - Modified nodes pulse yellow when updated
-    - Highlights fade after 5 seconds
-    - Auto-cleanup of tracked changes
-    - Works in both tree view patterns (filesystem + default)
-    - Tracking integrated with mergeTreeUpdate()
+    Changelog (Build 407): 🖱️ Draggable Agent Frame
+    - Drag agent frame by header to any position
+    - Position persists to localStorage
+    - Double-click header to reset position
+    - Touch support for mobile dragging
+    - Cursor changes to grabbing while dragging
+    - Bounds checking keeps frame on screen
 
+    Previous (Build 406): ✨ Visual Node Highlighting
     Previous (Build 405): 🤖 Live Tree Agent Frame (Phase 1)
     Previous (Build 404): 💡 Quick/Deep Mode Tooltips
     Previous (Build 403): ⚡ TreeBeard LifeTree Utility Mode
@@ -653,7 +654,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 406,
+            build: 407,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -31153,7 +31154,131 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
             showToast('🎤 Voice input coming soon!', 'info');
         });
 
-        console.log('🤖 BUILD 405: Tree Agent initialized');
+        // ═══════════════════════════════════════════════════════════════════════════
+        // BUILD 407: DRAGGABLE AGENT FRAME + POSITION PERSISTENCE
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        // Load saved position from localStorage
+        function loadAgentPosition() {
+            try {
+                const saved = localStorage.getItem('treeAgentPosition');
+                if (saved) {
+                    const pos = JSON.parse(saved);
+                    treeAgentState.position = pos;
+                    const frame = document.getElementById('tree-agent-frame');
+                    if (frame) {
+                        frame.style.left = `${pos.x}px`;
+                        frame.style.top = `${pos.y}px`;
+                    }
+                }
+            } catch (e) {
+                console.log('Could not load agent position:', e);
+            }
+        }
+
+        // Save position to localStorage
+        function saveAgentPosition() {
+            try {
+                localStorage.setItem('treeAgentPosition', JSON.stringify(treeAgentState.position));
+            } catch (e) {
+                console.log('Could not save agent position:', e);
+            }
+        }
+
+        // Reset position to default
+        function resetAgentPosition() {
+            treeAgentState.position = { x: 20, y: 80 };
+            const frame = document.getElementById('tree-agent-frame');
+            if (frame) {
+                frame.style.left = '20px';
+                frame.style.top = '80px';
+            }
+            saveAgentPosition();
+            showToast('📍 Position reset', 'info');
+        }
+        window.resetAgentPosition = resetAgentPosition;
+
+        // Make the agent frame draggable
+        (function initAgentDrag() {
+            const frame = document.getElementById('tree-agent-frame');
+            const header = frame?.querySelector('.agent-header');
+            if (!frame || !header) return;
+
+            let isDragging = false;
+            let dragOffset = { x: 0, y: 0 };
+
+            header.addEventListener('mousedown', (e) => {
+                // Don't drag if clicking on buttons
+                if (e.target.closest('.agent-btn')) return;
+
+                isDragging = true;
+                dragOffset.x = e.clientX - frame.offsetLeft;
+                dragOffset.y = e.clientY - frame.offsetTop;
+                frame.style.transition = 'none';
+                header.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+
+                const newX = Math.max(0, Math.min(window.innerWidth - frame.offsetWidth, e.clientX - dragOffset.x));
+                const newY = Math.max(0, Math.min(window.innerHeight - frame.offsetHeight, e.clientY - dragOffset.y));
+
+                frame.style.left = `${newX}px`;
+                frame.style.top = `${newY}px`;
+                treeAgentState.position = { x: newX, y: newY };
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    frame.style.transition = '';
+                    header.style.cursor = 'grab';
+                    saveAgentPosition();
+                }
+            });
+
+            // Double-click to reset position
+            header.addEventListener('dblclick', (e) => {
+                if (e.target.closest('.agent-btn')) return;
+                resetAgentPosition();
+            });
+
+            // Touch support for mobile
+            header.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.agent-btn')) return;
+                const touch = e.touches[0];
+                isDragging = true;
+                dragOffset.x = touch.clientX - frame.offsetLeft;
+                dragOffset.y = touch.clientY - frame.offsetTop;
+                frame.style.transition = 'none';
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                const newX = Math.max(0, Math.min(window.innerWidth - frame.offsetWidth, touch.clientX - dragOffset.x));
+                const newY = Math.max(0, Math.min(window.innerHeight - frame.offsetHeight, touch.clientY - dragOffset.y));
+                frame.style.left = `${newX}px`;
+                frame.style.top = `${newY}px`;
+                treeAgentState.position = { x: newX, y: newY };
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    frame.style.transition = '';
+                    saveAgentPosition();
+                }
+            });
+
+            // Load saved position on init
+            loadAgentPosition();
+
+            console.log('🤖 BUILD 407: Draggable agent frame initialized');
+        })();
+
+        console.log('🤖 BUILD 405-407: Tree Agent fully initialized');
 
         // Auto-Enhance: Run AI Review then enhance tree automatically
         async function runAutoEnhance() {
@@ -50483,7 +50608,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 406; // Update this with each build
+                    const KNOWN_LATEST = 407; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
