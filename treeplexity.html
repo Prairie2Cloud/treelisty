@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 400 | 2025-12-12
+    TreeListy v2.17.0 | Build 401 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,8 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 400): 🔍 Debug Chat Builder choice button issue
+    Changelog (Build 401): 🔘 Fix Chat Builder multi-choice buttons
+    - Fixed syntax errors in fallback choice injection
+    - AI responses without [CHOICE:] markers now get default options
+    - Ensures clickable buttons always appear during tree building
 
+    Previous (Build 400): 🔍 Debug Chat Builder choice button issue
     Previous (Build 396): ⚙️ Settings Toggle + Keyboard Shortcut
     - Settings toggle: "Use Classic Chat Panel" in AI Settings modal
     - Keyboard shortcut: Ctrl+/ (Cmd+/ on Mac) toggles chat
@@ -642,8 +646,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 400,
-            date: '2025-12-12',
+            build: 401,
+            date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -24443,9 +24447,18 @@ Return ONLY the JSON array.`
                 wizardState.retryCount = 0;
 
                 // Add AI message to conversation history
-                wizardState.conversation.push({role: 'assistant', content: parsed.message});
-                console.log('🪄 AI message [CHOICE:] markers found:', (parsed.message.match(/[CHOICE:[^]]+]/g) || []).length);
-                addWizardMessage('ai', parsed.message);
+                let messageWithChoices = parsed.message;
+                const choiceCount = (parsed.message.match(/\[CHOICE:[^\]]+\]/g) || []).length;
+                console.log('🪄 AI message [CHOICE:] markers found:', choiceCount);
+
+                // BUILD 400: Fallback - add default choices if AI forgot
+                if (choiceCount === 0 && !parsed.done) {
+                    console.log('🪄 No choices found - adding defaults');
+                    messageWithChoices += '\n\n[CHOICE:➕ Add more][CHOICE:📝 More detail][CHOICE:✅ Looks good][CHOICE:🔄 Change something]';
+                }
+
+                wizardState.conversation.push({role: 'assistant', content: messageWithChoices});
+                addWizardMessage('ai', messageWithChoices);
 
                 // Update tree if provided
                 if (parsed.treeUpdate) {
@@ -24904,7 +24917,7 @@ For AI Prompt Design, items MUST include these pattern-specific fields:
 ` : `
 ⚠️ OPTION A - When just asking a question (NO tree changes):
 {
-  "message": "Your question here...",
+  "message": "Your question here? [CHOICE:Option A][CHOICE:Option B][CHOICE:Something else]",  // ⚠️ ALWAYS include [CHOICE:] markers!
   "treeUpdate": null,
   "fieldsUpdated": [],
   "progress": 0.5,
@@ -24913,7 +24926,7 @@ For AI Prompt Design, items MUST include these pattern-specific fields:
 
 ⚠️ OPTION B - When ADDING new items (include ONLY the new items):
 {
-  "message": "I've added [X]. [Ask ONE follow-up question]",
+  "message": "I've added [X]. What should I focus on next? [CHOICE:➕ Add more][CHOICE:📝 More detail][CHOICE:✅ Looks good]",  // ⚠️ ALWAYS include [CHOICE:] markers!
   "treeUpdate": {
     "name": "Project Name",
     "description": "Brief description",
@@ -49724,7 +49737,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 400; // Update this with each build
+                    const KNOWN_LATEST = 401; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
