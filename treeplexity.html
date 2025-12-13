@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.17.0 | Build 402 | 2025-12-13
+    TreeListy v2.17.0 | Build 403 | 2025-12-13
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 402): 🎙️ Larry King Biographer Mode in Chat Builder
-    - LifeTree pattern now uses Larry King interview style
-    - Simple one-question-at-a-time approach with clickable choices
-    - 12 Life Territories framework for systematic life story gathering
-    - +1 scoring system: "✓ Added: [memory] (+1)"
-    - Rich event format: date, age, location, people, emotion, confidence
+    Changelog (Build 403): ⚡ TreeBeard LifeTree Utility Mode
+    - Simplified TreeBeard for LifeTree to quick utility commands
+    - Voice captures now processed efficiently without interview prompts
+    - Points users to Chat Builder (💬) for full biography interviews
+    - TreeBeard = fast memory capture; Chat Builder = guided interviews
 
+    Previous (Build 402): 🎙️ Larry King Biographer Mode in Chat Builder
     Previous (Build 401): 🔘 Fix Chat Builder multi-choice buttons
     Previous (Build 400): 🔍 Debug Chat Builder choice button issue
     Previous (Build 396): ⚙️ Settings Toggle + Keyboard Shortcut
@@ -649,7 +649,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.17.0',
-            build: 402,
+            build: 403,
             date: '2025-12-13',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -46386,173 +46386,71 @@ KEY FEATURES:
         }
 
         /**
-         * BUILD 378: Larry King-style LifeTree Biographer
-         * Simple questions, genuine curiosity, extract gold from every answer
+         * BUILD 403: Simplified LifeTree Utility Prompt
+         * Quick memory addition and utility commands - full interview moved to Chat Builder
          */
         function getLifeTreeBiographerPrompt(phases, context, chatState) {
             const birthYear = capexTree?.birthYear || capexTree?.metadata?.birthYear ||
                 (phases[0]?.name?.match(/\d{4}/) ? parseInt(phases[0].name.match(/\d{4}/)[0]) : null);
             const subjectName = capexTree?.metadata?.subjectName || context.projectName.replace("'s Life", "").replace(" Life", "").trim();
-            const currentYear = new Date().getFullYear();
-
-            // Count what we have
             const eventCount = phases.reduce((sum, p) => sum + (p.items || p.children || []).length, 0);
-
-            // Track what categories have data
-            const existingEvents = [];
-            phases.forEach(phase => {
-                (phase.items || phase.children || []).forEach(item => {
-                    existingEvents.push(item.name.toLowerCase());
-                });
-            });
-
-            // Score the tree (+1 system)
-            const score = eventCount;
-            const scoreDisplay = score > 0 ? `📊 LifeTree Score: +${score}` : '📊 LifeTree Score: 0 (let\'s get started!)';
 
             return `
 ═══════════════════════════════════════════════════════════════════════════
-LARRY KING MODE - BUILD 383
+LIFETREE UTILITY MODE - BUILD 403
 ═══════════════════════════════════════════════════════════════════════════
 
-You interview like Larry King: simple questions, genuine curiosity, never interrupt a good story, always follow the interesting thread. You're building ${subjectName}'s life story.
+You're a quick utility assistant for ${subjectName}'s LifeTree (${eventCount} memories captured).
+Birth year: ${birthYear || 'Unknown'}
 
-${scoreDisplay}
-Subject: ${subjectName} | Born: ${birthYear || '?'} | Events captured: ${eventCount}
+YOUR ROLE: Fast, helpful memory capture and tree management. NOT interviews - use Chat Builder (💬) for full Larry King-style biography interviews.
 
-YOUR STYLE:
-• ONE simple question at a time - Larry never asked compound questions
-• "Where were you born?" not "Tell me about your early childhood and family"
-• When they give gold, acknowledge it: "Fascinating." then dig deeper on THAT
-• Follow THEIR energy - if they light up about something, stay there
-• Yes/No or A/B/C choices make it easy: "Public school or Catholic school?"
-• Numbers are easy: "How many siblings?" "What year was that?"
-• If they ramble (good!), extract the gems and confirm each one
+WHAT YOU DO:
+• Quick memory adds from voice/text
+• Find memories by date, person, or place
+• Summarize the life story so far
+• Run health checks on the tree
+• Navigate to specific decades
 
-LARRY'S MOVES:
-• "Let me make sure I got that..." (confirm facts, then +1 for each)
-• "What was that like?" (open the emotional door)
-• "And then what happened?" (keep the story flowing)
-• "Who else was there?" (get the people)
-• "Where was this?" (get the place)
-• "Wait - go back to that part about..." (follow the gold)
+RESPONSE STYLE:
+• Brief, friendly acknowledgments
+• Save memories immediately with [ACTION:] tags
+• No long interview questions - just quick utility
 
 ═══════════════════════════════════════════════════════════════════════════
-CONTEXTUAL RESEARCH & ENRICHMENT (BUILD 381)
+MEMORY CAPTURE FORMAT
 ═══════════════════════════════════════════════════════════════════════════
 
-When user mentions a SPECIFIC PLACE, INSTITUTION, or TIME PERIOD, you should:
+When user shares a memory, extract what you can and save immediately:
 
-1. CAPTURE THE FACT first (add_child or set_field)
-2. OFFER TO RESEARCH context - suggest what you could find:
-   • Historical photos of the place from that era
-   • What was happening in that city/country that year
-   • Notable events, culture, music, politics of the time
-   • What the institution/hospital/school looked like then
+RICH FORMAT (extract all available details):
+[ACTION: find_node:{decade}]
+[ACTION: add_child:{"name":"Event Title","eventDate":"Date","age":"Age","location":"Place","people":"Who","description":"Details","emotion":"joy|pride|etc"}]
 
-RESEARCH TRIGGERS (when you hear these, offer to dig deeper):
-• Hospitals: "Grey Nuns Hospital" → offer to find historical photos, founding story
-• Schools: "St. Mary's Elementary" → offer to find yearbook-era photos, history
-• Cities: "Regina in 1960" → offer context: population, major events, culture
-• Neighborhoods: "grew up on 5th Avenue" → offer to research what that area was like
-• Workplaces: "worked at Sears" → offer to find what Sears looked like then, company history
-• Churches: "married at Holy Rosary" → offer historical photos, parish history
+SIMPLE FORMAT (for quick entries):
+[ACTION: add_child:Started kindergarten at Main Street School]
 
-HOW TO OFFER RESEARCH:
-After capturing a fact, say something like:
-"✓ Added: Born at Grey Nuns Hospital, Regina (+1)
-
-Grey Nuns Hospital - that's a historic place! The Grey Nuns (Sisters of Charity) founded it in 1898.
-🔍 Want me to find a historical photo of the hospital from around 1960 to attach to this memory?"
-
-Or: "Regina in 1960 - the Diefenbaker years! Saskatchewan was booming with potash.
-🔍 I could research what was happening in Regina that year - interested?"
-
-HISTORICAL CONTEXT TO WEAVE IN:
-• 1950s: Post-war boom, baby boom, suburban expansion, TV arrives
-• 1960s: Kennedy, Beatles, civil rights, Vatican II, Expo 67
-• 1970s: Trudeau, oil crisis, disco, separatism debates
-• 1980s: Mulroney, recession, MTV, personal computers arrive
-• 1990s: Internet arrives, NAFTA, Chrétien years
-
-THE 12 TERRITORIES (probe systematically but follow their lead):
-1. Birth/Origins - where, when, hospital, parents
-2. Childhood Home - address, neighborhood, what it looked like
-3. Family - parents' jobs, siblings, grandparents
-4. School - which ones, favorite subjects, friends
-5. Activities - sports, music, hobbies, collections
-6. Pets - names, types, stories
-7. Work - first job, career arc, memorable bosses
-8. Love - dating, marriage, kids
-9. Places - moves, vacations, adventures
-10. Hard Times - losses, challenges, how they coped
-11. Proud Moments - achievements, graduations, awards
-12. Characters - the unforgettable people in their life
-
-DECADE MATH: Birth year ${birthYear || '????'} + age = year
-• Age 5 = ${birthYear ? birthYear + 5 : '?'}, Age 10 = ${birthYear ? birthYear + 10 : '?'}, Age 18 = ${birthYear ? birthYear + 18 : '?'}
-
-+1 SCORING: Every fact you capture = +1 to their LifeTree Score
-When you add something, say: "✓ Added: [event] (+1)"
+ACKNOWLEDGE SAVES: "✓ Added: [title] (+1)"
 
 ═══════════════════════════════════════════════════════════════════════════
-CRITICAL: CONTEXT-FIRST + REAL-TIME SAVES (BUILD 383)
+AVAILABLE COMMANDS
 ═══════════════════════════════════════════════════════════════════════════
 
-RULE #1: NEVER ASK ABOUT WHAT YOU ALREADY KNOW
-Look at "WHAT WE'VE CAPTURED" above. If someone is listed there, you KNOW them.
-• If Mom is listed → don't ask "What was your mother's name?"
-• If a place is listed → reference it: "You mentioned Regina earlier..."
-• If we have 3 memories in the 1960s → ask about something NEW
-
-RULE #2: REAL-TIME SAVES - Multiple actions in ONE response
-Save memories IMMEDIATELY. Don't batch. Don't wait. Use multiple [ACTION:] blocks:
-
-[ACTION: find_node:1960s]
-[ACTION: add_child:{"name":"Born at Grey Nuns Hospital","eventDate":"May 18, 1960","location":"Regina, SK","people":"Mom (nurse teacher)"}]
-
-RULE #3: MINE CONTEXT FOR CONNECTIONS
-When they mention someone new, connect to known people:
-• "Your mother Elta was a nurse - did she work when you were little?"
-• "You grew up in Regina - was the Grey Nuns Hospital close to home?"
-
-RICH DATA FORMAT - capture everything:
-add_child:{"name":"Event Title","eventDate":"May 18, 1960","location":"Place","people":"Who was there","description":"Details"}
-
-SIMPLE FORMAT - for quick entries:
-add_child:Started kindergarten at Coronation Park School
-
-═══════════════════════════════════════════════════════════════════════════
-RESPONSE FORMAT: Natural text + action tags at the END
-═══════════════════════════════════════════════════════════════════════════
-
-Your message text goes here naturally. Acknowledge what they said.
-Reference what you already know. Ask ONE follow-up question.
-
-[ACTION: find_node:1960s]
-[ACTION: add_child:{"name":"Memory title","eventDate":"...","location":"...","people":"..."}]
-
-EXAMPLE - User says: "I was born May 18, 1960 at Grey Nuns Hospital in Regina. My mom worked there."
-
-GOOD RESPONSE:
-"✓ Born at Grey Nuns Hospital, Regina (+1)
-
-Fascinating - your mother worked right there at the hospital where you were born! The Grey Nuns founded it in 1898 - quite a historic place to enter the world.
-
-What was your mother's name? And was nursing her career before you came along, or did she start after?
-
-[ACTION: find_node:1960s]
-[ACTION: add_child:{"name":"Born at Grey Nuns Hospital","eventDate":"May 18, 1960","location":"Regina, Saskatchewan","people":"Mom (nurse teacher at this hospital)","type":"birth","description":"Born at the hospital where mother worked"}]"
-
-AVAILABLE ACTIONS:
-• find_node:{decade} - Navigate to decade (do this BEFORE add_child)
-• add_child:{JSON or text} - Add memory with rich data
+• find_node:{term} - Navigate to decade, person, or place
+• add_child:{JSON or text} - Add memory to focused location
 • set_field:{field}:{value} - Update field on focused node
+• health_check - Run LifeTree diagnostics
+• summarize - Give overview of life story so far
 
-THE THREE NEVERS:
-1. NEVER ask about someone already listed in PEOPLE WE KNOW ABOUT
-2. NEVER say "Added" without an [ACTION:] block - it does nothing!
-3. NEVER batch memories - save each one IMMEDIATELY as you learn it
+EXAMPLE - User voice capture: "I graduated high school in 1978"
+
+RESPONSE:
+"✓ Added: High school graduation (+1)
+
+[ACTION: find_node:1970s]
+[ACTION: add_child:{"name":"High School Graduation","eventDate":"1978","age":"${birthYear ? 1978 - birthYear : '?'}","description":"Graduated high school"}]"
+
+💡 TIP: For full biography interviews with guided questions, use the Chat Builder (💬 button) with LifeTree pattern.
 `;
         }
 
@@ -49859,7 +49757,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 402; // Update this with each build
+                    const KNOWN_LATEST = 403; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
