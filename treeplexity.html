@@ -8254,6 +8254,346 @@ Do not ask permission—just provide the critique, then help.
             }, 100);
         });
 
+        // ═══════════════════════════════════════════════════════════════════════════
+        // BUILD 414: SHARE VIEW STATE - Capture & restore view state for shared links
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /**
+         * Capture current view state for sharing
+         * Returns object with current view type, canvas positions, expanded nodes, etc.
+         */
+        function captureViewState() {
+            const state = {
+                v: typeof viewMode !== 'undefined' ? viewMode : 'tree', // view type
+                t: Date.now() // timestamp
+            };
+
+            // Capture selected node
+            if (typeof activeNode !== 'undefined' && activeNode?.id) {
+                state.s = activeNode.id; // selected
+            }
+
+            // Capture expanded nodes (tree view)
+            const expandedNodes = [];
+            document.querySelectorAll('.tree-node.expanded').forEach(node => {
+                const nodeId = node.dataset?.id || node.querySelector('[data-id]')?.dataset?.id;
+                if (nodeId) expandedNodes.push(nodeId);
+            });
+            if (expandedNodes.length > 0 && expandedNodes.length <= 50) {
+                state.e = expandedNodes; // expanded
+            }
+
+            // Capture canvas positions if in canvas view
+            if (state.v === 'canvas' && typeof canvasNodes !== 'undefined') {
+                const positions = {};
+                canvasNodes.forEach(({ data, element }) => {
+                    if (data?.id && element) {
+                        const rect = element.getBoundingClientRect();
+                        const container = document.getElementById('canvas-container');
+                        if (container) {
+                            const containerRect = container.getBoundingClientRect();
+                            positions[data.id] = {
+                                x: Math.round(rect.left - containerRect.left),
+                                y: Math.round(rect.top - containerRect.top)
+                            };
+                        }
+                    }
+                });
+                if (Object.keys(positions).length > 0) {
+                    state.p = positions; // positions
+                }
+            }
+
+            // Capture canvas zoom/pan
+            const canvasContainer = document.getElementById('canvas-container');
+            if (canvasContainer) {
+                const transform = canvasContainer.style.transform;
+                if (transform) {
+                    const scaleMatch = transform.match(/scale\(([\d.]+)\)/);
+                    const translateMatch = transform.match(/translate\(([-\d.]+)px,\s*([-\d.]+)px\)/);
+                    if (scaleMatch) state.z = parseFloat(scaleMatch[1]); // zoom
+                    if (translateMatch) {
+                        state.px = parseInt(translateMatch[1]); // pan x
+                        state.py = parseInt(translateMatch[2]); // pan y
+                    }
+                }
+            }
+
+            return state;
+        }
+        window.captureViewState = captureViewState;
+
+        /**
+         * Encode view state with graceful degradation
+         * Budget: 1500 bytes max for universal URL compatibility
+         */
+        function encodeViewState(state, budget = 1500) {
+            // Priority levels for degradation
+            // P0: view type, timestamp (~20 bytes) - never cut
+            // P1: selected node (~30 bytes) - never cut
+            // P2: zoom/pan (~20 bytes) - never cut
+            // P3: expanded nodes (~10 bytes each) - cap at 20 if needed
+            // P4: canvas positions (~15 bytes each) - first to cut
+
+            let encoded = '';
+            let currentState = { ...state };
+
+            // Try full state first
+            try {
+                encoded = btoa(JSON.stringify(currentState));
+                if (encoded.length <= budget) {
+                    return encoded;
+                }
+            } catch (e) {
+                console.warn('View state encoding failed:', e);
+            }
+
+            // Degradation step 1: Remove canvas positions
+            if (currentState.p) {
+                delete currentState.p;
+                encoded = btoa(JSON.stringify(currentState));
+                if (encoded.length <= budget) {
+                    console.log('📦 View state: dropped canvas positions to fit budget');
+                    return encoded;
+                }
+            }
+
+            // Degradation step 2: Cap expanded nodes to 20
+            if (currentState.e && currentState.e.length > 20) {
+                currentState.e = currentState.e.slice(0, 20);
+                encoded = btoa(JSON.stringify(currentState));
+                if (encoded.length <= budget) {
+                    console.log('📦 View state: capped expanded nodes to 20');
+                    return encoded;
+                }
+            }
+
+            // Degradation step 3: Remove expanded nodes entirely
+            if (currentState.e) {
+                delete currentState.e;
+                encoded = btoa(JSON.stringify(currentState));
+                if (encoded.length <= budget) {
+                    console.log('📦 View state: dropped expanded nodes to fit budget');
+                    return encoded;
+                }
+            }
+
+            // Minimal state: just view type and selected
+            const minimal = { v: state.v };
+            if (state.s) minimal.s = state.s;
+            encoded = btoa(JSON.stringify(minimal));
+            console.log('📦 View state: using minimal (view + selection only)');
+            return encoded;
+        }
+        window.encodeViewState = encodeViewState;
+
+        /**
+         * Decode view state from URL parameter
+         */
+        function decodeViewState(encoded) {
+            if (!encoded) return null;
+            try {
+                return JSON.parse(atob(encoded));
+            } catch (e) {
+                console.warn('Failed to decode view state:', e);
+                return null;
+            }
+        }
+        window.decodeViewState = decodeViewState;
+
+        /**
+         * Generate share URL with current view state
+         */
+        function generateShareURL(baseParams = {}) {
+            const state = captureViewState();
+            const encoded = encodeViewState(state);
+
+            let url = `${window.location.origin}${window.location.pathname}`;
+            const params = [];
+
+            // Add base params (room, session, etc.)
+            Object.entries(baseParams).forEach(([key, value]) => {
+                if (value) params.push(`${key}=${encodeURIComponent(value)}`);
+            });
+
+            // Add view state
+            if (encoded) {
+                params.push(`vs=${encoded}`);
+            }
+
+            // Add splash flag for shared links
+            params.push('splash=1');
+
+            if (params.length > 0) {
+                url += '?' + params.join('&');
+            }
+
+            return url;
+        }
+        window.generateShareURL = generateShareURL;
+
+        /**
+         * Restore view state from decoded state object
+         */
+        async function restoreViewState(state) {
+            if (!state) return;
+
+            console.log('🎬 Restoring view state:', state);
+
+            // Restore view type
+            if (state.v && state.v !== 'tree') {
+                if (state.v === 'canvas') {
+                    document.getElementById('view-canvas-btn')?.click();
+                } else if (state.v === '3d') {
+                    document.getElementById('view-3d-btn')?.click();
+                }
+                // Wait for view transition
+                await new Promise(r => setTimeout(r, 300));
+            }
+
+            // Restore expanded nodes
+            if (state.e && Array.isArray(state.e)) {
+                state.e.forEach(nodeId => {
+                    const node = document.querySelector(`.tree-node[data-id="${nodeId}"]`);
+                    if (node && !node.classList.contains('expanded')) {
+                        const toggle = node.querySelector('.expand-toggle');
+                        if (toggle) toggle.click();
+                    }
+                });
+            }
+
+            // Restore selected node
+            if (state.s) {
+                setTimeout(() => {
+                    const node = document.querySelector(`.tree-node[data-id="${state.s}"]`);
+                    if (node) {
+                        node.click();
+                        node.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
+            }
+
+            // Restore canvas zoom/pan
+            if (state.z || state.px || state.py) {
+                const container = document.getElementById('canvas-container');
+                if (container) {
+                    const zoom = state.z || 1;
+                    const px = state.px || 0;
+                    const py = state.py || 0;
+                    container.style.transform = `translate(${px}px, ${py}px) scale(${zoom})`;
+                }
+            }
+        }
+        window.restoreViewState = restoreViewState;
+
+        /**
+         * Play 3D cinematic splash animation (3 seconds)
+         * Slow orbit around the tree before transitioning to target view
+         */
+        async function play3DSplash(onComplete) {
+            console.log('🎬 Starting 3D cinematic splash...');
+
+            // Switch to 3D view
+            document.getElementById('view-3d-btn')?.click();
+            await new Promise(r => setTimeout(r, 500)); // Wait for 3D to initialize
+
+            // Get Three.js camera and controls
+            const view3D = document.getElementById('view-3d');
+            if (!view3D || !window.camera || !window.controls) {
+                console.warn('3D view not available for splash');
+                if (onComplete) onComplete();
+                return;
+            }
+
+            // Disable user controls during animation
+            if (window.controls) {
+                window.controls.enabled = false;
+            }
+
+            // Cinematic orbit animation
+            const startTime = Date.now();
+            const duration = 3000; // 3 seconds
+            const startAngle = 0;
+            const endAngle = Math.PI * 0.75; // 135 degrees
+            const radius = 1200;
+            const height = 500;
+
+            function animateOrbit() {
+                const elapsed = Date.now() - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Ease-in-out curve
+                const eased = progress < 0.5
+                    ? 2 * progress * progress
+                    : 1 - Math.pow(-2 * progress + 2, 2) / 2;
+
+                const angle = startAngle + (endAngle - startAngle) * eased;
+
+                // Update camera position (orbit)
+                window.camera.position.x = Math.cos(angle) * radius;
+                window.camera.position.z = Math.sin(angle) * radius;
+                window.camera.position.y = height + Math.sin(progress * Math.PI) * 200; // Slight vertical arc
+                window.camera.lookAt(0, 100, 0);
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateOrbit);
+                } else {
+                    // Animation complete
+                    console.log('🎬 Splash animation complete');
+                    if (window.controls) {
+                        window.controls.enabled = true;
+                    }
+                    if (onComplete) {
+                        // Fade transition
+                        view3D.style.transition = 'opacity 0.5s ease';
+                        view3D.style.opacity = '0';
+                        setTimeout(() => {
+                            view3D.style.opacity = '1';
+                            view3D.style.transition = '';
+                            onComplete();
+                        }, 500);
+                    }
+                }
+            }
+
+            requestAnimationFrame(animateOrbit);
+        }
+        window.play3DSplash = play3DSplash;
+
+        /**
+         * Handle shared link with view state on page load
+         */
+        function handleSharedViewState() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewStateParam = urlParams.get('vs');
+            const splashParam = urlParams.get('splash');
+
+            if (!viewStateParam) return;
+
+            const state = decodeViewState(viewStateParam);
+            if (!state) return;
+
+            console.log('🔗 Shared link detected with view state:', state);
+
+            // Wait for tree to load
+            setTimeout(() => {
+                if (splashParam === '1') {
+                    // Play splash then restore view
+                    play3DSplash(() => {
+                        restoreViewState(state);
+                    });
+                } else {
+                    // Restore view directly
+                    restoreViewState(state);
+                }
+            }, 1000); // Give tree time to render
+        }
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            setTimeout(handleSharedViewState, 1500);
+        });
+
         // BUILD 334: Mobile Detection & Touch Support
         document.addEventListener('DOMContentLoaded', () => {
             // Detect mobile device
@@ -27386,10 +27726,13 @@ Thanks!`;
                 activeHostSession = null;
 
                 // BUILD 266: Restore invite link to room-only (no session token)
+                // BUILD 414: Include view state
                 if (window.firebaseSyncState?.roomId) {
                     const mainInviteLink = document.getElementById('sync-invite-link');
                     if (mainInviteLink) {
-                        mainInviteLink.value = `${window.location.origin}${window.location.pathname}?room=${window.firebaseSyncState.roomId}`;
+                        mainInviteLink.value = window.generateShareURL ?
+                            window.generateShareURL({ room: window.firebaseSyncState.roomId }) :
+                            `${window.location.origin}${window.location.pathname}?room=${window.firebaseSyncState.roomId}`;
                     }
                 }
 
@@ -28079,8 +28422,10 @@ https://treelisty.netlify.app`;
                     floatingChatState.isHost = true;
                     floatingChatState.previousUserCount = 1; // Reset counter
 
-                    // Generate invite link
-                    const inviteLink = `${window.location.origin}${window.location.pathname}?room=${roomId}`;
+                    // Generate invite link with view state (BUILD 414)
+                    const inviteLink = window.generateShareURL ?
+                        window.generateShareURL({ room: roomId }) :
+                        `${window.location.origin}${window.location.pathname}?room=${roomId}`;
                     document.getElementById('sync-invite-link').value = inviteLink;
                     document.getElementById('active-room-id-display').textContent = roomId;
                     document.getElementById('active-room-id').value = roomId;
