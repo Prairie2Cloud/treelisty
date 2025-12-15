@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 417 | 2025-12-15
+    TreeListy v2.18.0 | Build 418 | 2025-12-15
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 417): 🔗 Fix Hyperedge AI Analysis
+    Changelog (Build 418): 🖱️ Fix Tree Agent Drag/Close Buttons
+    Previous (Build 417): 🔗 Fix Hyperedge AI Analysis
     Previous (Build 416): 💬 Fix Chat Builder Not Opening
     Previous (Build 415): 🔷 Shape Hierarchy for Node Types
     Previous (Build 414): 🎬 Share View State with 3D Splash
@@ -663,7 +664,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 417,
+            build: 418,
             date: '2025-12-15',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -31917,71 +31918,94 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
         window.updateAgentProgress = updateAgentProgress;
 
         // Tree Agent event listeners
-        document.getElementById('agent-minimize-btn')?.addEventListener('click', toggleTreeAgentMinimize);
-        document.getElementById('agent-close-btn')?.addEventListener('click', () => closeTreeAgent(false));
-
-        document.getElementById('agent-cancel-btn')?.addEventListener('click', () => {
-            if (confirm('Cancel the current session? Your progress will be lost.')) {
-                closeTreeAgent(true);
-                // Reset wizard state
-                if (wizardState) wizardState.active = false;
+        // BUILD 417: Defer event listener attachment until elements exist
+        function initAgentEventListeners() {
+            const closeBtn = document.getElementById('agent-close-btn');
+            if (!closeBtn) {
+                // Elements not ready yet, defer
+                setTimeout(initAgentEventListeners, 100);
+                return;
             }
-        });
 
-        document.getElementById('agent-finish-btn')?.addEventListener('click', () => {
-            if (wizardState?.workingTree) {
-                // Save state for undo
-                saveState('Tree Agent: Apply changes');
+            document.getElementById('agent-minimize-btn')?.addEventListener('click', toggleTreeAgentMinimize);
+            document.getElementById('agent-close-btn')?.addEventListener('click', () => closeTreeAgent(false));
 
-                // Apply working tree to main tree
-                capexTree = JSON.parse(JSON.stringify(wizardState.workingTree));
-                currentPattern = wizardState.patternKey || currentPattern;
-
-                // Close agent
-                closeTreeAgent(true);
-
-                // Reset wizard state
-                if (wizardState) wizardState.active = false;
-
-                // Render updated tree
-                render();
-
-                showToast('✅ Tree changes applied!', 'success');
-                console.log('🤖 Tree Agent: Changes applied');
-            } else {
-                closeTreeAgent(true);
-            }
-        });
-
-        // Send button handler
-        document.getElementById('agent-send-btn')?.addEventListener('click', () => {
-            const input = document.getElementById('agent-input');
-            if (input && input.value.trim()) {
-                const text = input.value.trim();
-                input.value = '';
-
-                // Add user message
-                addAgentMessage('user', text);
-
-                // Forward to wizard if active
-                if (wizardState?.active) {
-                    handleWizardChoice(text);
+            document.getElementById('agent-cancel-btn')?.addEventListener('click', () => {
+                if (confirm('Cancel the current session? Your progress will be lost.')) {
+                    closeTreeAgent(true);
+                    // Reset wizard state
+                    if (wizardState) wizardState.active = false;
                 }
-            }
-        });
+            });
 
-        // Enter key handler
-        document.getElementById('agent-input')?.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter' && !e.shiftKey) {
-                e.preventDefault();
-                document.getElementById('agent-send-btn')?.click();
-            }
-        });
+            document.getElementById('agent-finish-btn')?.addEventListener('click', () => {
+                if (wizardState?.workingTree) {
+                    // Save state for undo
+                    saveState('Tree Agent: Apply changes');
 
-        // Voice input button (placeholder for future implementation)
-        document.getElementById('agent-voice-btn')?.addEventListener('click', () => {
-            showToast('🎤 Voice input coming soon!', 'info');
-        });
+                    // Apply working tree to main tree
+                    capexTree = JSON.parse(JSON.stringify(wizardState.workingTree));
+                    currentPattern = wizardState.patternKey || currentPattern;
+
+                    // Close agent
+                    closeTreeAgent(true);
+
+                    // Reset wizard state
+                    if (wizardState) wizardState.active = false;
+
+                    // Render updated tree
+                    render();
+
+                    showToast('✅ Tree changes applied!', 'success');
+                    console.log('🤖 Tree Agent: Changes applied');
+                } else {
+                    closeTreeAgent(true);
+                }
+            });
+
+            console.log('🤖 Tree Agent event listeners attached');
+        }
+        initAgentEventListeners();
+
+        // Send button handler - also deferred
+        function initAgentSendButton() {
+            const sendBtn = document.getElementById('agent-send-btn');
+            if (!sendBtn) {
+                setTimeout(initAgentSendButton, 100);
+                return;
+            }
+            sendBtn.addEventListener('click', () => {
+                const input = document.getElementById('agent-input');
+                if (input && input.value.trim()) {
+                    const text = input.value.trim();
+                    input.value = '';
+
+                    // Add user message
+                    addAgentMessage('user', text);
+
+                    // Forward to wizard if active
+                    if (wizardState?.active) {
+                        handleWizardChoice(text);
+                    }
+                }
+            });
+
+            // Enter key handler
+            document.getElementById('agent-input')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    document.getElementById('agent-send-btn')?.click();
+                }
+            });
+
+            // Voice input button (placeholder for future implementation)
+            document.getElementById('agent-voice-btn')?.addEventListener('click', () => {
+                showToast('🎤 Voice input coming soon!', 'info');
+            });
+
+            console.log('🤖 Tree Agent send button initialized');
+        }
+        initAgentSendButton();
 
         // ═══════════════════════════════════════════════════════════════════════════
         // BUILD 407: DRAGGABLE AGENT FRAME + POSITION PERSISTENCE
@@ -32028,10 +32052,16 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
         window.resetAgentPosition = resetAgentPosition;
 
         // Make the agent frame draggable
-        (function initAgentDrag() {
+        // BUILD 417: Defer initialization until DOM is ready (element is at end of HTML)
+        function initAgentDrag() {
             const frame = document.getElementById('tree-agent-frame');
             const header = frame?.querySelector('.agent-header');
-            if (!frame || !header) return;
+            if (!frame || !header) {
+                // Element not yet in DOM, retry after a short delay
+                console.log('🤖 Tree Agent frame not ready, deferring drag init...');
+                setTimeout(initAgentDrag, 100);
+                return;
+            }
 
             let isDragging = false;
             let dragOffset = { x: 0, y: 0 };
@@ -32105,7 +32135,9 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
             loadAgentPosition();
 
             console.log('🤖 BUILD 407: Draggable agent frame initialized');
-        })();
+        }
+        // Start the deferred initialization
+        initAgentDrag();
 
         console.log('🤖 BUILD 405-407: Tree Agent fully initialized');
 
@@ -52476,7 +52508,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 417; // Update this with each build
+                    const KNOWN_LATEST = 418; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
