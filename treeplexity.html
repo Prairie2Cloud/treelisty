@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 416 | 2025-12-15
+    TreeListy v2.18.0 | Build 417 | 2025-12-15
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 416): 💬 Fix Chat Builder Not Opening
+    Changelog (Build 417): 🔗 Fix Hyperedge AI Analysis
+    Previous (Build 416): 💬 Fix Chat Builder Not Opening
     Previous (Build 415): 🔷 Shape Hierarchy for Node Types
     Previous (Build 414): 🎬 Share View State with 3D Splash
     - Auto-capture current view state when generating share links
@@ -662,7 +663,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 416,
+            build: 417,
             date: '2025-12-15',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -14121,7 +14122,9 @@ Be specific and insightful, not generic.`;
             showToast('Analyzing relationship...', 'info');
 
             try {
-                const response = await callAIWithStreaming(prompt, 'Analyze hyperedge relationship', false);
+                // BUILD 416: Fix - use callClaudeAPI (unified AI wrapper) instead of non-existent callAIWithStreaming
+                const systemPrompt = 'You are an expert analyst helping understand relationships between items in a project tree. Be concise and insightful.';
+                const response = await callClaudeAPI(prompt, systemPrompt, 1024, false);
 
                 if (response) {
                     // Save analysis to hyperedge
@@ -14138,7 +14141,7 @@ Be specific and insightful, not generic.`;
                 }
             } catch (error) {
                 console.error('AI analysis failed:', error);
-                showToast('Analysis failed. Check API key.', 'error');
+                showToast('Analysis failed: ' + (error.message || 'Check API key'), 'error');
             }
         }
 
@@ -52473,7 +52476,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 416; // Update this with each build
+                    const KNOWN_LATEST = 417; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
