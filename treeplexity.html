@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 421 | 2025-12-15
+    TreeListy v2.18.0 | Build 422 | 2025-12-15
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 421): 🔗 Fix Hyperedge Show/Hide in Canvas View
+    Changelog (Build 422): 📝 Enhanced Root/Phase Info Panel + Edit Details
+    Previous (Build 421): 🔗 Fix Hyperedge Show/Hide in Canvas View
     Previous (Build 420): 🎨 Phase Color Cycling (different color per year)
     Previous (Build 419): 💬 Fix Chat Builder Send/Finish Buttons
     Previous (Build 418): 🖱️ Fix Tree Agent Drag/Close Buttons
@@ -667,7 +668,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 421,
+            build: 422,
             date: '2025-12-15',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -19624,9 +19625,41 @@ function hidePatternDescription() {
         function showInfo(node) {
             const panel = document.getElementById('info-panel');
             const titleElement = document.getElementById('info-title');
+            const labels = getPatternLabels();
+            const pattern = PATTERNS[currentPattern];
 
-            // Enhanced title for subtasks - just the name, prominent
-            if (node.type === 'subtask') {
+            // BUILD 422: Enhanced titles for root/phase/subtask nodes
+            if (node.type === 'root') {
+                const phases = node.children || [];
+                const totalItems = phases.reduce((sum, p) => sum + (p.items?.length || 0), 0);
+                titleElement.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <span style="font-size: 36px;">${node.icon || '🌳'}</span>
+                        <div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--text-primary); line-height: 1.2;">${node.name}</div>
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${labels.root} • ${phases.length} ${labels.phase}s • ${totalItems} ${labels.item}s</div>
+                        </div>
+                    </div>
+                    <button onclick="showEditDetailsModal(activeNode)" style="padding: 8px 14px; background: linear-gradient(135deg, var(--treeplex-primary), var(--treeplex-primary-dark)); border: none; border-radius: 8px; color: white; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px;">
+                        📝 Edit Project Details
+                    </button>
+                `;
+            } else if (node.type === 'phase') {
+                const items = node.items || [];
+                titleElement.innerHTML = `
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                        <span style="font-size: 36px;">${node.icon || '📋'}</span>
+                        <div>
+                            <div style="font-size: 22px; font-weight: 700; color: var(--text-primary); line-height: 1.2;">${node.name}</div>
+                            ${node.subtitle ? `<div style="font-size: 13px; color: var(--treeplex-primary); margin-top: 2px;">${node.subtitle}</div>` : ''}
+                            <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">${labels.phase} • ${items.length} ${labels.item}s</div>
+                        </div>
+                    </div>
+                    <button onclick="showEditDetailsModal(activeNode)" style="padding: 8px 14px; background: linear-gradient(135deg, var(--treeplex-primary), var(--treeplex-primary-dark)); border: none; border-radius: 8px; color: white; font-size: 12px; font-weight: 600; cursor: pointer; margin-top: 8px;">
+                        📝 Edit Phase Details
+                    </button>
+                `;
+            } else if (node.type === 'subtask') {
                 titleElement.innerHTML = `
                     <div style="font-size: 24px; font-weight: 700; color: var(--text-primary); line-height: 1.3;">
                         ${node.name}
@@ -19816,6 +19849,135 @@ function hidePatternDescription() {
                             `).join('')}
                         </div>
                     ` : ''}
+                `;
+            }
+
+            // BUILD 422: Enhanced infographic for root and phase nodes
+            let keyNodeInfoHtml = '';
+            if (node.type === 'root') {
+                const phases = node.children || [];
+                const totalItems = phases.reduce((sum, p) => sum + (p.items?.length || 0), 0);
+                const totalSubtasks = phases.reduce((sum, p) => {
+                    return sum + (p.items || []).reduce((s, item) => s + (item.subtasks?.length || item.subItems?.length || 0), 0);
+                }, 0);
+                const totalCost = pattern.fields?.cost ? calculateTotal(node) : 0;
+
+                keyNodeInfoHtml = `
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.12), rgba(139, 92, 246, 0.08)); border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 2px solid rgba(99, 102, 241, 0.3);">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <div style="font-size: 14px; font-weight: 700; color: var(--treeplex-primary); text-transform: uppercase; letter-spacing: 1px;">📊 Project Dashboard</div>
+                        </div>
+
+                        <!-- Stats Grid -->
+                        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr)); gap: 12px; margin-bottom: 20px;">
+                            <div style="padding: 16px; background: rgba(99, 102, 241, 0.15); border-radius: 12px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #6366F1;">${phases.length}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">${labels.phase}s</div>
+                            </div>
+                            <div style="padding: 16px; background: rgba(59, 130, 246, 0.15); border-radius: 12px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #3B82F6;">${totalItems}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">${labels.item}s</div>
+                            </div>
+                            <div style="padding: 16px; background: rgba(139, 92, 246, 0.15); border-radius: 12px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #8B5CF6;">${totalSubtasks}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">${labels.subtask}s</div>
+                            </div>
+                            ${totalCost > 0 ? `
+                                <div style="padding: 16px; background: rgba(16, 185, 129, 0.15); border-radius: 12px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: 700; color: #10B981;">${formatCost(totalCost)}</div>
+                                    <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Cost</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Goals Section -->
+                        ${node.goals ? `
+                            <div style="padding: 16px; background: rgba(0, 0, 0, 0.2); border-radius: 10px; margin-bottom: 16px; border-left: 4px solid #F59E0B;">
+                                <div style="font-size: 11px; font-weight: 700; color: #F59E0B; text-transform: uppercase; margin-bottom: 8px;">🎯 Goals & Objectives</div>
+                                <div style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">${node.goals}</div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button onclick="handleAnalyzeSelection([activeNode])" style="flex: 1; min-width: 140px; padding: 10px 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.2)); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 8px; color: #A78BFA; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                🎓 Deep Dive Analysis
+                            </button>
+                            <button onclick="handleAI()" style="flex: 1; min-width: 140px; padding: 10px 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2)); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; color: #60A5FA; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                🔍 Quick Insight
+                            </button>
+                        </div>
+                    </div>
+                `;
+            } else if (node.type === 'phase') {
+                const items = node.items || [];
+                const totalSubtasks = items.reduce((sum, item) => sum + (item.subtasks?.length || item.subItems?.length || 0), 0);
+                const totalCost = pattern.fields?.cost ? calculatePhaseTotal(node) : 0;
+
+                // Determine phase color based on phase index
+                const phaseIdx = (capexTree.children || []).findIndex(p => p.id === node.id);
+                const phaseColors = ['#3a5a5a', '#4a4a5f', '#3a4a5f', '#3a5a4a', '#5a4a50', '#5a5040'];
+                const phaseColor = phaseColors[phaseIdx % phaseColors.length];
+
+                keyNodeInfoHtml = `
+                    <div style="background: linear-gradient(135deg, ${phaseColor}22, ${phaseColor}11); border-radius: 16px; padding: 24px; margin-bottom: 24px; border: 2px solid ${phaseColor}66;">
+                        <div style="text-align: center; margin-bottom: 20px;">
+                            <div style="font-size: 14px; font-weight: 700; color: ${phaseColor}; text-transform: uppercase; letter-spacing: 1px; filter: brightness(1.5);">📋 ${labels.phase} Overview</div>
+                        </div>
+
+                        <!-- Stats Row -->
+                        <div style="display: flex; gap: 12px; margin-bottom: 20px; flex-wrap: wrap;">
+                            <div style="flex: 1; min-width: 100px; padding: 16px; background: rgba(59, 130, 246, 0.15); border-radius: 12px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #3B82F6;">${items.length}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">${labels.item}s</div>
+                            </div>
+                            <div style="flex: 1; min-width: 100px; padding: 16px; background: rgba(139, 92, 246, 0.15); border-radius: 12px; text-align: center;">
+                                <div style="font-size: 32px; font-weight: 700; color: #8B5CF6;">${totalSubtasks}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">${labels.subtask}s</div>
+                            </div>
+                            ${totalCost > 0 ? `
+                                <div style="flex: 1; min-width: 100px; padding: 16px; background: rgba(16, 185, 129, 0.15); border-radius: 12px; text-align: center;">
+                                    <div style="font-size: 24px; font-weight: 700; color: #10B981;">${formatCost(totalCost)}</div>
+                                    <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Phase Cost</div>
+                                </div>
+                            ` : ''}
+                        </div>
+
+                        <!-- Timeline -->
+                        ${node.startDate || node.endDate ? `
+                            <div style="padding: 14px; background: rgba(0, 0, 0, 0.2); border-radius: 10px; margin-bottom: 16px; display: flex; justify-content: space-around; align-items: center;">
+                                <div style="text-align: center;">
+                                    <div style="font-size: 20px;">📅</div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${node.startDate ? new Date(node.startDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : 'Not set'}</div>
+                                    <div style="font-size: 10px; color: var(--text-secondary);">Start</div>
+                                </div>
+                                <div style="flex: 1; height: 2px; background: linear-gradient(90deg, var(--treeplex-primary), transparent); margin: 0 16px;"></div>
+                                <div style="text-align: center;">
+                                    <div style="font-size: 20px;">🎯</div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${node.endDate ? new Date(node.endDate).toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'}) : 'Not set'}</div>
+                                    <div style="font-size: 10px; color: var(--text-secondary);">End</div>
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Goals Section -->
+                        ${node.goals ? `
+                            <div style="padding: 16px; background: rgba(0, 0, 0, 0.2); border-radius: 10px; margin-bottom: 16px; border-left: 4px solid #F59E0B;">
+                                <div style="font-size: 11px; font-weight: 700; color: #F59E0B; text-transform: uppercase; margin-bottom: 8px;">🎯 Goals & Objectives</div>
+                                <div style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap;">${node.goals}</div>
+                            </div>
+                        ` : ''}
+
+                        <!-- Action Buttons -->
+                        <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                            <button onclick="handleAnalyzeSelection([activeNode])" style="flex: 1; min-width: 140px; padding: 10px 16px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.2)); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 8px; color: #A78BFA; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                🎓 Deep Dive Analysis
+                            </button>
+                            <button onclick="handleAI()" style="flex: 1; min-width: 140px; padding: 10px 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(37, 99, 235, 0.2)); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 8px; color: #60A5FA; font-size: 12px; font-weight: 600; cursor: pointer;">
+                                🔍 Quick Insight
+                            </button>
+                        </div>
+                    </div>
                 `;
             }
 
@@ -20933,6 +21095,9 @@ function hidePatternDescription() {
             }
 
             body.innerHTML = `
+                <!-- BUILD 422: Key Node Infographic (Root/Phase Dashboard) -->
+                ${keyNodeInfoHtml}
+
                 <!-- HERO: Description Field (Primary Content) -->
                 <div style="margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, rgba(0, 166, 125, 0.08), rgba(0, 140, 105, 0.04)); border-radius: 12px; border: 1px solid rgba(0, 166, 125, 0.2);">
                     <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
@@ -21317,30 +21482,34 @@ function hidePatternDescription() {
                     <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
                 `;
             } else if (activeNode.type === 'phase') {
-                // Phase context menu (Build 391: Added delete option)
+                // Phase context menu (Build 391: Added delete option, Build 422: Added Edit Details)
                 const itemCount = activeNode.items ? activeNode.items.length : 0;
                 const deleteWarning = itemCount > 0 ? ` (${itemCount} items)` : '';
                 menuHtml = `
                     <div class="context-item" id="ctx-view">📋 View Details</div>
                     <div class="context-item" id="ctx-edit">✏️ Edit ${labels.phase}</div>
+                    <div class="context-item" id="ctx-edit-details">📝 Edit Phase Details</div>
                     <div class="context-item" id="ctx-create">➕ Add ${labels.item} to ${activeNode.name}</div>
                     <div class="context-item" id="ctx-delete" style="color: #ef4444;">🗑️ Delete ${labels.phase}${deleteWarning}</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
+                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-download">💾 Download JSON</div>
                     <div class="context-item" id="ctx-upload">📂 Upload JSON</div>
                 `;
             } else if (activeNode.type === 'root') {
-                // Root context menu (Build 260: Edit opens Project Settings)
+                // Root context menu (Build 260: Edit opens Project Settings, Build 422: Enhanced)
                 menuHtml = `
                     <div class="context-item" id="ctx-view">📋 View Details</div>
                     <div class="context-item" id="ctx-edit">⚙️ Project Settings</div>
+                    <div class="context-item" id="ctx-edit-details">📝 Edit Project Details</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-expand">📂 Expand All</div>
                     <div class="context-item" id="ctx-collapse">📁 Collapse All</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 ${labels.root} Quick Insight</div>
+                    <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-download">💾 Download JSON</div>
                     <div class="context-item" id="ctx-upload">📂 Upload JSON</div>
@@ -21388,6 +21557,7 @@ function hidePatternDescription() {
         function attachContextMenuListeners() {
             const viewBtn = document.getElementById('ctx-view');
             const editBtn = document.getElementById('ctx-edit');
+            const editDetailsBtn = document.getElementById('ctx-edit-details');
             const createBtn = document.getElementById('ctx-create');
             const addSubtaskBtn = document.getElementById('ctx-add-subtask');
             const attachBtn = document.getElementById('ctx-attach');
@@ -21401,6 +21571,7 @@ function hidePatternDescription() {
 
             if (viewBtn) viewBtn.onclick = handleViewDetails;
             if (editBtn) editBtn.onclick = handleEdit;
+            if (editDetailsBtn) editDetailsBtn.onclick = handleEditDetails;
             if (createBtn) createBtn.onclick = handleCreate;
             if (addSubtaskBtn) addSubtaskBtn.onclick = handleAddSubtask;
             if (attachBtn) attachBtn.onclick = handleAttachments;
@@ -21412,6 +21583,211 @@ function hidePatternDescription() {
             if (expandBtn) expandBtn.onclick = handleExpandAll;
             if (collapseBtn) collapseBtn.onclick = handleCollapseAll;
         }
+
+        // BUILD 422: Handle Edit Details for root/phase nodes
+        function handleEditDetails() {
+            if (!activeNode) return;
+            document.getElementById('context-menu').style.display = 'none';
+            showEditDetailsModal(activeNode);
+        }
+
+        // BUILD 422: Edit Details Modal for Root/Phase nodes
+        function showEditDetailsModal(node) {
+            const isRoot = node.type === 'root';
+            const labels = getPatternLabels();
+            const title = isRoot ? 'Project Details' : `${labels.phase} Details`;
+            const pattern = PATTERNS[currentPattern];
+
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = `📝 ${title}`;
+
+            // Calculate stats for display
+            let stats = {};
+            if (isRoot) {
+                const phases = node.children || [];
+                const totalItems = phases.reduce((sum, p) => sum + (p.items?.length || 0), 0);
+                const totalCost = pattern.fields?.cost ? calculateTotal(node) : 0;
+                stats = { phases: phases.length, items: totalItems, cost: totalCost };
+            } else {
+                const items = node.items || [];
+                const totalCost = pattern.fields?.cost ? calculatePhaseTotal(node) : 0;
+                stats = { items: items.length, cost: totalCost };
+            }
+
+            modalBody.innerHTML = `
+                <div style="max-height: 70vh; overflow-y: auto;">
+                    <!-- Stats Banner -->
+                    <div style="display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap;">
+                        ${isRoot ? `
+                            <div style="flex: 1; min-width: 100px; padding: 16px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(139, 92, 246, 0.1)); border-radius: 12px; text-align: center; border: 1px solid rgba(99, 102, 241, 0.3);">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--treeplex-primary);">${stats.phases}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">${labels.phase}s</div>
+                            </div>
+                        ` : ''}
+                        <div style="flex: 1; min-width: 100px; padding: 16px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(37, 99, 235, 0.1)); border-radius: 12px; text-align: center; border: 1px solid rgba(59, 130, 246, 0.3);">
+                            <div style="font-size: 28px; font-weight: 700; color: #3B82F6;">${stats.items}</div>
+                            <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">${labels.item}s</div>
+                        </div>
+                        ${pattern.fields?.cost && stats.cost > 0 ? `
+                            <div style="flex: 1; min-width: 100px; padding: 16px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.1)); border-radius: 12px; text-align: center; border: 1px solid rgba(16, 185, 129, 0.3);">
+                                <div style="font-size: 24px; font-weight: 700; color: #10B981;">${formatCost(stats.cost)}</div>
+                                <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase;">Total Cost</div>
+                            </div>
+                        ` : ''}
+                    </div>
+
+                    <!-- Name Field -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                            ${isRoot ? 'Project Name' : `${labels.phase} Name`}
+                        </label>
+                        <input type="text" id="edit-details-name" value="${node.name || ''}"
+                            style="width: 100%; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 16px; font-weight: 600;"
+                            placeholder="Enter ${isRoot ? 'project' : labels.phase.toLowerCase()} name...">
+                    </div>
+
+                    <!-- Icon Selection -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                            Icon
+                        </label>
+                        <input type="text" id="edit-details-icon" value="${node.icon || (isRoot ? '🌳' : '📋')}"
+                            style="width: 80px; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 24px; text-align: center;">
+                    </div>
+
+                    <!-- Subtitle Field (for phases) -->
+                    ${!isRoot ? `
+                        <div style="margin-bottom: 20px;">
+                            <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                                Subtitle
+                            </label>
+                            <input type="text" id="edit-details-subtitle" value="${node.subtitle || ''}"
+                                style="width: 100%; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px;"
+                                placeholder="Optional subtitle or tagline...">
+                        </div>
+                    ` : ''}
+
+                    <!-- Description Field -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                            Description
+                        </label>
+                        <textarea id="edit-details-description" rows="4"
+                            style="width: 100%; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; line-height: 1.6; resize: vertical;"
+                            placeholder="Provide a detailed description of this ${isRoot ? 'project' : labels.phase.toLowerCase()}...">${node.description || ''}</textarea>
+                    </div>
+
+                    <!-- Goals/Objectives Field -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                            🎯 Goals & Objectives
+                        </label>
+                        <textarea id="edit-details-goals" rows="3"
+                            style="width: 100%; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; line-height: 1.6; resize: vertical;"
+                            placeholder="What are the key objectives? What does success look like?">${node.goals || ''}</textarea>
+                    </div>
+
+                    <!-- Notes Field -->
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                            📝 Notes & Context
+                        </label>
+                        <textarea id="edit-details-notes" rows="3"
+                            style="width: 100%; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; line-height: 1.6; resize: vertical;"
+                            placeholder="Additional context, background, or important notes...">${node.notes || ''}</textarea>
+                    </div>
+
+                    <!-- Date Fields (for phases) -->
+                    ${!isRoot ? `
+                        <div style="display: flex; gap: 16px; margin-bottom: 20px;">
+                            <div style="flex: 1;">
+                                <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                                    📅 Start Date
+                                </label>
+                                <input type="date" id="edit-details-start" value="${node.startDate || ''}"
+                                    style="width: 100%; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px;">
+                            </div>
+                            <div style="flex: 1;">
+                                <label style="display: block; font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 6px; text-transform: uppercase;">
+                                    🎯 End Date
+                                </label>
+                                <input type="date" id="edit-details-end" value="${node.endDate || ''}"
+                                    style="width: 100%; padding: 12px 16px; background: var(--surface-elevated); border: 2px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px;">
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <!-- Action Buttons -->
+                    <div style="display: flex; gap: 12px; margin-top: 24px; padding-top: 16px; border-top: 1px solid var(--border-color);">
+                        <button onclick="document.getElementById('modal').style.display='none'"
+                            style="flex: 1; padding: 14px; background: var(--surface-elevated); border: 1px solid var(--border-color); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-weight: 600; cursor: pointer;">
+                            Cancel
+                        </button>
+                        <button onclick="saveEditDetails('${node.id}', ${isRoot})"
+                            style="flex: 2; padding: 14px; background: linear-gradient(135deg, var(--treeplex-primary), var(--treeplex-primary-dark)); border: none; border-radius: 8px; color: white; font-size: 14px; font-weight: 600; cursor: pointer;">
+                            💾 Save Changes
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        // Save edit details
+        function saveEditDetails(nodeId, isRoot) {
+            const name = document.getElementById('edit-details-name')?.value?.trim();
+            const icon = document.getElementById('edit-details-icon')?.value?.trim();
+            const description = document.getElementById('edit-details-description')?.value?.trim();
+            const goals = document.getElementById('edit-details-goals')?.value?.trim();
+            const notes = document.getElementById('edit-details-notes')?.value?.trim();
+            const subtitle = document.getElementById('edit-details-subtitle')?.value?.trim();
+            const startDate = document.getElementById('edit-details-start')?.value;
+            const endDate = document.getElementById('edit-details-end')?.value;
+
+            // Find the node
+            let targetNode = null;
+            if (isRoot) {
+                targetNode = capexTree;
+            } else {
+                targetNode = capexTree.children?.find(p => p.id === nodeId);
+            }
+
+            if (!targetNode) {
+                showToast('❌ Node not found', 'error');
+                return;
+            }
+
+            // Save state for undo
+            saveState('Edit ' + (isRoot ? 'project' : 'phase') + ' details');
+
+            // Update fields
+            if (name) targetNode.name = name;
+            if (icon) targetNode.icon = icon;
+            targetNode.description = description || '';
+            targetNode.goals = goals || '';
+            targetNode.notes = notes || '';
+            if (!isRoot) {
+                targetNode.subtitle = subtitle || '';
+                if (startDate) targetNode.startDate = startDate;
+                if (endDate) targetNode.endDate = endDate;
+            }
+
+            // Close modal and refresh
+            document.getElementById('modal').style.display = 'none';
+            render();
+            showToast('✅ Details saved!', 'success');
+
+            // Update info panel if open
+            if (activeNode && activeNode.id === nodeId) {
+                showInfo(targetNode);
+            }
+        }
+        window.saveEditDetails = saveEditDetails;
+        window.showEditDetailsModal = showEditDetailsModal;
 
         // BUILD 371: Handle attachments context menu
         function handleAttachments() {
@@ -52571,7 +52947,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 421; // Update this with each build
+                    const KNOWN_LATEST = 422; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
