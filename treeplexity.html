@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 414 | 2025-12-15
+    TreeListy v2.18.0 | Build 415 | 2025-12-15
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 414): 🎬 Share View State with 3D Splash
+    Changelog (Build 415): 🔷 Shape Hierarchy for Node Types
+    Previous (Build 414): 🎬 Share View State with 3D Splash
     - Auto-capture current view state when generating share links
     - Include view type, selected node, expanded nodes, canvas positions, zoom/pan
     - Graceful degradation: full state → trim positions → trim expanded → minimal
@@ -660,7 +661,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 414,
+            build: 415,
             date: '2025-12-15',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1103,29 +1104,100 @@
             pointer-events: none;
         }
 
+        /* BUILD 415: Shape Hierarchy - Root = Hexagon */
         .tree-node.root {
-            background: linear-gradient(135deg, #4A5568 0%, #2D3748 100%);
-            color: white;
-            font-size: 20px;
+            background: linear-gradient(135deg, #4a4a6a 0%, #3d3d5c 100%);
+            color: #d0d0e0;
+            font-size: 18px;
             font-weight: 600;
-            min-width: 240px;
-            box-shadow: var(--shadow-lg);
-            border: 2px solid rgba(255, 255, 255, 0.15);
+            min-width: 200px;
+            box-shadow: 0 4px 20px rgba(74, 74, 106, 0.3);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            clip-path: polygon(8% 0%, 92% 0%, 100% 50%, 92% 100%, 8% 100%, 0% 50%);
+            padding: 24px 36px;
+            text-align: center;
         }
 
         .tree-node.root:hover {
-            box-shadow: var(--shadow-xl);
-            background: linear-gradient(135deg, #556577 0%, #3A4556 100%);
+            box-shadow: 0 6px 28px rgba(74, 74, 106, 0.4);
+            background: linear-gradient(135deg, #5a5a7a 0%, #4d4d6c 100%);
+            transform: translateY(-2px);
         }
 
         .tree-node.root .node-subtitle {
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 500;
-            opacity: 0.85;
+            opacity: 0.7;
             text-transform: uppercase;
             letter-spacing: 1px;
-            margin-top: 2px;
+            margin-top: 4px;
+            color: #a0a0b0;
         }
+
+        /* BUILD 415: Shape Hierarchy - Phase = Rounded Rectangle */
+        .tree-node.phase {
+            background: linear-gradient(135deg, #3a5a5a 0%, #2d4a4a 100%);
+            color: #b8d0d0;
+            border-radius: 14px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 3px 16px rgba(58, 90, 90, 0.25);
+            padding: 16px 20px;
+        }
+
+        .tree-node.phase:hover {
+            background: linear-gradient(135deg, #4a6a6a 0%, #3d5a5a 100%);
+            box-shadow: 0 5px 22px rgba(58, 90, 90, 0.35);
+            transform: translateX(3px) translateY(-1px);
+        }
+
+        .tree-node.phase .node-title {
+            font-weight: 600;
+            font-size: 15px;
+        }
+
+        /* BUILD 415: Shape Hierarchy - Item = Rectangle (sharp corners) */
+        .tree-node.item {
+            background: linear-gradient(135deg, #5a4a4f 0%, #4a3a40 100%);
+            color: #d8c8cc;
+            border-radius: 4px;
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            box-shadow: 0 2px 12px rgba(90, 74, 79, 0.2);
+            padding: 14px 18px;
+        }
+
+        .tree-node.item:hover {
+            background: linear-gradient(135deg, #6a5a5f 0%, #5a4a50 100%);
+            box-shadow: 0 4px 18px rgba(90, 74, 79, 0.3);
+            transform: translateX(3px) translateY(-1px);
+        }
+
+        .tree-node.item .item-name {
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        /* BUILD 415: Shape Hierarchy - Subtask = Pill */
+        .tree-node.subtask {
+            background: linear-gradient(135deg, #3a4a5a 0%, #2d3a4a 100%);
+            color: #b0c0d0;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            box-shadow: 0 2px 10px rgba(58, 74, 90, 0.2);
+            padding: 10px 18px;
+            font-size: 13px;
+        }
+
+        .tree-node.subtask:hover {
+            background: linear-gradient(135deg, #4a5a6a 0%, #3d4a5a 100%);
+            box-shadow: 0 3px 14px rgba(58, 74, 90, 0.3);
+            transform: translateX(2px);
+        }
+
+        /* BUILD 415: Deep nesting opacity fade for subtasks */
+        .tree-node.subtask[data-depth="4"] { opacity: 0.85; }
+        .tree-node.subtask[data-depth="5"] { opacity: 0.70; }
+        .tree-node.subtask[data-depth="6"] { opacity: 0.55; }
+        .tree-node.subtask[data-depth="7"] { opacity: 0.45; }
 
         /* FILESYSTEM PATTERN: Vertical Tree Layout */
         .tree.filesystem-tree {
@@ -18500,6 +18572,8 @@ function hidePatternDescription() {
                     if (node.expanded) nodeDiv.classList.add('expanded');
                     else nodeDiv.classList.add('collapsed');
                     nodeDiv.dataset.nodeId = node.id;
+                    // BUILD 415: Track depth for shape hierarchy
+                    nodeDiv.dataset.depth = depth;
 
                     // BUILD 406: Apply visual highlighting for recently changed nodes
                     if (typeof hasRecentChange === 'function') {
@@ -19086,6 +19160,8 @@ function hidePatternDescription() {
                                     const subItemDiv = document.createElement('div');
                                     subItemDiv.className = `tree-node item phase-${phaseNum} subtask`;
                                     subItemDiv.dataset.itemId = subItem.id;
+                                    // BUILD 415: Track depth for shape hierarchy opacity fade
+                                    subItemDiv.dataset.depth = nestLevel + 3; // root=0, phase=1, item=2, subtask=3+
 
                                     // Ensure subItem has type set
                                     if (!subItem.type) {
@@ -38733,7 +38809,7 @@ ${jsonText}`;
                         <span style="font-size: 12px; opacity: 0.6;">
                             v${window.TREELISTY_VERSION?.major || '2.17.0'} • Build ${window.TREELISTY_VERSION?.build || '???'}
                         </span>
-                        <button onclick="window.checkForUpdates(); this.textContent='Checking...'; this.disabled=true; setTimeout(() => { this.textContent='🔄 Check for Updates'; this.disabled=false; }, 3000);" style="
+                        <button onclick="window.checkForUpdates(true).then(r => { this.textContent = r === 'latest' ? '✅ Up to date!' : r === 'update' ? '🚀 Update available!' : '⚠️ Check console'; setTimeout(() => { this.textContent='🔄 Check for Updates'; this.disabled=false; }, 3000); }); this.textContent='Checking...'; this.disabled=true;" style="
                             padding: 8px 16px;
                             background: var(--bg);
                             border: 1px solid var(--border);
@@ -52382,8 +52458,9 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
         let updateToastShown = false;
 
-        async function checkForUpdates() {
-            if (updateToastShown) return;
+        async function checkForUpdates(forceCheck = false) {
+            // BUILD 415: Allow manual checks even if toast was shown before
+            if (updateToastShown && !forceCheck) return 'skipped';
 
             try {
                 // BUILD 359: Version check - different approaches for different contexts
@@ -52395,12 +52472,13 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 414; // Update this with each build
+                    const KNOWN_LATEST = 415; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
+                        return 'update';
                     }
-                    return;
+                    return 'latest';
                 }
 
                 // For HTTPS (Netlify), fetch the current page to check version
@@ -52409,24 +52487,27 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     headers: { 'Cache-Control': 'no-cache' }
                 });
 
-                if (!response.ok) return;
+                if (!response.ok) return 'error';
 
                 const html = await response.text();
 
                 // Extract build number from header comment: "Build XXX"
                 const match = html.match(/TreeListy v[\d.]+ \| Build (\d+)/);
-                if (!match) return;
+                if (!match) return 'error';
 
                 const latestBuild = parseInt(match[1]);
 
                 if (latestBuild > CURRENT_BUILD) {
                     console.log(`🚀 New version available: Build ${latestBuild} (current: ${CURRENT_BUILD})`);
                     showUpdateToast(latestBuild);
+                    return 'update';
                 } else {
                     console.log(`✅ Running latest version: Build ${CURRENT_BUILD}`);
+                    return 'latest';
                 }
             } catch (e) {
                 console.warn('Version check failed:', e);
+                return 'error';
             }
         }
 
