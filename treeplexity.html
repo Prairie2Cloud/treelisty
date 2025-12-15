@@ -5233,6 +5233,10 @@
                             <span class="item-icon">📊</span>
                             <span class="item-label">From Excel (.xlsx)</span>
                         </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="msproject-import-btn">
+                            <span class="item-icon">📅</span>
+                            <span class="item-label">From MS Project (.xml)</span>
+                        </button>
                         <div class="dropdown-menu-divider"></div>
                         <button class="dropdown-menu-item" role="menuitem" id="import-text-header-btn">
                             <span class="item-icon">📝</span>
@@ -5245,6 +5249,7 @@
                     </div>
                 </div>
                 <input type="file" id="excel-upload-input" accept=".xlsx,.xls" style="display: none;">
+                <input type="file" id="msproject-upload-input" accept=".xml" style="display: none;">
 
                 <!-- Save Dropdown -->
                 <div class="dropdown-menu" id="save-dropdown">
@@ -5263,6 +5268,10 @@
                         <button class="dropdown-menu-item" role="menuitem" id="excel-export-btn">
                             <span class="item-icon">📊</span>
                             <span class="item-label">Export to Excel</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="msproject-export-btn">
+                            <span class="item-icon">📅</span>
+                            <span class="item-label">Export to MS Project (.xml)</span>
                         </button>
                         <div class="dropdown-menu-divider"></div>
                         <button class="dropdown-menu-item" role="menuitem" id="share-btn">
@@ -43034,6 +43043,1041 @@ STRATEGIES:
             }
             // Reset input
             e.target.value = '';
+        });
+
+        // =============================================================================
+        // MS PROJECT XML IMPORT - Import from MS Project XML export
+        // =============================================================================
+
+        /**
+         * Parse MS Project XML (MSPDI format) and convert to TreeListy format
+         * Users export from MS Project via: File → Save As → XML Format
+         */
+        function parseMSProjectXML(xmlString) {
+            console.log('📅 Parsing MS Project XML...');
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlString, 'text/xml');
+
+            // Check for parsing errors
+            const parseError = xmlDoc.querySelector('parsererror');
+            if (parseError) {
+                throw new Error('Invalid XML file: ' + parseError.textContent);
+            }
+
+            // Check if this is MS Project XML (MSPDI format)
+            const projectNode = xmlDoc.querySelector('Project');
+            if (!projectNode) {
+                throw new Error('This does not appear to be an MS Project XML file. Please export from MS Project using File → Save As → XML Format.');
+            }
+
+            // Extract project metadata
+            const projectName = xmlDoc.querySelector('Project > Name')?.textContent ||
+                               xmlDoc.querySelector('Project > Title')?.textContent ||
+                               'Imported MS Project';
+            const projectStart = xmlDoc.querySelector('Project > StartDate')?.textContent;
+            const projectFinish = xmlDoc.querySelector('Project > FinishDate')?.textContent;
+
+            console.log('📅 Project:', projectName);
+
+            // Build resource map (UID → Name)
+            const resourceMap = new Map();
+            const resources = xmlDoc.querySelectorAll('Resources > Resource');
+            resources.forEach(resource => {
+                const uid = resource.querySelector('UID')?.textContent;
+                const name = resource.querySelector('Name')?.textContent;
+                if (uid && name) {
+                    resourceMap.set(uid, name);
+                }
+            });
+            console.log('👥 Resources found:', resourceMap.size);
+
+            // Build assignment map (TaskUID → ResourceNames)
+            const assignmentMap = new Map();
+            const assignments = xmlDoc.querySelectorAll('Assignments > Assignment');
+            assignments.forEach(assignment => {
+                const taskUID = assignment.querySelector('TaskUID')?.textContent;
+                const resourceUID = assignment.querySelector('ResourceUID')?.textContent;
+                if (taskUID && resourceUID && resourceMap.has(resourceUID)) {
+                    const existing = assignmentMap.get(taskUID) || [];
+                    existing.push(resourceMap.get(resourceUID));
+                    assignmentMap.set(taskUID, existing);
+                }
+            });
+
+            // Parse all tasks
+            const tasks = xmlDoc.querySelectorAll('Tasks > Task');
+            const taskList = [];
+            const taskUIDMap = new Map(); // UID → task data for dependency resolution
+
+            tasks.forEach(task => {
+                const uid = task.querySelector('UID')?.textContent;
+                const id = task.querySelector('ID')?.textContent;
+                const name = task.querySelector('Name')?.textContent;
+                const outlineLevel = parseInt(task.querySelector('OutlineLevel')?.textContent || '0');
+                const wbs = task.querySelector('WBS')?.textContent || '';
+                const isSummary = task.querySelector('Summary')?.textContent === '1';
+                const notes = task.querySelector('Notes')?.textContent || '';
+
+                // Skip the root project task (outline level 0, usually ID 0)
+                if (outlineLevel === 0 && id === '0') return;
+
+                // Dates (convert from MS Project format)
+                const startDate = task.querySelector('Start')?.textContent;
+                const finishDate = task.querySelector('Finish')?.textContent;
+
+                // Duration (PT format: PT8H0M0S = 8 hours)
+                const durationRaw = task.querySelector('Duration')?.textContent || '';
+                const duration = parseMSProjectDuration(durationRaw);
+
+                // Progress
+                const percentComplete = parseInt(task.querySelector('PercentComplete')?.textContent || '0');
+
+                // Cost
+                const cost = parseFloat(task.querySelector('Cost')?.textContent || '0');
+
+                // Priority (MS Project uses 0-1000, 500 is normal)
+                const priorityRaw = parseInt(task.querySelector('Priority')?.textContent || '500');
+                const priority = mapMSProjectPriority(priorityRaw);
+
+                // Status based on percent complete
+                const status = percentComplete === 0 ? 'To Do' :
+                              percentComplete === 100 ? 'Done' : 'In Progress';
+
+                // Get assigned resources
+                const assignees = assignmentMap.get(uid) || [];
+
+                // Parse predecessor links (dependencies)
+                const predecessorUIDs = [];
+                const predecessorLinks = task.querySelectorAll('PredecessorLink');
+                predecessorLinks.forEach(link => {
+                    const predUID = link.querySelector('PredecessorUID')?.textContent;
+                    if (predUID) predecessorUIDs.push(predUID);
+                });
+
+                const taskData = {
+                    uid,
+                    id,
+                    name: name || 'Unnamed Task',
+                    outlineLevel,
+                    wbs,
+                    isSummary,
+                    description: notes,
+                    startDate: formatMSProjectDate(startDate),
+                    finishDate: formatMSProjectDate(finishDate),
+                    duration,
+                    percentComplete,
+                    cost,
+                    priority,
+                    status,
+                    assignees,
+                    predecessorUIDs
+                };
+
+                taskList.push(taskData);
+                taskUIDMap.set(uid, taskData);
+            });
+
+            console.log('📋 Tasks parsed:', taskList.length);
+
+            // Convert flat task list to hierarchical TreeListy structure
+            const treeData = convertMSProjectToTreeListy(taskList, taskUIDMap, projectName);
+
+            return treeData;
+        }
+
+        /**
+         * Parse MS Project duration format (PT8H0M0S) to readable string
+         */
+        function parseMSProjectDuration(ptDuration) {
+            if (!ptDuration) return '';
+
+            // Match PT[n]H[n]M[n]S pattern
+            const match = ptDuration.match(/PT(\d+)H(\d+)M(\d+)S/);
+            if (!match) return ptDuration;
+
+            const hours = parseInt(match[1]);
+            const minutes = parseInt(match[2]);
+
+            if (hours >= 8) {
+                const days = Math.floor(hours / 8);
+                const remainingHours = hours % 8;
+                if (days > 0 && remainingHours === 0) {
+                    return days === 1 ? '1 day' : `${days} days`;
+                } else if (days > 0) {
+                    return `${days}d ${remainingHours}h`;
+                }
+            }
+
+            if (hours > 0 && minutes > 0) {
+                return `${hours}h ${minutes}m`;
+            } else if (hours > 0) {
+                return `${hours} hours`;
+            } else if (minutes > 0) {
+                return `${minutes} minutes`;
+            }
+
+            return '';
+        }
+
+        /**
+         * Map MS Project priority (0-1000) to TreeListy priority
+         */
+        function mapMSProjectPriority(msPriority) {
+            if (msPriority <= 300) return 'Low';
+            if (msPriority <= 700) return 'Medium';
+            return 'High';
+        }
+
+        /**
+         * Format MS Project date to YYYY-MM-DD
+         */
+        function formatMSProjectDate(dateStr) {
+            if (!dateStr) return '';
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return '';
+                return date.toISOString().split('T')[0];
+            } catch {
+                return '';
+            }
+        }
+
+        /**
+         * Convert flat MS Project task list to TreeListy hierarchical structure
+         */
+        function convertMSProjectToTreeListy(taskList, taskUIDMap, projectName) {
+            // Group tasks by outline level to build hierarchy
+            // OutlineLevel 1 = Phases (Summary tasks)
+            // OutlineLevel 2 = Items
+            // OutlineLevel 3+ = Subtasks
+
+            // Check if this is a flat task list (all tasks at level 1, no deeper hierarchy)
+            const maxLevel = Math.max(...taskList.map(t => t.outlineLevel));
+            const isFlatList = maxLevel <= 1;
+
+            if (isFlatList) {
+                console.log('📋 Flat task list detected - grouping tasks as items under project phases');
+                return convertFlatMSProjectToTreeListy(taskList, taskUIDMap, projectName);
+            }
+
+            const phases = [];
+            let currentPhase = null;
+            let currentItem = null;
+
+            // Build UID to TreeListy ID mapping for dependencies
+            const uidToIdMap = new Map();
+            let phaseIndex = 0;
+            let itemIndex = 0;
+            let subtaskIndex = 0;
+
+            taskList.forEach((task, index) => {
+                if (task.outlineLevel === 1 || (task.isSummary && task.outlineLevel <= 1)) {
+                    // This is a phase (top-level summary task)
+                    itemIndex = 0;
+                    const phaseId = `phase-${phaseIndex}`;
+                    uidToIdMap.set(task.uid, phaseId);
+
+                    currentPhase = {
+                        name: task.name,
+                        subtitle: task.wbs || '',
+                        icon: '📁',
+                        items: []
+                    };
+                    phases.push(currentPhase);
+                    currentItem = null;
+                    phaseIndex++;
+                } else if (task.outlineLevel === 2 || (task.isSummary && task.outlineLevel === 2)) {
+                    // This is an item
+                    if (!currentPhase) {
+                        // Create default phase if none exists
+                        currentPhase = {
+                            name: 'Tasks',
+                            subtitle: '',
+                            icon: '📁',
+                            items: []
+                        };
+                        phases.push(currentPhase);
+                    }
+
+                    subtaskIndex = 0;
+                    const itemId = `item-${phaseIndex > 0 ? phaseIndex - 1 : 0}-${itemIndex}`;
+                    uidToIdMap.set(task.uid, itemId);
+
+                    currentItem = {
+                        name: task.name,
+                        description: task.description || (task.wbs ? `WBS: ${task.wbs}` : ''),
+                        cost: task.cost || 0,
+                        leadTime: task.duration || '',
+                        pmStatus: task.status,
+                        pmProgress: task.percentComplete,
+                        pmAssignee: task.assignees.join(', ') || 'Unassigned',
+                        pmPriority: task.priority,
+                        pmStartDate: task.startDate,
+                        pmDueDate: task.finishDate,
+                        pmNotes: '',
+                        dependencies: [], // Will be resolved later
+                        _predecessorUIDs: task.predecessorUIDs,
+                        subtasks: []
+                    };
+                    currentPhase.items.push(currentItem);
+                    itemIndex++;
+                } else if (task.outlineLevel >= 3) {
+                    // This is a subtask
+                    if (!currentItem) {
+                        // Create default item if none exists
+                        if (!currentPhase) {
+                            currentPhase = {
+                                name: 'Tasks',
+                                subtitle: '',
+                                icon: '📁',
+                                items: []
+                            };
+                            phases.push(currentPhase);
+                        }
+                        currentItem = {
+                            name: 'Tasks',
+                            description: '',
+                            cost: 0,
+                            leadTime: '',
+                            pmStatus: 'To Do',
+                            pmProgress: 0,
+                            pmAssignee: 'Unassigned',
+                            pmPriority: 'Medium',
+                            pmStartDate: '',
+                            pmDueDate: '',
+                            pmNotes: '',
+                            dependencies: [],
+                            _predecessorUIDs: [],
+                            subtasks: []
+                        };
+                        currentPhase.items.push(currentItem);
+                    }
+
+                    const subtaskId = `subtask-${phaseIndex > 0 ? phaseIndex - 1 : 0}-${itemIndex > 0 ? itemIndex - 1 : 0}-${subtaskIndex}`;
+                    uidToIdMap.set(task.uid, subtaskId);
+
+                    const subtask = {
+                        name: task.name,
+                        description: task.description || '',
+                        pmStatus: task.status,
+                        pmProgress: task.percentComplete,
+                        pmAssignee: task.assignees.join(', ') || 'Unassigned',
+                        pmPriority: task.priority,
+                        pmStartDate: task.startDate,
+                        pmDueDate: task.finishDate,
+                        cost: task.cost || 0,
+                        dependencies: [],
+                        _predecessorUIDs: task.predecessorUIDs
+                    };
+                    currentItem.subtasks.push(subtask);
+                    subtaskIndex++;
+                } else {
+                    // OutlineLevel 0 or unknown - treat as item in default phase
+                    if (!currentPhase) {
+                        currentPhase = {
+                            name: 'Project Tasks',
+                            subtitle: '',
+                            icon: '📁',
+                            items: []
+                        };
+                        phases.push(currentPhase);
+                    }
+
+                    const itemId = `item-0-${itemIndex}`;
+                    uidToIdMap.set(task.uid, itemId);
+
+                    currentItem = {
+                        name: task.name,
+                        description: task.description || '',
+                        cost: task.cost || 0,
+                        leadTime: task.duration || '',
+                        pmStatus: task.status,
+                        pmProgress: task.percentComplete,
+                        pmAssignee: task.assignees.join(', ') || 'Unassigned',
+                        pmPriority: task.priority,
+                        pmStartDate: task.startDate,
+                        pmDueDate: task.finishDate,
+                        pmNotes: '',
+                        dependencies: [],
+                        _predecessorUIDs: task.predecessorUIDs,
+                        subtasks: []
+                    };
+                    currentPhase.items.push(currentItem);
+                    itemIndex++;
+                }
+            });
+
+            // Resolve dependencies using UID map
+            phases.forEach(phase => {
+                phase.items.forEach(item => {
+                    if (item._predecessorUIDs && item._predecessorUIDs.length > 0) {
+                        item.dependencies = item._predecessorUIDs
+                            .map(uid => uidToIdMap.get(uid))
+                            .filter(id => id);
+                    }
+                    delete item._predecessorUIDs;
+
+                    // Resolve subtask dependencies too
+                    if (item.subtasks) {
+                        item.subtasks.forEach(subtask => {
+                            if (subtask._predecessorUIDs && subtask._predecessorUIDs.length > 0) {
+                                subtask.dependencies = subtask._predecessorUIDs
+                                    .map(uid => uidToIdMap.get(uid))
+                                    .filter(id => id);
+                            }
+                            delete subtask._predecessorUIDs;
+                        });
+                    }
+                });
+            });
+
+            // If no phases were created, create one default phase with all tasks as items
+            if (phases.length === 0) {
+                phases.push({
+                    name: 'Project Tasks',
+                    subtitle: '',
+                    icon: '📁',
+                    items: taskList.map((task, i) => ({
+                        name: task.name,
+                        description: task.description || '',
+                        cost: task.cost || 0,
+                        leadTime: task.duration || '',
+                        pmStatus: task.status,
+                        pmProgress: task.percentComplete,
+                        pmAssignee: task.assignees.join(', ') || 'Unassigned',
+                        pmPriority: task.priority,
+                        pmStartDate: task.startDate,
+                        pmDueDate: task.finishDate,
+                        dependencies: [],
+                        subtasks: []
+                    }))
+                });
+            }
+
+            const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
+            const totalSubtasks = phases.reduce((sum, p) =>
+                sum + p.items.reduce((s, i) => s + (i.subtasks?.length || 0), 0), 0);
+
+            console.log(`📊 Converted: ${phases.length} phases, ${totalItems} items, ${totalSubtasks} subtasks`);
+
+            return {
+                projectName,
+                phases
+            };
+        }
+
+        /**
+         * Convert flat MS Project task list (all at level 1) to TreeListy
+         * Groups tasks by year/quarter or creates logical phases
+         */
+        function convertFlatMSProjectToTreeListy(taskList, taskUIDMap, projectName) {
+            const uidToIdMap = new Map();
+
+            // Group tasks by year based on start date
+            const tasksByYear = new Map();
+
+            taskList.forEach(task => {
+                if (task.outlineLevel === 0) return; // Skip root
+
+                let year = 'Tasks';
+                if (task.startDate) {
+                    const date = new Date(task.startDate);
+                    if (!isNaN(date.getTime())) {
+                        year = `${date.getFullYear()}`;
+                    }
+                }
+
+                if (!tasksByYear.has(year)) {
+                    tasksByYear.set(year, []);
+                }
+                tasksByYear.get(year).push(task);
+            });
+
+            // If all tasks in same year, try grouping by quarter
+            if (tasksByYear.size === 1) {
+                const allTasks = [...tasksByYear.values()][0];
+                const tasksByQuarter = new Map();
+
+                allTasks.forEach(task => {
+                    let quarter = 'Tasks';
+                    if (task.startDate) {
+                        const date = new Date(task.startDate);
+                        if (!isNaN(date.getTime())) {
+                            const q = Math.ceil((date.getMonth() + 1) / 3);
+                            quarter = `Q${q} ${date.getFullYear()}`;
+                        }
+                    }
+
+                    if (!tasksByQuarter.has(quarter)) {
+                        tasksByQuarter.set(quarter, []);
+                    }
+                    tasksByQuarter.get(quarter).push(task);
+                });
+
+                // Use quarters if we have more than 1
+                if (tasksByQuarter.size > 1) {
+                    tasksByYear.clear();
+                    tasksByQuarter.forEach((tasks, quarter) => {
+                        tasksByYear.set(quarter, tasks);
+                    });
+                }
+            }
+
+            // Convert to phases
+            const phases = [];
+            let phaseIndex = 0;
+
+            // Sort keys chronologically
+            const sortedKeys = [...tasksByYear.keys()].sort();
+
+            sortedKeys.forEach(key => {
+                const phaseTasks = tasksByYear.get(key);
+
+                const phase = {
+                    name: key,
+                    subtitle: `${phaseTasks.length} tasks`,
+                    icon: '📅',
+                    items: phaseTasks.map((task, itemIndex) => {
+                        const itemId = `item-${phaseIndex}-${itemIndex}`;
+                        uidToIdMap.set(task.uid, itemId);
+
+                        return {
+                            name: task.name,
+                            description: task.description || (task.wbs ? `WBS: ${task.wbs}` : ''),
+                            cost: task.cost || 0,
+                            leadTime: task.duration || '',
+                            pmStatus: task.status,
+                            pmProgress: task.percentComplete,
+                            pmAssignee: task.assignees.join(', ') || 'Unassigned',
+                            pmPriority: task.priority,
+                            pmStartDate: task.startDate,
+                            pmDueDate: task.finishDate,
+                            pmNotes: '',
+                            dependencies: [],
+                            _predecessorUIDs: task.predecessorUIDs,
+                            subtasks: []
+                        };
+                    })
+                };
+
+                phases.push(phase);
+                phaseIndex++;
+            });
+
+            // Resolve dependencies
+            phases.forEach(phase => {
+                phase.items.forEach(item => {
+                    if (item._predecessorUIDs && item._predecessorUIDs.length > 0) {
+                        item.dependencies = item._predecessorUIDs
+                            .map(uid => uidToIdMap.get(uid))
+                            .filter(id => id);
+                    }
+                    delete item._predecessorUIDs;
+                });
+            });
+
+            const totalItems = phases.reduce((sum, p) => sum + p.items.length, 0);
+            console.log(`📊 Flat list converted: ${phases.length} phases, ${totalItems} items`);
+
+            return {
+                projectName,
+                phases
+            };
+        }
+
+        /**
+         * Handle MS Project XML file import
+         */
+        function importFromMSProject(file) {
+            console.log('📅 MS Project file selected:', file.name);
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const xmlString = e.target.result;
+                    const treeData = parseMSProjectXML(xmlString);
+
+                    // Count items for confirmation
+                    const itemCount = treeData.phases.reduce((sum, p) =>
+                        sum + p.items.length + p.items.reduce((s, i) => s + (i.subtasks?.length || 0), 0), 0);
+
+                    // Show confirmation modal
+                    showMSProjectImportConfirmation(treeData, itemCount);
+
+                } catch (error) {
+                    console.error('❌ MS Project import error:', error);
+                    alert('❌ Failed to import MS Project file!\n\n' + error.message);
+                }
+            };
+            reader.readAsText(file);
+        }
+
+        /**
+         * Show confirmation modal before importing MS Project data
+         */
+        function showMSProjectImportConfirmation(treeData, itemCount) {
+            const modal = document.getElementById('modal');
+            const modalTitle = document.getElementById('modal-title');
+            const modalBody = document.getElementById('modal-body');
+
+            modalTitle.textContent = '📅 Import from MS Project';
+
+            const phaseCount = treeData.phases.length;
+            const subtaskCount = treeData.phases.reduce((sum, p) =>
+                sum + p.items.reduce((s, i) => s + (i.subtasks?.length || 0), 0), 0);
+
+            modalBody.innerHTML = `
+                <div style="padding: 20px;">
+                    <div style="background: var(--bg-secondary); border-radius: 12px; padding: 20px; margin-bottom: 20px;">
+                        <h3 style="margin: 0 0 16px 0; color: var(--text-primary);">📊 ${treeData.projectName}</h3>
+                        <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px;">
+                            <div style="text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--treeplex-primary);">${phaseCount}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Phases</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--treeplex-primary);">${itemCount - subtaskCount}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Tasks</div>
+                            </div>
+                            <div style="text-align: center;">
+                                <div style="font-size: 28px; font-weight: 700; color: var(--treeplex-primary);">${subtaskCount}</div>
+                                <div style="font-size: 12px; color: var(--text-secondary);">Subtasks</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div style="background: rgba(0, 166, 125, 0.1); border: 1px solid var(--treeplex-primary); border-radius: 8px; padding: 12px; margin-bottom: 20px;">
+                        <div style="font-weight: 600; color: var(--treeplex-primary); margin-bottom: 8px;">✅ Fields Imported:</div>
+                        <div style="font-size: 13px; color: var(--text-secondary); line-height: 1.6;">
+                            Task hierarchy • Start/End dates • Duration • Progress % •
+                            Resources → Assignees • Dependencies • Costs • Priority • Notes
+                        </div>
+                    </div>
+
+                    <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                        This will <strong>replace</strong> your current project. Continue?
+                    </p>
+
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                        <button class="btn" onclick="document.getElementById('modal').style.display='none';" style="padding: 10px 20px;">
+                            Cancel
+                        </button>
+                        <button class="btn" id="msproject-import-confirm" style="background: var(--treeplex-primary); padding: 10px 24px; font-weight: 600;">
+                            📥 Import Project
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+
+            // Handle import confirmation
+            document.getElementById('msproject-import-confirm').addEventListener('click', () => {
+                modal.style.display = 'none';
+
+                // Use the existing importAnalyzedTree function
+                // Default to capex pattern for MS Project imports (infrastructure/CAPEX projects)
+                importAnalyzedTree(treeData, 'capex', false);
+
+                showToast(`✅ Imported ${itemCount} tasks from MS Project!`, 'success');
+                console.log('📅 MS Project import complete:', treeData.projectName);
+            });
+        }
+
+        // MS Project XML file upload handler
+        document.getElementById('msproject-upload-input').addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) {
+                importFromMSProject(file);
+            }
+            // Reset input
+            e.target.value = '';
+        });
+
+        // MS Project import button click handler
+        document.getElementById('msproject-import-btn').addEventListener('click', () => {
+            document.getElementById('msproject-upload-input').click();
+        });
+
+        // =============================================================================
+        // MS PROJECT XML EXPORT - Export TreeListy to MS Project XML format
+        // =============================================================================
+
+        /**
+         * Export current TreeListy project to MS Project XML (MSPDI) format
+         */
+        function exportToMSProjectXML() {
+            console.log('📅 Exporting to MS Project XML...');
+
+            const projectName = capexTree.name || 'TreeListy Project';
+            const now = new Date().toISOString();
+
+            // Collect all tasks with their hierarchy info
+            const tasks = [];
+            const resources = new Map(); // name → UID
+            let taskUID = 1;
+            let resourceUID = 1;
+
+            // Add root project task (UID 0)
+            tasks.push({
+                UID: 0,
+                ID: 0,
+                Name: projectName,
+                OutlineLevel: 0,
+                Summary: true,
+                WBS: '0'
+            });
+
+            // Process phases, items, and subtasks
+            let taskID = 1;
+
+            capexTree.children?.forEach((phase, phaseIndex) => {
+                const phaseWBS = `${phaseIndex + 1}`;
+
+                // Add phase as summary task
+                tasks.push({
+                    UID: taskUID,
+                    ID: taskID,
+                    Name: phase.name || `Phase ${phaseIndex + 1}`,
+                    OutlineLevel: 1,
+                    Summary: true,
+                    WBS: phaseWBS,
+                    Notes: phase.subtitle || ''
+                });
+                const phaseTaskUID = taskUID;
+                taskUID++;
+                taskID++;
+
+                // Process items in phase
+                phase.items?.forEach((item, itemIndex) => {
+                    const itemWBS = `${phaseWBS}.${itemIndex + 1}`;
+                    const hasSubtasks = item.children && item.children.length > 0;
+
+                    // Collect resource
+                    if (item.pmAssignee && item.pmAssignee !== 'Unassigned') {
+                        if (!resources.has(item.pmAssignee)) {
+                            resources.set(item.pmAssignee, resourceUID++);
+                        }
+                    }
+
+                    tasks.push({
+                        UID: taskUID,
+                        ID: taskID,
+                        Name: item.name || 'Unnamed Task',
+                        OutlineLevel: 2,
+                        Summary: hasSubtasks,
+                        WBS: itemWBS,
+                        Notes: item.description || '',
+                        Start: item.pmStartDate ? formatDateForMSProject(item.pmStartDate) : now,
+                        Finish: item.pmDueDate ? formatDateForMSProject(item.pmDueDate) : now,
+                        Duration: formatDurationForMSProject(item.leadTime),
+                        PercentComplete: item.pmProgress || 0,
+                        Cost: item.cost || 0,
+                        Priority: mapPriorityToMSProject(item.pmPriority),
+                        Assignee: item.pmAssignee,
+                        Dependencies: item.dependencies || []
+                    });
+                    const itemTaskUID = taskUID;
+                    taskUID++;
+                    taskID++;
+
+                    // Process subtasks
+                    item.children?.forEach((subtask, subtaskIndex) => {
+                        const subtaskWBS = `${itemWBS}.${subtaskIndex + 1}`;
+
+                        // Collect resource
+                        if (subtask.pmAssignee && subtask.pmAssignee !== 'Unassigned') {
+                            if (!resources.has(subtask.pmAssignee)) {
+                                resources.set(subtask.pmAssignee, resourceUID++);
+                            }
+                        }
+
+                        tasks.push({
+                            UID: taskUID,
+                            ID: taskID,
+                            Name: subtask.name || 'Unnamed Subtask',
+                            OutlineLevel: 3,
+                            Summary: false,
+                            WBS: subtaskWBS,
+                            Notes: subtask.description || '',
+                            Start: subtask.pmStartDate ? formatDateForMSProject(subtask.pmStartDate) : now,
+                            Finish: subtask.pmDueDate ? formatDateForMSProject(subtask.pmDueDate) : now,
+                            Duration: formatDurationForMSProject(subtask.leadTime || '1 day'),
+                            PercentComplete: subtask.pmProgress || 0,
+                            Cost: subtask.cost || 0,
+                            Priority: mapPriorityToMSProject(subtask.pmPriority),
+                            Assignee: subtask.pmAssignee,
+                            Dependencies: subtask.dependencies || []
+                        });
+                        taskUID++;
+                        taskID++;
+                    });
+                });
+            });
+
+            // Build XML document
+            const xml = buildMSProjectXML(projectName, tasks, resources, now);
+
+            // Download the file
+            const blob = new Blob([xml], { type: 'application/xml' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `${projectName.replace(/[^a-zA-Z0-9]/g, '_')}_MSProject.xml`;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+
+            showToast(`📅 Exported to MS Project XML (${tasks.length - 1} tasks)`, 'success');
+            console.log('📅 MS Project XML export complete');
+        }
+
+        /**
+         * Build MS Project XML (MSPDI format) document
+         */
+        function buildMSProjectXML(projectName, tasks, resources, timestamp) {
+            // Build task ID map for dependency resolution
+            const taskIdMap = new Map();
+            tasks.forEach(t => {
+                // Try to map TreeListy IDs to task UIDs
+                if (t.WBS) {
+                    taskIdMap.set(t.WBS, t.UID);
+                }
+            });
+
+            let xml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Project xmlns="http://schemas.microsoft.com/project">
+    <Name>${escapeXML(projectName)}</Name>
+    <Title>${escapeXML(projectName)}</Title>
+    <CreationDate>${timestamp}</CreationDate>
+    <LastSaved>${timestamp}</LastSaved>
+    <ScheduleFromStart>1</ScheduleFromStart>
+    <StartDate>${timestamp}</StartDate>
+    <CalendarUID>1</CalendarUID>
+    <DefaultStartTime>08:00:00</DefaultStartTime>
+    <DefaultFinishTime>17:00:00</DefaultFinishTime>
+    <MinutesPerDay>480</MinutesPerDay>
+    <MinutesPerWeek>2400</MinutesPerWeek>
+    <DaysPerMonth>20</DaysPerMonth>
+    <CurrencySymbol>$</CurrencySymbol>
+    <CurrencyPosition>0</CurrencyPosition>
+    <CurrencyDigits>2</CurrencyDigits>
+
+    <Calendars>
+        <Calendar>
+            <UID>1</UID>
+            <Name>Standard</Name>
+            <IsBaseCalendar>1</IsBaseCalendar>
+            <WeekDays>
+                <WeekDay><DayType>1</DayType><DayWorking>0</DayWorking></WeekDay>
+                <WeekDay><DayType>2</DayType><DayWorking>1</DayWorking></WeekDay>
+                <WeekDay><DayType>3</DayType><DayWorking>1</DayWorking></WeekDay>
+                <WeekDay><DayType>4</DayType><DayWorking>1</DayWorking></WeekDay>
+                <WeekDay><DayType>5</DayType><DayWorking>1</DayWorking></WeekDay>
+                <WeekDay><DayType>6</DayType><DayWorking>1</DayWorking></WeekDay>
+                <WeekDay><DayType>7</DayType><DayWorking>0</DayWorking></WeekDay>
+            </WeekDays>
+        </Calendar>
+    </Calendars>
+
+    <Tasks>
+`;
+
+            // Add tasks
+            tasks.forEach(task => {
+                xml += `        <Task>
+            <UID>${task.UID}</UID>
+            <ID>${task.ID}</ID>
+            <Name>${escapeXML(task.Name)}</Name>
+            <WBS>${escapeXML(task.WBS || '')}</WBS>
+            <OutlineLevel>${task.OutlineLevel}</OutlineLevel>
+            <Summary>${task.Summary ? '1' : '0'}</Summary>
+            <Start>${task.Start || timestamp}</Start>
+            <Finish>${task.Finish || timestamp}</Finish>
+            <Duration>${task.Duration || 'PT8H0M0S'}</Duration>
+            <PercentComplete>${task.PercentComplete || 0}</PercentComplete>
+            <Cost>${task.Cost || 0}</Cost>
+            <Priority>${task.Priority || 500}</Priority>
+            <Notes>${escapeXML(task.Notes || '')}</Notes>
+`;
+
+                // Add predecessor links (dependencies)
+                if (task.Dependencies && task.Dependencies.length > 0) {
+                    task.Dependencies.forEach(depId => {
+                        // Try to find the UID for this dependency
+                        // Dependencies in TreeListy are stored as item IDs like "item-0-1"
+                        const depUID = findTaskUIDByTreeListyId(tasks, depId);
+                        if (depUID !== null) {
+                            xml += `            <PredecessorLink>
+                <PredecessorUID>${depUID}</PredecessorUID>
+                <Type>1</Type>
+            </PredecessorLink>
+`;
+                        }
+                    });
+                }
+
+                xml += `        </Task>
+`;
+            });
+
+            xml += `    </Tasks>
+
+    <Resources>
+`;
+
+            // Add resources
+            resources.forEach((uid, name) => {
+                xml += `        <Resource>
+            <UID>${uid}</UID>
+            <ID>${uid}</ID>
+            <Name>${escapeXML(name)}</Name>
+            <Type>1</Type>
+        </Resource>
+`;
+            });
+
+            xml += `    </Resources>
+
+    <Assignments>
+`;
+
+            // Add assignments
+            let assignmentUID = 1;
+            tasks.forEach(task => {
+                if (task.Assignee && task.Assignee !== 'Unassigned' && resources.has(task.Assignee)) {
+                    xml += `        <Assignment>
+            <UID>${assignmentUID}</UID>
+            <TaskUID>${task.UID}</TaskUID>
+            <ResourceUID>${resources.get(task.Assignee)}</ResourceUID>
+        </Assignment>
+`;
+                    assignmentUID++;
+                }
+            });
+
+            xml += `    </Assignments>
+</Project>`;
+
+            return xml;
+        }
+
+        /**
+         * Find task UID by TreeListy ID (e.g., "item-0-1", "phase-2")
+         */
+        function findTaskUIDByTreeListyId(tasks, treelistyId) {
+            if (!treelistyId) return null;
+
+            // Parse TreeListy ID format: "item-{phase}-{item}" or "phase-{phase}"
+            const itemMatch = treelistyId.match(/item-(\d+)-(\d+)/);
+            if (itemMatch) {
+                const phaseIdx = parseInt(itemMatch[1]);
+                const itemIdx = parseInt(itemMatch[2]);
+                // WBS would be "{phase+1}.{item+1}"
+                const wbs = `${phaseIdx + 1}.${itemIdx + 1}`;
+                const task = tasks.find(t => t.WBS === wbs);
+                return task ? task.UID : null;
+            }
+
+            const phaseMatch = treelistyId.match(/phase-(\d+)/);
+            if (phaseMatch) {
+                const phaseIdx = parseInt(phaseMatch[1]);
+                const wbs = `${phaseIdx + 1}`;
+                const task = tasks.find(t => t.WBS === wbs);
+                return task ? task.UID : null;
+            }
+
+            return null;
+        }
+
+        /**
+         * Format date for MS Project XML
+         */
+        function formatDateForMSProject(dateStr) {
+            if (!dateStr) return new Date().toISOString();
+            try {
+                const date = new Date(dateStr);
+                if (isNaN(date.getTime())) return new Date().toISOString();
+                return date.toISOString();
+            } catch {
+                return new Date().toISOString();
+            }
+        }
+
+        /**
+         * Format duration for MS Project XML (PT format)
+         */
+        function formatDurationForMSProject(durationStr) {
+            if (!durationStr) return 'PT8H0M0S'; // Default 1 day
+
+            const lower = durationStr.toLowerCase();
+
+            // Parse common formats
+            const dayMatch = lower.match(/(\d+)\s*d/);
+            const hourMatch = lower.match(/(\d+)\s*h/);
+            const weekMatch = lower.match(/(\d+)\s*w/);
+            const monthMatch = lower.match(/(\d+)\s*m(?:onth)?/);
+
+            let hours = 0;
+
+            if (weekMatch) {
+                hours = parseInt(weekMatch[1]) * 40; // 5 days * 8 hours
+            } else if (monthMatch) {
+                hours = parseInt(monthMatch[1]) * 160; // 20 days * 8 hours
+            } else if (dayMatch) {
+                hours = parseInt(dayMatch[1]) * 8;
+            } else if (hourMatch) {
+                hours = parseInt(hourMatch[1]);
+            } else {
+                // Try to parse "X days", "X weeks", etc.
+                const numMatch = lower.match(/(\d+)/);
+                if (numMatch) {
+                    const num = parseInt(numMatch[1]);
+                    if (lower.includes('week')) {
+                        hours = num * 40;
+                    } else if (lower.includes('month')) {
+                        hours = num * 160;
+                    } else if (lower.includes('day')) {
+                        hours = num * 8;
+                    } else {
+                        hours = num * 8; // Default to days
+                    }
+                } else {
+                    hours = 8; // Default 1 day
+                }
+            }
+
+            return `PT${hours}H0M0S`;
+        }
+
+        /**
+         * Map TreeListy priority to MS Project priority (0-1000)
+         */
+        function mapPriorityToMSProject(priority) {
+            if (!priority) return 500;
+            const p = priority.toLowerCase();
+            if (p === 'low') return 200;
+            if (p === 'high') return 800;
+            return 500; // Medium
+        }
+
+        /**
+         * Escape special XML characters
+         */
+        function escapeXML(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&apos;');
+        }
+
+        // MS Project export button click handler
+        document.getElementById('msproject-export-btn').addEventListener('click', () => {
+            exportToMSProjectXML();
         });
 
         // Redraw lines on scroll or resize
