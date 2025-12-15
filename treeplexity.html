@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 418 | 2025-12-15
+    TreeListy v2.18.0 | Build 419 | 2025-12-15
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 418): 🖱️ Fix Tree Agent Drag/Close Buttons
+    Changelog (Build 419): 💬 Fix Chat Builder Send/Finish Buttons
+    Previous (Build 418): 🖱️ Fix Tree Agent Drag/Close Buttons
     Previous (Build 417): 🔗 Fix Hyperedge AI Analysis
     Previous (Build 416): 💬 Fix Chat Builder Not Opening
     Previous (Build 415): 🔷 Shape Hierarchy for Node Types
@@ -664,7 +665,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 418,
+            build: 419,
             date: '2025-12-15',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -25324,6 +25325,13 @@ Return ONLY the JSON array.`
 
         // Add message to chat with optional clickable choices
         function addWizardMessage(role, content, choices = null) {
+            // BUILD 419: Forward AI messages to Tree Agent if it's open
+            // (User messages are already added by the Tree Agent send button handler)
+            const agentFrame = document.getElementById('tree-agent-frame');
+            if (role === 'ai' && agentFrame && agentFrame.classList.contains('open') && typeof addAgentMessage === 'function') {
+                addAgentMessage('assistant', content);
+            }
+
             const chatHistory = document.getElementById('wizard-chat-history');
             const messageDiv = document.createElement('div');
 
@@ -31918,10 +31926,11 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
         window.updateAgentProgress = updateAgentProgress;
 
         // Tree Agent event listeners
-        // BUILD 417: Defer event listener attachment until elements exist
+        // BUILD 418: Defer event listener attachment until ALL elements exist
         function initAgentEventListeners() {
-            const closeBtn = document.getElementById('agent-close-btn');
-            if (!closeBtn) {
+            // Check for the LAST element in the frame to ensure all are ready
+            const finishBtn = document.getElementById('agent-finish-btn');
+            if (!finishBtn) {
                 // Elements not ready yet, defer
                 setTimeout(initAgentEventListeners, 100);
                 return;
@@ -52508,7 +52517,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 418; // Update this with each build
+                    const KNOWN_LATEST = 419; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
