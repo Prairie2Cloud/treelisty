@@ -6155,6 +6155,9 @@ The AI will analyze the structure and convert it to a tree."
                             Most browsers and services limit URLs to ~8KB.
                             <br><strong>Please use:</strong> "💾 Save" → Download JSON → Share via Google Drive, Dropbox, or email attachment.
                         </div>
+                        <button id="share-lite-btn-critical" style="margin-top: 10px; padding: 8px 14px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">
+                            🗜️ Try Lite URL (may still be too large)
+                        </button>
                     </div>
                 </div>
                 <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border-left: 3px solid var(--treeplex-primary);">
@@ -25596,8 +25599,8 @@ Return ONLY the JSON array.`
             return `${baseURL}?p=${compressed}`;
         }
 
-        // Lite share button handler
-        document.getElementById('share-lite-btn')?.addEventListener('click', () => {
+        // Lite share button handler (shared logic for both buttons)
+        function handleLiteShare() {
             const liteURL = generateLiteShareableURL();
             const urlInput = document.getElementById('share-url-input');
             urlInput.value = liteURL;
@@ -25606,21 +25609,30 @@ Return ONLY the JSON array.`
             // Update warnings
             const warning = document.getElementById('share-size-warning');
             const criticalWarning = document.getElementById('share-critical-warning');
+            const urlKb = document.getElementById('share-url-kb');
 
             if (liteURL.length <= 2500) {
                 warning.style.display = 'none';
                 criticalWarning.style.display = 'none';
                 showToast('✅ Lite URL generated - safe to share!', 'success');
             } else if (liteURL.length <= 8000) {
+                warning.style.display = 'block';
                 criticalWarning.style.display = 'none';
                 showToast('⚠️ Lite URL still long - may have issues in email', 'info');
             } else {
+                urlKb.textContent = (liteURL.length / 1024).toFixed(1);
+                warning.style.display = 'none';
+                criticalWarning.style.display = 'block';
                 showToast('❌ Project too large even for lite sharing - use JSON export', 'error');
             }
 
             // Select the URL
             setTimeout(() => urlInput.select(), 100);
-        });
+        }
+
+        // Attach to both lite share buttons
+        document.getElementById('share-lite-btn')?.addEventListener('click', handleLiteShare);
+        document.getElementById('share-lite-btn-critical')?.addEventListener('click', handleLiteShare);
 
         // Share modal - Copy button
         document.getElementById('copy-share-url').addEventListener('click', () => {
