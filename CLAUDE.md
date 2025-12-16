@@ -1,14 +1,14 @@
 # TreeListy - Claude Code Instructions
 
-**Current Version**: v2.17.0 (Build 408)
+**Current Version**: v2.19.0 (Build 431)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
 ---
 
-## ⚠️ CRITICAL: Deployment Process
+## CRITICAL: Deployment Process
 
-**TreeListy deploys via GitHub → Netlify (auto-deploy on push)**
+**TreeListy deploys via GitHub -> Netlify (auto-deploy on push)**
 
 **DO NOT use `netlify deploy` directly!** Changes won't persist properly.
 
@@ -39,32 +39,38 @@ TreeListy is a **single-file HTML application** (~1.3MB) for hierarchical projec
 - `treeplexity.html` - Main production file (edit this)
 - `welcome-to-treelisty.json` - Default welcome tree
 - `netlify/functions/claude-proxy.js` - Server proxy for Claude API
-- `.claude/skills/treelisty.md` - Claude Code skill definition (comprehensive)
+- `.claude/skills/treelisty/SKILL.md` - Claude Code skill definition (comprehensive)
 - `docs/AI-CONTEXT.md` - Extended documentation
 
 ---
 
 ## Build Versioning
 
-When making changes:
+When making changes, update these **4 locations**:
 
-1. **Increment build number** in header comment (line ~9):
+1. **Header comment** (line ~9):
    ```
-   TreeListy v2.17.0 | Build XXX | YYYY-MM-DD
-   ```
-
-2. **Update changelog** in header (lines ~21-26)
-
-3. **Update UI version display** (line ~2937-2938):
-   ```html
-   <div ... title="TreeListy v2.17.0 | Build XXX | YYYY-MM-DD">
-       v2.17.0 • Build XXX
-   </div>
+   TreeListy v2.19.0 | Build XXX | YYYY-MM-DD
    ```
 
-4. **Commit with build number** in message
+2. **Changelog** in header (lines ~21-28)
 
-5. **Update `docs/AI-CONTEXT.md`** build history table
+3. **TREELISTY_VERSION object** (line ~681):
+   ```javascript
+   window.TREELISTY_VERSION = {
+       major: '2.19.0',
+       build: XXX,
+       date: 'YYYY-MM-DD',
+   ```
+
+4. **KNOWN_LATEST** (line ~54512):
+   ```javascript
+   const KNOWN_LATEST = XXX;
+   ```
+
+5. **Commit with build number** in message
+
+Use the `treelisty-release` skill to automate this workflow.
 
 ---
 
@@ -77,7 +83,7 @@ cd test/treelisty-test
 npm run test:unit
 ```
 
-All 281 tests should pass.
+All 281+ tests should pass.
 
 ---
 
@@ -86,14 +92,15 @@ All 281 tests should pass.
 ```
 treeplexity.html (single file ~1.3MB)
 ├── HTML structure (~2000 lines)
-├── CSS styles (~3000 lines)
-├── JavaScript (~21000+ lines)
+├── CSS styles (~4000 lines)
+├── JavaScript (~55000+ lines)
 │   ├── Data model (capexTree object)
 │   ├── Rendering (Tree + Canvas + 3D views)
 │   ├── AI integration (Claude, Gemini, ChatGPT)
-│   ├── Pattern system (19 patterns)
+│   ├── Pattern system (21 patterns)
 │   ├── Collaboration (Firebase Live Sync + Voice Chat)
-│   └── Import/Export (JSON, Excel, URL)
+│   ├── Debate Mode (AI vs AI debates)
+│   └── Import/Export (JSON, Excel, MS Project XML, URL)
 └── Netlify function (claude-proxy.js)
 ```
 
@@ -106,6 +113,7 @@ treeplexity.html (single file ~1.3MB)
 - `capexTree` - main tree data structure
 - `PATTERNS` - pattern definitions object
 - `firebaseSyncState` - collaboration session state
+- `currentDebate` - active debate state
 
 ### Key functions
 - `render()` - re-render tree view
@@ -113,74 +121,70 @@ treeplexity.html (single file ~1.3MB)
 - `render3D()` - re-render 3D view
 - `saveState(description)` - save undo state
 - `showToast(message, type)` - show notification
-- `startVoiceChat()` - launch Jitsi voice room
+- `trackNodeChange(nodeId, type)` - highlight node changes
 
 ---
 
-## Recent Features (Builds 387-408)
+## Recent Features (Builds 409-431)
 
-### Build 405-408: Live Tree Agent
+### Builds 427-431: Debate Mode
+- **AI vs AI spectator debates** with insight extraction
+- **Defender vs Challenger** roles with 4 argument styles
+- **Floating draggable panel** with transcript
+- **Structured tree output** for debate insights
+- **Navigation fix**: New insights highlight, scroll, expand parent
+- **Key functions**: `handleDebate()`, `startDebate()`, `addInsightsToTree()`
+
+### Build 425: Cloud Share via Firebase
+- Firebase short URLs for large trees (>8KB)
+- Automatic fallback from URL encoding
+- Format: `?s=shortcode`
+
+### Build 424: Share URL Size Warnings
+- Warning modal for large trees (>100KB)
+- "Lite Share" strips descriptions/subtasks
+
+### Builds 414-415: Share View State + 3D Splash
+- Share links capture view state (view type, selection, zoom)
+- 3D cinematic splash on shared link open
+- Shape hierarchy for node types
+
+### Build 412: MS Project XML Import/Export
+- Import/export .xml files from Microsoft Project
+- Task hierarchy preservation
+
+### Builds 409-411: UX Improvements
+- Zoom to Cursor (410)
+- Reader Navigation (411)
+- Context menu fixes (409)
+
+---
+
+## Older Features (Builds 318-408)
+
+### Builds 405-408: Live Tree Agent
 - **Floating frame** replaces cramped wizard modal
 - Draggable, position saved to localStorage
 - Visual node highlighting (green=new, yellow=modified)
 - Full chat history with scrollable messages
-- Progress bar synced with tree building
-- Voice input and choice buttons
-- **Key functions**:
-  - `openTreeAgent(title)` - open agent frame
-  - `closeTreeAgent()` - close agent frame
-  - `addAgentMessage(role, content)` - add chat message
-  - `trackNodeChange(nodeId, type)` - mark node as new/modified
-  - `hasRecentChange(nodeId)` - check if node recently changed
-- **State object**: `window.treeAgentState` (open, minimized, position)
+- **Key functions**: `openTreeAgent()`, `addAgentMessage()`, `trackNodeChange()`
 
 ### Build 392: LifeTree Health Check + GPT-5.2
 - Health diagnostics for LifeTree pattern
 - Detects empty phases, redundant periods, chronology gaps
 - GPT-5.2 Pro/base/Chat model support
-- TreeBeard integration: "check my life tree health"
-
-### Build 387-390: Canvas + LifeTree Improvements
-- Edit Any Depth Node (Build 388)
-- Semantic Type Indicators for canvas nodes (Build 389-390)
-- Fix LifeTree JSON Schema (Build 387)
-
----
-
-## Older Features (Builds 318-361)
 
 ### Build 361: Pivot-Style Smart Hyperedges
 - **Smart auto-grouping**: Suggests hyperedges based on patterns
-  - Universal: status clusters, assignee clusters, priority, blocked items
-  - Pattern-specific: CAPEX (cost tiers), Philosophy (philosophers), Sales (deal stages)
-- **Query builder**: Filter conditions (status=X, cost>$500K) → create hyperedge
-- **Live aggregates**: Show totals ($2.3M • 67% • 4 nodes) on hyperedges
-- **TreeBeard integration**: "show items over $500K" → find and group
+- **Query builder**: Filter conditions (status=X, cost>$500K)
+- **Live aggregates**: Show totals on hyperedges
 
 ### Build 322: Voice Chat for Collaboration
 - Jitsi Meet integration for live sessions
-- 🎙️ Voice button in collab chat panel
-- Shared room via session ID (no account required)
-
-### Build 321: Meeting Transcript Analysis
-- Auto-detect transcripts (timestamps, "discussed", etc.)
-- Extract contacts (name, role, company)
-- Detect research requests ("research this", "look into")
-- Smart preview UI before import
-
-### Build 320: Optimized Import Prompts
-- CAPEX-specific prompts (financial rigor, vendor tracking)
-- Philosophy-specific prompts (scholarly requirements)
-- A/B tested: Sonnet for CAPEX, Opus for Philosophy
-
-### Build 319: Smart Append + Deduplication
-- Semantic duplicate detection (60% Jaccard threshold)
-- Pattern-aware model selection
-- Intelligently merges vs adds items
+- Shared room via session ID
 
 ### Build 318: Edge Function Streaming
 - Fixed Netlify timeouts with streaming
-- Better reliability for long AI operations
 
 ---
 
@@ -189,7 +193,7 @@ treeplexity.html (single file ~1.3MB)
 - `render3D()` - render Three.js 3D visualization
 - **Knowledge Navigator**: Nodes as spheres in 3D space
 - **Interactive**: Hover, click, orbit controls
-- **Sort-Aware**: 3D respects current sort order
+- **Cinematic splash** on shared links (Build 414)
 
 ---
 
@@ -201,13 +205,13 @@ treeplexity.html (single file ~1.3MB)
 - `window.leaveFirebaseSyncRoom()` - leave session
 - `window.firebaseSyncState.roomId` - current session ID
 
+### Cloud Share (Build 425)
+- Large trees use Firebase short URLs
+- Format: `?s=shortcode`
+
 ### Voice Chat (Build 322)
 - `window.startVoiceChat()` - open Jitsi Meet popup
 - Uses session ID for room name: `treelisty-{roomId}`
-
-### Transcript Analysis (Build 321)
-- Detected via regex: `/\[\d{1,2}:\d{2}\]|transcript|meeting notes/i`
-- Extracted data stored in `capexTree.extractedContacts` and `capexTree.researchRequests`
 
 ---
 
@@ -216,5 +220,11 @@ treeplexity.html (single file ~1.3MB)
 See `docs/AI-CONTEXT.md` for:
 - Full pattern list with fields (21 patterns)
 - Data model details
-- Build history (262-408)
+- Build history (262-431)
 - Known constraints
+
+See `.claude/skills/treelisty/SKILL.md` for:
+- Comprehensive feature documentation
+- Key function references
+- Debate Mode details
+- Troubleshooting guide
