@@ -26375,15 +26375,25 @@ Return ONLY the JSON array.`
         const DEBATE_ROLES = {
             defender: {
                 label: "Defender",
-                rolePrompt: `You are DEFENDING this position. You believe in it. Argue FOR it with full force.
-Present the strongest case for why this idea/position is correct, valuable, or important.
-Channel the original thinker if applicable - defend their work as they would.`
+                rolePrompt: `You are DEFENDING this position with conviction. You believe in it deeply.
+
+TACTICS:
+- Directly rebut your opponent's last point before advancing your own
+- Quote their words back at them when exposing their errors
+- Vary your response length: sometimes a devastating one-liner, sometimes a thorough dismantling
+- Use rhetorical questions to expose their contradictions
+- Channel the original thinker's voice and arguments if applicable`
             },
             challenger: {
                 label: "Challenger",
-                rolePrompt: `You are CHALLENGING this position. Find flaws, contradictions, and weaknesses.
-Argue AGAINST it rigorously. Expose assumptions, demand evidence, identify failure modes.
-Your job is to stress-test this idea to destruction.`
+                rolePrompt: `You are ATTACKING this position relentlessly. Find every flaw.
+
+TACTICS:
+- Directly attack the weakest part of their last argument
+- Don't let them get away with vague claims - demand specifics
+- Vary your approach: sometimes quick jabs, sometimes sustained assault
+- Use their own logic against them when possible
+- Mock gently when they contradict themselves`
             }
         };
 
@@ -26470,11 +26480,15 @@ Your job is to stress-test this idea to destruction.`
 
             return `${roleData.rolePrompt}
 
-STYLE: ${styleData.stylePrompt}
+ARGUMENTATION STYLE: ${styleData.stylePrompt}
 
-CONTEXT: This debate is in a "${patternName}" context. ${patternDesc}
+DOMAIN CONTEXT: This debate is in a "${patternName}" context. ${patternDesc}
 
-Keep responses under 100 words. Be direct and forceful in your position.`;
+VOICE REQUIREMENTS:
+- Vary sentence structure: mix short punches with longer elaborations
+- Use concrete examples and specifics, not abstractions
+- Address your opponent directly ("You claim..." / "Your argument fails because...")
+- Show intellectual respect while being devastating in critique`;
         }
 
         // Core debate functions
@@ -26570,10 +26584,17 @@ Keep responses under 100 words. Be direct and forceful in your position.`;
             const systemPrompt = buildDebatePrompt(role, persona.style);
 
             const roleLabel = role === 'a' ? 'DEFENDER' : 'CHALLENGER';
-            const prompt = `Topic being debated: "${currentDebate.topic}"
-${currentDebate.context ? `Background: ${currentDebate.context}` : ''}
+            const lastTurn = currentDebate.turns[currentDebate.turns.length - 1];
+            const engagementPrompt = lastTurn
+                ? `Your opponent just said: "${lastTurn.text.substring(0, 150)}${lastTurn.text.length > 150 ? '...' : ''}"\n\nRESPOND DIRECTLY to this. Don't ignore it.`
+                : 'Open the debate with a strong opening statement.';
 
-${transcript ? `Debate so far:\n${transcript}\n\n` : ''}You are the ${roleLabel}. Argue your position forcefully. Under 100 words.`;
+            const prompt = `Topic: "${currentDebate.topic}"
+${currentDebate.context ? `Context: ${currentDebate.context}` : ''}
+
+${transcript ? `DEBATE HISTORY:\n${transcript}\n\n` : ''}${engagementPrompt}
+
+You are the ${roleLabel}. Be tactical. Vary your length (20-120 words). Make every word count.`;
 
             addDebateTurnLoading(role);
 
