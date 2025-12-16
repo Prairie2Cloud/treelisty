@@ -41,6 +41,12 @@ self.addEventListener('activate', event => {
 
 // Fetch event - serve from cache, fall back to network
 self.addEventListener('fetch', event => {
+  // Only handle http/https requests (skip chrome-extension, etc.)
+  const url = new URL(event.request.url);
+  if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -61,7 +67,7 @@ self.addEventListener('fetch', event => {
           // Clone the response
           const responseToCache = response.clone();
 
-          // Cache the fetched response for future use
+          // Cache the fetched response for future use (only http/https)
           caches.open(CACHE_NAME)
             .then(cache => {
               cache.put(event.request, responseToCache);
