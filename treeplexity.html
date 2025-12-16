@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 425 | 2025-12-16
+    TreeListy v2.18.0 | Build 426 | 2025-12-16
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 425): ☁️ Cloud Share via Firebase Short URLs
-    - New "Cloud Share" button creates short URLs like ?share=Abc123
-    - Trees stored in Firebase Firestore (under 1MB limit)
-    - Short URLs work everywhere: email, Slack, Teams, etc.
-    - Automatic loading when visiting a cloud share link
-    - Solves the long URL / 500 error problem completely
+    Changelog (Build 426): 📂 Clearer Version Conflict Modal
+    - Renamed "File Version (Older)" to "Your Saved File" (neutral indigo color)
+    - Renamed "Local Version (Newer)" to "Browser Auto-Save"
+    - Don't label file as "older" when date is unknown
+    - Added explanation of what each version means
+    - More prominent item counts to help user decide
+    Previous (Build 425): ☁️ Cloud Share via Firebase Short URLs
     Previous (Build 424): 📤 Share URL Size Warnings + Lite Share
     Previous (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
     Previous (Build 422): 📝 Enhanced Root/Phase Info Panel + Edit Details
@@ -676,7 +677,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 425,
+            build: 426,
             date: '2025-12-16',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -23534,8 +23535,9 @@ Your response:`;
         }
 
         /**
-         * BUILD 284: Show version conflict dialog
-         * When loading a file that has a newer version in LocalStorage
+         * BUILD 284/426: Show version conflict dialog
+         * When loading a file that has a different version in LocalStorage
+         * BUILD 426: Clearer labels, neutral styling when dates unknown
          */
         function showVersionConflictDialog(options) {
             const { treeId, treeName, fileData, fileDate, localData, localDate, localItemCount } = options;
@@ -23556,38 +23558,59 @@ Your response:`;
                 });
             }
 
+            // Determine if we can actually compare dates
+            const fileDateKnown = fileDate && fileDate !== 'Unknown';
+            const canCompare = fileDateKnown;
+
+            // Title and subtitle based on whether we can compare
+            const title = canCompare
+                ? 'Different Versions Found'
+                : 'Multiple Versions Found';
+            const subtitle = canCompare
+                ? `"${treeName}" exists in both your file and browser storage`
+                : `"${treeName}" - browser has auto-saved changes`;
+
+            // Style based on whether dates are comparable
+            // If file date unknown, use neutral blue for file, keep green for browser
+            const fileColor = fileDateKnown ? 'rgba(99, 102, 241, 0.8)' : 'rgba(99, 102, 241, 0.8)'; // Indigo (neutral)
+            const fileBg = 'rgba(99, 102, 241, 0.1)';
+            const fileBorder = 'rgba(99, 102, 241, 0.3)';
+            const fileLabel = fileDateKnown ? `Modified: ${fileDate}` : 'Date: Not stored in file';
+
             modalBody.innerHTML = `
-                <div style="padding: 30px; max-width: 550px;">
+                <div style="padding: 30px; max-width: 580px;">
                     <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-                        <div style="font-size: 48px;">⚠️</div>
+                        <div style="font-size: 48px;">📂</div>
                         <div>
-                            <h3 style="color: #F59E0B; margin-bottom: 4px;">Newer Version Found Locally</h3>
+                            <h3 style="color: #6366f1; margin-bottom: 4px;">${title}</h3>
                             <div style="font-size: 12px; color: var(--text-secondary);">
-                                "${treeName}" has a more recent version in your browser
+                                ${subtitle}
                             </div>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 24px;">
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
                         <!-- File Version -->
-                        <div style="padding: 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 8px;">
-                            <div style="font-size: 11px; color: rgba(239, 68, 68, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📁 File Version (Older)</div>
-                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">Modified: ${fileDate}</div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${fileItemCount} items</div>
+                        <div style="padding: 16px; background: ${fileBg}; border: 1px solid ${fileBorder}; border-radius: 8px;">
+                            <div style="font-size: 11px; color: ${fileColor}; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📁 Your Saved File</div>
+                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">${fileLabel}</div>
+                            <div style="font-size: 14px; color: var(--text-primary); font-weight: 600;">${fileItemCount} items</div>
                         </div>
 
-                        <!-- Local Version -->
+                        <!-- Browser Auto-Save Version -->
                         <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
-                            <div style="font-size: 11px; color: rgba(16, 185, 129, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">💾 Local Version (Newer)</div>
-                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">Modified: ${localDate}</div>
-                            <div style="font-size: 12px; color: var(--text-secondary);">${localItemCount} items</div>
+                            <div style="font-size: 11px; color: rgba(16, 185, 129, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">💾 Browser Auto-Save</div>
+                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">Saved: ${localDate}</div>
+                            <div style="font-size: 14px; color: var(--text-primary); font-weight: 600;">${localItemCount} items</div>
                         </div>
                     </div>
 
-                    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 24px; line-height: 1.6;">
-                        Your browser has auto-saved changes that aren't in the file you're loading.
-                        Which version would you like to use?
-                    </p>
+                    <div style="background: rgba(107, 114, 128, 0.1); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
+                        <p style="color: var(--text-secondary); font-size: 13px; margin: 0; line-height: 1.5;">
+                            <strong>Your Saved File:</strong> The JSON file you downloaded/saved<br>
+                            <strong>Browser Auto-Save:</strong> Changes auto-saved every 2 minutes while you worked
+                        </p>
+                    </div>
 
                     <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
                         <button onclick="document.getElementById('modal').style.display='none'"
@@ -23595,12 +23618,12 @@ Your response:`;
                             Cancel
                         </button>
                         <button onclick="loadVersionChoice('file')"
-                            style="padding: 10px 20px; background: rgba(239, 68, 68, 0.2); color: #EF4444; border: 1px solid rgba(239, 68, 68, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
-                            📁 Load File (Older)
+                            style="padding: 10px 20px; background: rgba(99, 102, 241, 0.2); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            📁 Load Saved File
                         </button>
                         <button onclick="loadVersionChoice('local', '${treeId}')"
-                            style="padding: 10px 20px; background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px;">
-                            💾 Load Local (Newer)
+                            style="padding: 10px 20px; background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            💾 Load Browser Version
                         </button>
                     </div>
                 </div>
