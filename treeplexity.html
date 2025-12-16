@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 432 | 2025-12-16
+    TreeListy v2.19.0 | Build 433 | 2025-12-16
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,12 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 432): 📚 Documentation & Test Maintenance
-    - Updated all pattern counts 19→21 (includes LifeTree, Custom)
-    - Added 54 Debate Mode tests (335 total tests)
-    - Updated SKILL.md, CLAUDE.md, AI-CONTEXT.md for Build 431
-    - Updated welcome tree with Debate Mode and 21 patterns
-    Previous (Build 431): 📊 Structured Argument Tree Output
+    Changelog (Build 433): ☁️ Share Modal UX Overhaul
+    - Cloud Share now primary option with RECOMMENDED badge
+    - Added Firebase anonymous auth for cloud sharing
+    - Simplified modal: 2 clear options (Cloud vs URL Share)
+    - URL Share collapsed under "Advanced" - less confusing
+    - Better error messages shown inline, not just console
+    Previous (Build 432): 📚 Documentation & Test Maintenance
     Previous (Build 430): ⚔️ Defender vs Challenger + Argument Styles
     Previous (Build 429): 🎯 Debate Panel UX (drag, position, add-to-tree fix)
     Previous (Build 425): ☁️ Cloud Share via Firebase Short URLs
@@ -678,7 +679,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 432,
+            build: 433,
             date: '2025-12-16',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6547,90 +6548,82 @@ The AI will analyze the structure and convert it to a tree."
 
     <!-- Share Modal -->
     <div class="modal" id="share-modal">
-        <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-content" style="max-width: 600px;">
             <div class="modal-header">📤 Share Your Project</div>
             <div class="modal-body">
-                <div style="margin-bottom: 20px;">
-                    <p style="color: var(--text-secondary); margin-bottom: 15px;">
-                        Share this link with anyone! The link contains your entire project data (no server storage).
+                <!-- Cloud Share - Primary Option -->
+                <div id="cloud-share-section" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 20px; border-radius: 12px; border: 2px solid rgba(16, 185, 129, 0.4); margin-bottom: 20px;">
+                    <div style="font-weight: 600; font-size: 16px; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; color: #10b981;">
+                        <span>☁️</span> Cloud Share
+                        <span style="background: #10b981; color: white; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 500;">RECOMMENDED</span>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 15px; line-height: 1.5;">
+                        Creates a short link that works everywhere - email, Slack, Teams, SMS. No size limits.
                     </p>
-                    <div style="background: var(--card-bg-light); padding: 15px; border-radius: 8px; border: 2px solid var(--border); margin-bottom: 15px;">
-                        <div style="display: flex; gap: 10px; align-items: center;">
-                            <input type="text" id="share-url-input" readonly
-                                   style="flex: 1; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 12px; user-select: all;"
-                                   value="">
-                            <button class="btn btn-primary" id="copy-share-url" style="background: linear-gradient(135deg, #6366f1, #8b5cf6); white-space: nowrap;">
-                                📋 Copy
-                            </button>
-                        </div>
-                    </div>
-                    <div id="share-stats" style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
-                        <div>📊 <span id="share-node-count">0</span> nodes</div>
-                        <div>📏 <span id="share-url-length">0</span> characters</div>
-                    </div>
-                    <div id="share-size-warning" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
-                        <div style="color: #f59e0b; font-weight: 600; margin-bottom: 6px;">⚠️ URL Too Long for Email</div>
-                        <div style="color: var(--text-secondary); font-size: 13px; line-height: 1.5;">
-                            This URL may be truncated by email services, chat apps, or link wrappers (like Outlook SafeLinks).
-                            <br><strong>Recommendation:</strong> Use "💾 Save" to download JSON, then share via cloud storage.
-                        </div>
-                        <button id="share-lite-btn" style="margin-top: 10px; padding: 8px 14px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">
-                            🗜️ Generate Lite URL (strips extras)
-                        </button>
-                    </div>
-                    <div id="share-critical-warning" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 12px;">
-                        <div style="color: #ef4444; font-weight: 600; margin-bottom: 6px;">🚫 URL Will Not Work</div>
-                        <div style="color: var(--text-secondary); font-size: 13px; line-height: 1.5;">
-                            This project is too large for URL sharing (<span id="share-url-kb">0</span> KB).
-                            Most browsers and services limit URLs to ~8KB.
-                            <br><strong>Please use:</strong> "💾 Save" → Download JSON → Share via Google Drive, Dropbox, or email attachment.
-                        </div>
-                        <button id="share-lite-btn-critical" style="margin-top: 10px; padding: 8px 14px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">
-                            🗜️ Try Lite URL (may still be too large)
-                        </button>
-                    </div>
-                </div>
-                <!-- Cloud Share Option -->
-                <div id="cloud-share-section" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 15px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 15px;">
-                    <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #10b981;">
-                        <span>☁️</span> Cloud Share (Recommended for large projects)
-                    </div>
-                    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;">
-                        Creates a short, shareable link stored in the cloud. Works with any size project and won't break in email.
-                    </p>
-                    <button id="cloud-share-btn" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 8px; color: white; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                    <button id="cloud-share-btn" style="padding: 12px 24px; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 8px; color: white; font-size: 15px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center;">
                         <span>☁️</span> Generate Cloud Link
                     </button>
-                    <div id="cloud-share-result" style="display: none; margin-top: 12px;">
+                    <div id="cloud-share-result" style="display: none; margin-top: 15px;">
                         <div style="display: flex; gap: 10px; align-items: center;">
                             <input type="text" id="cloud-share-url" readonly
-                                   style="flex: 1; background: var(--card-bg); border: 1px solid #10b981; color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 13px;">
-                            <button id="copy-cloud-url" style="padding: 10px 16px; background: #10b981; border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
+                                   style="flex: 1; background: var(--card-bg); border: 2px solid #10b981; color: var(--text-primary); padding: 12px; border-radius: 8px; font-family: monospace; font-size: 14px;">
+                            <button id="copy-cloud-url" style="padding: 12px 20px; background: #10b981; border: none; border-radius: 8px; color: white; font-weight: 600; cursor: pointer; white-space: nowrap;">
                                 📋 Copy
                             </button>
                         </div>
-                        <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
-                            ✅ Short URL - safe for email, Slack, Teams, etc.
+                        <div style="margin-top: 10px; font-size: 13px; color: #10b981; display: flex; align-items: center; gap: 6px;">
+                            ✅ Ready to share - works in any app!
                         </div>
+                    </div>
+                    <div id="cloud-share-error" style="display: none; margin-top: 12px; padding: 12px; background: rgba(239, 68, 68, 0.1); border: 1px solid #ef4444; border-radius: 8px;">
+                        <div style="color: #ef4444; font-size: 13px;" id="cloud-share-error-msg"></div>
                     </div>
                 </div>
 
-                <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border-left: 3px solid var(--treeplex-primary);">
-                    <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                        <span>ℹ️</span> URL Share (embedded data)
+                <!-- URL Share - Secondary Option (Collapsible) -->
+                <details style="background: var(--card-bg); border-radius: 8px; border: 1px solid var(--border);">
+                    <summary style="padding: 15px; cursor: pointer; color: var(--text-secondary); font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        <span>🔗</span> Advanced: URL Share (offline, no server)
+                    </summary>
+                    <div style="padding: 0 15px 15px 15px;">
+                        <p style="color: var(--text-secondary); font-size: 12px; margin-bottom: 12px; line-height: 1.5;">
+                            Embeds data directly in the URL. Works offline but may break in email for large projects.
+                        </p>
+                        <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+                            <input type="text" id="share-url-input" readonly
+                                   style="flex: 1; background: var(--card-bg); border: 1px solid var(--border); color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 11px; user-select: all;"
+                                   value="">
+                            <button class="btn" id="copy-share-url" style="white-space: nowrap; padding: 10px 14px;">
+                                📋 Copy
+                            </button>
+                        </div>
+                        <div id="share-stats" style="display: flex; flex-wrap: wrap; gap: 12px; font-size: 12px; color: var(--text-secondary); margin-bottom: 8px;">
+                            <div>📊 <span id="share-node-count">0</span> nodes</div>
+                            <div>📏 <span id="share-url-length">0</span> chars</div>
+                        </div>
+                        <div id="share-size-warning" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                            <div style="color: #f59e0b; font-size: 12px; line-height: 1.4;">
+                                ⚠️ URL may be too long for email. Use Cloud Share above instead.
+                            </div>
+                            <button id="share-lite-btn" style="margin-top: 8px; padding: 6px 12px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 4px; color: white; font-size: 12px; cursor: pointer;">
+                                🗜️ Try Lite URL
+                            </button>
+                        </div>
+                        <div id="share-critical-warning" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 6px; padding: 10px; margin-top: 10px;">
+                            <div style="color: #ef4444; font-size: 12px; line-height: 1.4;">
+                                🚫 URL too large (<span id="share-url-kb">0</span> KB). Please use Cloud Share above.
+                            </div>
+                            <button id="share-lite-btn-critical" style="margin-top: 8px; padding: 6px 12px; background: linear-gradient(135deg, #ef4444, #dc2626); border: none; border-radius: 4px; color: white; font-size: 12px; cursor: pointer;">
+                                🗜️ Try Lite URL
+                            </button>
+                        </div>
                     </div>
-                    <ul style="margin-left: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
-                        <li>Data is compressed and embedded in the URL above</li>
-                        <li>Works offline - no server dependency</li>
-                        <li>Best for small projects (under 50 nodes)</li>
-                        <li>Large projects may fail in email - use Cloud Share instead</li>
-                    </ul>
-                </div>
+                </details>
             </div>
             <div class="modal-footer">
                 <button class="btn" id="share-close">Close</button>
-                <button class="btn btn-primary" id="open-share-url" style="background: linear-gradient(135deg, #3B8FCC, #2B7AB8);">
-                    🔗 Open in New Tab
+                <button class="btn" id="open-share-url" style="display: none;">
+                    🔗 Open URL in Tab
                 </button>
             </div>
         </div>
@@ -26165,7 +26158,20 @@ Return ONLY the JSON array.`
         // Save tree to Firebase and return short URL
         async function saveTreeToCloud() {
             if (!window.firebaseReady) {
-                throw new Error('Firebase not ready');
+                throw new Error('Firebase not ready - please refresh the page');
+            }
+
+            // Ensure user is authenticated (anonymous auth)
+            const auth = window.firebaseAuth;
+            if (!auth.currentUser) {
+                console.log('☁️ Cloud Share: Signing in anonymously...');
+                try {
+                    await window.firebaseSignInAnonymously(auth);
+                    console.log('☁️ Cloud Share: Anonymous auth successful');
+                } catch (authError) {
+                    console.error('☁️ Cloud Share auth failed:', authError);
+                    throw new Error('Authentication failed - please try again');
+                }
             }
 
             // Check tree size (Firestore limit is 1MB)
@@ -26185,7 +26191,8 @@ Return ONLY the JSON array.`
                 created: serverTimestamp(),
                 name: capexTree.name || 'Untitled',
                 nodeCount: countAllNodes(capexTree),
-                pattern: capexTree.pattern?.key || 'generic'
+                pattern: capexTree.pattern?.key || 'generic',
+                createdBy: auth.currentUser?.uid || 'anonymous'
             });
 
             const baseURL = window.location.origin + window.location.pathname;
@@ -26218,20 +26225,27 @@ Return ONLY the JSON array.`
         document.getElementById('cloud-share-btn')?.addEventListener('click', async () => {
             const btn = document.getElementById('cloud-share-btn');
             const originalText = btn.innerHTML;
-            btn.innerHTML = '<span>⏳</span> Saving...';
+            const errorDiv = document.getElementById('cloud-share-error');
+            const errorMsg = document.getElementById('cloud-share-error-msg');
+            const resultDiv = document.getElementById('cloud-share-result');
+
+            // Reset state
+            errorDiv.style.display = 'none';
+            resultDiv.style.display = 'none';
+            btn.innerHTML = '<span>⏳</span> Creating link...';
             btn.disabled = true;
 
             try {
                 const cloudUrl = await saveTreeToCloud();
 
                 // Show result
-                document.getElementById('cloud-share-result').style.display = 'block';
+                resultDiv.style.display = 'block';
                 document.getElementById('cloud-share-url').value = cloudUrl;
 
                 btn.innerHTML = '<span>✅</span> Link Created!';
                 btn.style.background = 'linear-gradient(135deg, #059669, #047857)';
 
-                showToast('☁️ Cloud link created - safe to share anywhere!', 'success');
+                showToast('☁️ Cloud link created!', 'success');
 
                 // Select the URL for easy copying
                 setTimeout(() => {
@@ -26242,7 +26256,13 @@ Return ONLY the JSON array.`
                 console.error('Cloud share failed:', error);
                 btn.innerHTML = originalText;
                 btn.disabled = false;
-                showToast('❌ Cloud share failed: ' + error.message, 'error');
+
+                // Show error in the error div
+                errorDiv.style.display = 'block';
+                errorMsg.textContent = '❌ ' + error.message;
+
+                // Also show toast for visibility
+                showToast('Cloud share failed - see details below', 'error');
             }
         });
 
@@ -54716,7 +54736,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 432; // Update this with each build
+                    const KNOWN_LATEST = 433; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
