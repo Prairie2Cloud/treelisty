@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 429 | 2025-12-16
+    TreeListy v2.19.0 | Build 430 | 2025-12-16
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,14 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 429): 🎯 Debate Panel UX Improvements
-    - Move debate panel to bottom-left (was crowded in bottom-right)
-    - Add drag support to debate panel (grab header to move)
-    - Double-click header to reset position
-    - Fix Add to Tree: use findNodeById() for reliable node lookup
-    - Store sourceNodeId instead of node reference (fixes stale refs)
+    Changelog (Build 430): ⚔️ Debate Mode - Defender vs Challenger
+    - Debates now REQUIRE opposing positions (one defends, one challenges)
+    - Defender argues FOR the topic with full force
+    - Challenger argues AGAINST, exposing weaknesses
+    - 4 argument styles: Scholar, Socratic, Passionate, Pragmatist
+    - Hegel can now defend himself properly in debates
+    Previous (Build 429): 🎯 Debate Panel UX (drag, position, add-to-tree fix)
     Previous (Build 428): 🐛 Fix Debate Mode Start Button
-    Previous (Build 427): 🎭 Debate Mode - AI vs AI Spectator Debates
     Previous (Build 425): ☁️ Cloud Share via Firebase Short URLs
     Previous (Build 424): 📤 Share URL Size Warnings + Lite Share
     Previous (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
@@ -678,7 +678,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 429,
+            build: 430,
             date: '2025-12-16',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -26347,26 +26347,43 @@ Return ONLY the JSON array.`
         // AI vs AI spectator debates with insight extraction
         // =============================================================================
 
-        const DEBATE_PERSONAS = {
-            socrates: {
-                name: "Socrates",
+        // Build 430: Debate styles (how they argue) - role (defend/challenge) assigned separately
+        const DEBATE_STYLES = {
+            scholarly: {
+                name: "Scholar",
+                icon: "📚",
+                stylePrompt: `Argue with academic rigor. Cite relevant concepts, historical context, and logical frameworks. Be precise and thorough.`
+            },
+            socratic: {
+                name: "Socratic",
                 icon: "🏛️",
-                basePrompt: `You are Socrates. You NEVER make direct claims. You only ask probing questions that expose assumptions and contradictions. Your goal is to help the other party discover truth through their own reasoning. Keep responses under 100 words. Ask 1-2 pointed questions per turn.`
+                stylePrompt: `Use the Socratic method. Ask probing questions that expose assumptions or strengthen your position. Guide through questioning.`
             },
-            "devils-advocate": {
-                name: "Devil's Advocate",
-                icon: "😈",
-                basePrompt: `You argue against whatever position is presented. Find weaknesses, edge cases, and failure modes. Be intellectually rigorous, not mean-spirited. Your goal is stress-testing ideas to make them stronger. Keep responses under 100 words.`
+            passionate: {
+                name: "Passionate",
+                icon: "🔥",
+                stylePrompt: `Argue with conviction and rhetorical force. Use vivid language and emotional appeals alongside logic. Be persuasive.`
             },
-            skeptic: {
-                name: "Skeptic",
-                icon: "🔍",
-                basePrompt: `You demand evidence and question assumptions. "How do we know that?" "What's the source?" "Could this be confirmation bias?" Your goal is ensuring claims are well-founded. Keep responses under 100 words.`
+            pragmatic: {
+                name: "Pragmatist",
+                icon: "⚖️",
+                stylePrompt: `Focus on practical implications and real-world consequences. What works? What are the concrete outcomes?`
+            }
+        };
+
+        // Role prompts - these define the POSITION, not just the style
+        const DEBATE_ROLES = {
+            defender: {
+                label: "Defender",
+                rolePrompt: `You are DEFENDING this position. You believe in it. Argue FOR it with full force.
+Present the strongest case for why this idea/position is correct, valuable, or important.
+Channel the original thinker if applicable - defend their work as they would.`
             },
-            steelman: {
-                name: "Steelman",
-                icon: "💪",
-                basePrompt: `You present the strongest possible version of the opposing view. Even if you disagree, articulate why a reasonable person might hold this position. Your goal is charitable understanding. Keep responses under 100 words.`
+            challenger: {
+                label: "Challenger",
+                rolePrompt: `You are CHALLENGING this position. Find flaws, contradictions, and weaknesses.
+Argue AGAINST it rigorously. Expose assumptions, demand evidence, identify failure modes.
+Your job is to stress-test this idea to destruction.`
             }
         };
 
@@ -26443,16 +26460,21 @@ Return ONLY the JSON array.`
             if (interjectInput) interjectInput.disabled = busy;
         }
 
-        // Pattern-aware prompts
-        function buildPersonaPrompt(persona) {
+        // Build 430: Combined role + style + pattern prompt
+        function buildDebatePrompt(role, style) {
+            const roleData = DEBATE_ROLES[role === 'a' ? 'defender' : 'challenger'];
+            const styleData = style;
             const pattern = PATTERNS[currentPattern];
             const patternName = pattern?.name || 'general';
             const patternDesc = pattern?.description || '';
 
-            return `${persona.basePrompt}
+            return `${roleData.rolePrompt}
 
-Context: This debate is in a "${patternName}" context. ${patternDesc}
-Tailor your ${persona.name} approach to this domain.`;
+STYLE: ${styleData.stylePrompt}
+
+CONTEXT: This debate is in a "${patternName}" context. ${patternDesc}
+
+Keep responses under 100 words. Be direct and forceful in your position.`;
         }
 
         // Core debate functions
@@ -26488,13 +26510,29 @@ Tailor your ${persona.name} approach to this domain.`;
         }
 
         function startDebate() {
-            const personaAKey = document.getElementById('debate-persona-a').value;
-            const personaBKey = document.getElementById('debate-persona-b').value;
+            const styleAKey = document.getElementById('debate-persona-a').value;
+            const styleBKey = document.getElementById('debate-persona-b').value;
             const maxRounds = parseInt(document.getElementById('debate-rounds').value) || 0;
 
+            // Build 430: Persona A = Defender, Persona B = Challenger (always opposed)
+            const styleA = DEBATE_STYLES[styleAKey];
+            const styleB = DEBATE_STYLES[styleBKey];
+
             currentDebate.personas = {
-                a: { key: personaAKey, ...DEBATE_PERSONAS[personaAKey] },
-                b: { key: personaBKey, ...DEBATE_PERSONAS[personaBKey] }
+                a: {
+                    key: styleAKey,
+                    role: 'defender',
+                    name: `Defender (${styleA.name})`,
+                    icon: '🛡️',
+                    style: styleA
+                },
+                b: {
+                    key: styleBKey,
+                    role: 'challenger',
+                    name: `Challenger (${styleB.name})`,
+                    icon: '⚔️',
+                    style: styleB
+                }
             };
             currentDebate.maxRounds = maxRounds;
             currentDebate.status = DEBATE_STATES.ACTIVE;
@@ -26528,12 +26566,14 @@ Tailor your ${persona.name} approach to this domain.`;
                 return `${speaker}: ${t.text}`;
             }).join('\n\n');
 
-            const systemPrompt = buildPersonaPrompt(persona);
+            // Build 430: Use role-aware prompt (defender vs challenger)
+            const systemPrompt = buildDebatePrompt(role, persona.style);
 
-            const prompt = `Topic: ${currentDebate.topic}
-${currentDebate.context ? `Context: ${currentDebate.context}` : ''}
+            const roleLabel = role === 'a' ? 'DEFENDER' : 'CHALLENGER';
+            const prompt = `Topic being debated: "${currentDebate.topic}"
+${currentDebate.context ? `Background: ${currentDebate.context}` : ''}
 
-${transcript ? `Debate so far:\n${transcript}\n\n` : ''}Respond as ${persona.name}. Stay in character. Under 100 words.`;
+${transcript ? `Debate so far:\n${transcript}\n\n` : ''}You are the ${roleLabel}. Argue your position forcefully. Under 100 words.`;
 
             addDebateTurnLoading(role);
 
@@ -54430,7 +54470,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 429; // Update this with each build
+                    const KNOWN_LATEST = 430; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -54887,30 +54927,33 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         </div>
     </div>
 
-    <!-- Debate Setup Modal -->
+    <!-- Debate Setup Modal (Build 430: Defender vs Challenger) -->
     <div id="debate-setup-modal" class="debate-setup-modal">
         <div class="debate-setup-content">
-            <h3>🎭 Start Debate</h3>
+            <h3>⚔️ Start Debate</h3>
             <div class="debate-topic-display" id="debate-topic-display"></div>
+            <div style="font-size: 12px; color: var(--text-secondary); margin: -8px 0 12px 0; text-align: center;">
+                One side defends, one side challenges
+            </div>
 
             <div class="debate-persona-row">
                 <div class="debate-persona-select">
-                    <label>Persona A</label>
+                    <label>🛡️ Defender Style</label>
                     <select id="debate-persona-a">
-                        <option value="socrates">🏛️ Socrates</option>
-                        <option value="devils-advocate">😈 Devil's Advocate</option>
-                        <option value="skeptic">🔍 Skeptic</option>
-                        <option value="steelman">💪 Steelman</option>
+                        <option value="scholarly">📚 Scholar</option>
+                        <option value="socratic">🏛️ Socratic</option>
+                        <option value="passionate">🔥 Passionate</option>
+                        <option value="pragmatic">⚖️ Pragmatist</option>
                     </select>
                 </div>
                 <span class="debate-vs">VS</span>
                 <div class="debate-persona-select">
-                    <label>Persona B</label>
+                    <label>⚔️ Challenger Style</label>
                     <select id="debate-persona-b">
-                        <option value="devils-advocate">😈 Devil's Advocate</option>
-                        <option value="socrates">🏛️ Socrates</option>
-                        <option value="skeptic">🔍 Skeptic</option>
-                        <option value="steelman">💪 Steelman</option>
+                        <option value="socratic">🏛️ Socratic</option>
+                        <option value="scholarly">📚 Scholar</option>
+                        <option value="passionate">🔥 Passionate</option>
+                        <option value="pragmatic">⚖️ Pragmatist</option>
                     </select>
                 </div>
             </div>
