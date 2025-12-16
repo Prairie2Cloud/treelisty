@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 427 | 2025-12-16
+    TreeListy v2.19.0 | Build 428 | 2025-12-16
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,15 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 427): 🎭 Debate Mode - AI vs AI Spectator Debates
-    - Right-click any node → "Debate This Topic"
-    - Four personas: Socrates, Devil's Advocate, Skeptic, Steelman
-    - AI vs AI turn-based debates with user interjection
-    - Auto-play mode with 2.5s between turns
-    - Pattern-aware prompts and insight extraction
-    - XSS-safe rendering (textContent, not innerHTML)
-    - State persistence with localStorage
-    - Extract insights → add as child nodes
+    Changelog (Build 428): 🐛 Fix Debate Mode Start Button
+    - Bug: Start Debate button did nothing (event listener not attached)
+    - Root cause: initDebatePanel() ran before HTML elements existed
+    - Fix: Retry mechanism until debate-start-btn exists (Build 418 pattern)
+    - Also: Attach ctx-debate handler to all 4 context menus
+    Previous (Build 427): 🎭 Debate Mode - AI vs AI Spectator Debates
     Previous (Build 426): 📂 Clearer Version Conflict Modal
     Previous (Build 425): ☁️ Cloud Share via Firebase Short URLs
     Previous (Build 424): 📤 Share URL Size Warnings + Lite Share
@@ -680,7 +677,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 427,
+            build: 428,
             date: '2025-12-16',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -22067,6 +22064,8 @@ function hidePatternDescription() {
             if (aiBtn) aiBtn.onclick = handleAI;
             if (deepDiveBtn) deepDiveBtn.onclick = () => handleAnalyzeSelection([activeNode]);
             if (debateBtn) debateBtn.onclick = handleDebate;
+            // Fix: ctx-debate appears in 4 menus - attach handler to ALL of them
+            document.querySelectorAll('#ctx-debate').forEach(btn => btn.onclick = handleDebate);
             if (downloadBtn) downloadBtn.onclick = handleDownload;
             if (uploadBtn) uploadBtn.onclick = handleUpload;
             if (expandBtn) expandBtn.onclick = handleExpandAll;
@@ -26927,12 +26926,20 @@ Output as JSON array only, no markdown, no explanation:
         }
 
         function initDebatePanel() {
+            // Build 428 fix: Debate panel HTML loads after this script
+            // Retry until elements exist (same pattern as Build 418 Tree Agent fix)
+            const startBtn = document.getElementById('debate-start-btn');
+            if (!startBtn) {
+                setTimeout(initDebatePanel, 100);
+                return;
+            }
+
             document.getElementById('debate-cancel-setup')?.addEventListener('click', () => {
                 document.getElementById('debate-setup-modal').classList.remove('open');
                 currentDebate = null;
             });
 
-            document.getElementById('debate-start-btn')?.addEventListener('click', startDebate);
+            startBtn.addEventListener('click', startDebate);
 
             document.getElementById('debate-close-btn')?.addEventListener('click', closeDebatePanel);
             document.getElementById('debate-minimize-btn')?.addEventListener('click', () => {
@@ -54334,7 +54341,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 427; // Update this with each build
+                    const KNOWN_LATEST = 428; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
