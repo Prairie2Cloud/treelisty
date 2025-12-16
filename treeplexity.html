@@ -18,14 +18,16 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 431): 🎯 Debate Add-to-Tree Navigation Fix
-    - New debate insights now highlight with green glow (node-new-highlight)
-    - Parent node auto-expands to reveal new insights
-    - Tree auto-scrolls to show the newly added content
-    - Toast shows WHERE insights were added (node name)
-    Previous (Build 430): ⚔️ Debate Mode - Defender vs Challenger
+    Changelog (Build 431): 📊 Structured Argument Tree Output
+    - Debates now extract structured argument analysis (not flat bullets)
+    - Defender: main claim, premises, evidence, rebuttals
+    - Challenger: critique, counter-examples, weaknesses, questions
+    - Key Clashes: where positions directly conflicted
+    - Unresolved Questions: open issues for further research
+    - Tree output is hierarchical - expand/explore argument structure
+    - Tactical prompts: debaters respond directly to opponent's points
+    Previous (Build 430): ⚔️ Defender vs Challenger + Argument Styles
     Previous (Build 429): 🎯 Debate Panel UX (drag, position, add-to-tree fix)
-    Previous (Build 428): 🐛 Fix Debate Mode Start Button
     Previous (Build 425): ☁️ Cloud Share via Firebase Short URLs
     Previous (Build 424): 📤 Share URL Size Warnings + Lite Share
     Previous (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
@@ -26770,49 +26772,75 @@ You are the ${roleLabel}. Be tactical. Vary your length (20-120 words). Make eve
             }
         }
 
+        // Build 431: Structured argument extraction for research-grade tree output
         async function extractDebateInsights() {
             const transcript = currentDebate.turns.map(t => {
                 const speaker = t.role === 'user' ? 'USER' : currentDebate.personas[t.role].name;
                 return `${speaker}: ${t.text}`;
             }).join('\n\n');
 
-            const prompt = `Analyze this debate and extract 4-6 key insights as bullet points.
-Each insight should be a concise claim that could become a tree node.
-Label each with type (use exactly these lowercase values): pro, con, tension, question
+            const prompt = `Analyze this debate and extract a STRUCTURED argument analysis.
 
-Topic: ${currentDebate.topic}
+Topic: "${currentDebate.topic}"
 
-Debate transcript:
+DEBATE TRANSCRIPT:
 ${transcript}
 
-Output as JSON array only, no markdown, no explanation:
-[{"type": "pro", "text": "insight here"}, {"type": "con", "text": "another insight"}]`;
+Extract arguments made by each side. Be specific - quote or closely paraphrase actual points made.
 
-            const response = await callClaudeAPI(prompt, { temperature: 0.3, maxTokens: 500 });
+Output JSON only (no markdown):
+{
+  "defender": {
+    "mainClaim": "The central thesis defended",
+    "premises": ["Key assumption or premise 1", "Premise 2"],
+    "evidence": ["Specific example or evidence cited"],
+    "rebuttals": ["How defender countered attacks"]
+  },
+  "challenger": {
+    "mainCritique": "The central attack",
+    "counterexamples": ["Counter-example raised"],
+    "weaknesses": ["Flaw or weakness exposed"],
+    "questions": ["Challenge left unanswered"]
+  },
+  "clashes": [
+    {"point": "Key disagreement", "defender": "Their position", "challenger": "Their position"}
+  ],
+  "unresolved": ["Open question or unresolved tension"]
+}`;
 
-            const jsonMatch = response.match(/\[[\s\S]*\]/);
-            if (!jsonMatch) {
-                throw new Error('No JSON array found in response');
+            const response = await callClaudeAPI(prompt, { temperature: 0.3, maxTokens: 1000 });
+
+            // Try to parse structured format first
+            const jsonMatch = response.match(/\{[\s\S]*\}/);
+            if (jsonMatch) {
+                try {
+                    const structured = JSON.parse(jsonMatch[0]);
+                    if (structured.defender || structured.challenger) {
+                        return { type: 'structured', data: structured };
+                    }
+                } catch (e) {
+                    console.log('Structured parse failed, trying flat format');
+                }
             }
 
-            const parsed = JSON.parse(jsonMatch[0]);
-
-            const validTypes = ['pro', 'con', 'tension', 'question'];
-            const normalized = parsed
-                .filter(item => item && typeof item.text === 'string')
-                .map(item => ({
-                    type: validTypes.includes(item.type?.toLowerCase())
-                        ? item.type.toLowerCase()
-                        : 'insight',
-                    text: item.text.trim()
-                }))
-                .filter(item => item.text.length > 0);
-
-            if (normalized.length === 0) {
-                throw new Error('No valid insights extracted');
+            // Fallback to flat array format
+            const arrayMatch = response.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+                const parsed = JSON.parse(arrayMatch[0]);
+                const validTypes = ['pro', 'con', 'tension', 'question'];
+                const normalized = parsed
+                    .filter(item => item && typeof item.text === 'string')
+                    .map(item => ({
+                        type: validTypes.includes(item.type?.toLowerCase()) ? item.type.toLowerCase() : 'insight',
+                        text: item.text.trim()
+                    }))
+                    .filter(item => item.text.length > 0);
+                if (normalized.length > 0) {
+                    return { type: 'flat', data: normalized };
+                }
             }
 
-            return normalized;
+            throw new Error('Could not parse extraction response');
         }
 
         function showExtractionRetry() {
@@ -26833,8 +26861,9 @@ Output as JSON array only, no markdown, no explanation:
             `;
         }
 
-        function showInsightSelection(insights) {
-            currentDebate.extractedInsights = insights;
+        // Build 431: Show structured argument analysis for review
+        function showInsightSelection(extractionResult) {
+            currentDebate.extractedInsights = extractionResult;
             currentDebate.status = DEBATE_STATES.COMPLETED;
 
             const transcript = document.getElementById('debate-transcript');
@@ -26842,38 +26871,72 @@ Output as JSON array only, no markdown, no explanation:
 
             const container = document.createElement('div');
             container.className = 'debate-insights-selection';
+            container.style.cssText = 'padding: 12px; max-height: 300px; overflow-y: auto;';
 
-            const header = document.createElement('h4');
-            header.style.cssText = 'margin: 0 0 12px 0; color: var(--text-secondary);';
-            header.textContent = 'Select insights to add:';
-            container.appendChild(header);
+            if (extractionResult.type === 'structured') {
+                // Structured format - show argument tree preview
+                const data = extractionResult.data;
 
-            const typeIcons = { pro: '✅', con: '❌', tension: '⚡', question: '❓' };
-            const typeColors = { pro: '#10b981', con: '#ef4444', tension: '#f59e0b', question: '#6366f1' };
+                const header = document.createElement('h4');
+                header.style.cssText = 'margin: 0 0 12px 0; color: #a78bfa;';
+                header.textContent = '📊 Argument Structure Preview';
+                container.appendChild(header);
 
-            insights.forEach((insight, i) => {
-                const label = document.createElement('label');
-                label.className = 'debate-insight-item';
-                label.style.borderLeftColor = typeColors[insight.type] || '#6366f1';
+                // Defender section
+                if (data.defender) {
+                    const defSection = createArgumentSection('🛡️ Defender Arguments', data.defender, '#10b981');
+                    container.appendChild(defSection);
+                }
 
-                const checkbox = document.createElement('input');
-                checkbox.type = 'checkbox';
-                checkbox.checked = true;
-                checkbox.dataset.index = i;
+                // Challenger section
+                if (data.challenger) {
+                    const chalSection = createArgumentSection('⚔️ Challenger Arguments', data.challenger, '#ef4444');
+                    container.appendChild(chalSection);
+                }
 
-                const iconSpan = document.createElement('span');
-                iconSpan.className = 'insight-icon';
-                iconSpan.textContent = typeIcons[insight.type] || '💡';
+                // Clashes
+                if (data.clashes && data.clashes.length > 0) {
+                    const clashDiv = document.createElement('div');
+                    clashDiv.style.cssText = 'margin-top: 12px; padding: 8px; background: rgba(245,158,11,0.1); border-radius: 8px;';
+                    clashDiv.innerHTML = `<strong style="color:#f59e0b">💥 Key Clashes</strong>`;
+                    data.clashes.forEach(clash => {
+                        const p = document.createElement('p');
+                        p.style.cssText = 'margin: 4px 0; font-size: 12px; color: var(--text-secondary);';
+                        p.textContent = `• ${clash.point}`;
+                        clashDiv.appendChild(p);
+                    });
+                    container.appendChild(clashDiv);
+                }
 
-                const textSpan = document.createElement('span');
-                textSpan.className = 'insight-text';
-                textSpan.textContent = insight.text;
+                // Unresolved
+                if (data.unresolved && data.unresolved.length > 0) {
+                    const unresolvedDiv = document.createElement('div');
+                    unresolvedDiv.style.cssText = 'margin-top: 12px; padding: 8px; background: rgba(99,102,241,0.1); border-radius: 8px;';
+                    unresolvedDiv.innerHTML = `<strong style="color:#6366f1">❓ Unresolved</strong>`;
+                    data.unresolved.forEach(q => {
+                        const p = document.createElement('p');
+                        p.style.cssText = 'margin: 4px 0; font-size: 12px; color: var(--text-secondary);';
+                        p.textContent = `• ${q}`;
+                        unresolvedDiv.appendChild(p);
+                    });
+                    container.appendChild(unresolvedDiv);
+                }
 
-                label.appendChild(checkbox);
-                label.appendChild(iconSpan);
-                label.appendChild(textSpan);
-                container.appendChild(label);
-            });
+            } else {
+                // Flat format - original behavior
+                const header = document.createElement('h4');
+                header.style.cssText = 'margin: 0 0 12px 0; color: var(--text-secondary);';
+                header.textContent = 'Extracted insights:';
+                container.appendChild(header);
+
+                const typeIcons = { pro: '✅', con: '❌', tension: '⚡', question: '❓' };
+                extractionResult.data.forEach((insight, i) => {
+                    const div = document.createElement('div');
+                    div.style.cssText = 'padding: 6px; margin: 4px 0; background: rgba(255,255,255,0.05); border-radius: 6px; font-size: 12px;';
+                    div.textContent = `${typeIcons[insight.type] || '💡'} ${insight.text}`;
+                    container.appendChild(div);
+                });
+            }
 
             transcript.appendChild(container);
 
@@ -26882,6 +26945,35 @@ Output as JSON array only, no markdown, no explanation:
             document.getElementById('debate-end-btn').onclick = addInsightsToTree;
 
             saveDebateState();
+        }
+
+        function createArgumentSection(title, args, color) {
+            const section = document.createElement('div');
+            section.style.cssText = `margin-top: 12px; padding: 8px; background: ${color}15; border-left: 3px solid ${color}; border-radius: 0 8px 8px 0;`;
+
+            const titleEl = document.createElement('strong');
+            titleEl.style.cssText = `color: ${color}; font-size: 13px;`;
+            titleEl.textContent = title;
+            section.appendChild(titleEl);
+
+            const addLine = (icon, text) => {
+                if (!text) return;
+                const p = document.createElement('p');
+                p.style.cssText = 'margin: 4px 0; font-size: 12px; color: var(--text-secondary);';
+                p.textContent = `${icon} ${text}`;
+                section.appendChild(p);
+            };
+
+            if (args.mainClaim) addLine('📌', args.mainClaim);
+            if (args.mainCritique) addLine('🎯', args.mainCritique);
+            if (args.premises) args.premises.forEach(p => addLine('→', p));
+            if (args.evidence) args.evidence.forEach(e => addLine('📋', e));
+            if (args.rebuttals) args.rebuttals.forEach(r => addLine('↩️', r));
+            if (args.counterexamples) args.counterexamples.forEach(c => addLine('⚡', c));
+            if (args.weaknesses) args.weaknesses.forEach(w => addLine('⚠️', w));
+            if (args.questions) args.questions.forEach(q => addLine('❓', q));
+
+            return section;
         }
 
         // Pattern-aware tree insertion
@@ -26899,20 +26991,16 @@ Output as JSON array only, no markdown, no explanation:
             return patternMap[insightType] || insightType;
         }
 
+        // Build 431: Create structured argument tree from debate
         function addInsightsToTree() {
             if (!currentDebate || !currentDebate.sourceNodeId) {
                 showToast('Error: No source node found', 'error');
                 return;
             }
 
-            const checkboxes = document.querySelectorAll('.debate-insight-item input:checked');
-            const selectedInsights = Array.from(checkboxes).map(cb => {
-                const index = parseInt(cb.dataset.index);
-                return currentDebate.extractedInsights[index];
-            });
-
-            if (selectedInsights.length === 0) {
-                showToast('No insights selected', 'warning');
+            const extraction = currentDebate.extractedInsights;
+            if (!extraction) {
+                showToast('No insights to add', 'warning');
                 return;
             }
 
@@ -26926,46 +27014,174 @@ Output as JSON array only, no markdown, no explanation:
             saveState();
 
             const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-            const containerNode = {
-                id: generateId(),
-                name: `Debate Insights (${today})`,
-                type: 'item',
-                icon: '🎭',
-                description: `Debate between ${currentDebate.personas.a.name} and ${currentDebate.personas.b.name}`,
-                subtasks: []
-            };
+            let containerNode;
+            let nodeCount = 0;
 
-            const typeIcons = { pro: '✅', con: '❌', tension: '⚡', question: '❓' };
-            selectedInsights.forEach(insight => {
-                containerNode.subtasks.push({
+            if (extraction.type === 'structured') {
+                // Build hierarchical argument structure
+                const data = extraction.data;
+                containerNode = {
                     id: generateId(),
-                    name: `${typeIcons[insight.type] || '💡'} ${insight.text}`,
-                    type: 'subtask',
-                    itemType: getPatternItemType(insight.type),
+                    name: `⚔️ Debate: ${currentDebate.topic} (${today})`,
+                    type: 'item',
+                    icon: '⚔️',
+                    description: `Structured argument analysis from debate`,
+                    expanded: true,
                     subtasks: []
+                };
+
+                // Defender arguments branch
+                if (data.defender) {
+                    const defenderNode = {
+                        id: generateId(),
+                        name: '🛡️ Defender Arguments',
+                        type: 'subtask',
+                        itemType: 'defense',
+                        expanded: true,
+                        subtasks: []
+                    };
+                    if (data.defender.mainClaim) {
+                        defenderNode.subtasks.push({ id: generateId(), name: `📌 Main Claim: ${data.defender.mainClaim}`, type: 'subtask', itemType: 'thesis' });
+                        nodeCount++;
+                    }
+                    if (data.defender.premises) {
+                        data.defender.premises.forEach(p => {
+                            defenderNode.subtasks.push({ id: generateId(), name: `→ Premise: ${p}`, type: 'subtask', itemType: 'premise' });
+                            nodeCount++;
+                        });
+                    }
+                    if (data.defender.evidence) {
+                        data.defender.evidence.forEach(e => {
+                            defenderNode.subtasks.push({ id: generateId(), name: `📋 Evidence: ${e}`, type: 'subtask', itemType: 'evidence' });
+                            nodeCount++;
+                        });
+                    }
+                    if (data.defender.rebuttals) {
+                        data.defender.rebuttals.forEach(r => {
+                            defenderNode.subtasks.push({ id: generateId(), name: `↩️ Rebuttal: ${r}`, type: 'subtask', itemType: 'rebuttal' });
+                            nodeCount++;
+                        });
+                    }
+                    if (defenderNode.subtasks.length > 0) {
+                        containerNode.subtasks.push(defenderNode);
+                    }
+                }
+
+                // Challenger arguments branch
+                if (data.challenger) {
+                    const challengerNode = {
+                        id: generateId(),
+                        name: '⚔️ Challenger Arguments',
+                        type: 'subtask',
+                        itemType: 'critique',
+                        expanded: true,
+                        subtasks: []
+                    };
+                    if (data.challenger.mainCritique) {
+                        challengerNode.subtasks.push({ id: generateId(), name: `🎯 Main Critique: ${data.challenger.mainCritique}`, type: 'subtask', itemType: 'objection' });
+                        nodeCount++;
+                    }
+                    if (data.challenger.counterexamples) {
+                        data.challenger.counterexamples.forEach(c => {
+                            challengerNode.subtasks.push({ id: generateId(), name: `⚡ Counter-example: ${c}`, type: 'subtask', itemType: 'counter' });
+                            nodeCount++;
+                        });
+                    }
+                    if (data.challenger.weaknesses) {
+                        data.challenger.weaknesses.forEach(w => {
+                            challengerNode.subtasks.push({ id: generateId(), name: `⚠️ Weakness: ${w}`, type: 'subtask', itemType: 'weakness' });
+                            nodeCount++;
+                        });
+                    }
+                    if (data.challenger.questions) {
+                        data.challenger.questions.forEach(q => {
+                            challengerNode.subtasks.push({ id: generateId(), name: `❓ Challenge: ${q}`, type: 'subtask', itemType: 'question' });
+                            nodeCount++;
+                        });
+                    }
+                    if (challengerNode.subtasks.length > 0) {
+                        containerNode.subtasks.push(challengerNode);
+                    }
+                }
+
+                // Key clashes
+                if (data.clashes && data.clashes.length > 0) {
+                    const clashNode = {
+                        id: generateId(),
+                        name: '💥 Key Clashes',
+                        type: 'subtask',
+                        itemType: 'tension',
+                        subtasks: []
+                    };
+                    data.clashes.forEach(clash => {
+                        clashNode.subtasks.push({
+                            id: generateId(),
+                            name: `💥 ${clash.point}`,
+                            type: 'subtask',
+                            description: `Defender: ${clash.defender || clash.defenderSays}\nChallenger: ${clash.challenger || clash.challengerSays}`
+                        });
+                        nodeCount++;
+                    });
+                    containerNode.subtasks.push(clashNode);
+                }
+
+                // Unresolved questions
+                if (data.unresolved && data.unresolved.length > 0) {
+                    const unresolvedNode = {
+                        id: generateId(),
+                        name: '❓ Unresolved Questions',
+                        type: 'subtask',
+                        itemType: 'inquiry',
+                        subtasks: []
+                    };
+                    data.unresolved.forEach(q => {
+                        unresolvedNode.subtasks.push({ id: generateId(), name: `❓ ${q}`, type: 'subtask', itemType: 'question' });
+                        nodeCount++;
+                    });
+                    containerNode.subtasks.push(unresolvedNode);
+                }
+
+            } else {
+                // Flat format fallback
+                containerNode = {
+                    id: generateId(),
+                    name: `Debate Insights (${today})`,
+                    type: 'item',
+                    icon: '🎭',
+                    description: `Debate between ${currentDebate.personas.a.name} and ${currentDebate.personas.b.name}`,
+                    subtasks: []
+                };
+                const typeIcons = { pro: '✅', con: '❌', tension: '⚡', question: '❓' };
+                extraction.data.forEach(insight => {
+                    containerNode.subtasks.push({
+                        id: generateId(),
+                        name: `${typeIcons[insight.type] || '💡'} ${insight.text}`,
+                        type: 'subtask',
+                        itemType: getPatternItemType(insight.type)
+                    });
+                    nodeCount++;
                 });
-            });
+            }
 
             // Add to appropriate location based on node type
             if (sourceNode.type === 'phase') {
                 if (!sourceNode.items) sourceNode.items = [];
                 sourceNode.items.push(containerNode);
-                sourceNode.expanded = true; // Expand to show new content
+                sourceNode.expanded = true;
             } else if (sourceNode.type === 'item' || sourceNode.type === 'subtask') {
                 if (!sourceNode.subtasks) sourceNode.subtasks = [];
                 sourceNode.subtasks.push(containerNode);
-                sourceNode.expanded = true; // Expand to show new content
+                sourceNode.expanded = true;
             } else if (sourceNode.id === capexTree.id || sourceNode.type === 'root') {
-                // Root node - add to first phase or create new phase
                 if (capexTree.children && capexTree.children.length > 0) {
                     const firstPhase = capexTree.children[0];
                     if (!firstPhase.items) firstPhase.items = [];
                     firstPhase.items.push(containerNode);
-                    firstPhase.expanded = true; // Expand to show new content
+                    firstPhase.expanded = true;
                 } else {
                     const insightsPhase = {
                         id: generateId(),
-                        name: 'Debate Insights',
+                        name: 'Debate Analysis',
                         type: 'phase',
                         items: [containerNode]
                     };
@@ -26974,17 +27190,10 @@ Output as JSON array only, no markdown, no explanation:
                 }
             }
 
-            // BUILD 431: Track new nodes for visual highlighting
-            if (typeof trackNodeChange === 'function') {
-                trackNodeChange(containerNode.id, 'new');
-                containerNode.subtasks.forEach(st => trackNodeChange(st.id, 'new'));
-            }
-
             localStorage.removeItem(DEBATE_STORAGE_KEY);
             closeDebatePanel();
             renderTree();
 
-            // BUILD 431: Scroll to new insights node after render
             setTimeout(() => {
                 const nodeEl = document.querySelector(`[data-id="${containerNode.id}"]`);
                 if (nodeEl) {
@@ -26992,7 +27201,7 @@ Output as JSON array only, no markdown, no explanation:
                 }
             }, 100);
 
-            showToast(`Added ${selectedInsights.length} insights to "${sourceNode.name}"`, 'success');
+            showToast(`Added ${nodeCount} argument nodes to "${sourceNode.name}"`, 'success');
         }
 
         function closeDebatePanel() {
