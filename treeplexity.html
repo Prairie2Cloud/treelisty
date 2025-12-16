@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 428 | 2025-12-16
+    TreeListy v2.19.0 | Build 429 | 2025-12-16
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,13 +18,14 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 428): 🐛 Fix Debate Mode Start Button
-    - Bug: Start Debate button did nothing (event listener not attached)
-    - Root cause: initDebatePanel() ran before HTML elements existed
-    - Fix: Retry mechanism until debate-start-btn exists (Build 418 pattern)
-    - Also: Attach ctx-debate handler to all 4 context menus
+    Changelog (Build 429): 🎯 Debate Panel UX Improvements
+    - Move debate panel to bottom-left (was crowded in bottom-right)
+    - Add drag support to debate panel (grab header to move)
+    - Double-click header to reset position
+    - Fix Add to Tree: use findNodeById() for reliable node lookup
+    - Store sourceNodeId instead of node reference (fixes stale refs)
+    Previous (Build 428): 🐛 Fix Debate Mode Start Button
     Previous (Build 427): 🎭 Debate Mode - AI vs AI Spectator Debates
-    Previous (Build 426): 📂 Clearer Version Conflict Modal
     Previous (Build 425): ☁️ Cloud Share via Firebase Short URLs
     Previous (Build 424): 📤 Share URL Size Warnings + Lite Share
     Previous (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
@@ -677,7 +678,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 428,
+            build: 429,
             date: '2025-12-16',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -4544,7 +4545,7 @@
     #debate-panel {
         position: fixed;
         bottom: 20px;
-        right: 20px;
+        left: 20px;
         width: 420px;
         max-height: 500px;
         background: linear-gradient(180deg, rgba(30, 30, 46, 0.97), rgba(24, 24, 38, 0.98));
@@ -26474,7 +26475,8 @@ Tailor your ${persona.name} approach to this domain.`;
             modal.classList.add('open');
 
             currentDebate = {
-                sourceNode: node,
+                sourceNodeId: node.id,  // Store ID for reliable lookup
+                sourceNodeType: node.type,
                 topic: node.name,
                 context: node.description || '',
                 status: DEBATE_STATES.SETUP,
@@ -26837,7 +26839,10 @@ Output as JSON array only, no markdown, no explanation:
         }
 
         function addInsightsToTree() {
-            if (!currentDebate || !currentDebate.sourceNode) return;
+            if (!currentDebate || !currentDebate.sourceNodeId) {
+                showToast('Error: No source node found', 'error');
+                return;
+            }
 
             const checkboxes = document.querySelectorAll('.debate-insight-item input:checked');
             const selectedInsights = Array.from(checkboxes).map(cb => {
@@ -26847,6 +26852,13 @@ Output as JSON array only, no markdown, no explanation:
 
             if (selectedInsights.length === 0) {
                 showToast('No insights selected', 'warning');
+                return;
+            }
+
+            // Find the actual node in the tree by ID
+            const sourceNode = findNodeById(capexTree, currentDebate.sourceNodeId);
+            if (!sourceNode) {
+                showToast('Error: Source node not found in tree', 'error');
                 return;
             }
 
@@ -26873,17 +26885,17 @@ Output as JSON array only, no markdown, no explanation:
                 });
             });
 
-            const sourceNode = currentDebate.sourceNode;
-
+            // Add to appropriate location based on node type
             if (sourceNode.type === 'phase') {
                 if (!sourceNode.items) sourceNode.items = [];
                 sourceNode.items.push(containerNode);
             } else if (sourceNode.type === 'item' || sourceNode.type === 'subtask') {
                 if (!sourceNode.subtasks) sourceNode.subtasks = [];
                 sourceNode.subtasks.push(containerNode);
-            } else if (sourceNode.type === 'root') {
-                if (sourceNode.children && sourceNode.children.length > 0) {
-                    const firstPhase = sourceNode.children[0];
+            } else if (sourceNode.id === capexTree.id || sourceNode.type === 'root') {
+                // Root node - add to first phase or create new phase
+                if (capexTree.children && capexTree.children.length > 0) {
+                    const firstPhase = capexTree.children[0];
                     if (!firstPhase.items) firstPhase.items = [];
                     firstPhase.items.push(containerNode);
                 } else {
@@ -26893,8 +26905,8 @@ Output as JSON array only, no markdown, no explanation:
                         type: 'phase',
                         items: [containerNode]
                     };
-                    if (!sourceNode.children) sourceNode.children = [];
-                    sourceNode.children.push(insightsPhase);
+                    if (!capexTree.children) capexTree.children = [];
+                    capexTree.children.push(insightsPhase);
                 }
             }
 
@@ -26961,8 +26973,85 @@ Output as JSON array only, no markdown, no explanation:
                 }
             });
 
+            // Build 429: Make debate panel draggable
+            initDebateDrag();
+
             // Restore previous debate session if exists
             restoreDebateState();
+        }
+
+        // Build 429: Draggable debate panel (same pattern as Tree Agent)
+        function initDebateDrag() {
+            const panel = document.getElementById('debate-panel');
+            const header = panel?.querySelector('.debate-header');
+            if (!panel || !header) return;
+
+            let isDragging = false;
+            let dragOffset = { x: 0, y: 0 };
+
+            header.addEventListener('mousedown', (e) => {
+                if (e.target.closest('.debate-btn')) return;
+                isDragging = true;
+                dragOffset.x = e.clientX - panel.offsetLeft;
+                dragOffset.y = e.clientY - panel.offsetTop;
+                panel.style.transition = 'none';
+                header.style.cursor = 'grabbing';
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isDragging) return;
+                const newX = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, e.clientX - dragOffset.x));
+                const newY = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, e.clientY - dragOffset.y));
+                panel.style.left = `${newX}px`;
+                panel.style.top = `${newY}px`;
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    panel.style.transition = '';
+                    header.style.cursor = 'grab';
+                }
+            });
+
+            // Double-click header to reset position
+            header.addEventListener('dblclick', (e) => {
+                if (e.target.closest('.debate-btn')) return;
+                panel.style.left = '20px';
+                panel.style.bottom = '20px';
+                panel.style.top = 'auto';
+                panel.style.right = 'auto';
+            });
+
+            // Touch support
+            header.addEventListener('touchstart', (e) => {
+                if (e.target.closest('.debate-btn')) return;
+                const touch = e.touches[0];
+                isDragging = true;
+                dragOffset.x = touch.clientX - panel.offsetLeft;
+                dragOffset.y = touch.clientY - panel.offsetTop;
+                panel.style.transition = 'none';
+            }, { passive: true });
+
+            document.addEventListener('touchmove', (e) => {
+                if (!isDragging) return;
+                const touch = e.touches[0];
+                const newX = Math.max(0, Math.min(window.innerWidth - panel.offsetWidth, touch.clientX - dragOffset.x));
+                const newY = Math.max(0, Math.min(window.innerHeight - panel.offsetHeight, touch.clientY - dragOffset.y));
+                panel.style.left = `${newX}px`;
+                panel.style.top = `${newY}px`;
+                panel.style.bottom = 'auto';
+                panel.style.right = 'auto';
+            }, { passive: true });
+
+            document.addEventListener('touchend', () => {
+                if (isDragging) {
+                    isDragging = false;
+                    panel.style.transition = '';
+                }
+            });
         }
 
         // =============================================================================
@@ -54341,7 +54430,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 428; // Update this with each build
+                    const KNOWN_LATEST = 429; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
