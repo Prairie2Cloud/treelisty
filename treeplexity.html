@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 423 | 2025-12-15
+    TreeListy v2.18.0 | Build 424 | 2025-12-15
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,7 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
+    Changelog (Build 424): 📤 Share URL Size Warnings + Lite Share
+    - Show warning when URL > 2500 chars (may fail in email/chat)
+    - Show critical warning when URL > 8KB (will definitely fail)
+    - Add "Generate Lite URL" button that strips descriptions, hyperedges, etc.
+    - Clear guidance to use JSON export for large projects
+    Previous (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
     Previous (Build 422): 📝 Enhanced Root/Phase Info Panel + Edit Details
     Previous (Build 421): 🔗 Fix Hyperedge Show/Hide in Canvas View
     Previous (Build 420): 🎨 Phase Color Cycling (different color per year)
@@ -669,7 +674,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 423,
+            build: 424,
             date: '2025-12-15',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6129,10 +6134,27 @@ The AI will analyze the structure and convert it to a tree."
                             </button>
                         </div>
                     </div>
-                    <div id="share-stats" style="display: flex; gap: 20px; font-size: 13px; color: var(--text-secondary);">
+                    <div id="share-stats" style="display: flex; flex-wrap: wrap; gap: 15px; font-size: 13px; color: var(--text-secondary); margin-bottom: 10px;">
                         <div>📊 <span id="share-node-count">0</span> nodes</div>
                         <div>📏 <span id="share-url-length">0</span> characters</div>
-                        <div id="share-size-warning" style="display: none; color: #f59e0b;">⚠️ Large project - URL may not work in all apps</div>
+                    </div>
+                    <div id="share-size-warning" style="display: none; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 8px; padding: 12px; margin-bottom: 10px;">
+                        <div style="color: #f59e0b; font-weight: 600; margin-bottom: 6px;">⚠️ URL Too Long for Email</div>
+                        <div style="color: var(--text-secondary); font-size: 13px; line-height: 1.5;">
+                            This URL may be truncated by email services, chat apps, or link wrappers (like Outlook SafeLinks).
+                            <br><strong>Recommendation:</strong> Use "💾 Save" to download JSON, then share via cloud storage.
+                        </div>
+                        <button id="share-lite-btn" style="margin-top: 10px; padding: 8px 14px; background: linear-gradient(135deg, #f59e0b, #d97706); border: none; border-radius: 6px; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">
+                            🗜️ Generate Lite URL (strips extras)
+                        </button>
+                    </div>
+                    <div id="share-critical-warning" style="display: none; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; padding: 12px;">
+                        <div style="color: #ef4444; font-weight: 600; margin-bottom: 6px;">🚫 URL Will Not Work</div>
+                        <div style="color: var(--text-secondary); font-size: 13px; line-height: 1.5;">
+                            This project is too large for URL sharing (<span id="share-url-kb">0</span> KB).
+                            Most browsers and services limit URLs to ~8KB.
+                            <br><strong>Please use:</strong> "💾 Save" → Download JSON → Share via Google Drive, Dropbox, or email attachment.
+                        </div>
                     </div>
                 </div>
                 <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border-left: 3px solid var(--treeplex-primary);">
@@ -25500,8 +25522,11 @@ Return ONLY the JSON array.`
         // Share button - Generate shareable URL
         document.getElementById('share-btn').addEventListener('click', () => {
             const shareableURL = generateShareableURL();
+            updateShareModal(shareableURL);
+        });
 
-            // Show modal with URL
+        // Helper to update share modal with URL and warnings
+        function updateShareModal(shareableURL) {
             const modal = document.getElementById('share-modal');
             const urlInput = document.getElementById('share-url-input');
             urlInput.value = shareableURL;
@@ -25509,19 +25534,91 @@ Return ONLY the JSON array.`
             // Update stats
             const nodeCount = countAllNodes(capexTree);
             document.getElementById('share-node-count').textContent = nodeCount;
-            document.getElementById('share-url-length').textContent = shareableURL.length;
+            document.getElementById('share-url-length').textContent = shareableURL.length.toLocaleString();
 
-            // Show warning if URL is very long (>2000 chars might have issues in some apps)
+            // Show appropriate warning based on URL length
             const warning = document.getElementById('share-size-warning');
-            if (shareableURL.length > 2000) {
+            const criticalWarning = document.getElementById('share-critical-warning');
+            const urlKb = document.getElementById('share-url-kb');
+
+            // Reset warnings
+            warning.style.display = 'none';
+            criticalWarning.style.display = 'none';
+
+            if (shareableURL.length > 8000) {
+                // Critical: URL will definitely fail
+                urlKb.textContent = (shareableURL.length / 1024).toFixed(1);
+                criticalWarning.style.display = 'block';
+            } else if (shareableURL.length > 2500) {
+                // Warning: URL may fail in email/chat apps
                 warning.style.display = 'block';
-            } else {
-                warning.style.display = 'none';
             }
 
             modal.style.display = 'flex';
 
             // Select the URL text for easy copying
+            setTimeout(() => urlInput.select(), 100);
+        }
+
+        // Generate lite shareable URL (strips non-essential data)
+        function generateLiteShareableURL() {
+            // Create stripped copy of tree
+            function stripNode(node) {
+                const stripped = {
+                    id: node.id,
+                    name: node.name,
+                    type: node.type
+                };
+                // Keep essential fields only
+                if (node.icon) stripped.icon = node.icon;
+                if (node.phase !== undefined) stripped.phase = node.phase;
+                if (node.cost) stripped.cost = node.cost;
+                if (node.pmProgress) stripped.pmProgress = node.pmProgress;
+                if (node.pmStatus) stripped.pmStatus = node.pmStatus;
+                if (node.pmDueDate) stripped.pmDueDate = node.pmDueDate;
+                if (node.expanded) stripped.expanded = node.expanded;
+                // Recurse children/items/subtasks
+                if (node.children) stripped.children = node.children.map(stripNode);
+                if (node.items) stripped.items = node.items.map(stripNode);
+                if (node.subtasks) stripped.subtasks = node.subtasks.map(stripNode);
+                return stripped;
+            }
+
+            const liteTree = stripNode(capexTree);
+            // Keep pattern
+            if (capexTree.pattern) liteTree.pattern = capexTree.pattern;
+
+            const jsonData = JSON.stringify(liteTree);
+            const compressed = LZString.compressToEncodedURIComponent(jsonData);
+            const baseURL = window.location.origin + window.location.pathname;
+
+            console.log(`📦 Lite share: ${jsonData.length} chars JSON → ${compressed.length} chars compressed`);
+            return `${baseURL}?p=${compressed}`;
+        }
+
+        // Lite share button handler
+        document.getElementById('share-lite-btn')?.addEventListener('click', () => {
+            const liteURL = generateLiteShareableURL();
+            const urlInput = document.getElementById('share-url-input');
+            urlInput.value = liteURL;
+            document.getElementById('share-url-length').textContent = liteURL.length.toLocaleString();
+
+            // Update warnings
+            const warning = document.getElementById('share-size-warning');
+            const criticalWarning = document.getElementById('share-critical-warning');
+
+            if (liteURL.length <= 2500) {
+                warning.style.display = 'none';
+                criticalWarning.style.display = 'none';
+                showToast('✅ Lite URL generated - safe to share!', 'success');
+            } else if (liteURL.length <= 8000) {
+                criticalWarning.style.display = 'none';
+                showToast('⚠️ Lite URL still long - may have issues in email', 'info');
+            } else {
+                showToast('❌ Project too large even for lite sharing - use JSON export', 'error');
+            }
+
+            // Select the URL
             setTimeout(() => urlInput.select(), 100);
         });
 
