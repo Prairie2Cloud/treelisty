@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 424 | 2025-12-15
+    TreeListy v2.18.0 | Build 425 | 2025-12-16
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 424): 📤 Share URL Size Warnings + Lite Share
-    - Show warning when URL > 2500 chars (may fail in email/chat)
-    - Show critical warning when URL > 8KB (will definitely fail)
-    - Add "Generate Lite URL" button that strips descriptions, hyperedges, etc.
-    - Clear guidance to use JSON export for large projects
+    Changelog (Build 425): ☁️ Cloud Share via Firebase Short URLs
+    - New "Cloud Share" button creates short URLs like ?share=Abc123
+    - Trees stored in Firebase Firestore (under 1MB limit)
+    - Short URLs work everywhere: email, Slack, Teams, etc.
+    - Automatic loading when visiting a cloud share link
+    - Solves the long URL / 500 error problem completely
+    Previous (Build 424): 📤 Share URL Size Warnings + Lite Share
     Previous (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
     Previous (Build 422): 📝 Enhanced Root/Phase Info Panel + Edit Details
     Previous (Build 421): 🔗 Fix Hyperedge Show/Hide in Canvas View
@@ -674,8 +676,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.18.0',
-            build: 424,
-            date: '2025-12-15',
+            build: 425,
+            date: '2025-12-16',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -6160,15 +6162,40 @@ The AI will analyze the structure and convert it to a tree."
                         </button>
                     </div>
                 </div>
+                <!-- Cloud Share Option -->
+                <div id="cloud-share-section" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.1)); padding: 15px; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3); margin-bottom: 15px;">
+                    <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px; color: #10b981;">
+                        <span>☁️</span> Cloud Share (Recommended for large projects)
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 13px; margin-bottom: 12px;">
+                        Creates a short, shareable link stored in the cloud. Works with any size project and won't break in email.
+                    </p>
+                    <button id="cloud-share-btn" style="padding: 10px 20px; background: linear-gradient(135deg, #10b981, #059669); border: none; border-radius: 8px; color: white; font-size: 14px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 8px;">
+                        <span>☁️</span> Generate Cloud Link
+                    </button>
+                    <div id="cloud-share-result" style="display: none; margin-top: 12px;">
+                        <div style="display: flex; gap: 10px; align-items: center;">
+                            <input type="text" id="cloud-share-url" readonly
+                                   style="flex: 1; background: var(--card-bg); border: 1px solid #10b981; color: var(--text-primary); padding: 10px; border-radius: 6px; font-family: monospace; font-size: 13px;">
+                            <button id="copy-cloud-url" style="padding: 10px 16px; background: #10b981; border: none; border-radius: 6px; color: white; font-weight: 600; cursor: pointer;">
+                                📋 Copy
+                            </button>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 12px; color: var(--text-secondary);">
+                            ✅ Short URL - safe for email, Slack, Teams, etc.
+                        </div>
+                    </div>
+                </div>
+
                 <div style="background: var(--card-bg); padding: 15px; border-radius: 8px; border-left: 3px solid var(--treeplex-primary);">
                     <div style="font-weight: 600; margin-bottom: 8px; display: flex; align-items: center; gap: 8px;">
-                        <span>ℹ️</span> How it works
+                        <span>ℹ️</span> URL Share (embedded data)
                     </div>
                     <ul style="margin-left: 20px; color: var(--text-secondary); font-size: 14px; line-height: 1.6;">
-                        <li>Your data is compressed and embedded in the URL (not stored on any server)</li>
-                        <li>Anyone with the link can view and edit their own copy</li>
-                        <li>Works best for projects with up to 40-50 nodes</li>
-                        <li>For larger projects, use "💾 Save" to download JSON instead</li>
+                        <li>Data is compressed and embedded in the URL above</li>
+                        <li>Works offline - no server dependency</li>
+                        <li>Best for small projects (under 50 nodes)</li>
+                        <li>Large projects may fail in email - use Cloud Share instead</li>
                     </ul>
                 </div>
             </div>
@@ -25663,6 +25690,163 @@ Return ONLY the JSON array.`
             document.getElementById('share-modal').style.display = 'none';
         });
 
+        // =============================================================================
+        // CLOUD SHARE (Firebase Short URLs)
+        // =============================================================================
+
+        // Generate a short random ID (7 chars, alphanumeric)
+        function generateShortId() {
+            const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghjkmnpqrstuvwxyz23456789';
+            let id = '';
+            for (let i = 0; i < 7; i++) {
+                id += chars.charAt(Math.floor(Math.random() * chars.length));
+            }
+            return id;
+        }
+
+        // Save tree to Firebase and return short URL
+        async function saveTreeToCloud() {
+            if (!window.firebaseReady) {
+                throw new Error('Firebase not ready');
+            }
+
+            // Check tree size (Firestore limit is 1MB)
+            const treeJson = JSON.stringify(capexTree);
+            if (treeJson.length > 900000) {
+                throw new Error('Tree too large for cloud sharing (max ~900KB)');
+            }
+
+            const shareId = generateShortId();
+            const db = window.firebaseDb;
+            const doc = window.firebaseDoc;
+            const setDoc = window.firebaseSetDoc;
+            const serverTimestamp = window.firebaseServerTimestamp;
+
+            await setDoc(doc(db, 'shared', shareId), {
+                tree: capexTree,
+                created: serverTimestamp(),
+                name: capexTree.name || 'Untitled',
+                nodeCount: countAllNodes(capexTree),
+                pattern: capexTree.pattern?.key || 'generic'
+            });
+
+            const baseURL = window.location.origin + window.location.pathname;
+            return `${baseURL}?share=${shareId}`;
+        }
+
+        // Load shared tree from Firebase
+        async function loadSharedTree(shareId) {
+            if (!window.firebaseReady) {
+                console.warn('Firebase not ready, waiting...');
+                await new Promise(resolve => setTimeout(resolve, 1000));
+                if (!window.firebaseReady) {
+                    throw new Error('Firebase failed to initialize');
+                }
+            }
+
+            const db = window.firebaseDb;
+            const doc = window.firebaseDoc;
+            const getDoc = window.firebaseGetDoc;
+
+            const snapshot = await getDoc(doc(db, 'shared', shareId));
+            if (!snapshot.exists()) {
+                throw new Error('Shared tree not found or expired');
+            }
+
+            return snapshot.data().tree;
+        }
+
+        // Cloud share button handler
+        document.getElementById('cloud-share-btn')?.addEventListener('click', async () => {
+            const btn = document.getElementById('cloud-share-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span>⏳</span> Saving...';
+            btn.disabled = true;
+
+            try {
+                const cloudUrl = await saveTreeToCloud();
+
+                // Show result
+                document.getElementById('cloud-share-result').style.display = 'block';
+                document.getElementById('cloud-share-url').value = cloudUrl;
+
+                btn.innerHTML = '<span>✅</span> Link Created!';
+                btn.style.background = 'linear-gradient(135deg, #059669, #047857)';
+
+                showToast('☁️ Cloud link created - safe to share anywhere!', 'success');
+
+                // Select the URL for easy copying
+                setTimeout(() => {
+                    document.getElementById('cloud-share-url').select();
+                }, 100);
+
+            } catch (error) {
+                console.error('Cloud share failed:', error);
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+                showToast('❌ Cloud share failed: ' + error.message, 'error');
+            }
+        });
+
+        // Copy cloud URL button
+        document.getElementById('copy-cloud-url')?.addEventListener('click', () => {
+            const urlInput = document.getElementById('cloud-share-url');
+            urlInput.select();
+            document.execCommand('copy');
+
+            const btn = document.getElementById('copy-cloud-url');
+            const originalText = btn.textContent;
+            btn.textContent = '✅ Copied!';
+
+            setTimeout(() => {
+                btn.textContent = originalText;
+            }, 2000);
+        });
+
+        // Check for ?share= parameter on page load
+        async function checkForSharedTree() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const shareId = urlParams.get('share');
+
+            if (!shareId) return false;
+
+            try {
+                showToast('☁️ Loading shared project...', 'info');
+
+                const sharedTree = await loadSharedTree(shareId);
+
+                // Load the tree
+                Object.assign(capexTree, sharedTree);
+
+                // Update pattern if specified
+                if (capexTree.pattern) {
+                    const patternKey = typeof capexTree.pattern === 'string'
+                        ? capexTree.pattern
+                        : capexTree.pattern.key || 'generic';
+                    currentPattern = patternKey;
+                    const patternSelect = document.getElementById('pattern-select');
+                    if (patternSelect) patternSelect.value = patternKey;
+                }
+
+                // Render the tree
+                renderTree();
+                showToast(`✅ Loaded: ${capexTree.name || 'Shared Project'}`, 'success');
+
+                // Clear the URL parameter (optional - keeps URL clean)
+                const cleanUrl = window.location.origin + window.location.pathname;
+                window.history.replaceState({}, document.title, cleanUrl);
+
+                return true;
+            } catch (error) {
+                console.error('Failed to load shared tree:', error);
+                showToast('❌ ' + error.message, 'error');
+                return false;
+            }
+        }
+
+        // Hook into page initialization to check for shared trees
+        window.checkForSharedTree = checkForSharedTree;
+
         // Generate shareable URL with compressed data
         function generateShareableURL() {
             // DEBUG: Check cost values before serialization
@@ -45093,6 +45277,18 @@ STRATEGIES:
                     return true; // Skip default render
                 }
                 // Fall through if branch handling failed
+            }
+
+            // Check for cloud share URL (?share=ID) - async, handled after page load
+            if (urlParams.has('share')) {
+                console.log('☁️ Cloud share URL detected - will load after initialization...');
+                // Defer to after page initialization since Firebase may not be ready
+                setTimeout(async () => {
+                    if (window.checkForSharedTree) {
+                        await window.checkForSharedTree();
+                    }
+                }, 500);
+                return true; // Skip default render - cloud share will populate
             }
 
             const compressedData = urlParams.get('p');
