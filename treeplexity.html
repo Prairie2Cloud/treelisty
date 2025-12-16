@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.18.0 | Build 426 | 2025-12-16
+    TreeListy v2.19.0 | Build 427 | 2025-12-16
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,16 +18,19 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 426): 📂 Clearer Version Conflict Modal
-    - Renamed "File Version (Older)" to "Your Saved File" (neutral indigo color)
-    - Renamed "Local Version (Newer)" to "Browser Auto-Save"
-    - Don't label file as "older" when date is unknown
-    - Added explanation of what each version means
-    - More prominent item counts to help user decide
+    Changelog (Build 427): 🎭 Debate Mode - AI vs AI Spectator Debates
+    - Right-click any node → "Debate This Topic"
+    - Four personas: Socrates, Devil's Advocate, Skeptic, Steelman
+    - AI vs AI turn-based debates with user interjection
+    - Auto-play mode with 2.5s between turns
+    - Pattern-aware prompts and insight extraction
+    - XSS-safe rendering (textContent, not innerHTML)
+    - State persistence with localStorage
+    - Extract insights → add as child nodes
+    Previous (Build 426): 📂 Clearer Version Conflict Modal
     Previous (Build 425): ☁️ Cloud Share via Firebase Short URLs
     Previous (Build 424): 📤 Share URL Size Warnings + Lite Share
     Previous (Build 423): 🐛 Fix duplicate 'pattern' declaration causing splash freeze
-    Previous (Build 422): 📝 Enhanced Root/Phase Info Panel + Edit Details
     Previous (Build 421): 🔗 Fix Hyperedge Show/Hide in Canvas View
     Previous (Build 420): 🎨 Phase Color Cycling (different color per year)
     Previous (Build 419): 💬 Fix Chat Builder Send/Finish Buttons
@@ -676,8 +679,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.18.0',
-            build: 426,
+            major: '2.19.0',
+            build: 427,
             date: '2025-12-16',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -4529,6 +4532,432 @@
         }
 
         .agent-messages {
+            max-height: none;
+            flex: 1;
+        }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════════
+       BUILD 427: DEBATE MODE
+       - AI vs AI spectator debates
+       - Floating debate panel with transcript
+       - Insight extraction to tree
+       ═══════════════════════════════════════════════════════════════════════════ */
+
+    #debate-panel {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        width: 420px;
+        max-height: 500px;
+        background: linear-gradient(180deg, rgba(30, 30, 46, 0.97), rgba(24, 24, 38, 0.98));
+        border: 2px solid rgba(139, 92, 246, 0.35);
+        border-radius: 16px;
+        box-shadow:
+            0 0 0 1px rgba(139, 92, 246, 0.15),
+            0 8px 32px rgba(0, 0, 0, 0.5),
+            0 0 60px rgba(139, 92, 246, 0.08);
+        z-index: 9999;
+        display: none;
+        flex-direction: column;
+        overflow: hidden;
+        backdrop-filter: blur(12px);
+    }
+
+    #debate-panel.open {
+        display: flex;
+        animation: debateSlideIn 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    #debate-panel.minimized .debate-body {
+        display: none;
+    }
+
+    #debate-panel.minimized {
+        max-height: 56px;
+    }
+
+    @keyframes debateSlideIn {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .debate-header {
+        display: flex;
+        align-items: center;
+        padding: 12px 16px;
+        background: linear-gradient(135deg, rgba(139, 92, 246, 0.2), rgba(99, 102, 241, 0.1));
+        border-bottom: 1px solid rgba(139, 92, 246, 0.2);
+        gap: 12px;
+        cursor: grab;
+        user-select: none;
+    }
+
+    .debate-header:active { cursor: grabbing; }
+
+    .debate-title-row {
+        flex: 1;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .debate-icon { font-size: 20px; }
+
+    .debate-title {
+        font-weight: 600;
+        font-size: 14px;
+        color: #a78bfa;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .debate-turn-info {
+        font-size: 12px;
+        color: var(--text-secondary);
+        background: rgba(139, 92, 246, 0.2);
+        padding: 4px 10px;
+        border-radius: 12px;
+    }
+
+    .debate-header-actions {
+        display: flex;
+        gap: 4px;
+    }
+
+    .debate-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-secondary);
+        cursor: pointer;
+        width: 28px;
+        height: 28px;
+        border-radius: 6px;
+        font-size: 16px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .debate-btn:hover {
+        background: rgba(255, 255, 255, 0.1);
+        color: var(--text-primary);
+    }
+
+    .debate-body {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+    }
+
+    .debate-transcript {
+        flex: 1;
+        overflow-y: auto;
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        max-height: 300px;
+        scroll-behavior: smooth;
+    }
+
+    .debate-turn {
+        padding: 12px;
+        border-radius: 8px;
+        background: rgba(30, 30, 40, 0.5);
+        border-left: 3px solid var(--turn-color, #6366f1);
+    }
+
+    .debate-turn.persona-a { --turn-color: #8b5cf6; }
+    .debate-turn.persona-b { --turn-color: #f59e0b; }
+    .debate-turn.user { --turn-color: #10b981; }
+
+    .debate-turn-header {
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--turn-color);
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+    }
+
+    .debate-turn-text {
+        font-size: 14px;
+        line-height: 1.5;
+        color: var(--text-primary);
+    }
+
+    .debate-turn.loading .debate-turn-text {
+        color: var(--text-secondary);
+        font-style: italic;
+    }
+
+    .debate-input-row {
+        display: flex;
+        gap: 8px;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border-color);
+    }
+
+    #debate-interject-input {
+        flex: 1;
+        background: rgba(30, 30, 40, 0.5);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        padding: 8px 12px;
+        color: var(--text-primary);
+        font-size: 13px;
+    }
+
+    #debate-interject-input:focus {
+        outline: none;
+        border-color: rgba(139, 92, 246, 0.5);
+    }
+
+    .debate-input-btn {
+        background: rgba(139, 92, 246, 0.2);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        padding: 8px 12px;
+        cursor: pointer;
+        color: var(--text-primary);
+    }
+
+    .debate-input-btn:hover {
+        background: rgba(139, 92, 246, 0.3);
+    }
+
+    .debate-footer {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 12px 16px;
+        border-top: 1px solid var(--border-color);
+        background: rgba(20, 20, 30, 0.3);
+    }
+
+    .debate-footer-left {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .debate-autoplay-toggle {
+        display: flex;
+        align-items: center;
+        gap: 6px;
+        font-size: 12px;
+        color: var(--text-secondary);
+        cursor: pointer;
+    }
+
+    .debate-autoplay-toggle input {
+        cursor: pointer;
+    }
+
+    .debate-action-btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: rgba(30, 30, 40, 0.5);
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: 13px;
+        transition: all 0.15s ease;
+    }
+
+    .debate-action-btn.primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none;
+    }
+
+    .debate-action-btn:hover {
+        filter: brightness(1.1);
+    }
+
+    .debate-action-btn:disabled,
+    .debate-input-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        pointer-events: none;
+    }
+
+    /* Debate Setup Modal */
+    .debate-setup-modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0, 0, 0, 0.7);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        z-index: 10000;
+    }
+
+    .debate-setup-modal.open {
+        display: flex;
+    }
+
+    .debate-setup-content {
+        background: var(--card-bg);
+        border: 1px solid var(--border-color);
+        border-radius: 16px;
+        padding: 24px;
+        width: 420px;
+        max-width: 90vw;
+    }
+
+    .debate-setup-content h3 {
+        margin: 0 0 16px 0;
+        font-size: 18px;
+        color: var(--text-primary);
+    }
+
+    .debate-topic-display {
+        background: rgba(139, 92, 246, 0.1);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        margin-bottom: 20px;
+        font-size: 14px;
+        color: var(--text-primary);
+    }
+
+    .debate-persona-row {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+    }
+
+    .debate-persona-select {
+        flex: 1;
+    }
+
+    .debate-persona-select label {
+        display: block;
+        font-size: 12px;
+        color: var(--text-secondary);
+        margin-bottom: 6px;
+    }
+
+    .debate-persona-select select {
+        width: 100%;
+        padding: 10px;
+        background: rgba(30, 30, 40, 0.5);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+        font-size: 14px;
+    }
+
+    .debate-vs {
+        font-weight: 700;
+        color: var(--text-secondary);
+    }
+
+    .debate-rounds-row {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        margin-bottom: 20px;
+    }
+
+    .debate-rounds-row label {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    .debate-rounds-row select {
+        padding: 8px 12px;
+        background: rgba(30, 30, 40, 0.5);
+        border: 1px solid var(--border-color);
+        border-radius: 8px;
+        color: var(--text-primary);
+    }
+
+    .debate-setup-actions {
+        display: flex;
+        justify-content: flex-end;
+        gap: 12px;
+    }
+
+    .debate-setup-actions button {
+        padding: 10px 20px;
+        border-radius: 8px;
+        border: 1px solid var(--border-color);
+        background: rgba(30, 30, 40, 0.5);
+        color: var(--text-primary);
+        cursor: pointer;
+    }
+
+    .debate-setup-actions button.primary {
+        background: linear-gradient(135deg, #6366f1, #8b5cf6);
+        border: none;
+    }
+
+    /* Debate Insight Selection */
+    .debate-insights-selection {
+        padding: 8px 0;
+    }
+
+    .debate-insight-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 12px;
+        margin-bottom: 8px;
+        background: rgba(30, 30, 40, 0.5);
+        border-radius: 8px;
+        border-left: 3px solid #6366f1;
+        cursor: pointer;
+        transition: background 0.15s ease;
+    }
+
+    .debate-insight-item:hover {
+        background: rgba(40, 40, 50, 0.6);
+    }
+
+    .debate-insight-item input[type="checkbox"] {
+        width: 16px;
+        height: 16px;
+        cursor: pointer;
+    }
+
+    .debate-insight-item .insight-icon {
+        font-size: 16px;
+    }
+
+    .debate-insight-item .insight-text {
+        flex: 1;
+        font-size: 13px;
+        color: var(--text-primary);
+    }
+
+    /* Mobile Responsive for Debate Panel */
+    @media screen and (max-width: 768px), (pointer: coarse) and (max-width: 1024px) {
+        #debate-panel.open {
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            width: 100vw;
+            max-width: 100vw;
+            height: 100vh;
+            max-height: 100vh;
+            border-radius: 0;
+            animation: none;
+        }
+
+        .debate-transcript {
             max-height: none;
             flex: 1;
         }
@@ -21522,6 +21951,7 @@ function hidePatternDescription() {
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
                     <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
+                    <div class="context-item" id="ctx-debate">🎭 Debate This Topic</div>
                 `;
             } else if (activeNode.type === 'subtask') {
                 // Subtask context menu (can now have nested subtasks)
@@ -21534,6 +21964,7 @@ function hidePatternDescription() {
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
                     <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
+                    <div class="context-item" id="ctx-debate">🎭 Debate This Topic</div>
                 `;
             } else if (activeNode.type === 'phase') {
                 // Phase context menu (Build 391: Added delete option, Build 422: Added Edit Details)
@@ -21548,6 +21979,7 @@ function hidePatternDescription() {
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 Quick Insight</div>
                     <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
+                    <div class="context-item" id="ctx-debate">🎭 Debate This Topic</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-download">💾 Download JSON</div>
                     <div class="context-item" id="ctx-upload">📂 Upload JSON</div>
@@ -21564,6 +21996,7 @@ function hidePatternDescription() {
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-ai">🔍 ${labels.root} Quick Insight</div>
                     <div class="context-item" id="ctx-deep-dive">🎓 Deep Dive</div>
+                    <div class="context-item" id="ctx-debate">🎭 Debate This Topic</div>
                     <div class="context-divider"></div>
                     <div class="context-item" id="ctx-download">💾 Download JSON</div>
                     <div class="context-item" id="ctx-upload">📂 Upload JSON</div>
@@ -21618,6 +22051,7 @@ function hidePatternDescription() {
             const deleteBtn = document.getElementById('ctx-delete');
             const aiBtn = document.getElementById('ctx-ai');
             const deepDiveBtn = document.getElementById('ctx-deep-dive');
+            const debateBtn = document.getElementById('ctx-debate');
             const downloadBtn = document.getElementById('ctx-download');
             const uploadBtn = document.getElementById('ctx-upload');
             const expandBtn = document.getElementById('ctx-expand');
@@ -21632,6 +22066,7 @@ function hidePatternDescription() {
             if (deleteBtn) deleteBtn.onclick = handleDelete;
             if (aiBtn) aiBtn.onclick = handleAI;
             if (deepDiveBtn) deepDiveBtn.onclick = () => handleAnalyzeSelection([activeNode]);
+            if (debateBtn) debateBtn.onclick = handleDebate;
             if (downloadBtn) downloadBtn.onclick = handleDownload;
             if (uploadBtn) uploadBtn.onclick = handleUpload;
             if (expandBtn) expandBtn.onclick = handleExpandAll;
@@ -25906,6 +26341,626 @@ Return ONLY the JSON array.`
             }
             return count;
         }
+
+        // =============================================================================
+        // BUILD 427: DEBATE MODE
+        // AI vs AI spectator debates with insight extraction
+        // =============================================================================
+
+        const DEBATE_PERSONAS = {
+            socrates: {
+                name: "Socrates",
+                icon: "🏛️",
+                basePrompt: `You are Socrates. You NEVER make direct claims. You only ask probing questions that expose assumptions and contradictions. Your goal is to help the other party discover truth through their own reasoning. Keep responses under 100 words. Ask 1-2 pointed questions per turn.`
+            },
+            "devils-advocate": {
+                name: "Devil's Advocate",
+                icon: "😈",
+                basePrompt: `You argue against whatever position is presented. Find weaknesses, edge cases, and failure modes. Be intellectually rigorous, not mean-spirited. Your goal is stress-testing ideas to make them stronger. Keep responses under 100 words.`
+            },
+            skeptic: {
+                name: "Skeptic",
+                icon: "🔍",
+                basePrompt: `You demand evidence and question assumptions. "How do we know that?" "What's the source?" "Could this be confirmation bias?" Your goal is ensuring claims are well-founded. Keep responses under 100 words.`
+            },
+            steelman: {
+                name: "Steelman",
+                icon: "💪",
+                basePrompt: `You present the strongest possible version of the opposing view. Even if you disagree, articulate why a reasonable person might hold this position. Your goal is charitable understanding. Keep responses under 100 words.`
+            }
+        };
+
+        // State machine: setup → active → extracting → completed
+        const DEBATE_STATES = {
+            SETUP: 'setup',
+            ACTIVE: 'active',
+            EXTRACTING: 'extracting',
+            COMPLETED: 'completed'
+        };
+
+        let currentDebate = null;
+        let debateIsBusy = false;
+        let autoPlayTimer = null;
+        const AUTOPLAY_DELAY = 2500;
+        const DEBATE_STORAGE_KEY = 'treelisty_debate_state';
+
+        // State persistence
+        function saveDebateState() {
+            if (!currentDebate) {
+                localStorage.removeItem(DEBATE_STORAGE_KEY);
+                return;
+            }
+            const saveData = {
+                ...currentDebate,
+                sourceNodeId: currentDebate.sourceNode?.id || null,
+                sourceNode: null
+            };
+            localStorage.setItem(DEBATE_STORAGE_KEY, JSON.stringify(saveData));
+        }
+
+        function restoreDebateState() {
+            try {
+                const saved = localStorage.getItem(DEBATE_STORAGE_KEY);
+                if (!saved) return false;
+
+                const data = JSON.parse(saved);
+                if (data.status !== DEBATE_STATES.ACTIVE) {
+                    localStorage.removeItem(DEBATE_STORAGE_KEY);
+                    return false;
+                }
+
+                const sourceNode = findNodeById(data.sourceNodeId);
+                if (!sourceNode) {
+                    localStorage.removeItem(DEBATE_STORAGE_KEY);
+                    return false;
+                }
+
+                currentDebate = { ...data, sourceNode };
+                document.getElementById('debate-panel').classList.add('open');
+                document.getElementById('debate-title').textContent = `Debate: ${currentDebate.topic}`;
+                updateDebateTranscript();
+                updateDebateTurnCounter();
+                showToast('Restored previous debate session', 'info');
+                return true;
+            } catch (e) {
+                console.error('Failed to restore debate:', e);
+                localStorage.removeItem(DEBATE_STORAGE_KEY);
+                return false;
+            }
+        }
+
+        // UI Control locking
+        function setDebateBusy(busy) {
+            debateIsBusy = busy;
+            const nextBtn = document.getElementById('debate-next-turn-btn');
+            const endBtn = document.getElementById('debate-end-btn');
+            const interjectBtn = document.getElementById('debate-interject-btn');
+            const interjectInput = document.getElementById('debate-interject-input');
+
+            if (nextBtn) nextBtn.disabled = busy;
+            if (endBtn) endBtn.disabled = busy;
+            if (interjectBtn) interjectBtn.disabled = busy;
+            if (interjectInput) interjectInput.disabled = busy;
+        }
+
+        // Pattern-aware prompts
+        function buildPersonaPrompt(persona) {
+            const pattern = PATTERNS[currentPattern];
+            const patternName = pattern?.name || 'general';
+            const patternDesc = pattern?.description || '';
+
+            return `${persona.basePrompt}
+
+Context: This debate is in a "${patternName}" context. ${patternDesc}
+Tailor your ${persona.name} approach to this domain.`;
+        }
+
+        // Core debate functions
+        function handleDebate() {
+            if (!activeNode) return;
+            document.getElementById('context-menu').style.display = 'none';
+            showDebateSetup(activeNode);
+        }
+
+        function showDebateSetup(node) {
+            const modal = document.getElementById('debate-setup-modal');
+            const topicDisplay = document.getElementById('debate-topic-display');
+
+            let topic = node.name;
+            if (node.description) {
+                topic += `: ${node.description.substring(0, 100)}`;
+            }
+
+            topicDisplay.textContent = topic;
+            modal.classList.add('open');
+
+            currentDebate = {
+                sourceNode: node,
+                topic: node.name,
+                context: node.description || '',
+                status: DEBATE_STATES.SETUP,
+                personas: { a: null, b: null },
+                turns: [],
+                maxRounds: 5,
+                extractedInsights: []
+            };
+        }
+
+        function startDebate() {
+            const personaAKey = document.getElementById('debate-persona-a').value;
+            const personaBKey = document.getElementById('debate-persona-b').value;
+            const maxRounds = parseInt(document.getElementById('debate-rounds').value) || 0;
+
+            currentDebate.personas = {
+                a: { key: personaAKey, ...DEBATE_PERSONAS[personaAKey] },
+                b: { key: personaBKey, ...DEBATE_PERSONAS[personaBKey] }
+            };
+            currentDebate.maxRounds = maxRounds;
+            currentDebate.status = DEBATE_STATES.ACTIVE;
+
+            document.getElementById('debate-setup-modal').classList.remove('open');
+            document.getElementById('debate-panel').classList.add('open');
+            document.getElementById('debate-title').textContent = `Debate: ${currentDebate.topic}`;
+            document.getElementById('debate-transcript').innerHTML = '';
+            updateDebateTurnCounter();
+
+            saveDebateState();
+            getNextDebateTurn('a');
+        }
+
+        async function getNextDebateTurn(role) {
+            if (!currentDebate || currentDebate.status !== DEBATE_STATES.ACTIVE) return;
+            if (debateIsBusy) return;
+
+            // Rounds enforcement
+            if (currentDebate.maxRounds > 0 && currentDebate.turns.length >= currentDebate.maxRounds * 2) {
+                showToast(`Debate complete! (${currentDebate.maxRounds} rounds)`, 'info');
+                handleDebateEnd();
+                return;
+            }
+
+            setDebateBusy(true);
+
+            const persona = currentDebate.personas[role];
+            const transcript = currentDebate.turns.map(t => {
+                const speaker = t.role === 'user' ? 'USER' : currentDebate.personas[t.role].name;
+                return `${speaker}: ${t.text}`;
+            }).join('\n\n');
+
+            const systemPrompt = buildPersonaPrompt(persona);
+
+            const prompt = `Topic: ${currentDebate.topic}
+${currentDebate.context ? `Context: ${currentDebate.context}` : ''}
+
+${transcript ? `Debate so far:\n${transcript}\n\n` : ''}Respond as ${persona.name}. Stay in character. Under 100 words.`;
+
+            addDebateTurnLoading(role);
+
+            try {
+                const response = await callClaudeAPI(prompt, {
+                    systemPrompt: systemPrompt,
+                    temperature: 0.8,
+                    maxTokens: 200
+                });
+
+                currentDebate.turns.push({ role, text: response, timestamp: Date.now() });
+                updateDebateTranscript();
+                updateDebateTurnCounter();
+                saveDebateState();
+
+                // Auto-play logic
+                const autoPlayChecked = document.getElementById('debate-autoplay')?.checked;
+                if (autoPlayChecked && currentDebate.status === DEBATE_STATES.ACTIVE) {
+                    autoPlayTimer = setTimeout(() => {
+                        handleDebateNextTurn();
+                    }, AUTOPLAY_DELAY);
+                }
+
+            } catch (error) {
+                console.error('Debate turn error:', error);
+                showToast('Failed to get debate response', 'error');
+                updateDebateTranscript();
+            } finally {
+                setDebateBusy(false);
+            }
+        }
+
+        // XSS-safe DOM rendering
+        function addDebateTurnLoading(role) {
+            const transcript = document.getElementById('debate-transcript');
+            const persona = currentDebate.personas[role];
+            const turnClass = `persona-${role}`;
+
+            const turnDiv = document.createElement('div');
+            turnDiv.className = `debate-turn ${turnClass} loading`;
+            turnDiv.id = 'debate-loading-turn';
+
+            const headerDiv = document.createElement('div');
+            headerDiv.className = 'debate-turn-header';
+
+            const iconSpan = document.createElement('span');
+            iconSpan.textContent = persona.icon;
+            headerDiv.appendChild(iconSpan);
+
+            const nameSpan = document.createElement('span');
+            nameSpan.textContent = persona.name;
+            headerDiv.appendChild(nameSpan);
+
+            const loadingSpan = document.createElement('span');
+            loadingSpan.className = 'loading-dots';
+            loadingSpan.textContent = '...';
+            headerDiv.appendChild(loadingSpan);
+
+            const textDiv = document.createElement('div');
+            textDiv.className = 'debate-turn-text';
+            textDiv.textContent = 'Thinking...';
+
+            turnDiv.appendChild(headerDiv);
+            turnDiv.appendChild(textDiv);
+            transcript.appendChild(turnDiv);
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+
+        function updateDebateTranscript() {
+            const transcript = document.getElementById('debate-transcript');
+            transcript.innerHTML = '';
+
+            for (const turn of currentDebate.turns) {
+                const persona = turn.role === 'user'
+                    ? { name: 'You', icon: '👤' }
+                    : currentDebate.personas[turn.role];
+                const turnClass = turn.role === 'user' ? 'user' : `persona-${turn.role}`;
+
+                const turnDiv = document.createElement('div');
+                turnDiv.className = `debate-turn ${turnClass}`;
+
+                const headerDiv = document.createElement('div');
+                headerDiv.className = 'debate-turn-header';
+
+                const iconSpan = document.createElement('span');
+                iconSpan.textContent = persona.icon;
+                headerDiv.appendChild(iconSpan);
+
+                const nameSpan = document.createElement('span');
+                nameSpan.textContent = persona.name;
+                headerDiv.appendChild(nameSpan);
+
+                const textDiv = document.createElement('div');
+                textDiv.className = 'debate-turn-text';
+                textDiv.textContent = turn.text;
+
+                turnDiv.appendChild(headerDiv);
+                turnDiv.appendChild(textDiv);
+                transcript.appendChild(turnDiv);
+            }
+
+            transcript.scrollTop = transcript.scrollHeight;
+        }
+
+        function updateDebateTurnCounter() {
+            const counter = document.getElementById('debate-turn-counter');
+            const turnCount = currentDebate.turns.length;
+            const maxRounds = currentDebate.maxRounds;
+
+            if (maxRounds > 0) {
+                const currentRound = Math.ceil(turnCount / 2);
+                counter.textContent = `Round ${currentRound}/${maxRounds}`;
+            } else {
+                counter.textContent = `Turn ${turnCount}`;
+            }
+        }
+
+        function handleDebateNextTurn() {
+            if (!currentDebate || currentDebate.status !== DEBATE_STATES.ACTIVE) return;
+            if (debateIsBusy) return;
+
+            if (autoPlayTimer) {
+                clearTimeout(autoPlayTimer);
+                autoPlayTimer = null;
+            }
+
+            const lastTurn = currentDebate.turns[currentDebate.turns.length - 1];
+            const nextRole = (!lastTurn || lastTurn.role === 'b' || lastTurn.role === 'user') ? 'a' : 'b';
+
+            getNextDebateTurn(nextRole);
+        }
+
+        function handleDebateInterject() {
+            if (debateIsBusy) return;
+
+            const input = document.getElementById('debate-interject-input');
+            const text = input.value.trim();
+            if (!text || !currentDebate) return;
+
+            if (autoPlayTimer) {
+                clearTimeout(autoPlayTimer);
+                autoPlayTimer = null;
+            }
+
+            currentDebate.turns.push({ role: 'user', text, timestamp: Date.now() });
+            updateDebateTranscript();
+            updateDebateTurnCounter();
+            saveDebateState();
+            input.value = '';
+        }
+
+        // Insight extraction
+        async function handleDebateEnd() {
+            if (!currentDebate) return;
+
+            if (autoPlayTimer) {
+                clearTimeout(autoPlayTimer);
+                autoPlayTimer = null;
+            }
+
+            currentDebate.status = DEBATE_STATES.EXTRACTING;
+            setDebateBusy(true);
+            showToast('Extracting insights...', 'info');
+
+            try {
+                const insights = await extractDebateInsights();
+                showInsightSelection(insights);
+            } catch (error) {
+                console.error('Insight extraction error:', error);
+                showExtractionRetry();
+            } finally {
+                setDebateBusy(false);
+            }
+        }
+
+        async function extractDebateInsights() {
+            const transcript = currentDebate.turns.map(t => {
+                const speaker = t.role === 'user' ? 'USER' : currentDebate.personas[t.role].name;
+                return `${speaker}: ${t.text}`;
+            }).join('\n\n');
+
+            const prompt = `Analyze this debate and extract 4-6 key insights as bullet points.
+Each insight should be a concise claim that could become a tree node.
+Label each with type (use exactly these lowercase values): pro, con, tension, question
+
+Topic: ${currentDebate.topic}
+
+Debate transcript:
+${transcript}
+
+Output as JSON array only, no markdown, no explanation:
+[{"type": "pro", "text": "insight here"}, {"type": "con", "text": "another insight"}]`;
+
+            const response = await callClaudeAPI(prompt, { temperature: 0.3, maxTokens: 500 });
+
+            const jsonMatch = response.match(/\[[\s\S]*\]/);
+            if (!jsonMatch) {
+                throw new Error('No JSON array found in response');
+            }
+
+            const parsed = JSON.parse(jsonMatch[0]);
+
+            const validTypes = ['pro', 'con', 'tension', 'question'];
+            const normalized = parsed
+                .filter(item => item && typeof item.text === 'string')
+                .map(item => ({
+                    type: validTypes.includes(item.type?.toLowerCase())
+                        ? item.type.toLowerCase()
+                        : 'insight',
+                    text: item.text.trim()
+                }))
+                .filter(item => item.text.length > 0);
+
+            if (normalized.length === 0) {
+                throw new Error('No valid insights extracted');
+            }
+
+            return normalized;
+        }
+
+        function showExtractionRetry() {
+            const transcript = document.getElementById('debate-transcript');
+            transcript.innerHTML = `
+                <div style="text-align: center; padding: 40px;">
+                    <div style="font-size: 48px; margin-bottom: 16px;">⚠️</div>
+                    <div style="margin-bottom: 16px; color: var(--text-secondary);">
+                        Failed to extract insights from the debate.
+                    </div>
+                    <button onclick="handleDebateEnd()" class="debate-action-btn primary">
+                        🔄 Retry Extraction
+                    </button>
+                    <button onclick="closeDebatePanel()" class="debate-action-btn" style="margin-left: 8px;">
+                        Cancel
+                    </button>
+                </div>
+            `;
+        }
+
+        function showInsightSelection(insights) {
+            currentDebate.extractedInsights = insights;
+            currentDebate.status = DEBATE_STATES.COMPLETED;
+
+            const transcript = document.getElementById('debate-transcript');
+            transcript.innerHTML = '';
+
+            const container = document.createElement('div');
+            container.className = 'debate-insights-selection';
+
+            const header = document.createElement('h4');
+            header.style.cssText = 'margin: 0 0 12px 0; color: var(--text-secondary);';
+            header.textContent = 'Select insights to add:';
+            container.appendChild(header);
+
+            const typeIcons = { pro: '✅', con: '❌', tension: '⚡', question: '❓' };
+            const typeColors = { pro: '#10b981', con: '#ef4444', tension: '#f59e0b', question: '#6366f1' };
+
+            insights.forEach((insight, i) => {
+                const label = document.createElement('label');
+                label.className = 'debate-insight-item';
+                label.style.borderLeftColor = typeColors[insight.type] || '#6366f1';
+
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.checked = true;
+                checkbox.dataset.index = i;
+
+                const iconSpan = document.createElement('span');
+                iconSpan.className = 'insight-icon';
+                iconSpan.textContent = typeIcons[insight.type] || '💡';
+
+                const textSpan = document.createElement('span');
+                textSpan.className = 'insight-text';
+                textSpan.textContent = insight.text;
+
+                label.appendChild(checkbox);
+                label.appendChild(iconSpan);
+                label.appendChild(textSpan);
+                container.appendChild(label);
+            });
+
+            transcript.appendChild(container);
+
+            document.getElementById('debate-next-turn-btn').style.display = 'none';
+            document.getElementById('debate-end-btn').textContent = '📥 Add to Tree';
+            document.getElementById('debate-end-btn').onclick = addInsightsToTree;
+
+            saveDebateState();
+        }
+
+        // Pattern-aware tree insertion
+        function getPatternItemType(insightType) {
+            const patternKey = currentPattern || 'generic';
+
+            const mappings = {
+                philosophy: { pro: 'defense', con: 'objection', tension: 'paradox', question: 'inquiry' },
+                sales: { pro: 'benefit', con: 'risk-factor', tension: 'objection', question: 'discovery' },
+                legal: { pro: 'precedent', con: 'counterargument', tension: 'conflict', question: 'issue' },
+                default: { pro: 'pro', con: 'con', tension: 'consideration', question: 'question' }
+            };
+
+            const patternMap = mappings[patternKey] || mappings.default;
+            return patternMap[insightType] || insightType;
+        }
+
+        function addInsightsToTree() {
+            if (!currentDebate || !currentDebate.sourceNode) return;
+
+            const checkboxes = document.querySelectorAll('.debate-insight-item input:checked');
+            const selectedInsights = Array.from(checkboxes).map(cb => {
+                const index = parseInt(cb.dataset.index);
+                return currentDebate.extractedInsights[index];
+            });
+
+            if (selectedInsights.length === 0) {
+                showToast('No insights selected', 'warning');
+                return;
+            }
+
+            saveState();
+
+            const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+            const containerNode = {
+                id: generateId(),
+                name: `Debate Insights (${today})`,
+                type: 'item',
+                icon: '🎭',
+                description: `Debate between ${currentDebate.personas.a.name} and ${currentDebate.personas.b.name}`,
+                subtasks: []
+            };
+
+            const typeIcons = { pro: '✅', con: '❌', tension: '⚡', question: '❓' };
+            selectedInsights.forEach(insight => {
+                containerNode.subtasks.push({
+                    id: generateId(),
+                    name: `${typeIcons[insight.type] || '💡'} ${insight.text}`,
+                    type: 'subtask',
+                    itemType: getPatternItemType(insight.type),
+                    subtasks: []
+                });
+            });
+
+            const sourceNode = currentDebate.sourceNode;
+
+            if (sourceNode.type === 'phase') {
+                if (!sourceNode.items) sourceNode.items = [];
+                sourceNode.items.push(containerNode);
+            } else if (sourceNode.type === 'item' || sourceNode.type === 'subtask') {
+                if (!sourceNode.subtasks) sourceNode.subtasks = [];
+                sourceNode.subtasks.push(containerNode);
+            } else if (sourceNode.type === 'root') {
+                if (sourceNode.children && sourceNode.children.length > 0) {
+                    const firstPhase = sourceNode.children[0];
+                    if (!firstPhase.items) firstPhase.items = [];
+                    firstPhase.items.push(containerNode);
+                } else {
+                    const insightsPhase = {
+                        id: generateId(),
+                        name: 'Debate Insights',
+                        type: 'phase',
+                        items: [containerNode]
+                    };
+                    if (!sourceNode.children) sourceNode.children = [];
+                    sourceNode.children.push(insightsPhase);
+                }
+            }
+
+            localStorage.removeItem(DEBATE_STORAGE_KEY);
+            closeDebatePanel();
+            renderTree();
+            showToast(`Added ${selectedInsights.length} insights to tree`, 'success');
+        }
+
+        function closeDebatePanel() {
+            if (autoPlayTimer) {
+                clearTimeout(autoPlayTimer);
+                autoPlayTimer = null;
+            }
+
+            document.getElementById('debate-panel').classList.remove('open');
+            document.getElementById('debate-setup-modal').classList.remove('open');
+
+            localStorage.removeItem(DEBATE_STORAGE_KEY);
+            currentDebate = null;
+
+            const nextBtn = document.getElementById('debate-next-turn-btn');
+            const endBtn = document.getElementById('debate-end-btn');
+            if (nextBtn) nextBtn.style.display = '';
+            if (endBtn) {
+                endBtn.textContent = '✅ End & Extract';
+                endBtn.onclick = handleDebateEnd;
+            }
+        }
+
+        function initDebatePanel() {
+            document.getElementById('debate-cancel-setup')?.addEventListener('click', () => {
+                document.getElementById('debate-setup-modal').classList.remove('open');
+                currentDebate = null;
+            });
+
+            document.getElementById('debate-start-btn')?.addEventListener('click', startDebate);
+
+            document.getElementById('debate-close-btn')?.addEventListener('click', closeDebatePanel);
+            document.getElementById('debate-minimize-btn')?.addEventListener('click', () => {
+                document.getElementById('debate-panel').classList.toggle('minimized');
+            });
+
+            document.getElementById('debate-next-turn-btn')?.addEventListener('click', handleDebateNextTurn);
+            document.getElementById('debate-end-btn')?.addEventListener('click', handleDebateEnd);
+
+            document.getElementById('debate-interject-btn')?.addEventListener('click', handleDebateInterject);
+            document.getElementById('debate-interject-input')?.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleDebateInterject();
+            });
+
+            document.getElementById('debate-autoplay')?.addEventListener('change', (e) => {
+                if (!e.target.checked && autoPlayTimer) {
+                    clearTimeout(autoPlayTimer);
+                    autoPlayTimer = null;
+                }
+            });
+
+            // Restore previous debate session if exists
+            restoreDebateState();
+        }
+
+        // =============================================================================
+        // END DEBATE MODE
+        // =============================================================================
 
         // =============================================================================
         // AI WIZARD SYSTEM
@@ -32762,6 +33817,9 @@ Return ONLY the prompt text, nothing else. No quotes, no explanation.`
             console.log('🤖 Tree Agent send button initialized');
         }
         initAgentSendButton();
+
+        // BUILD 427: Initialize Debate Mode
+        initDebatePanel();
 
         // ═══════════════════════════════════════════════════════════════════════════
         // BUILD 407: DRAGGABLE AGENT FRAME + POSITION PERSISTENCE
@@ -53276,7 +54334,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 422; // Update this with each build
+                    const KNOWN_LATEST = 427; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -53693,6 +54751,87 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             <div class="agent-footer">
                 <button class="agent-action-btn" id="agent-cancel-btn">Cancel</button>
                 <button class="agent-action-btn primary" id="agent-finish-btn">✅ Finish & Apply</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 427: Debate Mode Panel -->
+    <div id="debate-panel" class="debate-panel">
+        <div class="debate-header">
+            <div class="debate-title-row">
+                <span class="debate-icon">🎭</span>
+                <span class="debate-title" id="debate-title">Debate: Topic</span>
+            </div>
+            <div class="debate-turn-info">
+                <span id="debate-turn-counter">Turn 0</span>
+            </div>
+            <div class="debate-header-actions">
+                <button class="debate-btn" id="debate-minimize-btn" title="Minimize">−</button>
+                <button class="debate-btn" id="debate-close-btn" title="Close">✕</button>
+            </div>
+        </div>
+        <div class="debate-body" id="debate-body">
+            <div class="debate-transcript" id="debate-transcript">
+                <!-- Debate turns populated dynamically -->
+            </div>
+            <div class="debate-input-row">
+                <input type="text" id="debate-interject-input" placeholder="Interject in the debate..." autocomplete="off">
+                <button class="debate-input-btn" id="debate-interject-btn" title="Send">💬</button>
+            </div>
+            <div class="debate-footer">
+                <div class="debate-footer-left">
+                    <button class="debate-action-btn" id="debate-next-turn-btn">▶️ Next Turn</button>
+                    <label class="debate-autoplay-toggle">
+                        <input type="checkbox" id="debate-autoplay">
+                        <span>Auto-play</span>
+                    </label>
+                </div>
+                <button class="debate-action-btn primary" id="debate-end-btn">✅ End & Extract</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Debate Setup Modal -->
+    <div id="debate-setup-modal" class="debate-setup-modal">
+        <div class="debate-setup-content">
+            <h3>🎭 Start Debate</h3>
+            <div class="debate-topic-display" id="debate-topic-display"></div>
+
+            <div class="debate-persona-row">
+                <div class="debate-persona-select">
+                    <label>Persona A</label>
+                    <select id="debate-persona-a">
+                        <option value="socrates">🏛️ Socrates</option>
+                        <option value="devils-advocate">😈 Devil's Advocate</option>
+                        <option value="skeptic">🔍 Skeptic</option>
+                        <option value="steelman">💪 Steelman</option>
+                    </select>
+                </div>
+                <span class="debate-vs">VS</span>
+                <div class="debate-persona-select">
+                    <label>Persona B</label>
+                    <select id="debate-persona-b">
+                        <option value="devils-advocate">😈 Devil's Advocate</option>
+                        <option value="socrates">🏛️ Socrates</option>
+                        <option value="skeptic">🔍 Skeptic</option>
+                        <option value="steelman">💪 Steelman</option>
+                    </select>
+                </div>
+            </div>
+
+            <div class="debate-rounds-row">
+                <label>Rounds:</label>
+                <select id="debate-rounds">
+                    <option value="3">3 rounds</option>
+                    <option value="5" selected>5 rounds</option>
+                    <option value="10">10 rounds</option>
+                    <option value="0">Unlimited</option>
+                </select>
+            </div>
+
+            <div class="debate-setup-actions">
+                <button id="debate-cancel-setup">Cancel</button>
+                <button id="debate-start-btn" class="primary">Start Debate</button>
             </div>
         </div>
     </div>
