@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 446 | 2025-12-17
+    TreeListy v2.19.0 | Build 447 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,12 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 446): 📋 Typed Dependencies Foundation
-    - DEPENDENCY_TYPES: FS (Finish-Start), SS, FF, SF with icons
-    - normalizeDependency() for backwards-compatible format conversion
-    - getDependencies() helper returns normalized dependency array
-    - Dependency badges show type icon + lag on non-default dependencies
-    - formatDependency() for display formatting
+    Changelog (Build 447): ➕ Dependency Creation UI
+    - Shift+drag from node to node creates dependency
+    - Visual feedback: red glow (source), green glow (valid target)
+    - Modal to select dependency type (FS/SS/FF/SF) and lag
+    - Temporary bezier line follows cursor during drag
+    - Duplicate dependency prevention
+    Previous (Build 446): 📋 Typed Dependencies Foundation
     Previous (Build 445): 🔗 Enhanced Link System
     Previous (Build 444): ✨ Animation Foundation
     Previous (Build 443): 🌳 Logo Integration
@@ -698,7 +699,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 446,
+            build: 447,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2942,6 +2943,23 @@
     .canvas-node:hover {
         transform: translateY(-3px) scale(1.02);
         filter: brightness(1.1);
+    }
+
+    /* BUILD 447: Dependency creation visual feedback */
+    .canvas-node.dep-source {
+        box-shadow: 0 0 0 3px #ff6b6b, 0 0 20px rgba(255, 107, 107, 0.4);
+        z-index: 100;
+    }
+
+    .canvas-node.dep-target {
+        box-shadow: 0 0 0 3px #22c55e, 0 0 20px rgba(34, 197, 94, 0.4);
+        z-index: 100;
+    }
+
+    .canvas-node.dep-invalid {
+        box-shadow: 0 0 0 3px #ef4444, 0 0 20px rgba(239, 68, 68, 0.4);
+        z-index: 100;
+        opacity: 0.6;
     }
 
     .canvas-node.dragging {
@@ -7047,6 +7065,23 @@ The AI will analyze the structure and convert it to a tree."
     .canvas-node:hover {
         transform: translateY(-3px) scale(1.02);
         filter: brightness(1.1);
+    }
+
+    /* BUILD 447: Dependency creation visual feedback */
+    .canvas-node.dep-source {
+        box-shadow: 0 0 0 3px #ff6b6b, 0 0 20px rgba(255, 107, 107, 0.4);
+        z-index: 100;
+    }
+
+    .canvas-node.dep-target {
+        box-shadow: 0 0 0 3px #22c55e, 0 0 20px rgba(34, 197, 94, 0.4);
+        z-index: 100;
+    }
+
+    .canvas-node.dep-invalid {
+        box-shadow: 0 0 0 3px #ef4444, 0 0 20px rgba(239, 68, 68, 0.4);
+        z-index: 100;
+        opacity: 0.6;
     }
 
     .canvas-node.dragging {
@@ -12592,6 +12627,13 @@ Focus on logical structure and content organization best practices.`;
         let isDraggingSelection = false;
         let selectionDragStart = { x: 0, y: 0 };
 
+        // BUILD 447: Dependency creation state (Shift+drag)
+        let isCreatingDependency = false;
+        let depSourceNode = null;
+        let depDragEndX = 0;
+        let depDragEndY = 0;
+        let depSnapTarget = null;
+
         // BUILD 330: Space key for Mac-friendly panning
         let isSpacePressed = false;
 
@@ -15838,6 +15880,172 @@ Be specific and insightful, not generic.`;
             }
         }
 
+        // BUILD 447: Helper functions for dependency creation
+
+        // Find nearest canvas node to a point
+        function findNearestCanvasNode(x, y, maxDistance = 100) {
+            let nearest = null;
+            let nearestDist = maxDistance;
+
+            canvasNodes.forEach(nodeObj => {
+                const node = nodeObj.data;
+                if (node.canvasX === undefined) return;
+
+                // Calculate distance to node center
+                const centerX = node.canvasX + 160;  // Approximate center
+                const centerY = node.canvasY + 60;
+                const dist = Math.sqrt((x - centerX) ** 2 + (y - centerY) ** 2);
+
+                if (dist < nearestDist) {
+                    nearestDist = dist;
+                    nearest = node;
+                }
+            });
+
+            return nearest;
+        }
+
+        // Check if a dependency already exists
+        function hasDependency(successorNode, predecessorId) {
+            const deps = getDependencies(successorNode);
+            return deps.some(d => d.predecessorId === predecessorId);
+        }
+
+        // Draw temporary dependency line while dragging
+        function drawTempDependencyLine() {
+            clearTempDependencyLine();
+
+            if (!depSourceNode) return;
+
+            const svg = document.getElementById('canvas-connections');
+            const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            g.id = 'temp-dependency-line';
+
+            const fromX = depSourceNode.canvasX + 160 + SVG_OFFSET;
+            const fromY = depSourceNode.canvasY + 60 + SVG_OFFSET;
+
+            let toX, toY;
+            if (depSnapTarget) {
+                toX = depSnapTarget.canvasX + SVG_OFFSET;
+                toY = depSnapTarget.canvasY + 60 + SVG_OFFSET;
+            } else {
+                toX = depDragEndX + SVG_OFFSET;
+                toY = depDragEndY + SVG_OFFSET;
+            }
+
+            // Draw bezier path
+            const d = calculateBezierPath(fromX - SVG_OFFSET, fromY - SVG_OFFSET, toX - SVG_OFFSET, toY - SVG_OFFSET);
+            const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            path.setAttribute('d', d.replace(/(\d+)/g, (m) => parseFloat(m) + SVG_OFFSET));
+            path.setAttribute('stroke', depSnapTarget ? '#22c55e' : '#ff6b6b');
+            path.setAttribute('stroke-width', '3');
+            path.setAttribute('stroke-dasharray', '8,4');
+            path.setAttribute('fill', 'none');
+            path.setAttribute('opacity', '0.8');
+
+            g.appendChild(path);
+            svg.appendChild(g);
+        }
+
+        // Clear temporary dependency line
+        function clearTempDependencyLine() {
+            const existing = document.getElementById('temp-dependency-line');
+            if (existing) existing.remove();
+        }
+
+        // Show dependency creation modal
+        function showDependencyCreationModal(source, target) {
+            const modal = document.getElementById('modal');
+            document.getElementById('modal-title').textContent = 'Create Dependency';
+            document.getElementById('modal-body').innerHTML = `
+                <div style="padding: 16px;">
+                    <p style="margin-bottom: 16px; color: var(--text-secondary);">
+                        Create a dependency where <strong style="color: var(--text-primary);">${source.name}</strong>
+                        must complete before <strong style="color: var(--text-primary);">${target.name}</strong> can start.
+                    </p>
+
+                    <div style="display: grid; gap: 12px;">
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Dependency Type:</label>
+                            <select id="dep-create-type" style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary);">
+                                <option value="FS" selected>→ Finish-to-Start (default)</option>
+                                <option value="SS">⇉ Start-to-Start</option>
+                                <option value="FF">⇶ Finish-to-Finish</option>
+                                <option value="SF">↔ Start-to-Finish</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label style="display: block; margin-bottom: 4px; font-weight: 500;">Lag (days):</label>
+                            <input type="number" id="dep-create-lag" value="0" min="-365" max="365"
+                                style="width: 100%; padding: 8px; border-radius: 6px; background: var(--bg-secondary); border: 1px solid var(--border); color: var(--text-primary);">
+                            <span style="font-size: 12px; color: var(--text-secondary);">Positive = delay, Negative = overlap</span>
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 8px; margin-top: 20px; justify-content: flex-end;">
+                        <button onclick="document.getElementById('modal').style.display='none'"
+                            style="padding: 8px 16px; border-radius: 6px; background: var(--bg-tertiary); border: 1px solid var(--border); color: var(--text-primary); cursor: pointer;">
+                            Cancel
+                        </button>
+                        <button onclick="confirmCreateDependency('${source.id}', '${target.id}')"
+                            style="padding: 8px 16px; border-radius: 6px; background: var(--treeplex-primary); border: none; color: white; cursor: pointer; font-weight: 500;">
+                            Create Dependency
+                        </button>
+                    </div>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
+
+        // Confirm and create the dependency
+        function confirmCreateDependency(sourceId, targetId) {
+            const type = document.getElementById('dep-create-type').value;
+            const lag = parseInt(document.getElementById('dep-create-lag').value) || 0;
+
+            // Find the target node
+            let targetNode = null;
+            function findNode(nodes) {
+                for (const node of nodes) {
+                    if (node.id === targetId) return node;
+                    const children = node.subItems || node.children || node.items || [];
+                    const found = findNode(children);
+                    if (found) return found;
+                }
+                return null;
+            }
+            for (const phase of (capexTree?.children || [])) {
+                if (phase.id === targetId) { targetNode = phase; break; }
+                const items = phase.items || phase.children || [];
+                targetNode = findNode(items);
+                if (targetNode) break;
+            }
+
+            if (!targetNode) {
+                showToast('Error: Target node not found', 'error');
+                return;
+            }
+
+            // Save state for undo
+            saveState(`Create dependency: ${sourceId} → ${targetId}`);
+
+            // Add dependency
+            if (!targetNode.dependencies) targetNode.dependencies = [];
+            targetNode.dependencies.push({
+                predecessorId: sourceId,
+                type: type,
+                lag: lag
+            });
+
+            // Close modal and re-render
+            document.getElementById('modal').style.display = 'none';
+            renderCanvas();
+            showToast(`Dependency created (${type}${lag !== 0 ? ', ' + lag + 'd lag' : ''})`, 'success');
+        }
+
+        // Expose for external use
+        window.confirmCreateDependency = confirmCreateDependency;
+
         // BUILD 446: Draw dependency type badge at link midpoint
         function drawDependencyBadge(x1, y1, x2, y2, dep) {
             const svg = document.getElementById('canvas-connections');
@@ -16747,8 +16955,27 @@ Be specific and insightful, not generic.`;
             });
 
             // Drag with MIDDLE MOUSE BUTTON (button 1) only - left button reserved for panning
+            // BUILD 447: Shift+Left-click starts dependency creation
             node.addEventListener('mousedown', (e) => {
                 const containerRect = document.getElementById('canvas-container').getBoundingClientRect();
+
+                // BUILD 447: Shift+Left-click starts dependency creation
+                if (e.button === 0 && e.shiftKey) {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    console.log('Shift+drag dependency creation started from:', item.name);
+
+                    isCreatingDependency = true;
+                    depSourceNode = item;
+                    depDragEndX = item.canvasX + 160;  // Start from node center-right
+                    depDragEndY = item.canvasY + 60;
+                    depSnapTarget = null;
+
+                    // Add visual indicator
+                    node.classList.add('dep-source');
+                    showToast('Drag to target node to create dependency', 'info');
+                    return;
+                }
 
                 // Middle-click - drag group if node is selected, otherwise drag individual
                 if (e.button === 1) {
@@ -17920,6 +18147,35 @@ Be specific and insightful, not generic.`;
             container.addEventListener('mousemove', (e) => {
                 const containerRect = container.getBoundingClientRect();
 
+                // BUILD 447: Dependency creation drag
+                if (isCreatingDependency && depSourceNode) {
+                    depDragEndX = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x;
+                    depDragEndY = (e.clientY - containerRect.top) / canvasZoom - canvasPan.y;
+
+                    // Find nearest node to snap to
+                    depSnapTarget = findNearestCanvasNode(depDragEndX, depDragEndY, 80);
+
+                    // Don't snap to source node
+                    if (depSnapTarget && depSnapTarget.id === depSourceNode.id) {
+                        depSnapTarget = null;
+                    }
+
+                    // Highlight snap target
+                    canvasNodes.forEach(n => n.element.classList.remove('dep-target', 'dep-invalid'));
+                    if (depSnapTarget) {
+                        const targetEl = canvasNodes.find(n => n.data.id === depSnapTarget.id)?.element;
+                        if (targetEl) {
+                            // Check if dependency would be valid
+                            const isValid = !hasDependency(depSnapTarget, depSourceNode.id);
+                            targetEl.classList.add(isValid ? 'dep-target' : 'dep-invalid');
+                        }
+                    }
+
+                    // Draw temporary dependency line
+                    drawTempDependencyLine();
+                    return;
+                }
+
                 // Drawing selection box with middle mouse
                 if (isSelecting) {
                     const x = (e.clientX - containerRect.left) / canvasZoom - canvasPan.x;
@@ -18056,6 +18312,30 @@ Be specific and insightful, not generic.`;
             });
 
             container.addEventListener('mouseup', (e) => {
+                // BUILD 447: Complete dependency creation
+                if (isCreatingDependency && depSourceNode) {
+                    // Clean up visual state
+                    canvasNodes.forEach(n => {
+                        n.element.classList.remove('dep-source', 'dep-target', 'dep-invalid');
+                    });
+                    clearTempDependencyLine();
+
+                    if (depSnapTarget && depSnapTarget.id !== depSourceNode.id) {
+                        // Check if dependency already exists
+                        if (hasDependency(depSnapTarget, depSourceNode.id)) {
+                            showToast('Dependency already exists', 'warning');
+                        } else {
+                            // Show modal to confirm and set type/lag
+                            showDependencyCreationModal(depSourceNode, depSnapTarget);
+                        }
+                    }
+
+                    isCreatingDependency = false;
+                    depSourceNode = null;
+                    depSnapTarget = null;
+                    return;
+                }
+
                 // Finalize selection
                 if (isSelecting) {
                     isSelecting = false;
@@ -56471,7 +56751,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 446; // Update this with each build
+                    const KNOWN_LATEST = 447; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
