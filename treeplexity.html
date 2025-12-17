@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 439 | 2025-12-17
+    TreeListy v2.19.0 | Build 440 | 2025-12-17
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,10 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 439): 🎯 Treebeard Global vs Node Commands
-    - Restructured command vocabulary: GLOBAL vs REQUIRES NODE sections
-    - AI now knows project_info, search, find_redundancies are global
-    - Tells AI to prefer global commands for buttons
+    Changelog (Build 440): 📊 Treebeard Tree Analysis Command
+    - New tree_analysis command: finds items with most content/children
+    - Helps Treebeard understand "research items" means tree analysis
+    - Added to command vocabulary and feature guide
+    Previous (Build 439): 🎯 Treebeard Global vs Node Commands
     Previous (Build 438): 🔘 Fix Treebeard Welcome Buttons
     Previous (Build 437): 🌳 Treebeard Knows His Limits
     Previous (Build 436): 🗺️ Minimap Drag-to-Pan
@@ -683,7 +684,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 439,
+            build: 440,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -49162,6 +49163,51 @@ ${transcript}`;
                 return `📋 **Project:** ${name}\n**Pattern:** ${pattern}\n**Phases:** ${phases}\n**Items:** ${items}`;
             },
 
+            // BUILD 440: Tree analysis - find items with most content/children
+            'tree_analysis': () => {
+                if (typeof capexTree === 'undefined') return '❌ No tree loaded.';
+
+                const phaseList = capexTree.children || capexTree.phases || [];
+                const allItems = [];
+
+                // Collect all items with their stats
+                phaseList.forEach((phase, pi) => {
+                    const items = phase.items || phase.children || [];
+                    items.forEach((item, ii) => {
+                        const children = (item.subItems || item.subtasks || item.children || []).length;
+                        const descLen = (item.description || '').length;
+                        const notesLen = (item.notes || '').length;
+                        allItems.push({
+                            name: item.name || 'Untitled',
+                            phase: phase.name || `Phase ${pi + 1}`,
+                            children,
+                            contentLen: descLen + notesLen,
+                            id: item.id
+                        });
+                    });
+                });
+
+                if (allItems.length === 0) return '📊 No items to analyze.';
+
+                // Sort by children count (most developed)
+                const byChildren = [...allItems].sort((a, b) => b.children - a.children).slice(0, 5);
+                // Sort by content length (most detailed)
+                const byContent = [...allItems].sort((a, b) => b.contentLen - a.contentLen).slice(0, 5);
+
+                let result = '📊 **Tree Analysis**\n\n';
+                result += '**Most Developed (by children):**\n';
+                byChildren.forEach((item, i) => {
+                    result += `${i + 1}. "${item.name}" - ${item.children} children\n`;
+                });
+
+                result += '\n**Most Detailed (by content length):**\n';
+                byContent.forEach((item, i) => {
+                    result += `${i + 1}. "${item.name}" - ${item.contentLen} chars\n`;
+                });
+
+                return result;
+            },
+
             // ═══════════════════════════════════════════════════════════════
             // BUILD 250: NAVIGATION & FOCUS COMMANDS
             // ═══════════════════════════════════════════════════════════════
@@ -52006,6 +52052,7 @@ GLOBAL (work anytime):
 • switch_to_canvas / switch_to_tree - Change view
 • undo / redo - Undo/redo changes
 • list_all_commands - Show all 90+ commands
+• tree_analysis - Analyze which items have most content/children
 • lifetree_health_check - (LifeTree) Health diagnostics
 
 REQUIRES FOCUSED NODE (use find_node first!):
@@ -52053,6 +52100,7 @@ KEY FEATURES:
 • Hyperedges: Cross-phase connections (Canvas View → multi-select → Create)
 • Find Redundancies: Detect duplicate nodes
 • Health Check (lifetree_health_check): LifeTree diagnostics - empty phases, redundant periods, chronology
+• Tree Analysis (tree_analysis): Find items with most content/children
 • Canvas Search (Ctrl+F): Find nodes by name/description, zoom to result
 • Minimap: Bird's-eye navigation, drag viewport to pan
 • Voice Capture: Mobile recording → AI processing
@@ -55458,7 +55506,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 439; // Update this with each build
+                    const KNOWN_LATEST = 440; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
