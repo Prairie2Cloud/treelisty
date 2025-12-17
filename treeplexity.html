@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 443 | 2025-12-17
+    TreeListy v2.19.0 | Build 444 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,10 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 443): 🌳 Logo Integration
-    - New whimsical tree logo throughout app
-    - Favicon, PWA icons, header, splash screen, About modal
-    - Replaced emoji placeholders with proper branding
+    Changelog (Build 444): ✨ Animation Foundation
+    - New animationManager for smooth Canvas View transitions
+    - 8 easing functions (easeOutCubic, easeInOutQuad, easeOutBack, etc.)
+    - Animated zoom-to-node on search results
+    - Animated expand/collapse with fade in/out
+    - Respects prefers-reduced-motion accessibility setting
+    Previous (Build 443): 🌳 Logo Integration
     Previous (Build 442): 🔍 Treebeard Research Mode (Phase 1)
     - Web search via Gemini's Google Search grounding
     - Auto-detects research intent, pattern-aware prompts
@@ -693,7 +696,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 443,
+            build: 444,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2890,8 +2893,30 @@
         min-width: 280px;
         max-width: 320px;
         cursor: grab;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease, opacity 0.25s ease;
         z-index: 10;
+    }
+
+    /* BUILD 444: Animation classes for expand/collapse */
+    .canvas-node.node-entering {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    .canvas-node.node-visible {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    /* Respect reduced motion preference */
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node {
+            transition: none;
+        }
+        .canvas-node.node-entering {
+            opacity: 1;
+            transform: none;
+        }
     }
 
     .canvas-node:hover {
@@ -6955,8 +6980,30 @@ The AI will analyze the structure and convert it to a tree."
         min-width: 280px;
         max-width: 320px;
         cursor: grab;
-        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease;
+        transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, filter 0.15s ease, opacity 0.25s ease;
         z-index: 10;
+    }
+
+    /* BUILD 444: Animation classes for expand/collapse */
+    .canvas-node.node-entering {
+        opacity: 0;
+        transform: scale(0.8);
+    }
+
+    .canvas-node.node-visible {
+        opacity: 1;
+        transform: scale(1);
+    }
+
+    /* Respect reduced motion preference */
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-node {
+            transition: none;
+        }
+        .canvas-node.node-entering {
+            opacity: 1;
+            transform: none;
+        }
     }
 
     .canvas-node:hover {
@@ -12510,6 +12557,274 @@ Focus on logical structure and content organization best practices.`;
         // BUILD 330: Space key for Mac-friendly panning
         let isSpacePressed = false;
 
+        // =====================================================================
+        // BUILD 444: ANIMATION MANAGER - Smooth transitions for Canvas View
+        // =====================================================================
+        const animationManager = {
+            active: [],                     // Currently running animations
+            defaultDuration: 300,           // ms
+            defaultEasing: 'easeOutCubic',
+
+            // Check if user prefers reduced motion
+            prefersReducedMotion() {
+                return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+            },
+
+            // Queue an animation (cancels existing animation on same target)
+            animate(targetId, fromProps, toProps, options = {}) {
+                // Skip animation if user prefers reduced motion
+                if (this.prefersReducedMotion()) {
+                    this.applyFinalState(targetId, toProps);
+                    if (options.onComplete) options.onComplete();
+                    return;
+                }
+
+                // Cancel any existing animation for this target
+                this.active = this.active.filter(a => a.targetId !== targetId);
+
+                this.active.push({
+                    targetId,
+                    fromProps,
+                    toProps,
+                    startTime: performance.now(),
+                    duration: options.duration || this.defaultDuration,
+                    easing: options.easing || this.defaultEasing,
+                    onComplete: options.onComplete,
+                    onUpdate: options.onUpdate
+                });
+
+                if (this.active.length === 1) {
+                    requestAnimationFrame(ts => this.tick(ts));
+                }
+            },
+
+            // Animation loop - called every frame
+            tick(timestamp) {
+                if (this.active.length === 0) return;
+
+                const completed = [];
+
+                this.active.forEach(anim => {
+                    const elapsed = timestamp - anim.startTime;
+                    const progress = Math.min(elapsed / anim.duration, 1);
+                    const easedProgress = this.ease(progress, anim.easing);
+
+                    // Interpolate each property
+                    Object.keys(anim.toProps).forEach(prop => {
+                        const from = anim.fromProps[prop];
+                        const to = anim.toProps[prop];
+                        const current = from + (to - from) * easedProgress;
+                        this.applyProperty(anim.targetId, prop, current);
+                    });
+
+                    // Call onUpdate if provided
+                    if (anim.onUpdate) anim.onUpdate(easedProgress);
+
+                    // Check if complete
+                    if (progress >= 1) {
+                        completed.push(anim);
+                    }
+                });
+
+                // Remove completed animations and fire callbacks
+                completed.forEach(anim => {
+                    // Ensure final state is exact
+                    this.applyFinalState(anim.targetId, anim.toProps);
+                    if (anim.onComplete) anim.onComplete();
+                });
+                this.active = this.active.filter(a => !completed.includes(a));
+
+                // Re-render canvas once per frame (batch all animations)
+                // But skip if only viewport animations are running (they use updateCanvasTransform via onUpdate)
+                const hasNodeAnimations = this.active.some(a => a.targetId !== 'viewport');
+                if (hasNodeAnimations && typeof renderCanvas === 'function' && viewMode === 'canvas') {
+                    renderCanvas();
+                }
+
+                // Continue animation loop if more animations active
+                if (this.active.length > 0) {
+                    requestAnimationFrame(ts => this.tick(ts));
+                }
+            },
+
+            // Easing functions
+            ease(t, type) {
+                switch (type) {
+                    case 'linear':
+                        return t;
+                    case 'easeOutCubic':
+                        return 1 - Math.pow(1 - t, 3);
+                    case 'easeInCubic':
+                        return t * t * t;
+                    case 'easeInOutCubic':
+                        return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+                    case 'easeOutQuad':
+                        return 1 - (1 - t) * (1 - t);
+                    case 'easeInOutQuad':
+                        return t < 0.5 ? 2 * t * t : 1 - Math.pow(-2 * t + 2, 2) / 2;
+                    case 'easeOutBack':
+                        const c1 = 1.70158;
+                        const c3 = c1 + 1;
+                        return 1 + c3 * Math.pow(t - 1, 3) + c1 * Math.pow(t - 1, 2);
+                    case 'easeOutElastic':
+                        if (t === 0 || t === 1) return t;
+                        return Math.pow(2, -10 * t) * Math.sin((t * 10 - 0.75) * (2 * Math.PI) / 3) + 1;
+                    default:
+                        return t;
+                }
+            },
+
+            // Apply a single property to a target
+            applyProperty(targetId, prop, value) {
+                // Special case: viewport properties
+                if (targetId === 'viewport') {
+                    if (prop === 'panX') canvasPan.x = value;
+                    else if (prop === 'panY') canvasPan.y = value;
+                    else if (prop === 'zoom') canvasZoom = value;
+                    return;
+                }
+
+                // Find node by ID and set property
+                const node = this.findNodeById(targetId);
+                if (node) {
+                    node[prop] = value;
+                }
+            },
+
+            // Apply final state (ensures exact values, no floating point drift)
+            applyFinalState(targetId, toProps) {
+                if (targetId === 'viewport') {
+                    if ('panX' in toProps) canvasPan.x = toProps.panX;
+                    if ('panY' in toProps) canvasPan.y = toProps.panY;
+                    if ('zoom' in toProps) canvasZoom = toProps.zoom;
+                    return;
+                }
+
+                const node = this.findNodeById(targetId);
+                if (node) {
+                    Object.assign(node, toProps);
+                }
+            },
+
+            // Find node by ID in the tree (cached for performance)
+            findNodeById(nodeId) {
+                // Use existing findNodeById if available
+                if (typeof window.findNodeById === 'function') {
+                    return window.findNodeById(nodeId);
+                }
+
+                // Fallback: search tree
+                function searchTree(nodes) {
+                    for (const node of nodes) {
+                        if (node.id === nodeId) return node;
+                        const children = node.subItems || node.children || node.items || [];
+                        const found = searchTree(children);
+                        if (found) return found;
+                    }
+                    return null;
+                }
+
+                // Search phases and their items
+                for (const phase of (capexTree?.children || [])) {
+                    if (phase.id === nodeId) return phase;
+                    const items = phase.items || phase.children || [];
+                    const found = searchTree(items);
+                    if (found) return found;
+                }
+                return null;
+            },
+
+            // Cancel all animations for a target
+            cancel(targetId) {
+                this.active = this.active.filter(a => a.targetId !== targetId);
+            },
+
+            // Cancel all animations
+            cancelAll() {
+                this.active = [];
+            },
+
+            // Check if any animations are running
+            isAnimating() {
+                return this.active.length > 0;
+            },
+
+            // Check if a specific target is animating
+            isTargetAnimating(targetId) {
+                return this.active.some(a => a.targetId === targetId);
+            }
+        };
+
+        // Expose to window for debugging and external access
+        window.animationManager = animationManager;
+
+        // BUILD 444: Helper to animate canvas expand/collapse
+        function animateCanvasExpandCollapse(item, isExpanding) {
+            // Skip animation if reduced motion preferred
+            if (animationManager.prefersReducedMotion()) {
+                item.expanded = isExpanding;
+                renderCanvas();
+                return;
+            }
+
+            // Get children IDs that will appear/disappear
+            const childList = item.subItems || item.children || [];
+            const childIds = new Set();
+            function collectChildIds(nodes) {
+                nodes.forEach(n => {
+                    if (n.id) childIds.add(n.id);
+                    const children = n.subItems || n.children || [];
+                    collectChildIds(children);
+                });
+            }
+            collectChildIds(childList);
+
+            if (isExpanding) {
+                // EXPANDING: Set expanded, render, then animate in
+                item.expanded = true;
+                renderCanvas();
+
+                // Add entering class to new child nodes, then trigger animation
+                requestAnimationFrame(() => {
+                    const newNodes = document.querySelectorAll('.canvas-node');
+                    newNodes.forEach(nodeEl => {
+                        const nodeId = nodeEl.dataset.itemId;
+                        if (childIds.has(nodeId)) {
+                            nodeEl.classList.add('node-entering');
+                            // Force reflow, then add visible class
+                            nodeEl.offsetHeight;
+                            requestAnimationFrame(() => {
+                                nodeEl.classList.remove('node-entering');
+                                nodeEl.classList.add('node-visible');
+                            });
+                        }
+                    });
+                });
+            } else {
+                // COLLAPSING: Animate out, then set collapsed and re-render
+                const nodesToAnimate = document.querySelectorAll('.canvas-node');
+                const toFadeOut = [];
+
+                nodesToAnimate.forEach(nodeEl => {
+                    const nodeId = nodeEl.dataset.itemId;
+                    if (childIds.has(nodeId)) {
+                        toFadeOut.push(nodeEl);
+                        nodeEl.style.opacity = '0';
+                        nodeEl.style.transform = 'scale(0.8)';
+                    }
+                });
+
+                // After animation completes, update state and re-render
+                setTimeout(() => {
+                    item.expanded = false;
+                    renderCanvas();
+                }, 250);
+            }
+        }
+
+        // Expose for use in click handlers
+        window.animateCanvasExpandCollapse = animateCanvasExpandCollapse;
+
         // Expose capexTree to window for Firebase sync (IIFE scope bridge)
         Object.defineProperty(window, 'capexTree', {
             get: function() { return capexTree; },
@@ -16041,14 +16356,14 @@ Be specific and insightful, not generic.`;
                 ${progressHtml}
             `;
 
-            // Add expand/collapse handler
+            // Add expand/collapse handler - BUILD 444: With animation
             const expandBtn = node.querySelector('.expand-indicator');
             if (expandBtn) {
                 expandBtn.addEventListener('click', (e) => {
                     e.stopPropagation();
-                    item.expanded = !item.expanded;
-                    console.log('Toggling expand for:', item.name, 'expanded:', item.expanded);
-                    renderCanvas();
+                    const isExpanding = item.expanded === false;
+                    console.log('Toggling expand for:', item.name, 'to:', isExpanding ? 'expanded' : 'collapsed');
+                    animateCanvasExpandCollapse(item, isExpanding);
                 });
             }
 
@@ -16103,10 +16418,10 @@ Be specific and insightful, not generic.`;
                                       (item.children && item.children.length > 0);
 
                     if (hasChildren) {
-                        // Toggle expand/collapse
-                        item.expanded = !item.expanded;
-                        console.log('Toggling expand for:', item.name, 'expanded:', item.expanded);
-                        renderCanvas();
+                        // Toggle expand/collapse - BUILD 444: With animation
+                        const isExpanding = item.expanded === false;
+                        console.log('Toggling expand for:', item.name, 'to:', isExpanding ? 'expanded' : 'collapsed');
+                        animateCanvasExpandCollapse(item, isExpanding);
                     }
 
                     // Always show info panel for selected node (regardless of children)
@@ -16392,31 +16707,18 @@ Be specific and insightful, not generic.`;
             });
         }
 
-        function animateCanvasTo({ zoom, panX, panY, duration = 300 }) {
-            const startZoom = canvasZoom;
-            const startPanX = canvasPan.x;
-            const startPanY = canvasPan.y;
-            const startTime = performance.now();
-
-            function animate(currentTime) {
-                const elapsed = currentTime - startTime;
-                const progress = Math.min(elapsed / duration, 1);
-
-                // Ease out cubic
-                const eased = 1 - Math.pow(1 - progress, 3);
-
-                canvasZoom = startZoom + (zoom - startZoom) * eased;
-                canvasPan.x = startPanX + (panX - startPanX) * eased;
-                canvasPan.y = startPanY + (panY - startPanY) * eased;
-
-                updateCanvasTransform();
-
-                if (progress < 1) {
-                    requestAnimationFrame(animate);
+        // BUILD 444: Refactored to use animationManager for consistency + accessibility
+        function animateCanvasTo({ zoom, panX, panY, duration = 300, easing = 'easeOutCubic', onComplete }) {
+            animationManager.animate('viewport',
+                { panX: canvasPan.x, panY: canvasPan.y, zoom: canvasZoom },
+                { panX, panY, zoom },
+                {
+                    duration,
+                    easing,
+                    onUpdate: () => updateCanvasTransform(),
+                    onComplete
                 }
-            }
-
-            requestAnimationFrame(animate);
+            );
         }
 
         function highlightSearchResult(node) {
@@ -55897,7 +56199,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 443; // Update this with each build
+                    const KNOWN_LATEST = 444; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
