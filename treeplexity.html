@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 448 | 2025-12-17
+    TreeListy v2.19.0 | Build 449 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,12 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 448): ✏️ Dependency Edit/Delete UI
-    - Click any dependency badge to open edit modal
-    - Change type (FS/SS/FF/SF) and lag with dropdowns
-    - Delete dependency with confirmation
-    - Hover effect on badges for visual feedback
-    - Full undo support for edits and deletes
+    Changelog (Build 449): ⚡ Critical Path Visualization
+    - Forward/backward pass scheduling algorithm
+    - Click "Critical Path" button in Canvas toolbar
+    - Critical dependencies highlighted in bright red
+    - Nodes with zero slack marked as critical
+    - Supports all dependency types (FS/SS/FF/SF) with lag
+    Previous (Build 448): ✏️ Dependency Edit/Delete UI
     Previous (Build 447): ➕ Dependency Creation UI
     Previous (Build 446): 📋 Typed Dependencies Foundation
     Previous (Build 445): 🔗 Enhanced Link System
@@ -700,7 +701,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 448,
+            build: 449,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -14997,6 +14998,243 @@ Focus on logical structure and content organization best practices.`;
         window.getDependencies = getDependencies;
         window.formatDependency = formatDependency;
 
+        // BUILD 449: Critical Path Engine
+        // Forward/backward pass algorithm for critical path calculation
+        const dependencyEngine = {
+            // Build adjacency lists from tree
+            buildGraph(tree) {
+                const nodes = [];
+                const successors = new Map();  // nodeId → [successorIds]
+                const predecessors = new Map(); // nodeId → [predecessorIds]
+
+                traverseTree(tree, node => {
+                    nodes.push(node);
+                    successors.set(node.id, []);
+                    predecessors.set(node.id, []);
+                });
+
+                nodes.forEach(node => {
+                    getDependencies(node).forEach(dep => {
+                        predecessors.get(node.id).push(dep.predecessorId);
+                        const succList = successors.get(dep.predecessorId);
+                        if (succList) succList.push(node.id);
+                    });
+                });
+
+                return { nodes, successors, predecessors };
+            },
+
+            // Topological sort using Kahn's algorithm
+            topologicalSort(graph) {
+                const inDegree = new Map();
+                graph.nodes.forEach(n => inDegree.set(n.id, graph.predecessors.get(n.id).length));
+
+                const queue = graph.nodes.filter(n => inDegree.get(n.id) === 0);
+                const sorted = [];
+
+                while (queue.length > 0) {
+                    const node = queue.shift();
+                    sorted.push(node);
+
+                    graph.successors.get(node.id).forEach(succId => {
+                        inDegree.set(succId, inDegree.get(succId) - 1);
+                        if (inDegree.get(succId) === 0) {
+                            const succNode = graph.nodes.find(n => n.id === succId);
+                            if (succNode) queue.push(succNode);
+                        }
+                    });
+                }
+
+                // Check for cycles
+                if (sorted.length !== graph.nodes.length) {
+                    console.warn('Dependency cycle detected - cannot calculate critical path');
+                    return null;
+                }
+
+                return sorted;
+            },
+
+            // Get constraint date based on dependency type
+            getConstraintDate(predecessor, successor, dep) {
+                const lag = dep.lag || 0;
+                const predDuration = predecessor.pmDuration || 1;
+                const succDuration = successor.pmDuration || 1;
+
+                switch (dep.type) {
+                    case 'FS': return predecessor._earlyFinish + lag;
+                    case 'SS': return predecessor._earlyStart + lag;
+                    case 'FF': return predecessor._earlyFinish + lag - succDuration;
+                    case 'SF': return predecessor._earlyStart + lag - succDuration;
+                    default: return predecessor._earlyFinish + lag;
+                }
+            },
+
+            // Reverse constraint for backward pass
+            getReverseConstraintDate(predecessor, successor, dep) {
+                const lag = dep.lag || 0;
+                const predDuration = predecessor.pmDuration || 1;
+                const succDuration = successor.pmDuration || 1;
+
+                switch (dep.type) {
+                    case 'FS': return successor._lateStart - lag;
+                    case 'SS': return successor._lateStart - lag + predDuration;
+                    case 'FF': return successor._lateFinish - lag;
+                    case 'SF': return successor._lateFinish - lag + predDuration;
+                    default: return successor._lateStart - lag;
+                }
+            },
+
+            // Forward pass: calculate early start/finish
+            forwardPass(tree) {
+                const graph = this.buildGraph(tree);
+                const sorted = this.topologicalSort(graph);
+                if (!sorted) return false;
+
+                sorted.forEach(node => {
+                    const preds = graph.predecessors.get(node.id);
+                    const duration = node.pmDuration || 1;
+
+                    if (preds.length === 0) {
+                        // No predecessors: start at day 0 or node's start date
+                        node._earlyStart = this.dateToDay(node.pmStartDate) || 0;
+                    } else {
+                        // Earliest start = max of all predecessor constraints
+                        node._earlyStart = Math.max(...preds.map(predId => {
+                            const pred = findNodeById(predId);
+                            if (!pred) return 0;
+                            const dep = getDependencies(node).find(d => d.predecessorId === predId);
+                            return this.getConstraintDate(pred, node, dep || { type: 'FS', lag: 0 });
+                        }));
+                    }
+
+                    node._earlyFinish = node._earlyStart + duration;
+                });
+
+                return true;
+            },
+
+            // Backward pass: calculate late start/finish
+            backwardPass(tree) {
+                const graph = this.buildGraph(tree);
+                const sorted = this.topologicalSort(graph);
+                if (!sorted) return false;
+
+                // Find project end date
+                const projectEnd = Math.max(...sorted.map(n => n._earlyFinish || 0));
+
+                // Process in reverse order
+                sorted.reverse().forEach(node => {
+                    const succs = graph.successors.get(node.id);
+                    const duration = node.pmDuration || 1;
+
+                    if (succs.length === 0) {
+                        // No successors: can finish at project end
+                        node._lateFinish = projectEnd;
+                    } else {
+                        // Latest finish = min of all successor constraints
+                        node._lateFinish = Math.min(...succs.map(succId => {
+                            const succ = findNodeById(succId);
+                            if (!succ) return projectEnd;
+                            const dep = getDependencies(succ).find(d => d.predecessorId === node.id);
+                            return this.getReverseConstraintDate(node, succ, dep || { type: 'FS', lag: 0 });
+                        }));
+                    }
+
+                    node._lateStart = node._lateFinish - duration;
+                    node._slack = node._lateStart - node._earlyStart;
+                    node._isCritical = Math.abs(node._slack) < 0.001; // Float tolerance
+                });
+
+                return true;
+            },
+
+            // Calculate critical path
+            calculateCriticalPath(tree) {
+                console.time('calculateCriticalPath');
+
+                // Clear previous critical path data
+                traverseTree(tree, node => {
+                    node._earlyStart = undefined;
+                    node._earlyFinish = undefined;
+                    node._lateStart = undefined;
+                    node._lateFinish = undefined;
+                    node._slack = undefined;
+                    node._isCritical = false;
+                });
+
+                if (!this.forwardPass(tree)) {
+                    console.timeEnd('calculateCriticalPath');
+                    return [];
+                }
+                if (!this.backwardPass(tree)) {
+                    console.timeEnd('calculateCriticalPath');
+                    return [];
+                }
+
+                const criticalNodes = [];
+                traverseTree(tree, node => {
+                    if (node._isCritical) criticalNodes.push(node);
+                });
+
+                console.timeEnd('calculateCriticalPath');
+                console.log(`Critical path: ${criticalNodes.length} nodes`);
+                return criticalNodes;
+            },
+
+            // Clear critical path data
+            clearCriticalPath(tree) {
+                traverseTree(tree, node => {
+                    node._earlyStart = undefined;
+                    node._earlyFinish = undefined;
+                    node._lateStart = undefined;
+                    node._lateFinish = undefined;
+                    node._slack = undefined;
+                    node._isCritical = false;
+                });
+            },
+
+            // Helper: convert date string to day number
+            dateToDay(dateStr) {
+                if (!dateStr) return null;
+                const date = new Date(dateStr);
+                const projectStart = new Date(capexTree?.pmStartDate || Date.now());
+                return Math.floor((date - projectStart) / (1000 * 60 * 60 * 24));
+            }
+        };
+
+        // State for critical path display
+        let showCriticalPath = false;
+
+        // BUILD 449: Toggle critical path visualization
+        function toggleCriticalPath() {
+            showCriticalPath = !showCriticalPath;
+
+            const btn = document.getElementById('critical-path-toggle');
+            if (showCriticalPath) {
+                // Calculate critical path when enabled
+                const criticalNodes = dependencyEngine.calculateCriticalPath(capexTree);
+                if (criticalNodes.length === 0) {
+                    showToast('No critical path found (needs dependencies with durations)', 'info');
+                }
+                btn.style.background = 'rgba(255, 0, 0, 0.3)';
+                btn.style.borderColor = '#ff0000';
+                btn.style.color = '#ff6b6b';
+                showToast(`Critical path: ${criticalNodes.length} nodes highlighted`, 'success');
+            } else {
+                // Clear critical path data when disabled
+                dependencyEngine.clearCriticalPath(capexTree);
+                btn.style.background = 'rgba(255, 0, 0, 0.1)';
+                btn.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+                btn.style.color = 'var(--text-primary)';
+            }
+
+            renderCanvas();
+        }
+
+        // Expose for external use
+        window.dependencyEngine = dependencyEngine;
+        window.toggleCriticalPath = toggleCriticalPath;
+
         /**
          * Draw all hyperedges as convex hull blobs
          * Performance optimized: Uses O(1) Map lookup instead of O(N) recursive getNodeById
@@ -15851,6 +16089,7 @@ Be specific and insightful, not generic.`;
 
             // Draw lines for dependencies only if both nodes are visible
             // BUILD 446: Use getDependencies() for normalized typed dependencies
+            // BUILD 449: Highlight critical path dependencies
             const deps = getDependencies(node);
             if (deps.length > 0) {
                 deps.forEach(dep => {
@@ -15863,17 +16102,23 @@ Be specific and insightful, not generic.`;
                             const toX = node.canvasX;
                             const toY = node.canvasY + 60;
 
+                            // BUILD 449: Use criticalPath link type if both nodes are on critical path
+                            const isCritical = showCriticalPath &&
+                                depNode.data._isCritical &&
+                                node._isCritical;
+                            const linkType = isCritical ? 'criticalPath' : 'dependency';
+
                             drawConnection(
                                 fromX, fromY,  // From predecessor
                                 toX, toY,      // To successor
                                 null,          // Color from link type
                                 'dashed',
-                                'dependency'   // Use dependency link type
+                                linkType       // Use dependency or criticalPath link type
                             );
 
                             // Draw type badge for non-default dependencies (or always for clickability)
                             // BUILD 448: Pass node IDs for edit/delete functionality
-                            drawDependencyBadge(fromX, fromY, toX, toY, dep, node.id, dep.predecessorId);
+                            drawDependencyBadge(fromX, fromY, toX, toY, dep, node.id, dep.predecessorId, isCritical);
                         }
                     }
                 });
@@ -16191,7 +16436,8 @@ Be specific and insightful, not generic.`;
 
         // BUILD 446: Draw dependency type badge at link midpoint
         // BUILD 448: Made interactive with click to edit/delete
-        function drawDependencyBadge(x1, y1, x2, y2, dep, successorId, predecessorId) {
+        // BUILD 449: Critical path styling
+        function drawDependencyBadge(x1, y1, x2, y2, dep, successorId, predecessorId, isCritical = false) {
             const svg = document.getElementById('canvas-connections');
             const midX = (x1 + x2) / 2 + SVG_OFFSET;
             const midY = (y1 + y2) / 2 + SVG_OFFSET;
@@ -16202,9 +16448,14 @@ Be specific and insightful, not generic.`;
                 label += (dep.lag > 0 ? '+' : '') + dep.lag + 'd';
             }
 
+            // Critical path styling
+            const strokeColor = isCritical ? '#ff0000' : '#ff6b6b';
+            const fillColor = isCritical ? 'rgba(255, 0, 0, 0.15)' : 'rgba(30, 30, 40, 0.9)';
+            const hoverFill = isCritical ? 'rgba(255, 0, 0, 0.25)' : 'rgba(50, 50, 60, 0.95)';
+
             // Create a group for the badge (for single click handler)
             const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            group.setAttribute('class', 'dependency-badge');
+            group.setAttribute('class', 'dependency-badge' + (isCritical ? ' critical-path' : ''));
             group.style.cursor = 'pointer';
 
             // Store data for edit modal
@@ -16220,9 +16471,9 @@ Be specific and insightful, not generic.`;
             bg.setAttribute('width', 32);
             bg.setAttribute('height', 20);
             bg.setAttribute('rx', 10);
-            bg.setAttribute('fill', 'rgba(30, 30, 40, 0.9)');
-            bg.setAttribute('stroke', '#ff6b6b');
-            bg.setAttribute('stroke-width', '1');
+            bg.setAttribute('fill', fillColor);
+            bg.setAttribute('stroke', strokeColor);
+            bg.setAttribute('stroke-width', isCritical ? '2' : '1');
             bg.setAttribute('class', 'badge-bg');
             group.appendChild(bg);
 
@@ -16231,7 +16482,7 @@ Be specific and insightful, not generic.`;
             text.setAttribute('x', midX);
             text.setAttribute('y', midY + 4);
             text.setAttribute('text-anchor', 'middle');
-            text.setAttribute('fill', '#ff6b6b');
+            text.setAttribute('fill', strokeColor);
             text.setAttribute('font-size', '11');
             text.setAttribute('font-weight', 'bold');
             text.setAttribute('pointer-events', 'none'); // Let clicks pass through to group
@@ -16246,12 +16497,12 @@ Be specific and insightful, not generic.`;
 
             // Hover effect
             group.addEventListener('mouseenter', () => {
-                bg.setAttribute('stroke-width', '2');
-                bg.setAttribute('fill', 'rgba(50, 50, 60, 0.95)');
+                bg.setAttribute('stroke-width', isCritical ? '3' : '2');
+                bg.setAttribute('fill', hoverFill);
             });
             group.addEventListener('mouseleave', () => {
-                bg.setAttribute('stroke-width', '1');
-                bg.setAttribute('fill', 'rgba(30, 30, 40, 0.9)');
+                bg.setAttribute('stroke-width', isCritical ? '2' : '1');
+                bg.setAttribute('fill', fillColor);
             });
 
             svg.appendChild(group);
@@ -56926,7 +57177,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 448; // Update this with each build
+                    const KNOWN_LATEST = 449; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -57137,6 +57388,9 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             </button>
             <button id="hyperedge-panel-btn" onclick="toggleHyperedgePanel()" class="btn" style="padding: 8px 14px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 8px; color: #A78BFA; font-size: 13px; transition: all 0.2s;" title="Manage hyperedge visibility">
                 🔗 Edges
+            </button>
+            <button id="critical-path-toggle" onclick="toggleCriticalPath()" class="btn" style="padding: 8px 14px; background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;" title="Highlight critical path dependencies">
+                ⚡ Critical Path
             </button>
             <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
             <div style="display: flex; align-items: center; gap: 6px;">
