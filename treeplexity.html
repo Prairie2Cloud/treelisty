@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 437 | 2025-12-17
+    TreeListy v2.19.0 | Build 438 | 2025-12-17
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,10 +18,10 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 437): 🌳 Treebeard Knows His Limits
-    - FIX: Unknown actions now gracefully suggest alternatives
-    - NEW: Treebeard knows about Canvas Search (Ctrl+F) and Minimap
-    - Tells users about Ctrl+F when they ask for filtering
+    Changelog (Build 438): 🔘 Fix Treebeard Welcome Buttons
+    - FIX: Action buttons in chat welcome message now respond to clicks
+    - Used event delegation to handle dynamically added buttons
+    Previous (Build 437): 🌳 Treebeard Knows His Limits
     Previous (Build 436): 🗺️ Minimap Drag-to-Pan
     Previous (Build 435): 🔍 Canvas Search + Minimap Navigation
     Previous (Build 434): 🔧 Fix Cloud Share Load
@@ -681,7 +681,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 437,
+            build: 438,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -53873,9 +53873,13 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 });
             });
 
-            // Welcome action buttons
-            document.querySelectorAll('.action-btn[data-action]').forEach(btn => {
-                btn.addEventListener('click', () => {
+            // BUILD 438: Action buttons - use event delegation for dynamic buttons
+            const messagesContainer = document.getElementById('chat-assistant-messages');
+            if (messagesContainer) {
+                messagesContainer.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.action-btn[data-action]');
+                    if (!btn) return;
+
                     const action = btn.dataset.action;
                     if (action === 'help') {
                         executeAction('show_help');
@@ -53887,7 +53891,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                         addMessage('Try queries like:\n• "show items over $500K"\n• "find blocked items"\n• "show Sarah\'s items"\n\nOr click 🔗 Hyperedges → 🔍 Query for the visual builder!', 'assistant');
                     }
                 });
-            });
+            }
 
             // Keyboard shortcut: Ctrl+/ to toggle
             document.addEventListener('keydown', (e) => {
@@ -55444,7 +55448,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 437; // Update this with each build
+                    const KNOWN_LATEST = 438; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
