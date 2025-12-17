@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 435 | 2025-12-17
+    TreeListy v2.19.0 | Build 436 | 2025-12-17
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,11 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 435): 🔍 Canvas Search + Minimap Navigation
-    - NEW: Ctrl+F opens search overlay in Canvas View
-    - NEW: Live search by name/description/notes with zoom-to-node
-    - NEW: Minimap in bottom-right for bird's-eye navigation
-    - Click minimap to pan, viewport indicator shows current view
+    Changelog (Build 436): 🗺️ Minimap Drag-to-Pan
+    - NEW: Drag viewport indicator on minimap to pan canvas
+    - Real-time pan updates during drag
+    - Cursor feedback (grab/grabbing)
+    Previous (Build 435): 🔍 Canvas Search + Minimap Navigation
     Previous (Build 434): 🔧 Fix Cloud Share Load
     Previous (Build 433): ☁️ Share Modal UX Overhaul
     Previous (Build 432): 📚 Documentation & Test Maintenance
@@ -680,7 +680,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 435,
+            build: 436,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -7227,8 +7227,18 @@ The AI will analyze the structure and convert it to a tree."
         position: absolute;
         border: 2px solid rgba(99, 102, 241, 0.8);
         background: rgba(99, 102, 241, 0.1);
-        pointer-events: none;
+        pointer-events: auto;  /* BUILD 436: Enable drag interaction */
         transition: all 0.1s ease;
+        cursor: grab;
+    }
+
+    .minimap-viewport:active,
+    .minimap-viewport.dragging {
+        cursor: grabbing;
+    }
+
+    .canvas-minimap.dragging {
+        user-select: none;
     }
 
     /* Hide minimap on small screens */
@@ -16231,6 +16241,11 @@ Be specific and insightful, not generic.`;
         let minimapScale = 1;
         let minimapBounds = { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
 
+        // BUILD 436: Minimap viewport drag state
+        let minimapDragging = false;
+        let minimapDragStart = { x: 0, y: 0 };
+        let minimapDragPanStart = { x: 0, y: 0 };
+
         function updateMinimap() {
             const canvas = document.getElementById('minimap-canvas');
             if (!canvas || viewMode !== 'canvas') return;
@@ -16343,8 +16358,11 @@ Be specific and insightful, not generic.`;
             const minimap = document.getElementById('canvas-minimap');
             if (!minimap) return;
 
-            // Click to navigate
+            // Click to navigate (but not during/after drag)
             minimap.addEventListener('click', (e) => {
+                // BUILD 436: Skip if click is on viewport (handled by drag) or just finished dragging
+                if (e.target.id === 'minimap-viewport' || minimapDragging) return;
+
                 const rect = minimap.getBoundingClientRect();
                 const clickX = e.clientX - rect.left;
                 const clickY = e.clientY - rect.top;
@@ -16368,7 +16386,52 @@ Be specific and insightful, not generic.`;
                 });
             });
 
-            console.log('🗺️ Canvas minimap initialized');
+            // BUILD 436: Viewport drag to pan
+            const viewport = document.getElementById('minimap-viewport');
+            if (viewport) {
+                viewport.addEventListener('mousedown', (e) => {
+                    e.stopPropagation(); // Don't trigger minimap click
+                    e.preventDefault();
+                    minimapDragging = true;
+                    minimapDragStart = { x: e.clientX, y: e.clientY };
+                    minimapDragPanStart = { x: canvasPan.x, y: canvasPan.y };
+                    viewport.classList.add('dragging');
+                    minimap.classList.add('dragging');
+                });
+            }
+
+            // Global mousemove for viewport drag
+            document.addEventListener('mousemove', (e) => {
+                if (!minimapDragging) return;
+
+                // Calculate delta in screen pixels
+                const deltaX = e.clientX - minimapDragStart.x;
+                const deltaY = e.clientY - minimapDragStart.y;
+
+                // Convert minimap delta to canvas delta
+                // Moving viewport right = view moves right = pan decreases
+                const canvasDeltaX = deltaX / minimapScale;
+                const canvasDeltaY = deltaY / minimapScale;
+
+                // Apply pan (scaled by zoom)
+                canvasPan.x = minimapDragPanStart.x - canvasDeltaX * canvasZoom;
+                canvasPan.y = minimapDragPanStart.y - canvasDeltaY * canvasZoom;
+
+                updateCanvasTransform();
+            });
+
+            // Global mouseup to end drag
+            document.addEventListener('mouseup', () => {
+                if (minimapDragging) {
+                    minimapDragging = false;
+                    const vp = document.getElementById('minimap-viewport');
+                    const mm = document.getElementById('canvas-minimap');
+                    if (vp) vp.classList.remove('dragging');
+                    if (mm) mm.classList.remove('dragging');
+                }
+            });
+
+            console.log('🗺️ Canvas minimap initialized (with drag-to-pan)');
         }
 
         function snapToGrid(value) {
@@ -55319,7 +55382,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 435; // Update this with each build
+                    const KNOWN_LATEST = 436; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
