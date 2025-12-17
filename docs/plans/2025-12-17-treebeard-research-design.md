@@ -267,16 +267,53 @@ Notion's main competitors include Coda, Obsidian, and Roam Research...
 
 ---
 
-## Auto-Create Nodes
+## Auto-Create Nodes (Reuses Existing Append Infrastructure)
+
+**Key insight**: TreeListy already has robust append/merge logic in `importAnalyzedTree()` (Build 319). We reuse it entirely.
+
+### Existing Functions to Leverage
+
+| Function | Location | What it does |
+|----------|----------|--------------|
+| `importAnalyzedTree(treeData, pattern, appendMode)` | Line ~41002 | Master append logic |
+| `findSemanticDuplicate(items, newItem, threshold)` | Line ~40920 | Detects if finding already exists (60% similarity) |
+| `mergeItemUpdates(existing, new)` | Line ~40970 | Enriches existing node with new research data |
+
+### Implementation
 
 When user clicks "Add findings to tree":
 
-1. Parse `suggestedNodes` from research response
-2. Show preview: "This will add 3 items under [Current Phase]"
-3. User confirms
-4. Call `addItem()` for each suggested node
-5. Highlight new nodes (green flash, existing behavior)
-6. Save undo state
+1. Format research results as tree structure:
+```javascript
+const researchTree = {
+  projectName: capexTree.name,
+  phases: [{
+    name: targetPhase?.name || "Research Findings",
+    items: response.suggestedNodes.map(node => ({
+      name: node.name,
+      description: node.description,
+      notes: `Source: ${node.source}\nResearched: ${new Date().toISOString()}`,
+      ...node.fields
+    }))
+  }]
+};
+```
+
+2. Call existing append function:
+```javascript
+importAnalyzedTree(researchTree, currentPattern, true); // appendMode = true
+```
+
+3. Existing infrastructure handles:
+   - Semantic deduplication (won't duplicate existing nodes)
+   - Merging updates into existing items
+   - Proper re-IDing of new nodes
+   - Undo state saving
+   - Stats display ("3 added, 1 updated")
+
+**Lines of new code: ~20 (down from ~100)**
+
+*Credit: User caught this reuse opportunity during design review.*
 
 ---
 
@@ -354,10 +391,10 @@ GLOBAL (work anytime):
 - ~100 lines
 
 ### Phase 3: Auto-Create Nodes
-- "Add to tree" functionality
-- Node preview before creation
-- Undo support
-- ~100 lines
+- "Add to tree" button in research results
+- Format results for `importAnalyzedTree()`
+- Reuses existing append/merge infrastructure
+- ~20 lines (reduced from ~100 thanks to reuse)
 
 ### Phase 4: Context Enrichment
 - "Enrich node" command
@@ -370,7 +407,7 @@ GLOBAL (work anytime):
 - Results panel
 - ~100 lines
 
-**Total estimate: ~580 lines**
+**Total estimate: ~500 lines** (down from ~580)
 
 ---
 
