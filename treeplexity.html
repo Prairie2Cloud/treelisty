@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 436 | 2025-12-17
+    TreeListy v2.19.0 | Build 437 | 2025-12-17
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,10 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 436): 🗺️ Minimap Drag-to-Pan
-    - NEW: Drag viewport indicator on minimap to pan canvas
-    - Real-time pan updates during drag
-    - Cursor feedback (grab/grabbing)
+    Changelog (Build 437): 🌳 Treebeard Knows His Limits
+    - FIX: Unknown actions now gracefully suggest alternatives
+    - NEW: Treebeard knows about Canvas Search (Ctrl+F) and Minimap
+    - Tells users about Ctrl+F when they ask for filtering
+    Previous (Build 436): 🗺️ Minimap Drag-to-Pan
     Previous (Build 435): 🔍 Canvas Search + Minimap Navigation
     Previous (Build 434): 🔧 Fix Cloud Share Load
     Previous (Build 433): ☁️ Share Modal UX Overhaul
@@ -680,7 +681,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 436,
+            build: 437,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -48982,6 +48983,34 @@ ${transcript}`;
                 return '📖 Opening help modal...';
             },
 
+            // BUILD 437: List all available commands for Treebeard self-discovery
+            'list_all_commands': () => {
+                const commands = Object.keys(COMMAND_REGISTRY).sort();
+                const grouped = {
+                    'View': commands.filter(c => c.includes('view') || c.includes('canvas') || c.includes('tree') || c.includes('3d')),
+                    'Theme': commands.filter(c => c.includes('theme')),
+                    'Layout': commands.filter(c => c.includes('layout')),
+                    'Navigation': commands.filter(c => c.includes('find') || c.includes('focus') || c.includes('expand') || c.includes('collapse') || c.includes('search')),
+                    'Edit': commands.filter(c => c.includes('add') || c.includes('delete') || c.includes('edit') || c.includes('set_field')),
+                    'AI': commands.filter(c => c.includes('enhance') || c.includes('wizard') || c.includes('deep') || c.includes('suggest') || c.includes('redundan') || c.includes('debate')),
+                    'Export': commands.filter(c => c.includes('export') || c.includes('save') || c.includes('share')),
+                    'Import': commands.filter(c => c.includes('import') || c.includes('load')),
+                    'LifeTree': commands.filter(c => c.includes('lifetree') || c.includes('birthday') || c.includes('biograph')),
+                    'Philosophy': commands.filter(c => c.includes('refute') || c.includes('argument') || c.includes('dialogue') || c.includes('dialectic')),
+                    'Sales': commands.filter(c => c.includes('pipeline') || c.includes('lead') || c.includes('qualify') || c.includes('followup')),
+                    'Project': commands.filter(c => c.includes('project') || c.includes('undo') || c.includes('redo')),
+                };
+
+                let output = '📋 **All Available Commands** (90+):\n\n';
+                for (const [category, cmds] of Object.entries(grouped)) {
+                    if (cmds.length > 0) {
+                        output += `**${category}:** ${cmds.slice(0, 8).join(', ')}${cmds.length > 8 ? ` (+${cmds.length - 8} more)` : ''}\n`;
+                    }
+                }
+                output += `\n**Total:** ${commands.length} commands\n\nUse any command name as an action!`;
+                return output;
+            },
+
             // Project operations
             'new_project': () => {
                 document.getElementById('new-project-btn')?.click();
@@ -51963,7 +51992,7 @@ Be warm, concise (2-3 sentences), occasionally witty.`;
          */
         function getCommandVocabulary() {
             return `
-COMMANDS (return as action in JSON):
+CORE COMMANDS (return as action in JSON):
 • find_node:{query} - Search & focus node
 • add_child:{name} - Add child to focused node
 • set_field:{field}:{value} - Set field value
@@ -51971,7 +52000,17 @@ COMMANDS (return as action in JSON):
 • switch_to_canvas / switch_to_tree - Change view
 • open_wizard / deep_dive / find_redundancies - AI features
 • add_phase / delete_node / delete_phase:{id} / undo / redo
-• lifetree_health_check - (LifeTree only) Diagnose structure issues`;
+• search - Open search modal (or tell user Ctrl+F in Canvas View)
+• lifetree_health_check - (LifeTree only) Diagnose structure issues
+• list_all_commands - Show ALL 90+ available commands (use when unsure what's possible!)
+
+CANVAS VIEW TIPS (no command, just inform user):
+• Ctrl+F: Opens search overlay to find nodes by name/description
+• Minimap: Bottom-left corner, drag viewport or click to pan
+• Left-drag background: Pan the canvas
+• Scroll wheel: Zoom in/out
+
+IMPORTANT: You have access to 90+ commands beyond this list! Use list_all_commands to discover them, or try commands creatively - if they don't exist, the user will see helpful suggestions.`;
         }
 
         /**
@@ -52004,9 +52043,12 @@ KEY FEATURES:
 • Hyperedges: Cross-phase connections (Canvas View → multi-select → Create)
 • Find Redundancies: Detect duplicate nodes
 • Health Check (lifetree_health_check): LifeTree diagnostics - empty phases, redundant periods, chronology
+• Canvas Search (Ctrl+F): Find nodes by name/description, zoom to result
+• Minimap: Bird's-eye navigation, drag viewport to pan
 • Voice Capture: Mobile recording → AI processing
 • Artifacts: Attach files to nodes
-• Live Sync: Real-time collaboration`;
+• Live Sync: Real-time collaboration
+• Debate Mode: AI vs AI debates with insight extraction`;
         }
 
         /**
@@ -53355,7 +53397,27 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     addMessage(`❌ Error: ${error.message}`, 'error');
                 }
             } else {
-                addMessage(`❌ Unknown action: ${commandName}`, 'error');
+                // BUILD 437: Graceful handling of unknown actions
+                const availableCommands = Object.keys(COMMAND_REGISTRY);
+
+                // Find similar commands (fuzzy match)
+                const similar = availableCommands.filter(cmd =>
+                    cmd.includes(commandName.split('_')[0]) ||
+                    commandName.includes(cmd.split('_')[0])
+                ).slice(0, 3);
+
+                let suggestion = `🤔 "${commandName}" isn't available yet.`;
+
+                // Suggest alternatives based on what they tried
+                if (commandName.includes('filter')) {
+                    suggestion += `\n\n**Try instead:**\n• Press **Ctrl+F** in Canvas View to search nodes\n• Use \`search\` to open the search modal\n• Use \`find_node:{query}\` to locate specific items`;
+                } else if (similar.length > 0) {
+                    suggestion += `\n\n**Similar commands:** ${similar.map(s => `\`${s}\``).join(', ')}`;
+                } else {
+                    suggestion += `\n\n**Tip:** Ask "what can you do?" to see available actions.`;
+                }
+
+                addMessage(suggestion, 'assistant');
             }
         }
 
@@ -55382,7 +55444,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 436; // Update this with each build
+                    const KNOWN_LATEST = 437; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
