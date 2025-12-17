@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 444 | 2025-12-17
+    TreeListy v2.19.0 | Build 445 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,12 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 444): ✨ Animation Foundation
-    - New animationManager for smooth Canvas View transitions
-    - 8 easing functions (easeOutCubic, easeInOutQuad, easeOutBack, etc.)
-    - Animated zoom-to-node on search results
-    - Animated expand/collapse with fade in/out
-    - Respects prefers-reduced-motion accessibility setting
+    Changelog (Build 445): 🔗 Enhanced Link System
+    - LINK_TYPES configuration for parentChild, dependency, criticalPath
+    - Orthogonal paths (right-angle turns) for parent-child connections
+    - Smooth bezier curves for dependencies
+    - Animated flowing dashes on dependency links (CSS animation)
+    - Configurable colors, widths, opacity per link type
+    Previous (Build 444): ✨ Animation Foundation
     Previous (Build 443): 🌳 Logo Integration
     Previous (Build 442): 🔍 Treebeard Research Mode (Phase 1)
     - Web search via Gemini's Google Search grounding
@@ -696,7 +697,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 444,
+            build: 445,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2878,6 +2879,24 @@
     .canvas-connections path:not(.hyperedge-capsule),
     .canvas-connections line {
         pointer-events: none;
+    }
+
+    /* BUILD 445: Animated flowing dashes for dependency links */
+    .canvas-connections .animated-link {
+        animation: flowingDash 1s linear infinite;
+    }
+
+    @keyframes flowingDash {
+        to {
+            stroke-dashoffset: -20;
+        }
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-connections .animated-link {
+            animation: none;
+        }
     }
 
     .canvas-nodes-layer {
@@ -6965,6 +6984,24 @@ The AI will analyze the structure and convert it to a tree."
     .canvas-connections path:not(.hyperedge-capsule),
     .canvas-connections line {
         pointer-events: none;
+    }
+
+    /* BUILD 445: Animated flowing dashes for dependency links */
+    .canvas-connections .animated-link {
+        animation: flowingDash 1s linear infinite;
+    }
+
+    @keyframes flowingDash {
+        to {
+            stroke-dashoffset: -20;
+        }
+    }
+
+    /* Respect reduced motion */
+    @media (prefers-reduced-motion: reduce) {
+        .canvas-connections .animated-link {
+            animation: none;
+        }
     }
 
     .canvas-nodes-layer {
@@ -14811,6 +14848,43 @@ Focus on logical structure and content organization best practices.`;
         // SVG offset to match the large canvas-connections area (top: -5000px, left: -5000px)
         const SVG_OFFSET = 5000;
 
+        // =====================================================================
+        // BUILD 445: LINK TYPES - Configurable link styles for Canvas View
+        // =====================================================================
+        const LINK_TYPES = {
+            parentChild: {
+                style: 'orthogonal',        // Right-angle paths
+                color: 'rgba(99, 102, 241, 0.4)',
+                width: 1.5,
+                opacity: 0.5,
+                arrow: true,
+                animated: false,
+                dashPattern: null
+            },
+            dependency: {
+                style: 'bezier',
+                color: '#ff6b6b',            // Red
+                width: 2,
+                opacity: 0.8,
+                arrow: true,
+                animated: true,              // Moving dashes
+                dashPattern: [8, 4]
+            },
+            criticalPath: {
+                style: 'bezier',
+                color: '#ff0000',            // Bright red
+                width: 3,
+                opacity: 1.0,
+                arrow: true,
+                animated: true,
+                dashPattern: null            // Solid line with glow
+            }
+        };
+
+        // Animation state for flowing dashes
+        let linkAnimationFrame = null;
+        let linkAnimationOffset = 0;
+
         /**
          * Draw all hyperedges as convex hull blobs
          * Performance optimized: Uses O(1) Map lookup instead of O(N) recursive getNodeById
@@ -15642,6 +15716,7 @@ Be specific and insightful, not generic.`;
         }
 
         // Recursive function to draw connections for a node and its descendants
+        // BUILD 445: Enhanced with link types
         function drawNodeConnections(node) {
             // Only draw connections if this node is expanded (showing children)
             if (node.expanded !== false && node.subItems && node.subItems.length > 0) {
@@ -15651,8 +15726,9 @@ Be specific and insightful, not generic.`;
                         drawConnection(
                             node.canvasX + 160, node.canvasY + 60,      // From parent center-right
                             subtask.canvasX, subtask.canvasY + 60,      // To subtask center-left
-                            'rgba(99, 102, 241, 0.5)',                  // Purple for parent-child
-                            'solid'
+                            null,                                       // Color from link type
+                            'solid',
+                            'parentChild'                               // Use parentChild link type
                         );
                     }
 
@@ -15671,8 +15747,9 @@ Be specific and insightful, not generic.`;
                             drawConnection(
                                 depNode.data.canvasX + 160, depNode.data.canvasY + 60,  // From dependency
                                 node.canvasX, node.canvasY + 60,                        // To dependent item
-                                'rgba(239, 68, 68, 0.4)',                               // Red for dependencies
-                                'dashed'
+                                null,                                                   // Color from link type
+                                'dashed',
+                                'dependency'                                            // Use dependency link type
                             );
                         }
                     }
@@ -15680,7 +15757,8 @@ Be specific and insightful, not generic.`;
             }
         }
 
-        function drawConnection(x1, y1, x2, y2, color, style = 'solid') {
+        // BUILD 445: Enhanced connection drawing with link types
+        function drawConnection(x1, y1, x2, y2, color, style = 'solid', linkType = null) {
             const svg = document.getElementById('canvas-connections');
 
             // Adjust coordinates for SVG offset
@@ -15689,25 +15767,102 @@ Be specific and insightful, not generic.`;
             x2 += SVG_OFFSET;
             y2 += SVG_OFFSET;
 
-            // Create curved path (Bezier curve)
-            const midX = (x1 + x2) / 2;
             const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+            let d;
 
-            // Curved line from x1,y1 to x2,y2
-            const d = `M ${x1} ${y1} Q ${midX} ${y1}, ${midX} ${(y1 + y2) / 2} T ${x2} ${y2}`;
+            // Determine link type config
+            const config = linkType ? LINK_TYPES[linkType] : null;
+            const pathStyle = config?.style || 'bezier';
+
+            if (pathStyle === 'orthogonal') {
+                // Orthogonal path (right-angle turns) for parent-child
+                d = calculateOrthogonalPath(x1, y1, x2, y2);
+            } else {
+                // Bezier curve for dependencies/hyperedges
+                d = calculateBezierPath(x1, y1, x2, y2);
+            }
 
             path.setAttribute('d', d);
-            path.setAttribute('stroke', color);
-            path.setAttribute('stroke-width', '2');
+            path.setAttribute('stroke', config?.color || color);
+            path.setAttribute('stroke-width', config?.width || 2);
             path.setAttribute('fill', 'none');
-            if (style === 'dashed') {
+            path.setAttribute('opacity', config?.opacity || 1);
+
+            // Apply dash pattern
+            if (config?.dashPattern) {
+                path.setAttribute('stroke-dasharray', config.dashPattern.join(','));
+                if (config.animated) {
+                    path.classList.add('animated-link');
+                }
+            } else if (style === 'dashed') {
                 path.setAttribute('stroke-dasharray', '5,5');
             }
 
             // Add arrow marker
-            path.setAttribute('marker-end', 'url(#arrowhead-' + style + ')');
+            const markerStyle = style === 'dashed' ? 'dashed' : 'solid';
+            if (config?.arrow !== false) {
+                path.setAttribute('marker-end', `url(#arrowhead-${markerStyle})`);
+            }
 
             svg.appendChild(path);
+        }
+
+        // Calculate orthogonal (right-angle) path
+        function calculateOrthogonalPath(x1, y1, x2, y2) {
+            // Determine direction: horizontal first or vertical first
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                // Horizontal dominant - go right then down/up
+                const midX = x1 + dx / 2;
+                return `M ${x1} ${y1} L ${midX} ${y1} L ${midX} ${y2} L ${x2} ${y2}`;
+            } else {
+                // Vertical dominant - go down then right/left
+                const midY = y1 + dy / 2;
+                return `M ${x1} ${y1} L ${x1} ${midY} L ${x2} ${midY} L ${x2} ${y2}`;
+            }
+        }
+
+        // Calculate smooth bezier path
+        function calculateBezierPath(x1, y1, x2, y2) {
+            const dx = x2 - x1;
+            const dy = y2 - y1;
+            const curvature = 0.3;
+
+            // Control points for smooth S-curve
+            const cp1x = x1 + dx * curvature;
+            const cp1y = y1 + dy * 0.1;
+            const cp2x = x2 - dx * curvature;
+            const cp2y = y2 - dy * 0.1;
+
+            return `M ${x1} ${y1} C ${cp1x} ${cp1y}, ${cp2x} ${cp2y}, ${x2} ${y2}`;
+        }
+
+        // Animation loop for flowing dashes
+        function startLinkAnimation() {
+            if (linkAnimationFrame) return; // Already running
+
+            function animate() {
+                linkAnimationOffset = (linkAnimationOffset + 0.5) % 20;
+
+                // Update all animated links
+                const animatedLinks = document.querySelectorAll('.animated-link');
+                animatedLinks.forEach(link => {
+                    link.style.strokeDashoffset = -linkAnimationOffset;
+                });
+
+                linkAnimationFrame = requestAnimationFrame(animate);
+            }
+
+            linkAnimationFrame = requestAnimationFrame(animate);
+        }
+
+        function stopLinkAnimation() {
+            if (linkAnimationFrame) {
+                cancelAnimationFrame(linkAnimationFrame);
+                linkAnimationFrame = null;
+            }
         }
 
         // Initialize arrow markers for SVG
@@ -56199,7 +56354,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 444; // Update this with each build
+                    const KNOWN_LATEST = 445; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
