@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 440 | 2025-12-17
+    TreeListy v2.19.0 | Build 441 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,10 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 440): 📊 Treebeard Tree Analysis Command
+    Changelog (Build 441): ℹ️ About TreeListy Modal
+    - Minimalist About screen accessible from Help menu
+    - Shows version, copyright, author (Garnet Brown), GitHub link
+    Previous (Build 440): 📊 Treebeard Tree Analysis Command
     - New tree_analysis command: finds items with most content/children
     - Helps Treebeard understand "research items" means tree analysis
     - Added to command vocabulary and feature guide
@@ -685,7 +688,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 440,
+            build: 441,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -41707,28 +41710,69 @@ ${jsonText}`;
                         </p>
                     </div>
 
-                    <!-- BUILD 358: Check for Updates button -->
+                    <!-- BUILD 358: Check for Updates button + BUILD 441: About button -->
                     <div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center;">
                         <span style="font-size: 12px; opacity: 0.6;">
                             v${window.TREELISTY_VERSION?.major || '2.17.0'} • Build ${window.TREELISTY_VERSION?.build || '???'}
                         </span>
-                        <button onclick="window.checkForUpdates(true).then(r => { this.textContent = r === 'latest' ? '✅ Up to date!' : r === 'update' ? '🚀 Update available!' : '⚠️ Check console'; setTimeout(() => { this.textContent='🔄 Check for Updates'; this.disabled=false; }, 3000); }); this.textContent='Checking...'; this.disabled=true;" style="
-                            padding: 8px 16px;
-                            background: var(--bg);
-                            border: 1px solid var(--border);
-                            border-radius: 6px;
-                            color: var(--text-primary);
-                            font-size: 12px;
-                            cursor: pointer;
-                            transition: all 0.2s;
-                        " onmouseover="this.style.background='var(--treeplex-primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg)'; this.style.color='var(--text-primary)';">
-                            🔄 Check for Updates
-                        </button>
+                        <div style="display: flex; gap: 8px;">
+                            <button onclick="showAboutModal();" style="
+                                padding: 8px 16px;
+                                background: var(--bg);
+                                border: 1px solid var(--border);
+                                border-radius: 6px;
+                                color: var(--text-primary);
+                                font-size: 12px;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                            " onmouseover="this.style.background='var(--treeplex-primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg)'; this.style.color='var(--text-primary)';">
+                                ℹ️ About
+                            </button>
+                            <button onclick="window.checkForUpdates(true).then(r => { this.textContent = r === 'latest' ? '✅ Up to date!' : r === 'update' ? '🚀 Update available!' : '⚠️ Check console'; setTimeout(() => { this.textContent='🔄 Check for Updates'; this.disabled=false; }, 3000); }); this.textContent='Checking...'; this.disabled=true;" style="
+                                padding: 8px 16px;
+                                background: var(--bg);
+                                border: 1px solid var(--border);
+                                border-radius: 6px;
+                                color: var(--text-primary);
+                                font-size: 12px;
+                                cursor: pointer;
+                                transition: all 0.2s;
+                            " onmouseover="this.style.background='var(--treeplex-primary)'; this.style.color='white';" onmouseout="this.style.background='var(--bg)'; this.style.color='var(--text-primary)';">
+                                🔄 Check for Updates
+                            </button>
+                        </div>
                     </div>
                 </div>
             `;
             modal.style.display = 'flex';
         });
+
+        // BUILD 441: About Modal - minimalist attribution
+        function showAboutModal() {
+            const modal = document.getElementById('modal');
+            document.getElementById('modal-title').textContent = 'About TreeListy';
+            document.getElementById('modal-body').innerHTML = `
+                <div style="padding: 40px; text-align: center;">
+                    <div style="font-size: 64px; margin-bottom: 16px;">🌲</div>
+                    <h2 style="font-size: 28px; font-weight: 700; color: var(--text-primary); margin-bottom: 4px;">TreeListy</h2>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px;">
+                        v${window.TREELISTY_VERSION?.major || '2.19.0'} • Build ${window.TREELISTY_VERSION?.build || '???'}
+                    </p>
+                    <p style="font-size: 16px; color: var(--text-primary); margin-bottom: 8px;">
+                        © 2024-2025 Garnet Brown
+                    </p>
+                    <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px;">(geej)</p>
+                    <a href="https://github.com/Prairie2Cloud/treelisty" target="_blank" rel="noopener" style="
+                        font-size: 13px;
+                        color: var(--treeplex-primary);
+                        text-decoration: none;
+                    " onmouseover="this.style.textDecoration='underline';" onmouseout="this.style.textDecoration='none';">
+                        github.com/Prairie2Cloud
+                    </a>
+                </div>
+            `;
+            modal.style.display = 'flex';
+        }
 
         // =============================================================================
         // EXCEL EXPORT - Professional Multi-Sheet Workbook for Investors
@@ -55507,7 +55551,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 440; // Update this with each build
+                    const KNOWN_LATEST = 441; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
