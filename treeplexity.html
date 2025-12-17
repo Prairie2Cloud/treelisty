@@ -15098,7 +15098,7 @@ Focus on logical structure and content organization best practices.`;
                     } else {
                         // Earliest start = max of all predecessor constraints
                         node._earlyStart = Math.max(...preds.map(predId => {
-                            const pred = findNodeById(predId);
+                            const pred = getNodeById(predId);
                             if (!pred) return 0;
                             const dep = getDependencies(node).find(d => d.predecessorId === predId);
                             return this.getConstraintDate(pred, node, dep || { type: 'FS', lag: 0 });
@@ -15131,7 +15131,7 @@ Focus on logical structure and content organization best practices.`;
                     } else {
                         // Latest finish = min of all successor constraints
                         node._lateFinish = Math.min(...succs.map(succId => {
-                            const succ = findNodeById(succId);
+                            const succ = getNodeById(succId);
                             if (!succ) return projectEnd;
                             const dep = getDependencies(succ).find(d => d.predecessorId === node.id);
                             return this.getReverseConstraintDate(node, succ, dep || { type: 'FS', lag: 0 });
@@ -16291,8 +16291,8 @@ Be specific and insightful, not generic.`;
 
         // BUILD 448: Edit/Delete dependency modal
         function showDependencyEditModal(successorId, predecessorId, currentType, currentLag) {
-            const successorNode = findNodeById(successorId);
-            const predecessorNode = findNodeById(predecessorId);
+            const successorNode = getNodeById(successorId);
+            const predecessorNode = getNodeById(predecessorId);
 
             if (!successorNode || !predecessorNode) {
                 showToast('Could not find dependency nodes', 'error');
@@ -16363,7 +16363,7 @@ Be specific and insightful, not generic.`;
 
         // BUILD 448: Save edited dependency
         function saveDependencyEdit(successorId, predecessorId) {
-            const node = findNodeById(successorId);
+            const node = getNodeById(successorId);
             if (!node) {
                 showToast('Node not found', 'error');
                 return;
@@ -16400,7 +16400,7 @@ Be specific and insightful, not generic.`;
 
         // BUILD 448: Delete dependency with confirmation
         function deleteDependency(successorId, predecessorId) {
-            const node = findNodeById(successorId);
+            const node = getNodeById(successorId);
             if (!node) {
                 showToast('Node not found', 'error');
                 return;
