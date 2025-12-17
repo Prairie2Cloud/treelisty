@@ -9,14 +9,68 @@
 
 ## Executive Summary
 
-Enhance TreeListy's Canvas View with professional diagramming features inspired by GoJS, while maintaining the zero-dependency, single-file architecture. This design covers four priority areas:
+**Extend** TreeListy's existing Canvas View with professional diagramming features inspired by GoJS, while maintaining the zero-dependency, single-file architecture. This design **builds on existing dependency visualization** to add:
 
-1. **Visual Polish** - Animation system + contextual link styles
-2. **Richer Connections** - Swimlanes + typed dependencies with critical path
-3. **Navigation at Scale** - Minimap + search-zoom
-4. **Performance** - Canvas layering + incremental rendering
+1. **Typed Dependencies** - Extend simple ID refs to FS/SS/FF/SF with lag + critical path
+2. **Navigation at Scale** - Minimap + search-zoom (new)
+3. **Swimlanes** - Group nodes by any field (new)
+4. **Visual Polish** - Animation system + enhanced link styles (new)
 
-Estimated scope: ~2000-2500 lines of new JavaScript.
+Estimated scope: ~1500-2000 lines of new JavaScript (reduced from original estimate after accounting for existing code).
+
+---
+
+## IMPORTANT: Existing Implementation
+
+**TreeListy already has substantial dependency support.** This design EXTENDS it, not replaces it.
+
+### What Already Exists
+
+| Feature | Location | Implementation |
+|---------|----------|----------------|
+| **Data model** | `node.dependencies[]` | Array of node IDs |
+| **Tree View arrows** | `drawDependencyLines()` line 19870 | SVG paths, phase-colored, with arrow markers |
+| **Canvas View arrows** | `drawNodeConnections()` line 14886 | Red dashed bezier curves via SVG |
+| **3D View arrows** | `renderDependencies()` line 56771 | THREE.js dashed lines with arc |
+| **MS Project import** | Line 45809 | Parses `<PredecessorLink>` elements |
+| **MS Project export** | Line 46565 | Writes predecessor links |
+| **PM fields** | Pattern definitions | `pmStatus`, `pmProgress`, `pmPriority`, `pmAssignee`, `pmDueDate`, `pmDuration`, `pmStartDate` |
+
+### Current Dependency Data Model
+
+```javascript
+// Current implementation (simple ID array)
+node.dependencies = ['item-0-1', 'item-0-2'];
+```
+
+### Current Visualization (Already Working)
+
+**Tree View** (line 19870):
+- SVG arrows with phase-based colors (green/blue/orange/teal)
+- Arrow markers with drop shadows
+- Cross-phase dependencies highlighted differently
+
+**Canvas View** (line 14886):
+- Red dashed bezier curves
+- Arrow markers
+- Only drawn when both nodes visible
+
+**3D View** (line 56771):
+- Dashed lines with slight arc
+- Supports `dep.label` for annotation
+
+### What This Design Adds (NOT Replaces)
+
+| Gap | Current State | This Design Adds |
+|-----|---------------|------------------|
+| **Dependency types** | Just node ID | FS/SS/FF/SF + lag days |
+| **Critical path** | None | Forward/backward pass algorithm |
+| **Create UI** | Import only | Shift+drag in Canvas, modal |
+| **Edit/Delete UI** | None | Click badge, node panel |
+| **Swimlanes** | None | Group by any field |
+| **Search** | None | Ctrl+F with zoom-to-node |
+| **Minimap** | None | Bird's-eye navigation |
+| **Animations** | None | Layout transitions |
 
 ---
 
@@ -653,18 +707,27 @@ function calculateNodeSpacing(laneNodeCount) {
 
 ### 2B. Typed Dependencies & Critical Path
 
-**Problem**: No way to express predecessor/successor relationships between nodes. MS Project XML imports lose dependency information.
+**Current State**: TreeListy already has dependency support (simple ID arrays, visualized in all three views). MS Project XML import/export works.
 
-**Solution**: Native dependency system with typed relationships and critical path calculation.
+**Gap**: Current dependencies are untyped (just node IDs). No support for:
+- Dependency types (FS/SS/FF/SF)
+- Lag/lead time
+- Critical path calculation
+- Create/edit UI (currently import-only)
 
-#### Data Model
+**Solution**: Extend the existing dependency system with typed relationships and critical path calculation.
+
+#### Data Model Extension
 
 ```javascript
-// Added to node objects
+// CURRENT format (still supported for backwards compatibility):
+node.dependencies = ['item-0-1', 'item-0-2'];  // Simple ID array
+
+// NEW extended format (preferred):
 node.dependencies = [
   {
-    targetId: 'item-0-2',         // Predecessor node ID
-    type: 'FS',                   // Dependency type
+    predecessorId: 'item-0-2',    // Predecessor node ID (renamed from targetId per review)
+    type: 'FS',                   // Dependency type (default if missing)
     lag: 0                        // Days offset (negative = lead time)
   }
 ];
@@ -707,6 +770,48 @@ const DEPENDENCY_TYPES = {
 };
 ```
 
+#### Migration Strategy
+
+The system must handle both formats seamlessly:
+
+```javascript
+// Normalize dependency to extended format
+function normalizeDependency(dep) {
+  // If it's just a string ID (old format), convert to object
+  if (typeof dep === 'string') {
+    return { predecessorId: dep, type: 'FS', lag: 0 };
+  }
+  // Already object format - ensure defaults
+  return {
+    predecessorId: dep.predecessorId || dep.targetId, // Support both field names during transition
+    type: dep.type || 'FS',
+    lag: dep.lag || 0
+  };
+}
+
+// Get all dependencies for a node (normalized)
+function getDependencies(node) {
+  if (!node.dependencies || !Array.isArray(node.dependencies)) return [];
+  return node.dependencies.map(normalizeDependency);
+}
+
+// Migrate tree data on load (optional, for persisting upgrade)
+function migrateTreeDependencies(tree) {
+  traverseTree(tree, node => {
+    if (node.dependencies?.length > 0) {
+      node.dependencies = node.dependencies.map(dep => {
+        if (typeof dep === 'string') {
+          return { predecessorId: dep, type: 'FS', lag: 0 };
+        }
+        return dep;
+      });
+    }
+  });
+}
+```
+
+**Backwards Compatibility**: Old JSON files with `['item-0-1']` format will continue to work. The system normalizes on read. Saving will upgrade to the extended format.
+
 #### Critical Path Algorithm
 
 ```javascript
@@ -725,9 +830,9 @@ const dependencyEngine = {
     });
 
     nodes.forEach(node => {
-      (node.dependencies || []).forEach(dep => {
-        predecessors.get(node.id).push(dep.targetId);
-        successors.get(dep.targetId)?.push(node.id);
+      getDependencies(node).forEach(dep => {
+        predecessors.get(node.id).push(dep.predecessorId);
+        successors.get(dep.predecessorId)?.push(node.id);
       });
     });
 
@@ -795,7 +900,7 @@ const dependencyEngine = {
         // Earliest start = max of all predecessor constraints
         node._earlyStart = Math.max(...preds.map(predId => {
           const pred = findNodeById(predId);
-          const dep = node.dependencies.find(d => d.targetId === predId);
+          const dep = getDependencies(node).find(d => d.predecessorId === predId);
           return this.getConstraintDate(pred, node, dep);
         }));
       }
@@ -827,7 +932,7 @@ const dependencyEngine = {
         // Latest finish = min of all successor constraints (reverse logic)
         node._lateFinish = Math.min(...succs.map(succId => {
           const succ = findNodeById(succId);
-          const dep = succ.dependencies.find(d => d.targetId === node.id);
+          const dep = getDependencies(succ).find(d => d.predecessorId === node.id);
           return this.getReverseConstraintDate(node, succ, dep);
         }));
       }
@@ -939,11 +1044,13 @@ canvas.addEventListener('mouseup', (e) => {
 const DependencyValidator = {
 
   // Main validation entry point
-  validate(sourceId, targetId, tree) {
+  // predecessorId = the node that must complete first
+  // successorId = the node that depends on the predecessor
+  validate(predecessorId, successorId, tree) {
     const errors = [];
 
     // Rule 1: No self-dependencies
-    if (sourceId === targetId) {
+    if (predecessorId === successorId) {
       errors.push({
         code: 'SELF_DEPENDENCY',
         message: 'A node cannot depend on itself'
@@ -951,8 +1058,8 @@ const DependencyValidator = {
     }
 
     // Rule 2: No duplicate dependencies
-    const target = findNodeById(targetId);
-    if (target.dependencies?.some(d => d.targetId === sourceId)) {
+    const successor = findNodeById(successorId);
+    if (getDependencies(successor).some(d => d.predecessorId === predecessorId)) {
       errors.push({
         code: 'DUPLICATE',
         message: 'This dependency already exists'
@@ -960,11 +1067,11 @@ const DependencyValidator = {
     }
 
     // Rule 3: No cycles
-    if (this.wouldCreateCycle(sourceId, targetId, tree)) {
+    if (this.wouldCreateCycle(predecessorId, successorId, tree)) {
       errors.push({
         code: 'CYCLE',
         message: 'This would create a circular dependency',
-        details: this.getCyclePath(sourceId, targetId, tree)
+        details: this.getCyclePath(predecessorId, successorId, tree)
       });
     }
 
@@ -974,21 +1081,21 @@ const DependencyValidator = {
     };
   },
 
-  // Check if adding source→target creates a cycle
-  wouldCreateCycle(sourceId, targetId, tree) {
-    // If target can reach source via existing dependencies, adding source→target creates cycle
+  // Check if adding predecessor→successor creates a cycle
+  wouldCreateCycle(predecessorId, successorId, tree) {
+    // If predecessor can reach successor via existing dependencies, adding creates cycle
     const visited = new Set();
-    const stack = [sourceId];
+    const stack = [predecessorId];
 
     while (stack.length > 0) {
       const current = stack.pop();
-      if (current === targetId) return true;
+      if (current === successorId) return true;
       if (visited.has(current)) continue;
       visited.add(current);
 
       // Get all nodes that depend on current (current is their predecessor)
       traverseTree(tree, node => {
-        if (node.dependencies?.some(d => d.targetId === current)) {
+        if (getDependencies(node).some(d => d.predecessorId === current)) {
           stack.push(node.id);
         }
       });
@@ -998,10 +1105,10 @@ const DependencyValidator = {
   },
 
   // Get the path that would form a cycle (for error message)
-  getCyclePath(sourceId, targetId, tree) {
-    // BFS to find path from source back to target
-    const path = this.findPath(sourceId, targetId, tree);
-    return path ? [...path, sourceId] : null;
+  getCyclePath(predecessorId, successorId, tree) {
+    // BFS to find path from predecessor back to successor
+    const path = this.findPath(predecessorId, successorId, tree);
+    return path ? [...path, predecessorId] : null;
   }
 };
 ```
@@ -1202,9 +1309,9 @@ function createDependency() {
   // Save state for undo
   saveState(`Add dependency: ${source.name} → ${target.name}`);
 
-  // Create dependency
+  // Create dependency (source = predecessor, target = successor)
   if (!target.dependencies) target.dependencies = [];
-  target.dependencies.push({ targetId: source.id, type, lag });
+  target.dependencies.push({ predecessorId: source.id, type, lag });
 
   closeModal('dependency-modal');
   renderCanvas();
@@ -1216,7 +1323,9 @@ function deleteDependency() {
 
   saveState(`Delete dependency: ${source.name} → ${target.name}`);
 
-  target.dependencies = target.dependencies.filter(d => d.targetId !== source.id);
+  target.dependencies = target.dependencies.filter(d =>
+    normalizeDependency(d).predecessorId !== source.id
+  );
 
   closeModal('dependency-edit-modal');
   renderCanvas();
@@ -1234,30 +1343,30 @@ function renderDependencies(ctx, timestamp) {
     dependencyEngine.calculateCriticalPath(capexTree);
   }
 
-  // Collect all dependencies
+  // Collect all dependencies (using normalized format)
   const dependencies = [];
   traverseTree(capexTree, node => {
-    (node.dependencies || []).forEach(dep => {
-      const source = findNodeById(dep.targetId);  // Predecessor
-      const target = node;                         // Successor
-      if (source && target) {
-        dependencies.push({ source, target, dep, node });
+    getDependencies(node).forEach(dep => {
+      const predecessor = findNodeById(dep.predecessorId);
+      const successor = node;
+      if (predecessor && successor) {
+        dependencies.push({ predecessor, successor, dep, node });
       }
     });
   });
 
   // Render each dependency
-  dependencies.forEach(({ source, target, dep, node }) => {
-    const isCritical = showCriticalPath && source._isCritical && target._isCritical;
+  dependencies.forEach(({ predecessor, successor, dep }) => {
+    const isCritical = showCriticalPath && predecessor._isCritical && successor._isCritical;
     const linkType = isCritical ? LINK_TYPES.criticalPath : LINK_TYPES.dependency;
 
-    const path = calculateBezierPath(source, target);
+    const path = calculateBezierPath(predecessor, successor);
     drawAnimatedLink(ctx, path, linkType, timestamp);
 
-    // Draw dependency type badge at midpoint
+    // Draw dependency type badge at midpoint (only if non-default)
     if (dep.type !== 'FS' || dep.lag !== 0) {
-      const midX = (source.canvasX + target.canvasX) / 2;
-      const midY = (source.canvasY + target.canvasY) / 2;
+      const midX = (predecessor.canvasX + successor.canvasX) / 2;
+      const midY = (predecessor.canvasY + successor.canvasY) / 2;
       drawDependencyBadge(ctx, midX, midY, dep);
     }
   });
@@ -1909,8 +2018,9 @@ function renderNodesIncremental(nodes, callback) {
 ## Data Model Changes Summary
 
 ```javascript
-// New node fields
-node.dependencies = [{ targetId, type, lag }];
+// Extended dependency format (backwards-compatible with existing ID arrays)
+node.dependencies = [{ predecessorId, type, lag }];
+// Also supports: node.dependencies = ['item-0-1']; (legacy format)
 
 // Calculated fields (not persisted)
 node._earlyStart = null;
@@ -2714,8 +2824,8 @@ const DependencyTests = {
     // Setup: A → B → C (all FS)
     const tree = createTestTree([
       { id: 'A', dependencies: [] },
-      { id: 'B', dependencies: [{ targetId: 'A', type: 'FS', lag: 0 }] },
-      { id: 'C', dependencies: [{ targetId: 'B', type: 'FS', lag: 0 }] }
+      { id: 'B', dependencies: [{ predecessorId: 'A', type: 'FS', lag: 0 }] },
+      { id: 'C', dependencies: [{ predecessorId: 'B', type: 'FS', lag: 0 }] }
     ]);
 
     DependencyEngine.forwardPass(tree);
@@ -2728,9 +2838,9 @@ const DependencyTests = {
 
   testCycleDetection() {
     const tree = createTestTree([
-      { id: 'A', dependencies: [{ targetId: 'C', type: 'FS', lag: 0 }] },
-      { id: 'B', dependencies: [{ targetId: 'A', type: 'FS', lag: 0 }] },
-      { id: 'C', dependencies: [{ targetId: 'B', type: 'FS', lag: 0 }] }
+      { id: 'A', dependencies: [{ predecessorId: 'C', type: 'FS', lag: 0 }] },
+      { id: 'B', dependencies: [{ predecessorId: 'A', type: 'FS', lag: 0 }] },
+      { id: 'C', dependencies: [{ predecessorId: 'B', type: 'FS', lag: 0 }] }
     ]);
 
     const validation = DependencyValidator.validate('A', 'C', tree);
@@ -2944,24 +3054,39 @@ document.addEventListener('keydown', (e) => {
 
 ## Final Summary
 
+### Key Clarification: Extending Existing Code
+
+This design **extends existing dependency support**, which already includes:
+- `node.dependencies[]` data model (simple ID arrays)
+- SVG visualization in Tree View (`drawDependencyLines()` at line 19870)
+- Bezier curve visualization in Canvas View (line 14886)
+- THREE.js visualization in 3D View (`renderDependencies()` at line 56771)
+- MS Project XML import/export
+
+**No dependency visualization rewrite needed.** The design adds typed dependencies, critical path, and create/edit UI on top of working code.
+
+### Design Document Summary
+
 | Section | Lines Added | Key Content |
 |---------|-------------|-------------|
-| Renderer Decision | ~45 | DOM+SVG vs `<canvas>` analysis, decision, spike plan |
+| Existing Implementation | ~50 | Documents what already works |
+| Migration Strategy | ~40 | Backwards-compatible ID→object format |
+| Renderer Decision | ~45 | DOM+SVG vs `<canvas>` analysis, decision |
 | User Goals | ~35 | 4 workflow scenarios mapped to features |
 | Revised Phases | ~20 | Value-first ordering, MVP definition |
-| Dependency Validation | ~150 | Real-time validation, cycle detection, error UI |
-| Dependency Edit/Delete | ~100 | Edit modal, delete flow, node panel |
-| Dependency Persistence | ~20 | Rules for pattern switch, delete, merge, export |
+| Dependency Types | ~100 | FS/SS/FF/SF + lag extension to existing |
+| Critical Path | ~150 | Forward/backward pass algorithm |
+| Dependency Create UI | ~100 | Shift+drag, modal, validation |
+| Dependency Edit/Delete | ~80 | Edit modal, delete flow (uses existing viz) |
 | Swimlane Scope | ~30 | Unit of grouping options |
 | Position Preservation | ~40 | Save/restore positions on toggle |
-| Lane Overflow | ~35 | Scroll/wrap/density/paginate strategies |
 | Accessibility | ~70 | Reduce motion, keyboard nav, focus trap |
-| Module Architecture | ~50 | IIFE pattern, naming conventions |
 | Success Metrics | ~50 | Measurable targets, performance overlay |
-| Gemini Feedback | ~400 | Snap-to-port, FSM, touch gestures, etc. |
-| ChatGPT Feedback | ~150 | This section |
+| Reviewer Feedback | ~550 | Gemini + ChatGPT incorporated |
 
-**Total document**: ~2700 lines (comprehensive implementation blueprint)
+**Total design document**: ~2950 lines
+
+**Estimated implementation scope**: ~1500-2000 lines of new JavaScript (accounting for existing dependency code)
 
 ---
 
