@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 445 | 2025-12-17
+    TreeListy v2.19.0 | Build 446 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,12 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 445): 🔗 Enhanced Link System
-    - LINK_TYPES configuration for parentChild, dependency, criticalPath
-    - Orthogonal paths (right-angle turns) for parent-child connections
-    - Smooth bezier curves for dependencies
-    - Animated flowing dashes on dependency links (CSS animation)
-    - Configurable colors, widths, opacity per link type
+    Changelog (Build 446): 📋 Typed Dependencies Foundation
+    - DEPENDENCY_TYPES: FS (Finish-Start), SS, FF, SF with icons
+    - normalizeDependency() for backwards-compatible format conversion
+    - getDependencies() helper returns normalized dependency array
+    - Dependency badges show type icon + lag on non-default dependencies
+    - formatDependency() for display formatting
+    Previous (Build 445): 🔗 Enhanced Link System
     Previous (Build 444): ✨ Animation Foundation
     Previous (Build 443): 🌳 Logo Integration
     Previous (Build 442): 🔍 Treebeard Research Mode (Phase 1)
@@ -697,7 +698,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 445,
+            build: 446,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -14885,6 +14886,74 @@ Focus on logical structure and content organization best practices.`;
         let linkAnimationFrame = null;
         let linkAnimationOffset = 0;
 
+        // =====================================================================
+        // BUILD 446: TYPED DEPENDENCIES - FS/SS/FF/SF with lag support
+        // =====================================================================
+        const DEPENDENCY_TYPES = {
+            FS: {
+                code: 'FS',
+                name: 'Finish-to-Start',
+                description: 'Successor starts after predecessor finishes',
+                icon: '→',
+                default: true
+            },
+            SS: {
+                code: 'SS',
+                name: 'Start-to-Start',
+                description: 'Both tasks start together',
+                icon: '⇉'
+            },
+            FF: {
+                code: 'FF',
+                name: 'Finish-to-Finish',
+                description: 'Both tasks finish together',
+                icon: '⇶'
+            },
+            SF: {
+                code: 'SF',
+                name: 'Start-to-Finish',
+                description: 'Successor finishes when predecessor starts',
+                icon: '↔'
+            }
+        };
+
+        // Normalize dependency to extended format (backwards-compatible)
+        function normalizeDependency(dep) {
+            // If it's just a string ID (old format), convert to object
+            if (typeof dep === 'string') {
+                return { predecessorId: dep, type: 'FS', lag: 0 };
+            }
+            // Already object format - ensure defaults and handle legacy field names
+            return {
+                predecessorId: dep.predecessorId || dep.targetId || dep.id,
+                type: dep.type || 'FS',
+                lag: dep.lag || 0
+            };
+        }
+
+        // Get all dependencies for a node (normalized to extended format)
+        function getDependencies(node) {
+            if (!node.dependencies || !Array.isArray(node.dependencies)) return [];
+            return node.dependencies.map(normalizeDependency);
+        }
+
+        // Format dependency for display
+        function formatDependency(dep) {
+            const normalized = normalizeDependency(dep);
+            const typeInfo = DEPENDENCY_TYPES[normalized.type] || DEPENDENCY_TYPES.FS;
+            let label = typeInfo.icon;
+            if (normalized.lag !== 0) {
+                label += (normalized.lag > 0 ? '+' : '') + normalized.lag + 'd';
+            }
+            return label;
+        }
+
+        // Expose for external use
+        window.DEPENDENCY_TYPES = DEPENDENCY_TYPES;
+        window.normalizeDependency = normalizeDependency;
+        window.getDependencies = getDependencies;
+        window.formatDependency = formatDependency;
+
         /**
          * Draw all hyperedges as convex hull blobs
          * Performance optimized: Uses O(1) Map lookup instead of O(N) recursive getNodeById
@@ -15738,23 +15807,71 @@ Be specific and insightful, not generic.`;
             }
 
             // Draw lines for dependencies only if both nodes are visible
-            if (node.dependencies && node.dependencies.length > 0) {
-                node.dependencies.forEach(depId => {
-                    const depNode = canvasNodes.find(n => n.data.id === depId);
+            // BUILD 446: Use getDependencies() for normalized typed dependencies
+            const deps = getDependencies(node);
+            if (deps.length > 0) {
+                deps.forEach(dep => {
+                    const depNode = canvasNodes.find(n => n.data.id === dep.predecessorId);
                     if (depNode && depNode.data) {
                         // Only draw if both the dependency and this node are visible
-                        if (isNodeVisible(depId) && isNodeVisible(node.id)) {
+                        if (isNodeVisible(dep.predecessorId) && isNodeVisible(node.id)) {
+                            const fromX = depNode.data.canvasX + 160;
+                            const fromY = depNode.data.canvasY + 60;
+                            const toX = node.canvasX;
+                            const toY = node.canvasY + 60;
+
                             drawConnection(
-                                depNode.data.canvasX + 160, depNode.data.canvasY + 60,  // From dependency
-                                node.canvasX, node.canvasY + 60,                        // To dependent item
-                                null,                                                   // Color from link type
+                                fromX, fromY,  // From predecessor
+                                toX, toY,      // To successor
+                                null,          // Color from link type
                                 'dashed',
-                                'dependency'                                            // Use dependency link type
+                                'dependency'   // Use dependency link type
                             );
+
+                            // Draw type badge for non-default dependencies
+                            if (dep.type !== 'FS' || dep.lag !== 0) {
+                                drawDependencyBadge(fromX, fromY, toX, toY, dep);
+                            }
                         }
                     }
                 });
             }
+        }
+
+        // BUILD 446: Draw dependency type badge at link midpoint
+        function drawDependencyBadge(x1, y1, x2, y2, dep) {
+            const svg = document.getElementById('canvas-connections');
+            const midX = (x1 + x2) / 2 + SVG_OFFSET;
+            const midY = (y1 + y2) / 2 + SVG_OFFSET;
+
+            const typeInfo = DEPENDENCY_TYPES[dep.type] || DEPENDENCY_TYPES.FS;
+            let label = typeInfo.icon;
+            if (dep.lag !== 0) {
+                label += (dep.lag > 0 ? '+' : '') + dep.lag + 'd';
+            }
+
+            // Background pill
+            const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+            bg.setAttribute('x', midX - 16);
+            bg.setAttribute('y', midY - 10);
+            bg.setAttribute('width', 32);
+            bg.setAttribute('height', 20);
+            bg.setAttribute('rx', 10);
+            bg.setAttribute('fill', 'rgba(30, 30, 40, 0.9)');
+            bg.setAttribute('stroke', '#ff6b6b');
+            bg.setAttribute('stroke-width', '1');
+            svg.appendChild(bg);
+
+            // Text label
+            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+            text.setAttribute('x', midX);
+            text.setAttribute('y', midY + 4);
+            text.setAttribute('text-anchor', 'middle');
+            text.setAttribute('fill', '#ff6b6b');
+            text.setAttribute('font-size', '11');
+            text.setAttribute('font-weight', 'bold');
+            text.textContent = label;
+            svg.appendChild(text);
         }
 
         // BUILD 445: Enhanced connection drawing with link types
@@ -56354,7 +56471,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 445; // Update this with each build
+                    const KNOWN_LATEST = 446; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
