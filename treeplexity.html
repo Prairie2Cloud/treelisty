@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 438 | 2025-12-17
+    TreeListy v2.19.0 | Build 439 | 2025-12-17
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,9 +18,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 438): 🔘 Fix Treebeard Welcome Buttons
-    - FIX: Action buttons in chat welcome message now respond to clicks
-    - Used event delegation to handle dynamically added buttons
+    Changelog (Build 439): 🎯 Treebeard Global vs Node Commands
+    - Restructured command vocabulary: GLOBAL vs REQUIRES NODE sections
+    - AI now knows project_info, search, find_redundancies are global
+    - Tells AI to prefer global commands for buttons
+    Previous (Build 438): 🔘 Fix Treebeard Welcome Buttons
     Previous (Build 437): 🌳 Treebeard Knows His Limits
     Previous (Build 436): 🗺️ Minimap Drag-to-Pan
     Previous (Build 435): 🔍 Canvas Search + Minimap Navigation
@@ -681,7 +683,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 438,
+            build: 439,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -51992,25 +51994,33 @@ Be warm, concise (2-3 sentences), occasionally witty.`;
          */
         function getCommandVocabulary() {
             return `
-CORE COMMANDS (return as action in JSON):
-• find_node:{query} - Search & focus node
-• add_child:{name} - Add child to focused node
-• set_field:{field}:{value} - Set field value
-• expand_node / collapse_node - Toggle node
+COMMANDS (return as action in JSON buttons):
+
+GLOBAL (work anytime):
+• project_info - Show project overview/stats
+• search - Open search modal
+• find_node:{query} - Search & focus a node
+• add_phase - Add new phase
+• open_wizard - Start AI wizard
+• find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree - Change view
-• open_wizard / deep_dive / find_redundancies - AI features
-• add_phase / delete_node / delete_phase:{id} / undo / redo
-• search - Open search modal (or tell user Ctrl+F in Canvas View)
-• lifetree_health_check - (LifeTree only) Diagnose structure issues
-• list_all_commands - Show ALL 90+ available commands (use when unsure what's possible!)
+• undo / redo - Undo/redo changes
+• list_all_commands - Show all 90+ commands
+• lifetree_health_check - (LifeTree) Health diagnostics
 
-CANVAS VIEW TIPS (no command, just inform user):
-• Ctrl+F: Opens search overlay to find nodes by name/description
-• Minimap: Bottom-left corner, drag viewport or click to pan
-• Left-drag background: Pan the canvas
-• Scroll wheel: Zoom in/out
+REQUIRES FOCUSED NODE (use find_node first!):
+• add_child:{name} - Add child to focused node
+• edit_node - Open node editor
+• expand_node / collapse_node - Toggle expansion
+• set_field:{field}:{value} - Set field value
+• deep_dive - AI analysis of node
+• quick_insight - Quick node summary
 
-IMPORTANT: You have access to 90+ commands beyond this list! Use list_all_commands to discover them, or try commands creatively - if they don't exist, the user will see helpful suggestions.`;
+CANVAS TIPS (tell user, no action needed):
+• Ctrl+F: Search overlay
+• Minimap: Drag viewport to pan
+
+IMPORTANT: When suggesting buttons, prefer GLOBAL commands. If action needs a node, first use find_node to focus one.`;
         }
 
         /**
@@ -55448,7 +55458,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 438; // Update this with each build
+                    const KNOWN_LATEST = 439; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
