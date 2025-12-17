@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 434 | 2025-12-16
+    TreeListy v2.19.0 | Build 435 | 2025-12-17
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
     - 21 specialized patterns (Generic, CAPEX, Philosophy, LifeTree, Sales, Veo3, Sora2, etc.)
@@ -18,9 +18,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 434): 🔧 Fix Cloud Share Load
-    - Fixed: renderTree() → render() in checkForSharedTree
-    - Cloud share URLs now load correctly
+    Changelog (Build 435): 🔍 Canvas Search + Minimap Navigation
+    - NEW: Ctrl+F opens search overlay in Canvas View
+    - NEW: Live search by name/description/notes with zoom-to-node
+    - NEW: Minimap in bottom-right for bird's-eye navigation
+    - Click minimap to pan, viewport indicator shows current view
+    Previous (Build 434): 🔧 Fix Cloud Share Load
     Previous (Build 433): ☁️ Share Modal UX Overhaul
     Previous (Build 432): 📚 Documentation & Test Maintenance
     Previous (Build 430): ⚔️ Defender vs Challenger + Argument Styles
@@ -677,8 +680,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 434,
-            date: '2025-12-16',
+            build: 435,
+            date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -7071,6 +7074,176 @@ The AI will analyze the structure and convert it to a tree."
         background: rgba(99, 102, 241, 0.4);
     }
 
+    /* ═══════════════════════════════════════════════════════════════════════
+       BUILD 435: Canvas Search Overlay
+       ═══════════════════════════════════════════════════════════════════════ */
+    .canvas-search-overlay {
+        position: absolute;
+        top: 70px;
+        right: 20px;
+        z-index: 250;
+        background: rgba(20, 20, 30, 0.98);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+        padding: 12px;
+        min-width: 320px;
+        max-width: 400px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    .canvas-search-box {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .canvas-search-overlay input {
+        flex: 1;
+        padding: 8px 12px;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 8px;
+        background: rgba(30, 30, 40, 0.8);
+        color: var(--text-primary);
+        font-size: 14px;
+        outline: none;
+    }
+
+    .canvas-search-overlay input:focus {
+        border-color: rgba(99, 102, 241, 0.6);
+    }
+
+    .canvas-search-count {
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+    }
+
+    .canvas-search-nav,
+    .canvas-search-close {
+        padding: 6px 10px;
+        border: none;
+        border-radius: 6px;
+        background: rgba(99, 102, 241, 0.2);
+        color: var(--text-primary);
+        cursor: pointer;
+        font-size: 12px;
+        transition: background 0.2s;
+    }
+
+    .canvas-search-nav:hover,
+    .canvas-search-close:hover {
+        background: rgba(99, 102, 241, 0.4);
+    }
+
+    .canvas-search-nav:disabled {
+        opacity: 0.3;
+        cursor: not-allowed;
+    }
+
+    .canvas-search-results {
+        max-height: 200px;
+        overflow-y: auto;
+        margin-top: 8px;
+    }
+
+    .canvas-search-result {
+        padding: 8px 12px;
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 13px;
+        color: var(--text-primary);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: background 0.15s;
+    }
+
+    .canvas-search-result:hover {
+        background: rgba(99, 102, 241, 0.2);
+    }
+
+    .canvas-search-result.active {
+        background: rgba(99, 102, 241, 0.3);
+        border-left: 3px solid var(--accent-primary, #6366f1);
+    }
+
+    .canvas-search-result-icon {
+        font-size: 16px;
+    }
+
+    .canvas-search-result-name {
+        flex: 1;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .canvas-search-result-phase {
+        font-size: 11px;
+        color: var(--text-secondary);
+    }
+
+    /* Highlight ring on searched node */
+    .canvas-node.search-highlight {
+        box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.6), 0 0 20px rgba(99, 102, 241, 0.4) !important;
+        animation: search-pulse 0.5s ease-out;
+    }
+
+    @keyframes search-pulse {
+        0% { transform: scale(1.05); }
+        100% { transform: scale(1); }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════════
+       BUILD 435: Canvas Minimap
+       ═══════════════════════════════════════════════════════════════════════ */
+    .canvas-minimap {
+        position: absolute;
+        bottom: 20px;
+        right: 20px;
+        width: 200px;
+        height: 150px;
+        background: rgba(20, 20, 30, 0.95);
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: 8px;
+        overflow: hidden;
+        z-index: 200;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: border-color 0.2s;
+    }
+
+    .canvas-minimap:hover {
+        border-color: rgba(99, 102, 241, 0.5);
+    }
+
+    #minimap-canvas {
+        width: 100%;
+        height: 100%;
+    }
+
+    .minimap-viewport {
+        position: absolute;
+        border: 2px solid rgba(99, 102, 241, 0.8);
+        background: rgba(99, 102, 241, 0.1);
+        pointer-events: none;
+        transition: all 0.1s ease;
+    }
+
+    /* Hide minimap on small screens */
+    @media (max-width: 768px) {
+        .canvas-minimap {
+            display: none;
+        }
+        .canvas-search-overlay {
+            right: 10px;
+            left: 10px;
+            min-width: auto;
+            max-width: none;
+        }
+    }
+
     </style>
             <div class="modal-header">
                 <span id="wizard-title">🪄 AI Wizard - Building Your Project</span>
@@ -12708,6 +12881,11 @@ Focus on logical structure and content organization best practices.`;
 
                 renderCanvas();
                 updateZoomDisplay();
+
+                // BUILD 435: Initialize search and minimap
+                if (typeof initCanvasSearch === 'function') initCanvasSearch();
+                if (typeof initMinimap === 'function') initMinimap();
+
                 console.log('✅ Canvas View ready');
 
                 // Show one-time canvas tips for new users
@@ -13088,6 +13266,8 @@ Focus on logical structure and content organization best practices.`;
             // BUILD 421: Draw hyperedges after connections (was missing, causing show/hide bug)
             drawHyperedges();
             updateCanvasTransform();
+            // BUILD 435: Update minimap after rendering
+            if (typeof updateMinimap === 'function') updateMinimap();
         }
 
         // Recursive function to render a node and all its descendants
@@ -15735,6 +15915,8 @@ Be specific and insightful, not generic.`;
                 canvas.style.transform = `translate(${canvasPan.x}px, ${canvasPan.y}px) scale(${canvasZoom})`;
             }
             updateZoomDisplay();
+            // BUILD 435: Update minimap viewport on pan/zoom
+            if (typeof updateMinimapViewport === 'function') updateMinimapViewport();
         }
 
         function updateZoomDisplay() {
@@ -15796,6 +15978,391 @@ Be specific and insightful, not generic.`;
             canvasPan.y = containerHeight / 2 - centerY * canvasZoom;
 
             updateCanvasTransform();
+        }
+
+        // =============================================================================
+        // BUILD 435: CANVAS SEARCH (Ctrl+F)
+        // =============================================================================
+
+        let canvasSearchState = {
+            isOpen: false,
+            results: [],
+            currentIndex: -1,
+            query: ''
+        };
+
+        function openCanvasSearch() {
+            if (viewMode !== 'canvas') return;
+
+            const overlay = document.getElementById('canvas-search-overlay');
+            const input = document.getElementById('canvas-search-input');
+
+            overlay.style.display = 'block';
+            canvasSearchState.isOpen = true;
+            input.value = canvasSearchState.query; // Preserve last search
+            input.focus();
+            input.select();
+            console.log('🔍 Canvas search opened');
+        }
+
+        function closeCanvasSearch() {
+            const overlay = document.getElementById('canvas-search-overlay');
+            overlay.style.display = 'none';
+            canvasSearchState.isOpen = false;
+            clearSearchHighlight();
+            console.log('🔍 Canvas search closed');
+        }
+
+        function clearSearchHighlight() {
+            document.querySelectorAll('.canvas-node.search-highlight').forEach(el => {
+                el.classList.remove('search-highlight');
+            });
+        }
+
+        function performCanvasSearch(query) {
+            canvasSearchState.query = query;
+            canvasSearchState.results = [];
+            canvasSearchState.currentIndex = -1;
+
+            const resultsContainer = document.getElementById('canvas-search-results');
+            const countEl = document.getElementById('canvas-search-count');
+
+            if (!query.trim()) {
+                resultsContainer.innerHTML = '';
+                countEl.textContent = '';
+                clearSearchHighlight();
+                return;
+            }
+
+            const lowerQuery = query.toLowerCase();
+
+            // Search through canvasNodes (only nodes visible in Canvas View)
+            canvasNodes.forEach(({ data, phase }) => {
+                const nameMatch = (data.name || '').toLowerCase().includes(lowerQuery);
+                const descMatch = (data.description || '').toLowerCase().includes(lowerQuery);
+                const notesMatch = (data.notes || '').toLowerCase().includes(lowerQuery);
+
+                if (nameMatch || descMatch || notesMatch) {
+                    canvasSearchState.results.push({
+                        node: data,
+                        phase: phase,
+                        matchType: nameMatch ? 'name' : (descMatch ? 'description' : 'notes')
+                    });
+                }
+            });
+
+            // Update count
+            const count = canvasSearchState.results.length;
+            countEl.textContent = count > 0 ? `${count} found` : 'No results';
+
+            // Render results list
+            resultsContainer.innerHTML = canvasSearchState.results.map((result, idx) => `
+                <div class="canvas-search-result" data-index="${idx}" onclick="selectSearchResult(${idx})">
+                    <span class="canvas-search-result-icon">${getSearchNodeIcon(result.node)}</span>
+                    <span class="canvas-search-result-name">${escapeHtml(result.node.name || 'Untitled')}</span>
+                    <span class="canvas-search-result-phase">${escapeHtml(result.phase?.name || '')}</span>
+                </div>
+            `).join('');
+
+            // Auto-select first result
+            if (count > 0) {
+                selectSearchResult(0);
+            }
+        }
+
+        function selectSearchResult(index) {
+            if (index < 0 || index >= canvasSearchState.results.length) return;
+
+            canvasSearchState.currentIndex = index;
+            const result = canvasSearchState.results[index];
+
+            // Update active state in results list
+            document.querySelectorAll('.canvas-search-result').forEach((el, i) => {
+                el.classList.toggle('active', i === index);
+            });
+
+            // Zoom to node
+            zoomToCanvasNode(result.node);
+
+            // Highlight the node
+            highlightSearchResult(result.node);
+        }
+
+        function zoomToCanvasNode(node) {
+            const container = document.getElementById('canvas-container');
+            const containerWidth = container.clientWidth;
+            const containerHeight = container.clientHeight;
+
+            // Target zoom level (close enough to see detail)
+            const targetZoom = Math.max(Math.min(canvasZoom * 1.2, 1.0), 0.6);
+
+            // Calculate pan to center the node
+            const nodeX = node.canvasX + 160; // Center of node (320px width / 2)
+            const nodeY = node.canvasY + 60;  // Center of node (120px height / 2)
+
+            // Animate to position
+            animateCanvasTo({
+                zoom: targetZoom,
+                panX: containerWidth / 2 - nodeX * targetZoom,
+                panY: containerHeight / 2 - nodeY * targetZoom
+            });
+        }
+
+        function animateCanvasTo({ zoom, panX, panY, duration = 300 }) {
+            const startZoom = canvasZoom;
+            const startPanX = canvasPan.x;
+            const startPanY = canvasPan.y;
+            const startTime = performance.now();
+
+            function animate(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+
+                // Ease out cubic
+                const eased = 1 - Math.pow(1 - progress, 3);
+
+                canvasZoom = startZoom + (zoom - startZoom) * eased;
+                canvasPan.x = startPanX + (panX - startPanX) * eased;
+                canvasPan.y = startPanY + (panY - startPanY) * eased;
+
+                updateCanvasTransform();
+
+                if (progress < 1) {
+                    requestAnimationFrame(animate);
+                }
+            }
+
+            requestAnimationFrame(animate);
+        }
+
+        function highlightSearchResult(node) {
+            clearSearchHighlight();
+
+            const nodeEl = canvasNodes.find(n => n.data.id === node.id)?.element;
+            if (nodeEl) {
+                nodeEl.classList.add('search-highlight');
+
+                // Auto-remove highlight after 3 seconds
+                setTimeout(() => {
+                    nodeEl.classList.remove('search-highlight');
+                }, 3000);
+            }
+        }
+
+        function navigateSearchResults(direction) {
+            const count = canvasSearchState.results.length;
+            if (count === 0) return;
+
+            let newIndex = canvasSearchState.currentIndex + direction;
+            if (newIndex < 0) newIndex = count - 1;
+            if (newIndex >= count) newIndex = 0;
+
+            selectSearchResult(newIndex);
+
+            // Scroll result into view
+            const resultEl = document.querySelector(`.canvas-search-result[data-index="${newIndex}"]`);
+            resultEl?.scrollIntoView({ block: 'nearest' });
+        }
+
+        function getSearchNodeIcon(node) {
+            if (node.subItems?.length > 0 || node.children?.length > 0) return '📁';
+            if (node.pmStatus === 'complete') return '✅';
+            if (node.pmStatus === 'in-progress') return '🔄';
+            return '📄';
+        }
+
+        function initCanvasSearch() {
+            const input = document.getElementById('canvas-search-input');
+            const prevBtn = document.getElementById('canvas-search-prev');
+            const nextBtn = document.getElementById('canvas-search-next');
+            const closeBtn = document.getElementById('canvas-search-close');
+
+            if (!input) return;
+
+            // Live search on input
+            input.addEventListener('input', (e) => {
+                performCanvasSearch(e.target.value);
+            });
+
+            // Keyboard navigation
+            input.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    navigateSearchResults(e.shiftKey ? -1 : 1);
+                } else if (e.key === 'Escape') {
+                    closeCanvasSearch();
+                } else if (e.key === 'ArrowDown') {
+                    e.preventDefault();
+                    navigateSearchResults(1);
+                } else if (e.key === 'ArrowUp') {
+                    e.preventDefault();
+                    navigateSearchResults(-1);
+                }
+            });
+
+            // Button handlers
+            prevBtn?.addEventListener('click', () => navigateSearchResults(-1));
+            nextBtn?.addEventListener('click', () => navigateSearchResults(1));
+            closeBtn?.addEventListener('click', closeCanvasSearch);
+
+            console.log('🔍 Canvas search initialized');
+        }
+
+        // =============================================================================
+        // BUILD 435: CANVAS MINIMAP
+        // =============================================================================
+
+        const minimapConfig = {
+            width: 200,
+            height: 150,
+            padding: 10,
+            nodeColor: 'rgba(99, 102, 241, 0.6)',
+            selectedColor: 'rgba(234, 179, 8, 0.8)',
+            connectionColor: 'rgba(99, 102, 241, 0.3)',
+            backgroundColor: 'rgba(30, 30, 40, 0.8)'
+        };
+
+        let minimapScale = 1;
+        let minimapBounds = { minX: 0, minY: 0, maxX: 1000, maxY: 1000 };
+
+        function updateMinimap() {
+            const canvas = document.getElementById('minimap-canvas');
+            if (!canvas || viewMode !== 'canvas') return;
+
+            const ctx = canvas.getContext('2d');
+            const { width, height, padding } = minimapConfig;
+
+            // Clear canvas
+            ctx.fillStyle = minimapConfig.backgroundColor;
+            ctx.fillRect(0, 0, width, height);
+
+            if (canvasNodes.length === 0) return;
+
+            // Calculate bounds of all nodes
+            let minX = Infinity, minY = Infinity;
+            let maxX = -Infinity, maxY = -Infinity;
+
+            canvasNodes.forEach(({ data }) => {
+                minX = Math.min(minX, data.canvasX || 0);
+                minY = Math.min(minY, data.canvasY || 0);
+                maxX = Math.max(maxX, (data.canvasX || 0) + 320);
+                maxY = Math.max(maxY, (data.canvasY || 0) + 120);
+            });
+
+            // Add padding
+            minX -= padding * 10;
+            minY -= padding * 10;
+            maxX += padding * 10;
+            maxY += padding * 10;
+
+            minimapBounds = { minX, minY, maxX, maxY };
+
+            // Calculate scale to fit all nodes
+            const contentWidth = maxX - minX;
+            const contentHeight = maxY - minY;
+            const scaleX = (width - padding * 2) / contentWidth;
+            const scaleY = (height - padding * 2) / contentHeight;
+            minimapScale = Math.min(scaleX, scaleY);
+
+            // Transform function
+            const toMinimap = (x, y) => ({
+                x: padding + (x - minX) * minimapScale,
+                y: padding + (y - minY) * minimapScale
+            });
+
+            // Draw connections first (behind nodes)
+            ctx.strokeStyle = minimapConfig.connectionColor;
+            ctx.lineWidth = 1;
+            canvasNodes.forEach(({ data }) => {
+                if (data.dependencies?.length > 0) {
+                    data.dependencies.forEach(dep => {
+                        const depId = typeof dep === 'string' ? dep : (dep.predecessorId || dep.targetId);
+                        const depNode = canvasNodes.find(n => n.data.id === depId);
+                        if (depNode) {
+                            const from = toMinimap((depNode.data.canvasX || 0) + 160, (depNode.data.canvasY || 0) + 60);
+                            const to = toMinimap((data.canvasX || 0) + 160, (data.canvasY || 0) + 60);
+                            ctx.beginPath();
+                            ctx.moveTo(from.x, from.y);
+                            ctx.lineTo(to.x, to.y);
+                            ctx.stroke();
+                        }
+                    });
+                }
+            });
+
+            // Draw nodes
+            canvasNodes.forEach(({ data }) => {
+                const pos = toMinimap(data.canvasX || 0, data.canvasY || 0);
+                const nodeWidth = 320 * minimapScale;
+                const nodeHeight = 120 * minimapScale;
+
+                // Check if selected
+                const isSelected = selectedNodes.some(n => n.id === data.id);
+                ctx.fillStyle = isSelected ? minimapConfig.selectedColor : minimapConfig.nodeColor;
+
+                ctx.fillRect(pos.x, pos.y, Math.max(nodeWidth, 4), Math.max(nodeHeight, 3));
+            });
+
+            // Update viewport indicator
+            updateMinimapViewport();
+        }
+
+        function updateMinimapViewport() {
+            const viewport = document.getElementById('minimap-viewport');
+            const container = document.getElementById('canvas-container');
+            if (!viewport || !container || viewMode !== 'canvas') return;
+
+            const { minX, minY } = minimapBounds;
+            const { padding } = minimapConfig;
+
+            // Current visible area in canvas coordinates
+            const visibleLeft = -canvasPan.x / canvasZoom;
+            const visibleTop = -canvasPan.y / canvasZoom;
+            const visibleWidth = container.clientWidth / canvasZoom;
+            const visibleHeight = container.clientHeight / canvasZoom;
+
+            // Convert to minimap coordinates
+            const left = padding + (visibleLeft - minX) * minimapScale;
+            const top = padding + (visibleTop - minY) * minimapScale;
+            const width = visibleWidth * minimapScale;
+            const height = visibleHeight * minimapScale;
+
+            viewport.style.left = `${Math.max(0, left)}px`;
+            viewport.style.top = `${Math.max(0, top)}px`;
+            viewport.style.width = `${Math.min(width, 200)}px`;
+            viewport.style.height = `${Math.min(height, 150)}px`;
+        }
+
+        function initMinimap() {
+            const minimap = document.getElementById('canvas-minimap');
+            if (!minimap) return;
+
+            // Click to navigate
+            minimap.addEventListener('click', (e) => {
+                const rect = minimap.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                // Convert minimap click to canvas coordinates
+                const { minX, minY } = minimapBounds;
+                const { padding } = minimapConfig;
+
+                const canvasX = minX + (clickX - padding) / minimapScale;
+                const canvasY = minY + (clickY - padding) / minimapScale;
+
+                // Pan to center this point
+                const container = document.getElementById('canvas-container');
+                const centerX = container.clientWidth / 2;
+                const centerY = container.clientHeight / 2;
+
+                animateCanvasTo({
+                    zoom: canvasZoom, // Keep current zoom
+                    panX: centerX - canvasX * canvasZoom,
+                    panY: centerY - canvasY * canvasZoom
+                });
+            });
+
+            console.log('🗺️ Canvas minimap initialized');
         }
 
         function snapToGrid(value) {
@@ -17140,6 +17707,18 @@ Be specific and insightful, not generic.`;
 
                     updateSelectionCounter();
                     console.log(`Selected ${selectedNodes.length} nodes`);
+                }
+            }
+
+            // BUILD 435: Ctrl+F - Open Canvas Search
+            if ((e.ctrlKey || e.metaKey) && e.key === 'f') {
+                // Only work in Canvas View
+                if (viewMode === 'canvas') {
+                    e.preventDefault();
+                    console.log('⌨️ Ctrl+F pressed - opening canvas search');
+                    if (typeof openCanvasSearch === 'function') {
+                        openCanvasSearch();
+                    }
                 }
             }
 
@@ -54734,7 +55313,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 434; // Update this with each build
+                    const KNOWN_LATEST = 435; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -54957,6 +55536,24 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         <!-- Selection Counter -->
         <div id="selection-counter" style="display: none; position: fixed; top: 200px; left: 50%; transform: translateX(-50%); background: rgba(99, 102, 241, 0.95); color: white; padding: 10px 20px; border-radius: 20px; font-size: 14px; font-weight: 600; z-index: 1000; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3); backdrop-filter: blur(10px);">
             <span id="selection-count">0</span> nodes selected
+        </div>
+
+        <!-- BUILD 435: Canvas Search Overlay (Ctrl+F) -->
+        <div id="canvas-search-overlay" class="canvas-search-overlay" style="display: none;">
+            <div class="canvas-search-box">
+                <input type="text" id="canvas-search-input" placeholder="Search nodes... (Esc to close)" autocomplete="off">
+                <span id="canvas-search-count" class="canvas-search-count"></span>
+                <button id="canvas-search-prev" class="canvas-search-nav" title="Previous (Shift+Enter)">▲</button>
+                <button id="canvas-search-next" class="canvas-search-nav" title="Next (Enter)">▼</button>
+                <button id="canvas-search-close" class="canvas-search-close" title="Close (Esc)">✕</button>
+            </div>
+            <div id="canvas-search-results" class="canvas-search-results"></div>
+        </div>
+
+        <!-- BUILD 435: Canvas Minimap -->
+        <div id="canvas-minimap" class="canvas-minimap">
+            <canvas id="minimap-canvas" width="200" height="150"></canvas>
+            <div id="minimap-viewport" class="minimap-viewport"></div>
         </div>
 
         <div id="canvas">
