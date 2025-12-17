@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 447 | 2025-12-17
+    TreeListy v2.19.0 | Build 448 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,12 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 447): ➕ Dependency Creation UI
-    - Shift+drag from node to node creates dependency
-    - Visual feedback: red glow (source), green glow (valid target)
-    - Modal to select dependency type (FS/SS/FF/SF) and lag
-    - Temporary bezier line follows cursor during drag
-    - Duplicate dependency prevention
+    Changelog (Build 448): ✏️ Dependency Edit/Delete UI
+    - Click any dependency badge to open edit modal
+    - Change type (FS/SS/FF/SF) and lag with dropdowns
+    - Delete dependency with confirmation
+    - Hover effect on badges for visual feedback
+    - Full undo support for edits and deletes
+    Previous (Build 447): ➕ Dependency Creation UI
     Previous (Build 446): 📋 Typed Dependencies Foundation
     Previous (Build 445): 🔗 Enhanced Link System
     Previous (Build 444): ✨ Animation Foundation
@@ -699,7 +700,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 447,
+            build: 448,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -15870,10 +15871,9 @@ Be specific and insightful, not generic.`;
                                 'dependency'   // Use dependency link type
                             );
 
-                            // Draw type badge for non-default dependencies
-                            if (dep.type !== 'FS' || dep.lag !== 0) {
-                                drawDependencyBadge(fromX, fromY, toX, toY, dep);
-                            }
+                            // Draw type badge for non-default dependencies (or always for clickability)
+                            // BUILD 448: Pass node IDs for edit/delete functionality
+                            drawDependencyBadge(fromX, fromY, toX, toY, dep, node.id, dep.predecessorId);
                         }
                     }
                 });
@@ -16046,8 +16046,152 @@ Be specific and insightful, not generic.`;
         // Expose for external use
         window.confirmCreateDependency = confirmCreateDependency;
 
+        // BUILD 448: Edit/Delete dependency modal
+        function showDependencyEditModal(successorId, predecessorId, currentType, currentLag) {
+            const successorNode = findNodeById(successorId);
+            const predecessorNode = findNodeById(predecessorId);
+
+            if (!successorNode || !predecessorNode) {
+                showToast('Could not find dependency nodes', 'error');
+                return;
+            }
+
+            const modal = document.getElementById('modal');
+            const modalContent = document.getElementById('modal-content');
+
+            modalContent.innerHTML = `
+                <div style="padding: 20px; max-width: 400px;">
+                    <h3 style="margin-bottom: 16px; color: var(--text-primary);">
+                        Edit Dependency
+                    </h3>
+                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
+                        <div style="margin-bottom: 8px;">
+                            <strong>From:</strong> ${predecessorNode.title || 'Untitled'}
+                        </div>
+                        <div>
+                            <strong>To:</strong> ${successorNode.title || 'Untitled'}
+                        </div>
+                    </div>
+
+                    <div style="margin-bottom: 16px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: var(--text-primary);">
+                            Dependency Type
+                        </label>
+                        <select id="edit-dep-type" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px;">
+                            ${Object.entries(DEPENDENCY_TYPES).map(([code, info]) => `
+                                <option value="${code}" ${code === currentType ? 'selected' : ''}>
+                                    ${info.icon} ${info.name} (${code})
+                                </option>
+                            `).join('')}
+                        </select>
+                    </div>
+
+                    <div style="margin-bottom: 20px;">
+                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: var(--text-primary);">
+                            Lag (days)
+                        </label>
+                        <input type="number" id="edit-dep-lag" value="${currentLag}"
+                            style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; box-sizing: border-box;"
+                            placeholder="0 = no delay, positive = wait, negative = overlap">
+                        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
+                            Positive = wait days after predecessor; Negative = overlap
+                        </div>
+                    </div>
+
+                    <div style="display: flex; gap: 10px;">
+                        <button onclick="saveDependencyEdit('${successorId}', '${predecessorId}')"
+                            style="flex: 1; padding: 10px 16px; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                            Save
+                        </button>
+                        <button onclick="deleteDependency('${successorId}', '${predecessorId}')"
+                            style="flex: 1; padding: 10px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
+                            Delete
+                        </button>
+                        <button onclick="document.getElementById('modal').style.display='none'"
+                            style="flex: 1; padding: 10px 16px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-weight: 500;">
+                            Cancel
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            modal.style.display = 'flex';
+        }
+
+        // BUILD 448: Save edited dependency
+        function saveDependencyEdit(successorId, predecessorId) {
+            const node = findNodeById(successorId);
+            if (!node) {
+                showToast('Node not found', 'error');
+                return;
+            }
+
+            const newType = document.getElementById('edit-dep-type').value;
+            const newLag = parseInt(document.getElementById('edit-dep-lag').value) || 0;
+
+            // Save undo state
+            saveState(`Edit dependency ${predecessorId} → ${successorId}`);
+
+            // Find and update the dependency
+            if (!node.dependencies) node.dependencies = [];
+
+            // Find existing dependency (could be string or object)
+            const depIndex = node.dependencies.findIndex(dep => {
+                if (typeof dep === 'string') return dep === predecessorId;
+                return dep.predecessorId === predecessorId || dep.targetId === predecessorId || dep.id === predecessorId;
+            });
+
+            if (depIndex >= 0) {
+                // Update to new format with type and lag
+                node.dependencies[depIndex] = {
+                    predecessorId: predecessorId,
+                    type: newType,
+                    lag: newLag
+                };
+            }
+
+            document.getElementById('modal').style.display = 'none';
+            renderCanvas();
+            showToast(`Dependency updated (${newType}${newLag !== 0 ? ', ' + newLag + 'd lag' : ''})`, 'success');
+        }
+
+        // BUILD 448: Delete dependency with confirmation
+        function deleteDependency(successorId, predecessorId) {
+            const node = findNodeById(successorId);
+            if (!node) {
+                showToast('Node not found', 'error');
+                return;
+            }
+
+            // Confirm deletion
+            if (!confirm('Delete this dependency?')) {
+                return;
+            }
+
+            // Save undo state
+            saveState(`Delete dependency ${predecessorId} → ${successorId}`);
+
+            // Remove the dependency
+            if (node.dependencies) {
+                node.dependencies = node.dependencies.filter(dep => {
+                    if (typeof dep === 'string') return dep !== predecessorId;
+                    return dep.predecessorId !== predecessorId && dep.targetId !== predecessorId && dep.id !== predecessorId;
+                });
+            }
+
+            document.getElementById('modal').style.display = 'none';
+            renderCanvas();
+            showToast('Dependency deleted', 'success');
+        }
+
+        // Expose for modal buttons
+        window.showDependencyEditModal = showDependencyEditModal;
+        window.saveDependencyEdit = saveDependencyEdit;
+        window.deleteDependency = deleteDependency;
+
         // BUILD 446: Draw dependency type badge at link midpoint
-        function drawDependencyBadge(x1, y1, x2, y2, dep) {
+        // BUILD 448: Made interactive with click to edit/delete
+        function drawDependencyBadge(x1, y1, x2, y2, dep, successorId, predecessorId) {
             const svg = document.getElementById('canvas-connections');
             const midX = (x1 + x2) / 2 + SVG_OFFSET;
             const midY = (y1 + y2) / 2 + SVG_OFFSET;
@@ -16057,6 +16201,17 @@ Be specific and insightful, not generic.`;
             if (dep.lag !== 0) {
                 label += (dep.lag > 0 ? '+' : '') + dep.lag + 'd';
             }
+
+            // Create a group for the badge (for single click handler)
+            const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+            group.setAttribute('class', 'dependency-badge');
+            group.style.cursor = 'pointer';
+
+            // Store data for edit modal
+            group.dataset.successorId = successorId;
+            group.dataset.predecessorId = predecessorId;
+            group.dataset.type = dep.type || 'FS';
+            group.dataset.lag = dep.lag || 0;
 
             // Background pill
             const bg = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
@@ -16068,7 +16223,8 @@ Be specific and insightful, not generic.`;
             bg.setAttribute('fill', 'rgba(30, 30, 40, 0.9)');
             bg.setAttribute('stroke', '#ff6b6b');
             bg.setAttribute('stroke-width', '1');
-            svg.appendChild(bg);
+            bg.setAttribute('class', 'badge-bg');
+            group.appendChild(bg);
 
             // Text label
             const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -16078,8 +16234,27 @@ Be specific and insightful, not generic.`;
             text.setAttribute('fill', '#ff6b6b');
             text.setAttribute('font-size', '11');
             text.setAttribute('font-weight', 'bold');
+            text.setAttribute('pointer-events', 'none'); // Let clicks pass through to group
             text.textContent = label;
-            svg.appendChild(text);
+            group.appendChild(text);
+
+            // Click handler to open edit modal
+            group.addEventListener('click', (e) => {
+                e.stopPropagation();
+                showDependencyEditModal(successorId, predecessorId, dep.type || 'FS', dep.lag || 0);
+            });
+
+            // Hover effect
+            group.addEventListener('mouseenter', () => {
+                bg.setAttribute('stroke-width', '2');
+                bg.setAttribute('fill', 'rgba(50, 50, 60, 0.95)');
+            });
+            group.addEventListener('mouseleave', () => {
+                bg.setAttribute('stroke-width', '1');
+                bg.setAttribute('fill', 'rgba(30, 30, 40, 0.9)');
+            });
+
+            svg.appendChild(group);
         }
 
         // BUILD 445: Enhanced connection drawing with link types
@@ -56751,7 +56926,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 447; // Update this with each build
+                    const KNOWN_LATEST = 448; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
