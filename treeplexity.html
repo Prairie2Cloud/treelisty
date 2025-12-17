@@ -7201,7 +7201,7 @@ The AI will analyze the structure and convert it to a tree."
     .canvas-minimap {
         position: absolute;
         bottom: 20px;
-        right: 20px;
+        left: 20px;
         width: 200px;
         height: 150px;
         background: rgba(20, 20, 30, 0.95);
@@ -16059,8 +16059,8 @@ Be specific and insightful, not generic.`;
             resultsContainer.innerHTML = canvasSearchState.results.map((result, idx) => `
                 <div class="canvas-search-result" data-index="${idx}" onclick="selectSearchResult(${idx})">
                     <span class="canvas-search-result-icon">${getSearchNodeIcon(result.node)}</span>
-                    <span class="canvas-search-result-name">${escapeHtml(result.node.name || 'Untitled')}</span>
-                    <span class="canvas-search-result-phase">${escapeHtml(result.phase?.name || '')}</span>
+                    <span class="canvas-search-result-name">${escapeHtmlForSearch(result.node.name || 'Untitled')}</span>
+                    <span class="canvas-search-result-phase">${escapeHtmlForSearch(result.phase?.name || '')}</span>
                 </div>
             `).join('');
 
@@ -16169,6 +16169,12 @@ Be specific and insightful, not generic.`;
             if (node.pmStatus === 'complete') return '✅';
             if (node.pmStatus === 'in-progress') return '🔄';
             return '📄';
+        }
+
+        // Helper for escaping HTML in search results
+        function escapeHtmlForSearch(text) {
+            if (!text) return '';
+            return text.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
         }
 
         function initCanvasSearch() {
