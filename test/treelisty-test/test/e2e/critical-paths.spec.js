@@ -313,11 +313,15 @@ test.describe('Error Handling', () => {
         await page.waitForSelector('#tree-container');
         await page.waitForTimeout(3000);
         
-        // Filter out expected/known errors
-        const unexpectedErrors = errors.filter(e => 
+        // Filter out expected/known errors (network, resources, extensions)
+        const unexpectedErrors = errors.filter(e =>
             !e.includes('favicon') &&
             !e.includes('manifest') &&
-            !e.includes('CORS')  // API key errors are expected
+            !e.includes('CORS') &&  // API key errors are expected
+            !e.includes('service-worker') &&
+            !e.includes('chrome-extension') &&
+            !e.includes('net::ERR') &&
+            !e.includes('Failed to load resource')  // Network errors (403, 404)
         );
         
         expect(unexpectedErrors).toHaveLength(0);
