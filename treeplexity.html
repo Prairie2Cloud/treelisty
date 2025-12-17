@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 441 | 2025-12-17
+    TreeListy v2.19.0 | Build 442 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 441): ℹ️ About TreeListy Modal
-    - Minimalist About screen accessible from Help menu
-    - Shows version, copyright, author (Garnet Brown), GitHub link
+    Changelog (Build 442): 🔍 Treebeard Research Mode (Phase 1)
+    - Web search via Gemini's Google Search grounding
+    - Auto-detects research intent ("research X", "what is Y", "find Z")
+    - Pattern-aware prompts (CAPEX→costs, Philosophy→citations)
+    - Suggests nodes to add from research findings
+    - Requires Gemini API key
+    Previous (Build 441): ℹ️ About TreeListy Modal
     Previous (Build 440): 📊 Treebeard Tree Analysis Command
     - New tree_analysis command: finds items with most content/children
     - Helps Treebeard understand "research items" means tree analysis
@@ -688,7 +692,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 441,
+            build: 442,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -10634,6 +10638,259 @@ TREELISTY CONTEXT:
                 }),
                 ok: true
             };
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // BUILD 442: TREEBEARD RESEARCH MODE - Web search via Gemini
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /**
+         * Detect if user message is a research request
+         * Returns { isResearch: boolean, query: string } or null
+         */
+        function detectResearchIntent(message) {
+            const lower = message.toLowerCase().trim();
+
+            // Explicit research keywords
+            const researchPatterns = [
+                /^research\s+(.+)/i,
+                /^search\s+(?:for\s+)?(.+)/i,
+                /^find\s+(?:information\s+)?(?:about\s+)?(.+)/i,
+                /^look\s+up\s+(.+)/i,
+                /^what\s+(?:is|are|was|were)\s+(.+)\??/i,
+                /^who\s+(?:is|are|was|were)\s+(.+)\??/i,
+                /^when\s+(?:did|was|were|is)\s+(.+)\??/i,
+                /^where\s+(?:is|are|was|were)\s+(.+)\??/i,
+                /^how\s+(?:much|many|do|does|did|can|could)\s+(.+)\??/i,
+                /^tell\s+me\s+about\s+(.+)/i,
+                /^get\s+(?:info|information)\s+(?:on|about)\s+(.+)/i,
+                /^(?:can you\s+)?(?:find|research|look up)\s+(.+)/i
+            ];
+
+            for (const pattern of researchPatterns) {
+                const match = lower.match(pattern);
+                if (match) {
+                    return { isResearch: true, query: match[1].trim() };
+                }
+            }
+
+            // Check for question words that suggest external knowledge needed
+            const questionIndicators = ['competitors', 'pricing', 'market', 'statistics', 'recent', 'latest', 'current', 'today', 'news'];
+            const hasIndicator = questionIndicators.some(ind => lower.includes(ind));
+            const isQuestion = lower.endsWith('?') || lower.startsWith('what') || lower.startsWith('who') || lower.startsWith('how');
+
+            if (hasIndicator && isQuestion) {
+                return { isResearch: true, query: message };
+            }
+
+            return null;
+        }
+
+        /**
+         * Get pattern-aware research prompt
+         */
+        function getResearchPrompt(query, pattern) {
+            const patternFocus = {
+                generic: 'General web search - summarize key findings with sources.',
+                capex: 'Focus on: costs, vendors, lead times, risks, market data, ROI considerations.',
+                philosophy: 'Focus on: scholarly sources, author citations, counter-arguments, historical context.',
+                sales: 'Focus on: company info, funding rounds, decision makers, competitors, market position.',
+                lifetree: 'Focus on: biographical facts, dates, locations, relationships, source verification.',
+                film: 'Focus on: visual references, technique breakdowns, production examples, style analysis.',
+                veo3: 'Focus on: video generation examples, prompt techniques, style references.',
+                sora2: 'Focus on: video generation examples, prompt techniques, style references.',
+                thesis: 'Focus on: academic papers, citations, methodology comparisons, peer-reviewed sources.',
+                roadmap: 'Focus on: industry trends, competitor timelines, technical feasibility.',
+                book: 'Focus on: narrative techniques, genre conventions, comparable works.',
+                dialogue: 'Focus on: debate positions, rhetorical strategies, counterarguments.'
+            };
+
+            const focus = patternFocus[pattern] || patternFocus.generic;
+
+            return `You are a research assistant with web search capabilities.
+
+USER QUERY: ${query}
+
+RESEARCH FOCUS (${pattern} pattern): ${focus}
+
+INSTRUCTIONS:
+1. Search the web for current, relevant information
+2. Synthesize findings from multiple sources
+3. Cite your sources with URLs when available
+4. Structure your response clearly
+
+RESPONSE FORMAT:
+Start with a brief summary, then provide detailed findings.
+End with a "Sources:" section listing the URLs you found.
+
+If you suggest items that could be added to the user's tree, format them as:
+SUGGESTED NODES:
+- Name: [node name]
+  Description: [brief description]`;
+        }
+
+        /**
+         * Call Gemini API with Google Search grounding enabled
+         */
+        async function callGeminiWithSearch(query, pattern) {
+            const apiKey = localStorage.getItem('gemini_api_key');
+
+            if (!apiKey) {
+                return {
+                    success: false,
+                    error: '🔑 Research requires a Gemini API key.\n\nGemini has built-in Google Search. Add your key in Settings (🔑 button).',
+                    needsKey: true
+                };
+            }
+
+            // Check CORS (local file won't work)
+            if (window.location.protocol === 'file:') {
+                return {
+                    success: false,
+                    error: '🌐 Research requires web deployment.\n\nGemini API is blocked from local files (CORS). Deploy to Netlify or use a web server.',
+                    needsDeployment: true
+                };
+            }
+
+            const researchPrompt = getResearchPrompt(query, pattern);
+
+            console.log('🔍 Starting research with Gemini + Google Search...');
+
+            try {
+                const response = await fetch(
+                    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+                    {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: researchPrompt }]
+                            }],
+                            tools: [{
+                                google_search: {}
+                            }],
+                            generationConfig: {
+                                maxOutputTokens: 4096,
+                                temperature: 0.7
+                            }
+                        })
+                    }
+                );
+
+                if (!response.ok) {
+                    const error = await response.json().catch(() => ({}));
+                    throw new Error(error.error?.message || `Gemini API error: ${response.status}`);
+                }
+
+                const data = await response.json();
+
+                if (!data.candidates || !data.candidates[0]?.content?.parts) {
+                    throw new Error('Invalid Gemini response structure');
+                }
+
+                // Extract text from response
+                const textParts = data.candidates[0].content.parts
+                    .filter(p => p.text)
+                    .map(p => p.text)
+                    .join('\n');
+
+                // Extract grounding metadata if available
+                const groundingMetadata = data.candidates[0].groundingMetadata;
+                const searchEntries = groundingMetadata?.groundingChunks || [];
+
+                console.log('✅ Research complete:', { textLength: textParts.length, sources: searchEntries.length });
+
+                return {
+                    success: true,
+                    text: textParts,
+                    sources: searchEntries,
+                    groundingMetadata
+                };
+
+            } catch (error) {
+                console.error('❌ Research error:', error);
+                return {
+                    success: false,
+                    error: `Research failed: ${error.message}`
+                };
+            }
+        }
+
+        /**
+         * Handle a research request from Treebeard
+         * Returns formatted response for chat
+         */
+        async function handleResearchRequest(query) {
+            const pattern = typeof currentPattern !== 'undefined' ? currentPattern : 'generic';
+
+            // Update UI to show research is happening
+            const result = await callGeminiWithSearch(query, pattern);
+
+            if (!result.success) {
+                return {
+                    message: result.error,
+                    buttons: result.needsKey ? [
+                        { label: '🔑 Open Settings', action: 'open_settings' }
+                    ] : []
+                };
+            }
+
+            // Format response with sources
+            let response = `🔍 **Research Results**\n\n${result.text}`;
+
+            // Add sources section if we have grounding data
+            if (result.sources && result.sources.length > 0) {
+                response += '\n\n---\n**Sources:**\n';
+                result.sources.slice(0, 5).forEach((source, i) => {
+                    const title = source.web?.title || `Source ${i + 1}`;
+                    const uri = source.web?.uri || '';
+                    response += `${i + 1}. [${title}](${uri})\n`;
+                });
+            }
+
+            // Parse suggested nodes from response
+            const suggestedNodes = parseResearchSuggestedNodes(result.text);
+
+            // Add action buttons
+            const buttons = [];
+            if (suggestedNodes.length > 0) {
+                buttons.push({ label: `➕ Add ${suggestedNodes.length} nodes to tree`, action: `add_research_nodes:${JSON.stringify(suggestedNodes)}` });
+            }
+            buttons.push({ label: '🔄 Research more', action: 'research_followup' });
+
+            return {
+                message: response,
+                buttons,
+                suggestedNodes
+            };
+        }
+
+        /**
+         * Parse suggested nodes from research response text
+         */
+        function parseResearchSuggestedNodes(text) {
+            const nodes = [];
+            const suggestedSection = text.match(/SUGGESTED NODES:([\s\S]*?)(?:Sources:|$)/i);
+
+            if (suggestedSection) {
+                const lines = suggestedSection[1].split('\n');
+                let currentNode = null;
+
+                for (const line of lines) {
+                    const nameMatch = line.match(/^-?\s*Name:\s*(.+)/i);
+                    const descMatch = line.match(/^\s*Description:\s*(.+)/i);
+
+                    if (nameMatch) {
+                        if (currentNode) nodes.push(currentNode);
+                        currentNode = { name: nameMatch[1].trim(), description: '' };
+                    } else if (descMatch && currentNode) {
+                        currentNode.description = descMatch[1].trim();
+                    }
+                }
+                if (currentNode) nodes.push(currentNode);
+            }
+
+            return nodes;
         }
 
         // Helper: Direct API call to OpenAI ChatGPT
@@ -49031,6 +49288,60 @@ ${transcript}`;
                 return '📖 Opening help modal...';
             },
 
+            // BUILD 442: Research command - web search via Gemini
+            'research': async (query) => {
+                if (!query) return '⚠️ Please specify what to research. Example: "research competitors to Notion"';
+                const result = await handleResearchRequest(query);
+                return result.message;
+            },
+
+            // BUILD 442: Add nodes from research results
+            'add_research_nodes': (nodesJson) => {
+                try {
+                    const nodes = typeof nodesJson === 'string' ? JSON.parse(nodesJson) : nodesJson;
+                    if (!nodes || nodes.length === 0) return '⚠️ No nodes to add.';
+
+                    // Get current phase or first phase
+                    const phases = capexTree?.children || capexTree?.phases || [];
+                    if (phases.length === 0) return '⚠️ No phases in tree. Add a phase first.';
+
+                    const targetPhase = phases[0]; // Add to first phase for now
+                    const existingItems = targetPhase.items || targetPhase.children || [];
+
+                    // Save undo state
+                    if (typeof saveState === 'function') saveState('Add research nodes');
+
+                    // Add each node
+                    nodes.forEach((node, i) => {
+                        const newItem = {
+                            type: 'item',
+                            id: `item-0-${existingItems.length + i}`,
+                            name: node.name,
+                            description: node.description || '',
+                            notes: `Added from research: ${new Date().toISOString()}`,
+                            icon: '🔍',
+                            provenance: { source: 'research', timestamp: new Date().toISOString() }
+                        };
+
+                        if (!targetPhase.items) targetPhase.items = [];
+                        targetPhase.items.push(newItem);
+
+                        // Track node change for highlighting
+                        if (typeof trackNodeChange === 'function') {
+                            trackNodeChange(newItem.id, 'added');
+                        }
+                    });
+
+                    // Re-render
+                    if (typeof render === 'function') render();
+
+                    return `✅ Added ${nodes.length} node${nodes.length > 1 ? 's' : ''} to "${targetPhase.name}"`;
+                } catch (error) {
+                    console.error('Error adding research nodes:', error);
+                    return `❌ Failed to add nodes: ${error.message}`;
+                }
+            },
+
             // BUILD 437: List all available commands for Treebeard self-discovery
             'list_all_commands': () => {
                 const commands = Object.keys(COMMAND_REGISTRY).sort();
@@ -52091,6 +52402,7 @@ GLOBAL (work anytime):
 • project_info - Show project overview/stats
 • search - Open search modal
 • find_node:{query} - Search & focus a node
+• research:{query} - Web search via Gemini (requires Gemini API key)
 • add_phase - Add new phase
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
@@ -52140,6 +52452,7 @@ IMPORTANT: When suggesting buttons, prefer GLOBAL commands. If action needs a no
             return `
 KEY FEATURES:
 • AI Wizard (open_wizard): Conversational tree building
+• Research (research:{query}): Web search via Gemini - finds info, suggests nodes to add
 • Deep Dive: Multi-node scholarly analysis
 • Smart Suggest: AI fills fields contextually
 • Hyperedges: Cross-phase connections (Canvas View → multi-select → Create)
@@ -53641,6 +53954,29 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                         chatState.lastQueryDescription = description;
                         chatState.lastQueryConditions = queryConditions;
                     }
+                    chatState.isProcessing = false;
+                    return;
+                }
+
+                // BUILD 442: Research intent detection (web search via Gemini)
+                const researchIntent = detectResearchIntent(message);
+                if (researchIntent) {
+                    console.log('🔍 Research intent detected:', researchIntent.query);
+
+                    // Show research in progress
+                    hideTypingIndicator();
+                    addMessage(`🔍 Researching: "${researchIntent.query}"...`, 'assistant');
+                    showTypingIndicator();
+
+                    try {
+                        const result = await handleResearchRequest(researchIntent.query);
+                        hideTypingIndicator();
+                        addMessage(result.message, 'assistant', result.buttons);
+                    } catch (error) {
+                        hideTypingIndicator();
+                        addMessage(`❌ Research failed: ${error.message}`, 'assistant');
+                    }
+
                     chatState.isProcessing = false;
                     return;
                 }
@@ -55551,7 +55887,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 441; // Update this with each build
+                    const KNOWN_LATEST = 442; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
