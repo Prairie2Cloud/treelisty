@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 486 | 2025-12-18
+    TreeListy v2.19.0 | Build 487 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 486): Treebeard PM Assistant Phase 2 - Analysis commands
-    Previous (Build 485): Treebeard PM Assistant Phase 1 - Gantt view/nav commands
+    Changelog (Build 487): Treebeard PM Assistant Phase 3 - Edit commands
+    Previous (Build 486): Treebeard PM Assistant Phase 2 - Analysis commands
     Previous (Build 483): Gantt UX Polish - smooth zoom, Edit Task fix, muted colors
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 486,
+            build: 487,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -51710,6 +51710,404 @@ Slack data not available. To calculate slack:
                 return response;
             },
 
+            // BUILD 487: Gantt Edit Commands
+            // Helper to find task and check readonly
+            '_gantt_find_task': (taskName) => {
+                if (typeof ganttReadOnly !== 'undefined' && ganttReadOnly) {
+                    return { error: '🔒 Gantt is in read-only mode. Uncheck "Read Only" in the toolbar to edit.' };
+                }
+                if (!taskName) {
+                    return { error: '⚠️ Please specify a task name.' };
+                }
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+                const searchLower = taskName.toLowerCase();
+                const task = tasks.find(t => t.name.toLowerCase().includes(searchLower));
+                if (!task) {
+                    return { error: `❌ Task "${taskName}" not found.` };
+                }
+                return { task, node: task._node };
+            },
+
+            'gantt_set_dates': (args) => {
+                // Parse: "task name, start, end" or "task name start end"
+                if (!args) return '⚠️ Usage: gantt_set_dates:{task name}, {start date}, {end date}\nExample: "set Design Phase dates to 2025-01-15, 2025-01-30"';
+
+                const parts = args.split(/[,\s]+/).filter(Boolean);
+                if (parts.length < 3) return '⚠️ Please provide task name, start date, and end date.';
+
+                // Last two parts are dates, rest is task name
+                const endDate = parts.pop();
+                const startDate = parts.pop();
+                const taskName = parts.join(' ');
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                // Validate dates
+                const startParsed = new Date(startDate);
+                const endParsed = new Date(endDate);
+                if (isNaN(startParsed.getTime())) return `⚠️ Invalid start date: "${startDate}". Use YYYY-MM-DD format.`;
+                if (isNaN(endParsed.getTime())) return `⚠️ Invalid end date: "${endDate}". Use YYYY-MM-DD format.`;
+                if (endParsed < startParsed) return '⚠️ End date cannot be before start date.';
+
+                const oldStart = result.node.pmStartDate;
+                const oldEnd = result.node.pmDueDate;
+
+                result.node.pmStartDate = startDate;
+                result.node.pmDueDate = endDate;
+                result.node.pmDuration = Math.ceil((endParsed - startParsed) / (1000 * 60 * 60 * 24));
+
+                if (typeof saveState === 'function') saveState('Treebeard: Updated dates');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                return `✅ Updated **${result.task.name}** dates:\n• Start: ${oldStart || 'none'} → ${startDate}\n• End: ${oldEnd || 'none'} → ${endDate}\n• Duration: ${result.node.pmDuration} days`;
+            },
+
+            'gantt_set_start': (args) => {
+                if (!args) return '⚠️ Usage: gantt_set_start:{task name}, {date}\nExample: "set Design Phase start to 2025-01-15"';
+
+                const parts = args.split(/[,\s]+/).filter(Boolean);
+                if (parts.length < 2) return '⚠️ Please provide task name and start date.';
+
+                const startDate = parts.pop();
+                const taskName = parts.join(' ');
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                const startParsed = new Date(startDate);
+                if (isNaN(startParsed.getTime())) return `⚠️ Invalid date: "${startDate}". Use YYYY-MM-DD format.`;
+
+                const oldStart = result.node.pmStartDate;
+                result.node.pmStartDate = startDate;
+
+                // Recalculate duration if end date exists
+                if (result.node.pmDueDate) {
+                    const endParsed = new Date(result.node.pmDueDate);
+                    result.node.pmDuration = Math.ceil((endParsed - startParsed) / (1000 * 60 * 60 * 24));
+                }
+
+                if (typeof saveState === 'function') saveState('Treebeard: Updated start date');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                return `✅ Updated **${result.task.name}** start date: ${oldStart || 'none'} → ${startDate}`;
+            },
+
+            'gantt_set_end': (args) => {
+                if (!args) return '⚠️ Usage: gantt_set_end:{task name}, {date}\nExample: "set Design Phase end to 2025-01-30"';
+
+                const parts = args.split(/[,\s]+/).filter(Boolean);
+                if (parts.length < 2) return '⚠️ Please provide task name and end date.';
+
+                const endDate = parts.pop();
+                const taskName = parts.join(' ');
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                const endParsed = new Date(endDate);
+                if (isNaN(endParsed.getTime())) return `⚠️ Invalid date: "${endDate}". Use YYYY-MM-DD format.`;
+
+                const oldEnd = result.node.pmDueDate;
+                result.node.pmDueDate = endDate;
+
+                // Recalculate duration if start date exists
+                if (result.node.pmStartDate) {
+                    const startParsed = new Date(result.node.pmStartDate);
+                    result.node.pmDuration = Math.ceil((endParsed - startParsed) / (1000 * 60 * 60 * 24));
+                }
+
+                if (typeof saveState === 'function') saveState('Treebeard: Updated end date');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                return `✅ Updated **${result.task.name}** end date: ${oldEnd || 'none'} → ${endDate}`;
+            },
+
+            'gantt_set_duration': (args) => {
+                if (!args) return '⚠️ Usage: gantt_set_duration:{task name}, {days}\nExample: "set Design Phase duration to 14 days"';
+
+                const parts = args.split(/[,\s]+/).filter(Boolean);
+                if (parts.length < 2) return '⚠️ Please provide task name and duration in days.';
+
+                // Find the number (duration)
+                let duration = null;
+                let taskParts = [];
+                for (const part of parts) {
+                    const num = parseInt(part);
+                    if (!isNaN(num) && duration === null) {
+                        duration = num;
+                    } else if (part.toLowerCase() !== 'days' && part.toLowerCase() !== 'day') {
+                        taskParts.push(part);
+                    }
+                }
+
+                if (duration === null || duration < 1) return '⚠️ Please provide a valid duration (positive number of days).';
+                const taskName = taskParts.join(' ');
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                const oldDuration = result.node.pmDuration;
+                result.node.pmDuration = duration;
+
+                // Adjust end date if start date exists
+                if (result.node.pmStartDate) {
+                    const startParsed = new Date(result.node.pmStartDate);
+                    startParsed.setDate(startParsed.getDate() + duration);
+                    result.node.pmDueDate = startParsed.toISOString().split('T')[0];
+                }
+
+                if (typeof saveState === 'function') saveState('Treebeard: Updated duration');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                return `✅ Updated **${result.task.name}** duration: ${oldDuration || '?'} → ${duration} days${result.node.pmDueDate ? `\n• New end date: ${result.node.pmDueDate}` : ''}`;
+            },
+
+            'gantt_set_progress': (args) => {
+                if (!args) return '⚠️ Usage: gantt_set_progress:{task name}, {0-100}\nExample: "set Design Phase progress to 75%"';
+
+                const parts = args.split(/[,\s]+/).filter(Boolean);
+                if (parts.length < 2) return '⚠️ Please provide task name and progress percentage.';
+
+                // Find the number (progress)
+                let progress = null;
+                let taskParts = [];
+                for (const part of parts) {
+                    const num = parseInt(part.replace('%', ''));
+                    if (!isNaN(num) && progress === null) {
+                        progress = Math.max(0, Math.min(100, num));
+                    } else if (part !== '%' && part.toLowerCase() !== 'percent') {
+                        taskParts.push(part);
+                    }
+                }
+
+                if (progress === null) return '⚠️ Please provide a valid progress percentage (0-100).';
+                const taskName = taskParts.join(' ');
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                const oldProgress = result.node.pmProgress || 0;
+                result.node.pmProgress = progress;
+
+                // Auto-update status based on progress
+                if (progress === 100 && result.node.pmStatus !== 'Done') {
+                    result.node.pmStatus = 'Done';
+                } else if (progress > 0 && progress < 100 && result.node.pmStatus === 'Not Started') {
+                    result.node.pmStatus = 'In Progress';
+                }
+
+                if (typeof saveState === 'function') saveState('Treebeard: Updated progress');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                return `✅ Updated **${result.task.name}** progress: ${oldProgress}% → ${progress}%${progress === 100 ? '\n• Status automatically set to Done' : ''}`;
+            },
+
+            'gantt_set_status': (args) => {
+                if (!args) return '⚠️ Usage: gantt_set_status:{task name}, {status}\nValid statuses: Not Started, In Progress, Done, Blocked';
+
+                const validStatuses = ['Not Started', 'In Progress', 'Done', 'Blocked', 'Completed'];
+                const statusMap = {
+                    'not started': 'Not Started',
+                    'notstarted': 'Not Started',
+                    'in progress': 'In Progress',
+                    'inprogress': 'In Progress',
+                    'done': 'Done',
+                    'completed': 'Done',
+                    'blocked': 'Blocked'
+                };
+
+                // Find status in args
+                let foundStatus = null;
+                let taskName = args;
+
+                for (const [key, value] of Object.entries(statusMap)) {
+                    if (args.toLowerCase().includes(key)) {
+                        foundStatus = value;
+                        taskName = args.toLowerCase().replace(key, '').replace(/[,\s]+/g, ' ').trim();
+                        break;
+                    }
+                }
+
+                if (!foundStatus) return `⚠️ Invalid status. Valid options: ${validStatuses.slice(0, 4).join(', ')}`;
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                const oldStatus = result.node.pmStatus || 'Not Started';
+                result.node.pmStatus = foundStatus;
+
+                // Auto-update progress for Done status
+                if (foundStatus === 'Done' && (result.node.pmProgress || 0) < 100) {
+                    result.node.pmProgress = 100;
+                }
+
+                if (typeof saveState === 'function') saveState('Treebeard: Updated status');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                const statusIcons = { 'Not Started': '⏳', 'In Progress': '🔄', 'Done': '✅', 'Blocked': '🚫' };
+                return `✅ Updated **${result.task.name}** status: ${oldStatus} → ${statusIcons[foundStatus] || ''} ${foundStatus}`;
+            },
+
+            'gantt_add_dependency': (args) => {
+                if (!args) return '⚠️ Usage: gantt_add_dependency:{from task}, {to task}, {type}, {lag}\nTypes: FS (Finish-to-Start), SS, FF, SF\nExample: "add dependency from Design to Development FS"';
+
+                if (typeof ganttReadOnly !== 'undefined' && ganttReadOnly) {
+                    return '🔒 Gantt is in read-only mode. Uncheck "Read Only" to edit.';
+                }
+
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+                if (tasks.length < 2) return '⚠️ Need at least 2 tasks with dates to create dependencies.';
+
+                // Parse: "from task, to task, FS, 2" or natural language
+                const depTypes = ['FS', 'SS', 'FF', 'SF'];
+                let type = 'FS';
+                let lag = 0;
+                let argsLower = args.toLowerCase();
+
+                // Extract type
+                for (const t of depTypes) {
+                    if (argsLower.includes(t.toLowerCase())) {
+                        type = t;
+                        argsLower = argsLower.replace(t.toLowerCase(), '');
+                        break;
+                    }
+                }
+
+                // Extract lag (number followed by optional "days")
+                const lagMatch = argsLower.match(/(\d+)\s*(days?|d)?/);
+                if (lagMatch) {
+                    lag = parseInt(lagMatch[1]);
+                    argsLower = argsLower.replace(lagMatch[0], '');
+                }
+
+                // Split remaining by common separators
+                const parts = argsLower.split(/(?:,|\sto\s|\s->\s|\sfrom\s|\sdepends\s*on\s)/i).map(p => p.trim()).filter(Boolean);
+
+                if (parts.length < 2) return '⚠️ Please specify both tasks. Example: "Design to Development FS"';
+
+                const fromName = parts[0];
+                const toName = parts[1];
+
+                const fromTask = tasks.find(t => t.name.toLowerCase().includes(fromName));
+                const toTask = tasks.find(t => t.name.toLowerCase().includes(toName));
+
+                if (!fromTask) return `❌ Task "${fromName}" not found.`;
+                if (!toTask) return `❌ Task "${toName}" not found.`;
+                if (fromTask.id === toTask.id) return '⚠️ A task cannot depend on itself.';
+
+                // Check if dependency already exists
+                const toNode = toTask._node;
+                toNode.dependencies = toNode.dependencies || [];
+                const existing = toNode.dependencies.find(d =>
+                    (typeof d === 'string' ? d : d.predecessorId) === fromTask.id
+                );
+                if (existing) return `⚠️ Dependency already exists: ${fromTask.name} → ${toTask.name}`;
+
+                // Add the dependency
+                toNode.dependencies.push({
+                    predecessorId: fromTask.id,
+                    type: type,
+                    lag: lag
+                });
+
+                if (typeof saveState === 'function') saveState('Treebeard: Added dependency');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `✅ Created dependency:\n**${fromTask.name}** → **${toTask.name}**\n• Type: ${type} (${type === 'FS' ? 'Finish-to-Start' : type === 'SS' ? 'Start-to-Start' : type === 'FF' ? 'Finish-to-Finish' : 'Start-to-Finish'})\n${lag > 0 ? `• Lag: +${lag} days` : ''}`;
+            },
+
+            'gantt_remove_dependency': (args) => {
+                if (!args) return '⚠️ Usage: gantt_remove_dependency:{from task}, {to task}\nExample: "remove dependency from Design to Development"';
+
+                if (typeof ganttReadOnly !== 'undefined' && ganttReadOnly) {
+                    return '🔒 Gantt is in read-only mode. Uncheck "Read Only" to edit.';
+                }
+
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+
+                // Parse tasks
+                const parts = args.split(/(?:,|\sto\s|\s->\s|\sfrom\s)/i).map(p => p.trim()).filter(Boolean);
+                if (parts.length < 2) return '⚠️ Please specify both tasks. Example: "Design to Development"';
+
+                const fromName = parts[0];
+                const toName = parts[1];
+
+                const fromTask = tasks.find(t => t.name.toLowerCase().includes(fromName.toLowerCase()));
+                const toTask = tasks.find(t => t.name.toLowerCase().includes(toName.toLowerCase()));
+
+                if (!fromTask) return `❌ Task "${fromName}" not found.`;
+                if (!toTask) return `❌ Task "${toName}" not found.`;
+
+                const toNode = toTask._node;
+                if (!toNode.dependencies || toNode.dependencies.length === 0) {
+                    return `⚠️ ${toTask.name} has no dependencies to remove.`;
+                }
+
+                const depIndex = toNode.dependencies.findIndex(d =>
+                    (typeof d === 'string' ? d : d.predecessorId) === fromTask.id
+                );
+
+                if (depIndex === -1) {
+                    return `⚠️ No dependency found from ${fromTask.name} to ${toTask.name}.`;
+                }
+
+                toNode.dependencies.splice(depIndex, 1);
+
+                if (typeof saveState === 'function') saveState('Treebeard: Removed dependency');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `✅ Removed dependency: **${fromTask.name}** → **${toTask.name}**`;
+            },
+
+            'gantt_mark_done': (taskName) => {
+                if (!taskName) return '⚠️ Usage: gantt_mark_done:{task name}\nExample: "mark Design Phase as done"';
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                const wasStatus = result.node.pmStatus || 'Not Started';
+                const wasProgress = result.node.pmProgress || 0;
+
+                result.node.pmStatus = 'Done';
+                result.node.pmProgress = 100;
+
+                if (typeof saveState === 'function') saveState('Treebeard: Marked done');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                return `✅ Marked **${result.task.name}** as Done!\n• Status: ${wasStatus} → Done\n• Progress: ${wasProgress}% → 100%`;
+            },
+
+            'gantt_mark_blocked': (args) => {
+                if (!args) return '⚠️ Usage: gantt_mark_blocked:{task name}, {reason}\nExample: "mark Design Phase as blocked waiting for client feedback"';
+
+                // Split task name from reason
+                const parts = args.split(/[,:]/).map(p => p.trim());
+                const taskName = parts[0];
+                const reason = parts.slice(1).join(', ') || 'No reason specified';
+
+                const result = COMMAND_REGISTRY['_gantt_find_task'](taskName);
+                if (result.error) return result.error;
+
+                const wasStatus = result.node.pmStatus || 'Not Started';
+                result.node.pmStatus = 'Blocked';
+
+                // Add reason to notes/description
+                result.node.blockReason = reason;
+                if (result.node.notes) {
+                    result.node.notes += `\n[BLOCKED] ${reason}`;
+                } else if (result.node.description) {
+                    result.node.description += `\n\n[BLOCKED] ${reason}`;
+                }
+
+                if (typeof saveState === 'function') saveState('Treebeard: Marked blocked');
+                if (typeof renderGantt === 'function' && typeof ganttInstance !== 'undefined') renderGantt();
+
+                return `🚫 Marked **${result.task.name}** as Blocked\n• Previous status: ${wasStatus}\n• Reason: ${reason}`;
+            },
+
             // Theme commands
             'set_theme_dark': () => {
                 document.getElementById('theme-select').value = 'default';
@@ -54949,6 +55347,18 @@ SCHEDULE ANALYSIS (Build 486):
 • gantt_blockers - Tasks blocking the most downstream work
 • gantt_slack:{task name} - Slack analysis (omit name for overview)
 • gantt_dependencies:{task name} - Show predecessors and successors
+
+SCHEDULE EDITING (Build 487):
+• gantt_set_dates:{task}, {start}, {end} - Update task start/end dates
+• gantt_set_start:{task}, {date} - Update start date only
+• gantt_set_end:{task}, {date} - Update end date only
+• gantt_set_duration:{task}, {days} - Set duration (adjusts end date)
+• gantt_set_progress:{task}, {0-100} - Update progress percentage
+• gantt_set_status:{task}, {status} - Set status (Not Started/In Progress/Done/Blocked)
+• gantt_add_dependency:{from}, {to}, {type} - Create dependency (FS/SS/FF/SF)
+• gantt_remove_dependency:{from}, {to} - Remove dependency between tasks
+• gantt_mark_done:{task} - Shortcut: set progress 100%, status Done
+• gantt_mark_blocked:{task}, {reason} - Set status Blocked with reason
 
 REQUIRES FOCUSED NODE (use find_node first!):
 • add_child:{name} - Add child to focused node
@@ -58429,7 +58839,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 486; // Update this with each build
+                    const KNOWN_LATEST = 487; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
