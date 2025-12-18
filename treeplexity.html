@@ -15220,12 +15220,16 @@ Focus on logical structure and content organization best practices.`;
 
         // BUILD 449: Toggle critical path visualization
         function toggleCriticalPath() {
+            console.log('toggleCriticalPath called, current state:', showCriticalPath);
             showCriticalPath = !showCriticalPath;
+            console.log('New state:', showCriticalPath);
 
             const btn = document.getElementById('critical-path-toggle');
             if (showCriticalPath) {
                 // Calculate critical path when enabled
+                console.log('Calculating critical path...');
                 const criticalNodes = dependencyEngine.calculateCriticalPath(capexTree);
+                console.log('Critical nodes found:', criticalNodes.length, criticalNodes.map(n => n.id || n.title));
                 if (criticalNodes.length === 0) {
                     showToast('No critical path found (needs dependencies with durations)', 'info');
                 }
@@ -15235,13 +15239,16 @@ Focus on logical structure and content organization best practices.`;
                 showToast(`Critical path: ${criticalNodes.length} nodes highlighted`, 'success');
             } else {
                 // Clear critical path data when disabled
+                console.log('Clearing critical path...');
                 dependencyEngine.clearCriticalPath(capexTree);
                 btn.style.background = 'rgba(255, 0, 0, 0.1)';
                 btn.style.borderColor = 'rgba(255, 0, 0, 0.3)';
                 btn.style.color = 'var(--text-primary)';
             }
 
+            console.log('Calling renderCanvas...');
             renderCanvas();
+            console.log('renderCanvas complete');
         }
 
         // Expose for external use
@@ -16119,6 +16126,12 @@ Be specific and insightful, not generic.`;
                             const isCritical = showCriticalPath &&
                                 depNode.data._isCritical &&
                                 node._isCritical;
+                            if (showCriticalPath) {
+                                console.log('Dep check:', dep.predecessorId, '→', node.id,
+                                    'pred._isCritical:', depNode.data._isCritical,
+                                    'succ._isCritical:', node._isCritical,
+                                    'isCritical:', isCritical);
+                            }
                             const linkType = isCritical ? 'criticalPath' : 'dependency';
 
                             drawConnection(
