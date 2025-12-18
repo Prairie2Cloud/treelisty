@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 485 | 2025-12-18
+    TreeListy v2.19.0 | Build 486 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 485): Treebeard PM Assistant Phase 1 - Gantt view/nav commands
-    Previous (Build 484): Gantt single-click info panel (consistent with other views)
+    Changelog (Build 486): Treebeard PM Assistant Phase 2 - Analysis commands
+    Previous (Build 485): Treebeard PM Assistant Phase 1 - Gantt view/nav commands
     Previous (Build 483): Gantt UX Polish - smooth zoom, Edit Task fix, muted colors
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 485,
+            build: 486,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -51434,6 +51434,282 @@ ${fullTranscript}`;
                 return '✅ No overdue tasks found!';
             },
 
+            // BUILD 486: Gantt Analysis Commands
+            'gantt_summary': () => {
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+                if (tasks.length === 0) {
+                    return '📊 No scheduled tasks found. Import an MS Project file or add dates to your tasks.';
+                }
+
+                // Count by status
+                const byStatus = { done: 0, inProgress: 0, notStarted: 0, blocked: 0 };
+                tasks.forEach(t => {
+                    const s = (t.pmStatus || '').toLowerCase();
+                    if (s === 'done' || s === 'completed') byStatus.done++;
+                    else if (s === 'in progress') byStatus.inProgress++;
+                    else if (s === 'blocked') byStatus.blocked++;
+                    else byStatus.notStarted++;
+                });
+
+                // Overdue count
+                const overdue = tasks.filter(t => t.isOverdue);
+
+                // Get critical path info
+                let criticalInfo = '';
+                if (typeof dependencyEngine !== 'undefined' && typeof dependencyEngine.calculateCriticalPath === 'function') {
+                    try {
+                        const cp = dependencyEngine.calculateCriticalPath(capexTree);
+                        if (cp && cp.criticalNodes && cp.criticalNodes.length > 0) {
+                            criticalInfo = `\n🔴 **Critical path:** ${cp.criticalNodes.length} tasks, ${cp.duration || '?'} days`;
+                        }
+                    } catch (e) { /* ignore */ }
+                }
+
+                // Calculate overall health
+                let health = '🟢 Healthy';
+                if (overdue.length > 0) health = '🟡 At Risk';
+                if (overdue.some(t => t.isCritical)) health = '🔴 Critical Issues';
+
+                return `📊 **Schedule Summary** ${health}
+
+**Tasks:** ${tasks.length} total
+• ✅ Done: ${byStatus.done}
+• 🔄 In Progress: ${byStatus.inProgress}
+• ⏳ Not Started: ${byStatus.notStarted}
+${byStatus.blocked > 0 ? `• 🚫 Blocked: ${byStatus.blocked}\n` : ''}
+**Issues:** ${overdue.length > 0 ? `⚠️ ${overdue.length} overdue` : '✅ None overdue'}${criticalInfo}`;
+            },
+
+            'gantt_critical_path': () => {
+                if (typeof dependencyEngine === 'undefined' || typeof dependencyEngine.calculateCriticalPath !== 'function') {
+                    return '⚠️ Critical path analysis requires tasks with dependencies.';
+                }
+
+                try {
+                    const cp = dependencyEngine.calculateCriticalPath(capexTree);
+                    if (!cp || !cp.criticalNodes || cp.criticalNodes.length === 0) {
+                        return '📊 No critical path found. Add dependencies between tasks to see the critical path.\n\n💡 **What is critical path?** The longest chain of dependent tasks - any delay here delays the whole project.';
+                    }
+
+                    const pathNames = cp.criticalNodes.map(n => n.name || n.title || 'Untitled');
+                    const longestTask = cp.criticalNodes.reduce((max, n) =>
+                        (n.pmDuration || 1) > (max.pmDuration || 1) ? n : max, cp.criticalNodes[0]);
+
+                    return `🔴 **Critical Path Analysis**
+
+**Duration:** ${cp.duration || '?'} days total
+**Tasks:** ${cp.criticalNodes.length} tasks with 0 slack
+
+**Path:** ${pathNames.join(' → ')}
+
+**Longest task:** "${longestTask.name || longestTask.title}" (${longestTask.pmDuration || 1} days)
+
+💡 These tasks have **zero slack** - any delay extends your project end date.`;
+                } catch (e) {
+                    return `⚠️ Error calculating critical path: ${e.message}`;
+                }
+            },
+
+            'gantt_overdue': () => {
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+                const overdue = tasks.filter(t => t.isOverdue).sort((a, b) => b.daysOverdue - a.daysOverdue);
+
+                if (overdue.length === 0) {
+                    return '✅ **No overdue tasks!** All tasks are on schedule.';
+                }
+
+                let response = `⚠️ **${overdue.length} Overdue Task${overdue.length > 1 ? 's' : ''}**\n\n`;
+
+                overdue.forEach((t, i) => {
+                    const critical = t.isCritical ? ' 🔴' : '';
+                    response += `${i + 1}. **${t.name}** - ${t.daysOverdue} day${t.daysOverdue > 1 ? 's' : ''} late${critical}\n`;
+                    response += `   Due: ${t.pmDueDate} | Progress: ${t.pmProgress}%\n`;
+                });
+
+                if (overdue.some(t => t.isCritical)) {
+                    response += '\n🔴 Tasks marked with 🔴 are on the critical path - prioritize these!';
+                }
+
+                return response;
+            },
+
+            'gantt_blockers': () => {
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+                if (tasks.length === 0) {
+                    return '📊 No scheduled tasks found.';
+                }
+
+                // Count how many tasks depend on each task
+                const dependencyCount = {};
+                tasks.forEach(t => {
+                    (t.dependencies || []).forEach(dep => {
+                        const predId = typeof dep === 'string' ? dep : dep.predecessorId;
+                        if (predId) {
+                            dependencyCount[predId] = (dependencyCount[predId] || 0) + 1;
+                        }
+                    });
+                });
+
+                // Find tasks with most dependents
+                const blockers = tasks
+                    .map(t => ({ ...t, dependentCount: dependencyCount[t.id] || 0 }))
+                    .filter(t => t.dependentCount > 0)
+                    .sort((a, b) => b.dependentCount - a.dependentCount)
+                    .slice(0, 5);
+
+                if (blockers.length === 0) {
+                    return '📊 No blocking dependencies found. Tasks appear to be independent.';
+                }
+
+                let response = `🔗 **Top Blocking Tasks**\n\nThese tasks block the most downstream work:\n\n`;
+
+                blockers.forEach((t, i) => {
+                    const status = t.pmStatus === 'Done' ? '✅' : (t.isOverdue ? '⚠️' : '🔄');
+                    response += `${i + 1}. ${status} **${t.name}** - blocks ${t.dependentCount} task${t.dependentCount > 1 ? 's' : ''}\n`;
+                    response += `   Status: ${t.pmStatus} | Progress: ${t.pmProgress}%\n`;
+                });
+
+                response += '\n💡 Completing these tasks will unblock the most downstream work.';
+                return response;
+            },
+
+            'gantt_slack': (taskName) => {
+                if (typeof dependencyEngine === 'undefined' || typeof dependencyEngine.calculateCriticalPath !== 'function') {
+                    return '⚠️ Slack analysis requires tasks with dependencies.';
+                }
+
+                try {
+                    // Calculate critical path to get slack values
+                    dependencyEngine.calculateCriticalPath(capexTree);
+                } catch (e) { /* ignore */ }
+
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+                if (tasks.length === 0) {
+                    return '📊 No scheduled tasks found.';
+                }
+
+                // If task name provided, find that specific task
+                if (taskName) {
+                    const searchLower = taskName.toLowerCase();
+                    const task = tasks.find(t => t.name.toLowerCase().includes(searchLower));
+                    if (!task) {
+                        return `❌ Task "${taskName}" not found.`;
+                    }
+
+                    const slackDays = task.slack !== null ? task.slack : 'Unknown';
+                    const slackStatus = task.slack === 0 ? '🔴 Critical (0 days)' :
+                                       task.slack !== null && task.slack <= 5 ? `🟡 Low (${slackDays} days)` :
+                                       task.slack !== null ? `🟢 Flexible (${slackDays} days)` : '❓ Not calculated';
+
+                    return `📊 **Slack Analysis: ${task.name}**
+
+**Slack:** ${slackStatus}
+**Status:** ${task.pmStatus} | **Progress:** ${task.pmProgress}%
+**Duration:** ${task.pmDuration} days
+
+💡 **Slack** = how many days this task can slip without affecting the project end date.`;
+                }
+
+                // Show overall slack distribution
+                const criticalTasks = tasks.filter(t => t.slack === 0);
+                const lowSlack = tasks.filter(t => t.slack !== null && t.slack > 0 && t.slack <= 5);
+                const hasSlackData = tasks.some(t => t.slack !== null);
+
+                if (!hasSlackData) {
+                    return `📊 **Slack Analysis**
+
+Slack data not available. To calculate slack:
+1. Ensure tasks have dependencies defined
+2. Toggle Critical Path in Gantt view
+
+💡 **Slack** (or float) = how many days a task can slip without delaying the project.`;
+                }
+
+                return `📊 **Slack Distribution**
+
+🔴 **Critical (0 days):** ${criticalTasks.length} tasks
+   ${criticalTasks.slice(0, 3).map(t => t.name).join(', ')}${criticalTasks.length > 3 ? '...' : ''}
+
+🟡 **Low slack (1-5 days):** ${lowSlack.length} tasks
+   ${lowSlack.slice(0, 3).map(t => `${t.name} (${t.slack}d)`).join(', ')}${lowSlack.length > 3 ? '...' : ''}
+
+💡 Focus on critical (0 slack) tasks first - any delay extends your project.`;
+            },
+
+            'gantt_dependencies': (taskName) => {
+                if (!taskName) {
+                    return '⚠️ Specify a task name. Example: "show dependencies for Design Phase"';
+                }
+
+                const tasks = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates() : [];
+                const searchLower = taskName.toLowerCase();
+                const task = tasks.find(t => t.name.toLowerCase().includes(searchLower));
+
+                if (!task) {
+                    return `❌ Task "${taskName}" not found.`;
+                }
+
+                // Find predecessors (what this task depends on)
+                const predecessors = (task.dependencies || []).map(dep => {
+                    const predId = typeof dep === 'string' ? dep : dep.predecessorId;
+                    const predTask = tasks.find(t => t.id === predId);
+                    const type = typeof dep === 'object' ? dep.type : 'FS';
+                    const lag = typeof dep === 'object' ? (dep.lag || 0) : 0;
+                    return {
+                        name: predTask?.name || predId,
+                        type,
+                        lag,
+                        status: predTask?.pmStatus || 'Unknown'
+                    };
+                });
+
+                // Find successors (what depends on this task)
+                const successors = tasks.filter(t => {
+                    return (t.dependencies || []).some(dep => {
+                        const predId = typeof dep === 'string' ? dep : dep.predecessorId;
+                        return predId === task.id;
+                    });
+                }).map(t => {
+                    const dep = t.dependencies.find(d =>
+                        (typeof d === 'string' ? d : d.predecessorId) === task.id);
+                    return {
+                        name: t.name,
+                        type: typeof dep === 'object' ? dep.type : 'FS',
+                        status: t.pmStatus
+                    };
+                });
+
+                let response = `🔗 **Dependencies: ${task.name}**\n\n`;
+
+                if (predecessors.length > 0) {
+                    response += `**Depends on (${predecessors.length}):**\n`;
+                    predecessors.forEach(p => {
+                        const lagStr = p.lag ? ` +${p.lag}d` : '';
+                        const statusIcon = p.status === 'Done' ? '✅' : '🔄';
+                        response += `• ${statusIcon} ${p.name} (${p.type}${lagStr})\n`;
+                    });
+                } else {
+                    response += '**Depends on:** None (can start anytime)\n';
+                }
+
+                response += '\n';
+
+                if (successors.length > 0) {
+                    response += `**Blocks (${successors.length}):**\n`;
+                    successors.forEach(s => {
+                        const statusIcon = s.status === 'Done' ? '✅' : '🔄';
+                        response += `• ${statusIcon} ${s.name} (${s.type})\n`;
+                    });
+                } else {
+                    response += '**Blocks:** Nothing (end task)\n';
+                }
+
+                // Add dependency type legend
+                response += `\n💡 **Types:** FS=Finish-to-Start, SS=Start-to-Start, FF=Finish-to-Finish, SF=Start-to-Finish`;
+
+                return response;
+            },
+
             // Theme commands
             'set_theme_dark': () => {
                 document.getElementById('theme-select').value = 'default';
@@ -54665,6 +54941,14 @@ GANTT/SCHEDULE (for tasks with dates):
 • gantt_select:{task name} - Find and select a task
 • gantt_focus_overdue - Jump to first overdue task
 • gantt_next_critical - Cycle through critical path tasks
+
+SCHEDULE ANALYSIS (Build 486):
+• gantt_summary - Overall schedule health and stats
+• gantt_critical_path - Critical path breakdown with slack info
+• gantt_overdue - List overdue tasks with days late
+• gantt_blockers - Tasks blocking the most downstream work
+• gantt_slack:{task name} - Slack analysis (omit name for overview)
+• gantt_dependencies:{task name} - Show predecessors and successors
 
 REQUIRES FOCUSED NODE (use find_node first!):
 • add_child:{name} - Add child to focused node
@@ -58145,7 +58429,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 485; // Update this with each build
+                    const KNOWN_LATEST = 486; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -59670,6 +59954,68 @@ console.log('📊 Frappe Gantt loaded');
         check(capexTree);
         return hasData;
     }
+
+    /**
+     * BUILD 486: Get all tasks with schedule data for analysis
+     * Returns raw node data with calculated fields for PM analysis
+     */
+    function getAllTasksWithDates() {
+        const tasks = [];
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        function processNode(node) {
+            if (!node) return;
+
+            if (node.pmStartDate || node.pmDueDate) {
+                const startDate = node.pmStartDate ? new Date(node.pmStartDate) : null;
+                const dueDate = node.pmDueDate ? new Date(node.pmDueDate) : null;
+                const status = node.pmStatus || 'Not Started';
+                const progress = node.pmProgress || 0;
+
+                // Calculate overdue status
+                let isOverdue = false;
+                let daysOverdue = 0;
+                if (dueDate && dueDate < today && status !== 'Done' && status !== 'Completed') {
+                    isOverdue = true;
+                    daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+                }
+
+                // Calculate days until due
+                let daysUntilDue = null;
+                if (dueDate && !isOverdue) {
+                    daysUntilDue = Math.floor((dueDate - today) / (1000 * 60 * 60 * 24));
+                }
+
+                tasks.push({
+                    id: node.id,
+                    name: node.name || node.title || 'Untitled',
+                    pmStartDate: node.pmStartDate,
+                    pmDueDate: node.pmDueDate,
+                    pmDuration: node.pmDuration || 1,
+                    pmStatus: status,
+                    pmProgress: progress,
+                    dependencies: node.dependencies || [],
+                    isOverdue,
+                    daysOverdue,
+                    daysUntilDue,
+                    isCritical: node._isCritical || false,
+                    slack: node._slack !== undefined ? node._slack : null,
+                    _node: node  // Reference to original node
+                });
+            }
+
+            // Traverse all child structures
+            if (node.phases) node.phases.forEach(processNode);
+            if (node.children) node.children.forEach(processNode);
+            if (node.items) node.items.forEach(processNode);
+            if (node.subItems) node.subItems.forEach(processNode);
+        }
+
+        processNode(capexTree);
+        return tasks;
+    }
+    window.getAllTasksWithDates = getAllTasksWithDates;
 
     /**
      * Convert TreeListy tree to Frappe Gantt task format
