@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 453 | 2025-12-17
+    TreeListy v2.19.0 | Build 454 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 453): Fix dependency lines not drawing
-    - Handle phase.children (imported JSON) in addition to phase.items
+    Changelog (Build 454): Fix pattern rename for imported JSON
+    - Handle 'title' field in addition to 'name' in renameNodesForPattern
+    Previous (Build 453): Fix dependency lines not drawing
     Previous (Build 452): Critical Path Debug Logging
     Previous (Build 451): Fix Critical Path + Typed Dependencies
     Previous (Build 450): Logo with proper background
@@ -701,7 +702,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 453,
+            build: 454,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -20789,18 +20790,27 @@ function renameNodesForPattern(node, labels) {
     const allSubtaskTerms = ['Task', 'Sub-task', 'Action', 'Point', 'Story', 'Scene', 'Exercise', 'Shot', 'Premise', 'Event', 'Frame', 'Remix'];
 
     // Rename based on node type - replace ANY pattern term with the new one
+    // Handle both 'name' and 'title' fields (imported JSON may use 'title')
+    const nodeName = node.name || node.title || '';
+
     if (node.type === 'root') {
         // Try to replace any root term from any pattern
+        let newName = nodeName;
         for (const term of allRootTerms) {
             const regex = new RegExp(`\\b${term}\\b`, 'gi');
-            node.name = node.name.replace(regex, labels.root);
+            newName = newName.replace(regex, labels.root);
         }
+        if (node.name) node.name = newName;
+        if (node.title) node.title = newName;
     } else if (node.type === 'phase') {
         // Try to replace any phase term from any pattern
+        let newName = nodeName;
         for (const term of allPhaseTerms) {
             const regex = new RegExp(`\\b${term}\\b`, 'gi');
-            node.name = node.name.replace(regex, labels.phase);
+            newName = newName.replace(regex, labels.phase);
         }
+        if (node.name) node.name = newName;
+        if (node.title) node.title = newName;
         // Update phase subtitle based on pattern
         if (PATTERNS[currentPattern].phaseSubtitles && node.phase !== undefined) {
             const phaseIndex = parseInt(node.phase);
@@ -20810,16 +20820,22 @@ function renameNodesForPattern(node, labels) {
         }
     } else if (node.type === 'item') {
         // Try to replace any item term from any pattern
+        let newName = nodeName;
         for (const term of allItemTerms) {
             const regex = new RegExp(`\\b${term}\\b`, 'gi');
-            node.name = node.name.replace(regex, labels.item);
+            newName = newName.replace(regex, labels.item);
         }
+        if (node.name) node.name = newName;
+        if (node.title) node.title = newName;
     } else if (node.type === 'subtask') {
         // Try to replace any subtask term from any pattern
+        let newName = nodeName;
         for (const term of allSubtaskTerms) {
             const regex = new RegExp(`\\b${term}\\b`, 'gi');
-            node.name = node.name.replace(regex, labels.subtask);
+            newName = newName.replace(regex, labels.subtask);
         }
+        if (node.name) node.name = newName;
+        if (node.title) node.title = newName;
     }
 
     // Recursively process children
@@ -57228,7 +57244,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 453; // Update this with each build
+                    const KNOWN_LATEST = 454; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
