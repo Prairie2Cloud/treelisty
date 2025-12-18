@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 484 | 2025-12-18
+    TreeListy v2.19.0 | Build 485 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 484): Gantt single-click info panel (consistent with other views)
+    Changelog (Build 485): Treebeard PM Assistant Phase 1 - Gantt view/nav commands
+    Previous (Build 484): Gantt single-click info panel (consistent with other views)
     Previous (Build 483): Gantt UX Polish - smooth zoom, Edit Task fix, muted colors
-    Previous (Build 482): Gantt color design - unique task colors + past fade
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
     Previous (Build 469): Quick Capture Mode
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 484,
+            build: 485,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -51298,6 +51298,142 @@ ${fullTranscript}`;
                 return '🔄 View toggled!';
             },
 
+            // BUILD 485: Gantt View Commands
+            'view_gantt': () => {
+                if (typeof toggleGanttView === 'function') {
+                    const viewGantt = document.getElementById('view-gantt');
+                    if (!viewGantt?.classList.contains('active')) {
+                        toggleGanttView();
+                    }
+                    const taskCount = typeof getAllTasksWithDates === 'function' ? getAllTasksWithDates().length : '?';
+                    return `📊 Switched to Gantt view! ${taskCount} tasks with schedule data.`;
+                }
+                return '❌ Gantt view not available.';
+            },
+            'gantt_view_mode': (mode) => {
+                const validModes = ['day', 'week', 'month', 'year'];
+                const m = (mode || '').toLowerCase();
+                if (!validModes.includes(m)) {
+                    return `⚠️ Valid modes: ${validModes.join(', ')}. Example: "switch to week view"`;
+                }
+                if (typeof ganttInstance !== 'undefined' && ganttInstance) {
+                    const modeMap = { day: 'Day', week: 'Week', month: 'Month', year: 'Year' };
+                    ganttInstance.change_view_mode(modeMap[m]);
+                    if (typeof ganttViewMode !== 'undefined') ganttViewMode = modeMap[m];
+                    const select = document.getElementById('gantt-view-mode');
+                    if (select) select.value = modeMap[m];
+                    return `📊 Gantt view: ${modeMap[m]} mode`;
+                }
+                return '⚠️ Open Gantt view first.';
+            },
+            'gantt_zoom_in': () => {
+                const btn = document.getElementById('gantt-zoom-in');
+                if (btn) { btn.click(); return '🔍 Zoomed in'; }
+                return '⚠️ Open Gantt view first.';
+            },
+            'gantt_zoom_out': () => {
+                const btn = document.getElementById('gantt-zoom-out');
+                if (btn) { btn.click(); return '🔍 Zoomed out'; }
+                return '⚠️ Open Gantt view first.';
+            },
+            'gantt_fit_all': () => {
+                const btn = document.getElementById('gantt-fit-btn');
+                if (btn) { btn.click(); return '📊 Fit all tasks to view'; }
+                return '⚠️ Open Gantt view first.';
+            },
+            'gantt_today': () => {
+                const btn = document.getElementById('gantt-today-btn');
+                if (btn) { btn.click(); return '📍 Scrolled to today'; }
+                return '⚠️ Open Gantt view first.';
+            },
+            'gantt_toggle_critical_path': () => {
+                const btn = document.getElementById('gantt-critical-path-btn');
+                if (btn) {
+                    btn.click();
+                    const isOn = typeof ganttShowCriticalPath !== 'undefined' && ganttShowCriticalPath;
+                    return isOn ? '🔴 Critical path highlighted. These tasks have 0 slack - any delay extends the project.' : '⚪ Critical path hidden';
+                }
+                return '⚠️ Open Gantt view first.';
+            },
+            'gantt_toggle_readonly': () => {
+                const checkbox = document.getElementById('gantt-readonly');
+                if (checkbox) {
+                    checkbox.click();
+                    return checkbox.checked ? '🔒 Read-only mode enabled' : '✏️ Edit mode enabled';
+                }
+                return '⚠️ Open Gantt view first.';
+            },
+
+            // BUILD 485: Gantt Navigation Commands
+            'gantt_select': (taskName) => {
+                if (!taskName) return '⚠️ Specify a task name. Example: "select Design Phase"';
+                const wrapper = document.getElementById('gantt-chart-wrapper');
+                if (!wrapper) return '⚠️ Open Gantt view first.';
+
+                const bars = wrapper.querySelectorAll('.bar-wrapper');
+                let found = null;
+                const searchLower = taskName.toLowerCase();
+
+                bars.forEach(bar => {
+                    const id = bar.getAttribute('data-id');
+                    if (id && typeof getNodeById === 'function') {
+                        const node = getNodeById(id);
+                        const name = (node?.name || node?.title || '').toLowerCase();
+                        if (name.includes(searchLower)) found = { bar, node, id };
+                    }
+                });
+
+                if (found) {
+                    // Trigger click to open info panel
+                    if (typeof showGanttInfoPanel === 'function') {
+                        showGanttInfoPanel({ id: found.id, ...found.node });
+                    }
+                    // Scroll into view
+                    found.bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    return `📊 Selected "${found.node.name || found.node.title}"`;
+                }
+                return `❌ Task "${taskName}" not found in Gantt chart.`;
+            },
+            'gantt_next_critical': () => {
+                const btn = document.querySelector('#gantt-toolbar button[id*="next-critical"], #gantt-toolbar button:contains("→")');
+                // Try clicking the next critical button if it exists
+                const nextBtn = Array.from(document.querySelectorAll('#gantt-toolbar button')).find(b => b.textContent.includes('→'));
+                if (nextBtn) { nextBtn.click(); return '→ Next critical path task'; }
+                return '⚠️ Enable Critical Path first to navigate critical tasks.';
+            },
+            'gantt_focus_overdue': () => {
+                if (typeof getNodeById !== 'function') return '⚠️ Open Gantt view first.';
+                const wrapper = document.getElementById('gantt-chart-wrapper');
+                if (!wrapper) return '⚠️ Open Gantt view first.';
+
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+                let overdueTask = null;
+
+                wrapper.querySelectorAll('.bar-wrapper').forEach(bar => {
+                    if (overdueTask) return;
+                    const id = bar.getAttribute('data-id');
+                    const node = getNodeById(id);
+                    if (node && node.pmDueDate) {
+                        const due = new Date(node.pmDueDate);
+                        const status = node.pmStatus || '';
+                        if (due < today && status !== 'Done' && status !== 'Completed') {
+                            overdueTask = { bar, node, id };
+                        }
+                    }
+                });
+
+                if (overdueTask) {
+                    if (typeof showGanttInfoPanel === 'function') {
+                        showGanttInfoPanel({ id: overdueTask.id, ...overdueTask.node });
+                    }
+                    overdueTask.bar.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    const daysLate = Math.floor((today - new Date(overdueTask.node.pmDueDate)) / (1000 * 60 * 60 * 24));
+                    return `⚠️ "${overdueTask.node.name || overdueTask.node.title}" is ${daysLate} days overdue`;
+                }
+                return '✅ No overdue tasks found!';
+            },
+
             // Theme commands
             'set_theme_dark': () => {
                 document.getElementById('theme-select').value = 'default';
@@ -54482,7 +54618,9 @@ WHAT WE'VE CAPTURED (${allMemories.length} memories)
                 needsPatternInfo: /pattern|switch|change to|fields|what fields/.test(msg),
                 isBiographical: /born|grew up|school|married|job|lived|moved|family|sibling|parent|child|pet|friend/.test(msg),
                 isComplex: msg.length > 100 || /analyze|review|deep dive|compare/.test(msg),
-                needsHealthCheck: /health\s*check|check.*tree|diagnos|cleanup|fix.*structure|redundan.*phase|empty.*phase|consolidat/.test(msg)
+                needsHealthCheck: /health\s*check|check.*tree|diagnos|cleanup|fix.*structure|redundan.*phase|empty.*phase|consolidat/.test(msg),
+                // BUILD 485: Schedule/Gantt intent detection
+                needsScheduleHelp: /gantt|schedule|timeline|deadline|overdue|critical\s*path|dependency|dependencies|slack|float|milestone|start\s*date|end\s*date|due\s*date|blocked|delay/.test(msg)
             };
         }
 
@@ -54498,6 +54636,7 @@ Be warm, concise (2-3 sentences), occasionally witty.`;
 
         /**
          * BUILD 378: Command vocabulary - loaded when navigation/editing needed (~200 tokens)
+         * BUILD 485: Added Gantt commands
          */
         function getCommandVocabulary() {
             return `
@@ -54516,6 +54655,16 @@ GLOBAL (work anytime):
 • list_all_commands - Show all 90+ commands
 • tree_analysis - Analyze which items have most content/children
 • lifetree_health_check - (LifeTree) Health diagnostics
+
+GANTT/SCHEDULE (for tasks with dates):
+• view_gantt - Switch to Gantt chart view
+• gantt_view_mode:{day|week|month|year} - Change time scale
+• gantt_zoom_in / gantt_zoom_out / gantt_fit_all - Zoom controls
+• gantt_today - Scroll to today's date
+• gantt_toggle_critical_path - Highlight critical path (0 slack tasks)
+• gantt_select:{task name} - Find and select a task
+• gantt_focus_overdue - Jump to first overdue task
+• gantt_next_critical - Cycle through critical path tasks
 
 REQUIRES FOCUSED NODE (use find_node first!):
 • add_child:{name} - Add child to focused node
@@ -57992,7 +58141,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 484; // Update this with each build
+                    const KNOWN_LATEST = 485; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
