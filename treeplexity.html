@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 480 | 2025-12-18
+    TreeListy v2.19.0 | Build 481 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 480): Grey Critical Path button when no dependencies
-    Previous (Build 479): Critical Path CSS fix + navigation (→ Next button)
+    Changelog (Build 481): Smooth Gantt zoom (no jarring visual jumps)
+    Previous (Build 480): Grey Critical Path button when no dependencies
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 480,
+            build: 481,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57988,7 +57988,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 480; // Update this with each build
+                    const KNOWN_LATEST = 481; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -60119,6 +60119,7 @@ console.log('📊 Frappe Gantt loaded');
 
         // BUILD 473: Zoom controls (BUILD 474: Also update minimap + floating panel)
         // BUILD 477: Zoom-to-focal-point (keeps selected item or cursor position centered)
+        // BUILD 481: Smooth zoom transition (no jarring jumps)
         function applyGanttZoom(oldZoom, focalX, focalY) {
             const wrapper = document.getElementById('gantt-chart-wrapper');
             const levelEl = document.getElementById('gantt-zoom-level');
@@ -60126,22 +60127,32 @@ console.log('📊 Frappe Gantt loaded');
             if (wrapper) {
                 const svg = wrapper.querySelector('svg');
                 if (svg) {
+                    // Add smooth transition for zoom
+                    svg.style.transition = 'transform 0.15s ease-out';
+
                     // If focal point provided, adjust scroll to keep it centered
                     if (oldZoom !== undefined && focalX !== undefined && focalY !== undefined) {
                         // Calculate the point in SVG space (unscaled coordinates)
                         const svgX = (wrapper.scrollLeft + focalX) / (oldZoom / 100);
                         const svgY = (wrapper.scrollTop + focalY) / (oldZoom / 100);
 
-                        // Apply new zoom
-                        svg.style.transform = `scale(${ganttZoom / 100})`;
-                        svg.style.transformOrigin = 'top left';
-
-                        // Calculate new scroll position to keep focal point stationary
+                        // Calculate new scroll position BEFORE applying transform
                         const newScrollLeft = svgX * (ganttZoom / 100) - focalX;
                         const newScrollTop = svgY * (ganttZoom / 100) - focalY;
 
+                        // Temporarily disable smooth scroll for synchronous update
+                        wrapper.style.scrollBehavior = 'auto';
+
+                        // Apply scroll and transform together
                         wrapper.scrollLeft = Math.max(0, newScrollLeft);
                         wrapper.scrollTop = Math.max(0, newScrollTop);
+                        svg.style.transform = `scale(${ganttZoom / 100})`;
+                        svg.style.transformOrigin = 'top left';
+
+                        // Re-enable smooth scroll after a frame
+                        requestAnimationFrame(() => {
+                            wrapper.style.scrollBehavior = '';
+                        });
                     } else {
                         svg.style.transform = `scale(${ganttZoom / 100})`;
                         svg.style.transformOrigin = 'top left';
