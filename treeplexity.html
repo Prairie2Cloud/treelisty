@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 490 | 2025-12-18
+    TreeListy v2.19.0 | Build 491 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 490): Treebeard PM Assistant Phase 5 - Proactive Nudges
+    Changelog (Build 491): Mobile UX - Pinch zoom, fullscreen, swipe navigation
+    Previous (Build 490): Treebeard PM Assistant Phase 5 - Proactive Nudges
     Previous (Build 489): Tree View selected node highlighting
     Previous (Build 488): Treebeard PM Assistant Phase 4 - Context Injection
     Previous (Build 487): Treebeard PM Assistant Phase 3 - Edit commands
@@ -27,7 +28,6 @@
     Previous (Build 483): Gantt UX Polish - smooth zoom, Edit Task fix, muted colors
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
-    Previous (Build 469): Quick Capture Mode
     Previous (Build 468): Gantt View Layout Fixes + Global Dropdown Styling
     Previous (Build 467): Nano Banana Gemini 3 Flash + Historical Styles
     Previous (Build 466): Redesigned Dependency Edit Modal
@@ -729,7 +729,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 490,
+            build: 491,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1496,6 +1496,60 @@
             transform: rotate(-45deg) translate(5px, -5px);
         }
 
+        /* BUILD 491: Mobile Fullscreen Button */
+        .mobile-fullscreen-btn {
+            display: none;
+            width: 40px;
+            height: 40px;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            font-size: 20px;
+            color: var(--text);
+            margin-left: 8px;
+        }
+        .mobile-fullscreen-btn:hover {
+            color: var(--treeplex-primary);
+        }
+
+        /* BUILD 491: Fullscreen mode - hide header, maximize content */
+        body.mobile-fullscreen header {
+            display: none !important;
+        }
+        body.mobile-fullscreen #tree-container,
+        body.mobile-fullscreen #canvas-container,
+        body.mobile-fullscreen #gantt-container,
+        body.mobile-fullscreen #three-container {
+            height: 100vh !important;
+            max-height: 100vh !important;
+            top: 0 !important;
+            padding-top: 0 !important;
+        }
+        body.mobile-fullscreen .fullscreen-exit-btn {
+            display: block !important;
+        }
+
+        /* Floating exit fullscreen button */
+        .fullscreen-exit-btn {
+            display: none;
+            position: fixed;
+            top: 12px;
+            right: 12px;
+            z-index: 999999;
+            width: 44px;
+            height: 44px;
+            background: rgba(30, 33, 40, 0.9);
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 8px;
+            color: #fff;
+            font-size: 22px;
+            cursor: pointer;
+            backdrop-filter: blur(8px);
+        }
+        .fullscreen-exit-btn:hover {
+            background: rgba(99, 102, 241, 0.9);
+        }
+
         /* Mobile menu overlay - catches taps outside menu to close */
         /* z-index MUST be lower than .controls (100000) so menu is clickable */
         .mobile-menu-overlay {
@@ -1537,6 +1591,15 @@
                 background: #ffffff !important;
                 width: 20px !important;
                 height: 3px !important;
+            }
+
+            /* BUILD 491: Show fullscreen button on mobile */
+            .mobile-fullscreen-btn {
+                display: flex !important;
+                align-items: center;
+                justify-content: center;
+                background: rgba(99, 102, 241, 0.2) !important;
+                border-radius: 8px !important;
             }
 
             /* Show overlay when menu is open */
@@ -5870,6 +5933,8 @@
     <!-- BUILD 335: Mobile Menu Overlay (click to close) -->
     <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
 
+    <!-- BUILD 491: Exit Fullscreen Button (shown only in fullscreen mode) -->
+    <button id="fullscreen-exit-btn" class="fullscreen-exit-btn" aria-label="Exit fullscreen">✕</button>
 
     <!-- Header -->
     <div class="header">
@@ -5886,6 +5951,11 @@
             <div id="save-indicator" style="font-size: 12px; color: #9DA3B4; margin-left: 12px; white-space: nowrap;">
                 ● Unsaved changes
             </div>
+
+            <!-- BUILD 491: Mobile Fullscreen Toggle -->
+            <button id="mobile-fullscreen-btn" class="mobile-fullscreen-btn" aria-label="Toggle fullscreen" title="Toggle fullscreen">
+                <span class="fullscreen-icon">⛶</span>
+            </button>
 
             <!-- BUILD 335: Mobile Hamburger Menu Button -->
             <button id="mobile-menu-btn" class="mobile-hamburger" aria-label="Open menu" aria-expanded="false">
@@ -9820,6 +9890,127 @@ Do not ask permission—just provide the critique, then help.
                     setTimeout(closeMobileMenu, 150);
                 });
             });
+
+            // BUILD 491: Mobile Fullscreen Mode Toggle
+            const fullscreenBtn = document.getElementById('mobile-fullscreen-btn');
+            const fullscreenExitBtn = document.getElementById('fullscreen-exit-btn');
+
+            function toggleMobileFullscreen() {
+                const isFullscreen = document.body.classList.contains('mobile-fullscreen');
+                if (isFullscreen) {
+                    document.body.classList.remove('mobile-fullscreen');
+                    // Try to exit native fullscreen if it was used
+                    if (document.fullscreenElement) {
+                        document.exitFullscreen?.();
+                    }
+                } else {
+                    document.body.classList.add('mobile-fullscreen');
+                    closeMobileMenu(); // Close menu if open
+                    // Try native fullscreen for best experience
+                    document.documentElement.requestFullscreen?.().catch(() => {
+                        // Native fullscreen failed, soft fullscreen still works
+                    });
+                }
+            }
+
+            if (fullscreenBtn) {
+                fullscreenBtn.addEventListener('click', toggleMobileFullscreen);
+            }
+            if (fullscreenExitBtn) {
+                fullscreenExitBtn.addEventListener('click', toggleMobileFullscreen);
+            }
+
+            // Listen for native fullscreen exit (Escape key, etc.)
+            document.addEventListener('fullscreenchange', () => {
+                if (!document.fullscreenElement) {
+                    document.body.classList.remove('mobile-fullscreen');
+                }
+            });
+
+            // BUILD 491: Mobile Swipe Navigation between modals (Tree ↔ Info Panel ↔ Treebeard)
+            // Only active on mobile (touch devices with small screens)
+            if ('ontouchstart' in window && window.innerWidth <= 768) {
+                let swipeState = { startX: 0, startY: 0, isSwipe: false };
+                const SWIPE_THRESHOLD = 80;
+                const SWIPE_VERTICAL_LIMIT = 50; // Ignore vertical swipes
+
+                // Get current modal state: 0=tree, 1=info, 2=chat
+                function getMobileModalState() {
+                    const infoPanel = document.getElementById('info-panel');
+                    const chatPanel = document.getElementById('chat-assistant-panel') || document.getElementById('command-frame');
+                    const infoPanelOpen = infoPanel?.classList.contains('open');
+                    const chatPanelOpen = chatPanel?.classList.contains('open');
+
+                    if (chatPanelOpen) return 2; // Chat
+                    if (infoPanelOpen) return 1; // Info
+                    return 0; // Tree
+                }
+
+                function setMobileModalState(state) {
+                    const infoPanel = document.getElementById('info-panel');
+                    const chatBubble = document.getElementById('chat-assistant-bubble');
+
+                    if (state === 0) {
+                        // Show only tree - close panels
+                        infoPanel?.classList.remove('open');
+                        if (typeof chatState !== 'undefined' && chatState.isOpen) {
+                            if (typeof toggleChatPanel === 'function') toggleChatPanel();
+                        }
+                    } else if (state === 1) {
+                        // Show info panel
+                        if (typeof chatState !== 'undefined' && chatState.isOpen) {
+                            if (typeof toggleChatPanel === 'function') toggleChatPanel();
+                        }
+                        infoPanel?.classList.add('open');
+                    } else if (state === 2) {
+                        // Show chat panel
+                        infoPanel?.classList.remove('open');
+                        if (typeof chatState !== 'undefined' && !chatState.isOpen) {
+                            if (typeof toggleChatPanel === 'function') toggleChatPanel();
+                        }
+                    }
+                }
+
+                document.addEventListener('touchstart', (e) => {
+                    // Don't intercept if touching a scrollable panel or modal
+                    if (e.target.closest('.info-panel, #chat-assistant-panel, #command-frame, .modal, .dropdown-menu-content')) {
+                        swipeState.isSwipe = false;
+                        return;
+                    }
+                    swipeState.startX = e.touches[0].clientX;
+                    swipeState.startY = e.touches[0].clientY;
+                    swipeState.isSwipe = true;
+                }, { passive: true });
+
+                document.addEventListener('touchend', (e) => {
+                    if (!swipeState.isSwipe) return;
+                    swipeState.isSwipe = false;
+
+                    const endX = e.changedTouches[0].clientX;
+                    const endY = e.changedTouches[0].clientY;
+                    const deltaX = endX - swipeState.startX;
+                    const deltaY = endY - swipeState.startY;
+
+                    // Ignore if mostly vertical
+                    if (Math.abs(deltaY) > SWIPE_VERTICAL_LIMIT) return;
+
+                    const currentState = getMobileModalState();
+
+                    if (deltaX < -SWIPE_THRESHOLD) {
+                        // Swipe left → next modal (Tree→Info→Chat)
+                        if (currentState < 2) {
+                            setMobileModalState(currentState + 1);
+                        }
+                    } else if (deltaX > SWIPE_THRESHOLD) {
+                        // Swipe right → previous modal (Chat→Info→Tree)
+                        if (currentState > 0) {
+                            setMobileModalState(currentState - 1);
+                        }
+                    }
+                }, { passive: true });
+
+                console.log('👆 Mobile swipe navigation enabled (Tree ↔ Info ↔ Chat)');
+            }
 
         });
 
@@ -19165,6 +19356,51 @@ Be specific and insightful, not generic.`;
                 canvasZoom = Math.max(0.1, Math.min(5, canvasZoom * delta));
                 updateCanvasTransform();
             }, { passive: false });
+
+            // BUILD 491: Pinch-to-zoom for mobile Canvas View
+            let canvasTouchState = { initialDistance: 0, initialZoom: 1, isPinching: false, lastTouchX: 0, lastTouchY: 0 };
+
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    // Two-finger pinch start
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    canvasTouchState.initialDistance = Math.hypot(dx, dy);
+                    canvasTouchState.initialZoom = canvasZoom;
+                    canvasTouchState.isPinching = true;
+                } else if (e.touches.length === 1) {
+                    // Single finger - start pan
+                    canvasTouchState.lastTouchX = e.touches[0].clientX;
+                    canvasTouchState.lastTouchY = e.touches[0].clientY;
+                    canvasTouchState.isPinching = false;
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                if (canvasTouchState.isPinching && e.touches.length === 2) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const currentDistance = Math.hypot(dx, dy);
+                    const scale = currentDistance / canvasTouchState.initialDistance;
+                    canvasZoom = Math.max(0.1, Math.min(5, canvasTouchState.initialZoom * scale));
+                    updateCanvasTransform();
+                } else if (e.touches.length === 1 && !canvasTouchState.isPinching) {
+                    // Single finger pan
+                    const deltaX = e.touches[0].clientX - canvasTouchState.lastTouchX;
+                    const deltaY = e.touches[0].clientY - canvasTouchState.lastTouchY;
+                    canvasPan.x += deltaX / canvasZoom;
+                    canvasPan.y += deltaY / canvasZoom;
+                    canvasTouchState.lastTouchX = e.touches[0].clientX;
+                    canvasTouchState.lastTouchY = e.touches[0].clientY;
+                    updateCanvasTransform();
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchend', () => {
+                canvasTouchState.isPinching = false;
+            });
 
             // BUILD 330: Space key for Mac-friendly panning (hold Space + drag)
             document.addEventListener('keydown', (e) => {
@@ -59131,7 +59367,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 490; // Update this with each build
+                    const KNOWN_LATEST = 491; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -61700,6 +61936,56 @@ console.log('📊 Frappe Gantt loaded');
                 }
                 applyGanttZoom(oldZoom, focalX, focalY);
             }, { passive: false });
+
+            // BUILD 491: Pinch-to-zoom for mobile Gantt View
+            let ganttTouchState = { initialDistance: 0, initialZoom: 100, isPinching: false, lastTouchX: 0, lastTouchY: 0 };
+
+            ganttWrapper.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    ganttTouchState.initialDistance = Math.hypot(dx, dy);
+                    ganttTouchState.initialZoom = ganttZoom;
+                    ganttTouchState.isPinching = true;
+                } else if (e.touches.length === 1) {
+                    ganttTouchState.lastTouchX = e.touches[0].clientX;
+                    ganttTouchState.lastTouchY = e.touches[0].clientY;
+                    ganttTouchState.isPinching = false;
+                }
+            }, { passive: false });
+
+            ganttWrapper.addEventListener('touchmove', (e) => {
+                if (ganttTouchState.isPinching && e.touches.length === 2) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const currentDistance = Math.hypot(dx, dy);
+                    const scale = currentDistance / ganttTouchState.initialDistance;
+                    const oldZoom = ganttZoom;
+                    ganttZoom = Math.max(GANTT_ZOOM_MIN, Math.min(GANTT_ZOOM_MAX, ganttTouchState.initialZoom * scale));
+                    // Use center of pinch as focal point
+                    const rect = ganttWrapper.getBoundingClientRect();
+                    const focalX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
+                    const focalY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
+                    applyGanttZoom(oldZoom, focalX, focalY);
+                } else if (e.touches.length === 1 && !ganttTouchState.isPinching) {
+                    // Single finger scroll
+                    const deltaX = ganttTouchState.lastTouchX - e.touches[0].clientX;
+                    const deltaY = ganttTouchState.lastTouchY - e.touches[0].clientY;
+                    ganttWrapper.scrollLeft += deltaX;
+                    ganttWrapper.scrollTop += deltaY;
+                    ganttTouchState.lastTouchX = e.touches[0].clientX;
+                    ganttTouchState.lastTouchY = e.touches[0].clientY;
+                }
+            }, { passive: false });
+
+            ganttWrapper.addEventListener('touchend', () => {
+                ganttTouchState.isPinching = false;
+                if (window.updateGanttMinimap) {
+                    setTimeout(window.updateGanttMinimap, 50);
+                }
+            });
 
             // BUILD 475: Click-drag pan navigation
             let isPanning = false;
