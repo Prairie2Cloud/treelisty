@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 465 | 2025-12-18
+    TreeListy v2.19.0 | Build 466 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 465): Fix Gantt View Switching
+    Changelog (Build 466): Redesigned Dependency Edit Modal
+    Previous (Build 465): Fix Gantt View Switching
     Previous (Build 464): Milestone Dependency Preservation
     Previous (Build 463): MS Project Import Dependency Types
     Previous (Build 462): MS Project Export Dependency Fix
@@ -717,7 +718,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 465,
+            build: 466,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -16425,64 +16426,148 @@ Be specific and insightful, not generic.`;
                 return;
             }
 
+            // Get task names (check both name and title fields)
+            const predName = predecessorNode.name || predecessorNode.title || 'Unnamed Task';
+            const succName = successorNode.name || successorNode.title || 'Unnamed Task';
+
+            // Get dates if available
+            const predEnd = predecessorNode.pmDueDate || predecessorNode.pmEndDate || '';
+            const succStart = successorNode.pmStartDate || '';
+
+            // Dependency type descriptions
+            const typeDescriptions = {
+                'FS': 'Successor starts after predecessor finishes',
+                'FF': 'Both tasks must finish at the same time',
+                'SS': 'Both tasks must start at the same time',
+                'SF': 'Predecessor starts after successor finishes'
+            };
+
+            // Current type info
+            const currentTypeInfo = DEPENDENCY_TYPES[currentType] || DEPENDENCY_TYPES['FS'];
+
             const modal = document.getElementById('modal');
             const modalBody = document.querySelector('#modal .modal-body');
 
             modalBody.innerHTML = `
-                <div style="padding: 20px; max-width: 400px;">
-                    <h3 style="margin-bottom: 16px; color: var(--text-primary);">
-                        Edit Dependency
-                    </h3>
-                    <div style="font-size: 12px; color: var(--text-secondary); margin-bottom: 16px; padding: 12px; background: var(--bg-tertiary); border-radius: 8px;">
-                        <div style="margin-bottom: 8px;">
-                            <strong>From:</strong> ${predecessorNode.title || 'Untitled'}
+                <div style="padding: 24px; max-width: 480px;">
+                    <!-- Header -->
+                    <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 20px;">
+                        <div style="width: 40px; height: 40px; background: linear-gradient(135deg, #6366f1, #8b5cf6); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px;">
+                            🔗
                         </div>
                         <div>
-                            <strong>To:</strong> ${successorNode.title || 'Untitled'}
+                            <h3 style="margin: 0; color: var(--text-primary); font-size: 18px; font-weight: 600;">
+                                Edit Dependency
+                            </h3>
+                            <div style="font-size: 12px; color: var(--text-tertiary); margin-top: 2px;">
+                                Configure how these tasks relate
+                            </div>
                         </div>
                     </div>
 
+                    <!-- Visual Relationship Diagram -->
+                    <div style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.05)); border: 1px solid rgba(99, 102, 241, 0.2); border-radius: 12px; padding: 16px; margin-bottom: 20px;">
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <!-- Predecessor -->
+                            <div style="flex: 1; background: var(--bg-secondary); border-radius: 8px; padding: 12px; border-left: 3px solid #22c55e;">
+                                <div style="font-size: 10px; color: #22c55e; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">
+                                    Predecessor
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-primary); font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${predName}">
+                                    ${predName.length > 25 ? predName.substring(0, 25) + '...' : predName}
+                                </div>
+                                ${predEnd ? `<div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Ends: ${predEnd}</div>` : ''}
+                            </div>
+
+                            <!-- Arrow -->
+                            <div style="display: flex; flex-direction: column; align-items: center; gap: 2px;">
+                                <div style="font-size: 20px; color: #6366f1;">→</div>
+                                <div style="font-size: 10px; color: var(--text-tertiary); font-weight: 600;">${currentType}</div>
+                            </div>
+
+                            <!-- Successor -->
+                            <div style="flex: 1; background: var(--bg-secondary); border-radius: 8px; padding: 12px; border-left: 3px solid #3b82f6;">
+                                <div style="font-size: 10px; color: #3b82f6; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">
+                                    Successor
+                                </div>
+                                <div style="font-size: 13px; color: var(--text-primary); font-weight: 500; line-height: 1.3; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;" title="${succName}">
+                                    ${succName.length > 25 ? succName.substring(0, 25) + '...' : succName}
+                                </div>
+                                ${succStart ? `<div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">Starts: ${succStart}</div>` : ''}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Dependency Type -->
                     <div style="margin-bottom: 16px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: var(--text-primary);">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); font-size: 13px;">
                             Dependency Type
                         </label>
-                        <select id="edit-dep-type" style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px;">
+                        <select id="edit-dep-type" onchange="updateDepTypeDescription()" style="width: 100%; padding: 12px 14px; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; background: var(--bg-secondary); color: #ffffff; font-size: 14px; font-weight: 500; cursor: pointer; appearance: none; background-image: url('data:image/svg+xml;charset=UTF-8,%3Csvg xmlns=%22http://www.w3.org/2000/svg%22 width=%2212%22 height=%2212%22 viewBox=%220 0 12 12%22%3E%3Cpath fill=%22%23ffffff%22 d=%22M2 4l4 4 4-4%22/%3E%3C/svg%3E'); background-repeat: no-repeat; background-position: right 12px center;">
                             ${Object.entries(DEPENDENCY_TYPES).map(([code, info]) => `
-                                <option value="${code}" ${code === currentType ? 'selected' : ''}>
+                                <option value="${code}" ${code === currentType ? 'selected' : ''} style="background: #1e2128; color: #ffffff; padding: 8px;">
                                     ${info.icon} ${info.name} (${code})
                                 </option>
                             `).join('')}
                         </select>
-                    </div>
-
-                    <div style="margin-bottom: 20px;">
-                        <label style="display: block; margin-bottom: 6px; font-weight: 500; color: var(--text-primary);">
-                            Lag (days)
-                        </label>
-                        <input type="number" id="edit-dep-lag" value="${currentLag}"
-                            style="width: 100%; padding: 10px; border: 1px solid var(--border-color); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-size: 14px; box-sizing: border-box;"
-                            placeholder="0 = no delay, positive = wait, negative = overlap">
-                        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 4px;">
-                            Positive = wait days after predecessor; Negative = overlap
+                        <div id="dep-type-description" style="font-size: 12px; color: var(--text-secondary); margin-top: 8px; padding: 10px 12px; background: var(--bg-tertiary); border-radius: 6px; border-left: 2px solid #6366f1;">
+                            ${typeDescriptions[currentType] || typeDescriptions['FS']}
                         </div>
                     </div>
 
+                    <!-- Lag -->
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; margin-bottom: 8px; font-weight: 600; color: var(--text-primary); font-size: 13px;">
+                            Lag Time
+                        </label>
+                        <div style="display: flex; align-items: center; gap: 8px;">
+                            <input type="number" id="edit-dep-lag" value="${currentLag}"
+                                style="flex: 1; padding: 12px 14px; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; background: var(--bg-secondary); color: #ffffff; font-size: 14px; font-weight: 500; box-sizing: border-box;">
+                            <span style="color: var(--text-secondary); font-size: 14px; font-weight: 500;">days</span>
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-tertiary); margin-top: 6px; display: flex; gap: 16px;">
+                            <span>📅 <strong>0</strong> = immediate</span>
+                            <span>⏳ <strong>+N</strong> = wait N days</span>
+                            <span>⚡ <strong>-N</strong> = overlap N days</span>
+                        </div>
+                    </div>
+
+                    <!-- Actions -->
                     <div style="display: flex; gap: 10px;">
                         <button onclick="saveDependencyEdit('${successorId}', '${predecessorId}')"
-                            style="flex: 1; padding: 10px 16px; background: #22c55e; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
-                            Save
+                            style="flex: 1; padding: 12px 16px; background: linear-gradient(135deg, #22c55e, #16a34a); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: transform 0.1s, box-shadow 0.1s;"
+                            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(34, 197, 94, 0.3)'"
+                            onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            💾 Save
                         </button>
                         <button onclick="deleteDependency('${successorId}', '${predecessorId}')"
-                            style="flex: 1; padding: 10px 16px; background: #ef4444; color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500;">
-                            Delete
+                            style="flex: 1; padding: 12px 16px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600; font-size: 14px; transition: transform 0.1s, box-shadow 0.1s;"
+                            onmouseover="this.style.transform='translateY(-1px)'; this.style.boxShadow='0 4px 12px rgba(239, 68, 68, 0.3)'"
+                            onmouseout="this.style.transform=''; this.style.boxShadow=''">
+                            🗑️ Delete
                         </button>
                         <button onclick="document.getElementById('modal').style.display='none'"
-                            style="flex: 1; padding: 10px 16px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-weight: 500;">
+                            style="padding: 12px 20px; background: var(--bg-tertiary); color: var(--text-primary); border: 1px solid var(--border-color); border-radius: 8px; cursor: pointer; font-weight: 500; font-size: 14px;">
                             Cancel
                         </button>
                     </div>
                 </div>
             `;
+
+            // Add description update function
+            window.updateDepTypeDescription = function() {
+                const select = document.getElementById('edit-dep-type');
+                const descDiv = document.getElementById('dep-type-description');
+                const descriptions = {
+                    'FS': 'Successor starts after predecessor finishes',
+                    'FF': 'Both tasks must finish at the same time',
+                    'SS': 'Both tasks must start at the same time',
+                    'SF': 'Predecessor starts after successor finishes'
+                };
+                if (descDiv && select) {
+                    descDiv.textContent = descriptions[select.value] || descriptions['FS'];
+                }
+            };
 
             modal.style.display = 'flex';
         }
@@ -57449,7 +57534,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 465; // Update this with each build
+                    const KNOWN_LATEST = 466; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
