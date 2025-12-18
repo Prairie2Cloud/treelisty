@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 458 | 2025-12-17
+    TreeListy v2.19.0 | Build 459 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,12 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 458): Inline Frappe Gantt Library
-    - Embed Frappe Gantt v0.6.1 (~15KB minified) for single-file constraint
-    - MIT licensed open-source Gantt chart library
+    Changelog (Build 459): Gantt Data Conversion & Rendering
+    - treeHasScheduleData() checks for nodes with dates
+    - convertTreeToGanttTasks() maps tree to Frappe Gantt format
+    - renderGantt() initializes chart with converted tasks
+    - Shows empty state for trees without schedule data
+    Previous (Build 458): Inline Frappe Gantt Library
     Previous (Build 457): Gantt View Foundation
     Previous (Build 456): Hide Critical Path if no dependencies
     Previous (Build 455): Fix dependency edit modal
@@ -707,7 +710,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 458,
+            build: 459,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57295,7 +57298,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 458; // Update this with each build
+                    const KNOWN_LATEST = 459; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58368,6 +58371,173 @@ console.log('📊 Frappe Gantt loaded');
         console.log('🧊 3D View button initialized');
     }
 
+    // --- BUILD 459: Gantt Data Conversion ---
+
+    // Gantt state
+    let ganttInstance = null;
+    let ganttViewMode = 'Week';
+    let ganttShowCriticalPath = false;
+
+    /**
+     * Check if tree has any schedule data (nodes with dates)
+     */
+    function treeHasScheduleData() {
+        let hasData = false;
+        function check(node) {
+            if (!node) return;
+            if (node.pmStartDate || node.pmDueDate) {
+                hasData = true;
+                return;
+            }
+            if (node.children) node.children.forEach(check);
+            if (node.items) node.items.forEach(check);
+            if (node.subItems) node.subItems.forEach(check);
+        }
+        check(capexTree);
+        return hasData;
+    }
+
+    /**
+     * Convert TreeListy tree to Frappe Gantt task format
+     * Frappe expects: {id, name, start, end, progress, dependencies}
+     */
+    function convertTreeToGanttTasks() {
+        const tasks = [];
+        const today = new Date().toISOString().split('T')[0];
+
+        function processNode(node) {
+            if (!node) return;
+
+            // Only include nodes with dates
+            if (node.pmStartDate || node.pmDueDate) {
+                const start = node.pmStartDate || today;
+                let end = node.pmDueDate;
+
+                // Calculate end from duration if not set
+                if (!end && node.pmDuration) {
+                    const startDate = new Date(start);
+                    startDate.setDate(startDate.getDate() + node.pmDuration);
+                    end = startDate.toISOString().split('T')[0];
+                }
+                if (!end) {
+                    // Default to 1 day duration
+                    const startDate = new Date(start);
+                    startDate.setDate(startDate.getDate() + 1);
+                    end = startDate.toISOString().split('T')[0];
+                }
+
+                // Convert dependencies to comma-separated string
+                let depString = '';
+                if (node.dependencies && node.dependencies.length > 0) {
+                    depString = node.dependencies
+                        .map(d => typeof d === 'string' ? d : d.predecessorId)
+                        .filter(Boolean)
+                        .join(', ');
+                }
+
+                // Build custom class for critical path
+                let customClass = '';
+                if (node._isCritical && ganttShowCriticalPath) {
+                    customClass = 'critical';
+                }
+
+                tasks.push({
+                    id: node.id,
+                    name: node.name || node.title || 'Untitled',
+                    start: start,
+                    end: end,
+                    progress: node.pmProgress || 0,
+                    dependencies: depString,
+                    custom_class: customClass
+                });
+            }
+
+            // Recursively process children
+            if (node.children) node.children.forEach(processNode);
+            if (node.items) node.items.forEach(processNode);
+            if (node.subItems) node.subItems.forEach(processNode);
+        }
+
+        // Start from root
+        processNode(capexTree);
+
+        return tasks;
+    }
+
+    /**
+     * Render the Gantt chart
+     */
+    function renderGantt() {
+        const wrapper = document.getElementById('gantt-chart-wrapper');
+        const emptyState = document.getElementById('gantt-empty-state');
+        const chartSvg = document.getElementById('gantt-chart');
+
+        // Check for schedule data
+        if (!treeHasScheduleData()) {
+            emptyState.style.display = 'block';
+            wrapper.style.display = 'none';
+            console.log('📊 No schedule data found');
+            return;
+        }
+
+        // Convert tree to Gantt tasks
+        const tasks = convertTreeToGanttTasks();
+
+        if (tasks.length === 0) {
+            emptyState.style.display = 'block';
+            wrapper.style.display = 'none';
+            console.log('📊 No tasks with dates found');
+            return;
+        }
+
+        // Show chart, hide empty state
+        emptyState.style.display = 'none';
+        wrapper.style.display = 'block';
+
+        // Clear existing chart
+        chartSvg.innerHTML = '';
+
+        // Create Gantt chart
+        try {
+            ganttInstance = new Gantt('#gantt-chart', tasks, {
+                view_mode: ganttViewMode,
+                date_format: 'YYYY-MM-DD',
+                bar_height: 24,
+                bar_corner_radius: 4,
+                padding: 18,
+                popup_trigger: 'click',
+                language: 'en',
+
+                // Event handlers (bidirectional sync in Build 461)
+                on_click: function(task) {
+                    console.log('📊 Gantt task clicked:', task.name);
+                },
+
+                on_date_change: function(task, start, end) {
+                    console.log('📊 Gantt date changed:', task.name, start, end);
+                    // Will add bidirectional sync in Build 461
+                },
+
+                on_progress_change: function(task, progress) {
+                    console.log('📊 Gantt progress changed:', task.name, progress);
+                    // Will add bidirectional sync in Build 461
+                }
+            });
+
+            console.log('📊 Gantt chart rendered with', tasks.length, 'tasks');
+            showToast(`📊 Gantt chart: ${tasks.length} tasks`, 'success');
+
+        } catch (error) {
+            console.error('📊 Gantt render error:', error);
+            showToast('Failed to render Gantt chart', 'error');
+            emptyState.style.display = 'block';
+            wrapper.style.display = 'none';
+        }
+    }
+
+    // Expose renderGantt globally
+    window.renderGantt = renderGantt;
+
     // --- BUILD 457: Gantt View Toggle ---
     function toggleGanttView() {
         const viewGantt = document.getElementById('view-gantt');
@@ -58396,9 +58566,8 @@ console.log('📊 Frappe Gantt loaded');
             view3D.classList.remove('active');
             viewMode = 'gantt';
 
-            // For now, show empty state (library integration in Build 458+)
-            emptyState.style.display = 'block';
-            document.getElementById('gantt-chart-wrapper').style.display = 'none';
+            // BUILD 459: Render Gantt chart
+            renderGantt();
 
             if (window.updateViewDropdown) window.updateViewDropdown('gantt');
             console.log('📊 Gantt view opened');
