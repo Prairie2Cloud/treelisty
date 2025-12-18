@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 479 | 2025-12-18
+    TreeListy v2.19.0 | Build 480 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 479): Critical Path CSS fix + navigation (→ Next button)
-    Previous (Build 478): Fix Gantt Critical Path toggle (was broken)
+    Changelog (Build 480): Grey Critical Path button when no dependencies
+    Previous (Build 479): Critical Path CSS fix + navigation (→ Next button)
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 479,
+            build: 480,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57988,7 +57988,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 479; // Update this with each build
+                    const KNOWN_LATEST = 480; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -59100,7 +59100,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     <button id="gantt-fit-btn" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
         ⊡ Fit All
     </button>
-    <button id="gantt-critical-btn" class="btn" style="padding: 8px 14px; background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
+    <button id="gantt-critical-btn" class="btn" style="padding: 8px 14px; background: rgba(128, 128, 128, 0.1); border: 1px solid rgba(128, 128, 128, 0.3); border-radius: 8px; color: var(--text-secondary); font-size: 13px; cursor: not-allowed; opacity: 0.5;" disabled title="No dependencies in this tree">
         ⚡ Critical Path
     </button>
     <button id="gantt-next-critical-btn" class="btn" style="display: none; padding: 8px 14px; background: rgba(255, 0, 0, 0.2); border: 1px solid rgba(255, 0, 0, 0.4); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;" title="Navigate to next critical task">
@@ -59272,6 +59272,37 @@ console.log('📊 Frappe Gantt loaded');
     const GANTT_ZOOM_MIN = 25;
     const GANTT_ZOOM_MAX = 200;
     const GANTT_ZOOM_STEP = 10;
+
+    /**
+     * BUILD 479: Update Critical Path button state based on whether tree has dependencies
+     */
+    function updateGanttCriticalPathButton() {
+        const btn = document.getElementById('gantt-critical-btn');
+        if (!btn) return;
+
+        // Check if tree has dependencies (reuse existing function)
+        const hasDeps = typeof treeHasDependencies === 'function' && treeHasDependencies();
+
+        if (hasDeps) {
+            // Enable button with red styling
+            btn.disabled = false;
+            btn.style.background = 'rgba(255, 0, 0, 0.1)';
+            btn.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+            btn.style.color = 'var(--text-primary)';
+            btn.style.cursor = 'pointer';
+            btn.style.opacity = '1';
+            btn.title = 'Highlight critical path dependencies';
+        } else {
+            // Disable button with grey styling
+            btn.disabled = true;
+            btn.style.background = 'rgba(128, 128, 128, 0.1)';
+            btn.style.borderColor = 'rgba(128, 128, 128, 0.3)';
+            btn.style.color = 'var(--text-secondary)';
+            btn.style.cursor = 'not-allowed';
+            btn.style.opacity = '0.5';
+            btn.title = 'No dependencies in this tree';
+        }
+    }
 
     /**
      * Check if tree has any schedule data (nodes with dates)
@@ -59480,6 +59511,9 @@ console.log('📊 Frappe Gantt loaded');
 
             // BUILD 475: Initialize custom tooltips after chart renders
             initGanttTooltips();
+
+            // BUILD 479: Update Critical Path button state based on dependencies
+            updateGanttCriticalPathButton();
 
         } catch (error) {
             console.error('📊 Gantt render error:', error);
