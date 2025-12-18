@@ -58967,7 +58967,56 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     .gantt .bar-wrapper:hover .bar-label {
         font-weight: 700;
     }
+    /* BUILD 475: Custom Gantt tooltip */
+    #gantt-tooltip {
+        position: fixed;
+        z-index: 10000;
+        background: rgba(20, 20, 35, 0.98);
+        border: 2px solid rgba(99, 102, 241, 0.4);
+        border-radius: 10px;
+        padding: 14px 16px;
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+        pointer-events: none;
+        opacity: 0;
+        transition: opacity 0.15s ease;
+        max-width: 280px;
+        backdrop-filter: blur(8px);
+    }
+    #gantt-tooltip.visible {
+        opacity: 1;
+    }
+    #gantt-tooltip .tooltip-title {
+        font-size: 15px;
+        font-weight: 700;
+        color: #ffffff;
+        margin-bottom: 10px;
+        padding-bottom: 8px;
+        border-bottom: 1px solid rgba(99, 102, 241, 0.3);
+    }
+    #gantt-tooltip .tooltip-row {
+        display: flex;
+        gap: 8px;
+        font-size: 13px;
+        color: #d1d5db;
+        margin-bottom: 6px;
+    }
+    #gantt-tooltip .tooltip-row:last-child {
+        margin-bottom: 0;
+    }
+    #gantt-tooltip .tooltip-hint {
+        margin-top: 10px;
+        font-size: 11px;
+        color: #6B7280;
+        font-style: italic;
+    }
 </style>
+
+<!-- BUILD 475: Custom Gantt Tooltip -->
+<div id="gantt-tooltip">
+    <div class="tooltip-title"></div>
+    <div class="tooltip-content"></div>
+    <div class="tooltip-hint">Click for full details</div>
+</div>
 
 <div id="view-gantt">
     <!-- Empty State (shown when no schedule data) -->
@@ -59336,29 +59385,8 @@ console.log('📊 Frappe Gantt loaded');
                 bar_height: 28,  // BUILD 475: Taller bars for better readability
                 bar_corner_radius: 6,
                 padding: 20,
-                popup_trigger: 'mouseover',  // BUILD 475: Show tooltip on hover
+                popup_trigger: null,  // BUILD 475: Disable Frappe popup, use custom tooltip
                 language: 'en',
-
-                // BUILD 475: Custom popup with more details
-                custom_popup_html: function(task) {
-                    const node = getNodeById(task.id);
-                    const progress = node?.pmProgress || task.progress || 0;
-                    const status = node?.pmStatus || 'Not Started';
-                    const duration = node?.pmDuration || '—';
-                    const startStr = task.start ? new Date(task.start).toLocaleDateString() : '—';
-                    const endStr = task.end ? new Date(task.end).toLocaleDateString() : '—';
-
-                    return `
-                        <div class="title" style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">${task.name}</div>
-                        <div class="subtitle" style="display: grid; gap: 4px;">
-                            <div>📅 ${startStr} → ${endStr}</div>
-                            <div>⏱️ Duration: ${duration} days</div>
-                            <div>📊 Progress: ${progress}%</div>
-                            <div>🔖 Status: ${status}</div>
-                        </div>
-                        <div style="margin-top: 8px; font-size: 11px; color: #6B7280;">Click for full details</div>
-                    `;
-                },
 
                 // Event handlers (bidirectional sync in Build 461)
                 on_click: function(task) {
@@ -59431,6 +59459,9 @@ console.log('📊 Frappe Gantt loaded');
                 setTimeout(window.updateGanttMinimap, 100);
             }
 
+            // BUILD 475: Initialize custom tooltips after chart renders
+            initGanttTooltips();
+
         } catch (error) {
             console.error('📊 Gantt render error:', error);
             showToast('Failed to render Gantt chart', 'error');
@@ -59441,6 +59472,86 @@ console.log('📊 Frappe Gantt loaded');
 
     // Expose renderGantt globally
     window.renderGantt = renderGantt;
+
+    // BUILD 475: Custom tooltip initialization
+    function initGanttTooltips() {
+        const tooltip = document.getElementById('gantt-tooltip');
+        const wrapper = document.getElementById('gantt-chart-wrapper');
+        if (!tooltip || !wrapper) return;
+
+        const svg = wrapper.querySelector('svg');
+        if (!svg) return;
+
+        // Event delegation for all bars
+        svg.addEventListener('mouseover', (e) => {
+            const barWrapper = e.target.closest('.bar-wrapper');
+            if (!barWrapper) return;
+
+            const taskId = barWrapper.getAttribute('data-id');
+            if (!taskId) return;
+
+            const node = getNodeById(taskId);
+            if (!node) return;
+
+            // Build tooltip content
+            const titleEl = tooltip.querySelector('.tooltip-title');
+            const contentEl = tooltip.querySelector('.tooltip-content');
+
+            titleEl.textContent = node.name || node.title || 'Task';
+
+            const startStr = node.pmStartDate ? new Date(node.pmStartDate).toLocaleDateString() : '—';
+            const endStr = node.pmDueDate ? new Date(node.pmDueDate).toLocaleDateString() : '—';
+            const progress = node.pmProgress || 0;
+            const status = node.pmStatus || 'Not Started';
+            const duration = node.pmDuration || '—';
+
+            contentEl.innerHTML = `
+                <div class="tooltip-row">📅 ${startStr} → ${endStr}</div>
+                <div class="tooltip-row">⏱️ Duration: ${duration} days</div>
+                <div class="tooltip-row">📊 Progress: ${progress}%</div>
+                <div class="tooltip-row">🔖 Status: ${status}</div>
+            `;
+
+            tooltip.classList.add('visible');
+        });
+
+        svg.addEventListener('mousemove', (e) => {
+            if (!tooltip.classList.contains('visible')) return;
+
+            // Position tooltip near cursor
+            const offsetX = 15;
+            const offsetY = 15;
+            let x = e.clientX + offsetX;
+            let y = e.clientY + offsetY;
+
+            // Keep tooltip within viewport
+            const rect = tooltip.getBoundingClientRect();
+            if (x + rect.width > window.innerWidth - 10) {
+                x = e.clientX - rect.width - offsetX;
+            }
+            if (y + rect.height > window.innerHeight - 10) {
+                y = e.clientY - rect.height - offsetY;
+            }
+
+            tooltip.style.left = x + 'px';
+            tooltip.style.top = y + 'px';
+        });
+
+        svg.addEventListener('mouseout', (e) => {
+            const barWrapper = e.target.closest('.bar-wrapper');
+            const relatedTarget = e.relatedTarget;
+
+            // Only hide if we're leaving the bar-wrapper entirely
+            if (barWrapper && (!relatedTarget || !barWrapper.contains(relatedTarget))) {
+                tooltip.classList.remove('visible');
+            }
+        });
+
+        // Also hide on leaving the SVG
+        svg.addEventListener('mouseleave', () => {
+            tooltip.classList.remove('visible');
+        });
+    }
 
     // BUILD 475: Track selected Gantt bar for highlighting
     let selectedGanttTaskId = null;
