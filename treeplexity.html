@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 478 | 2025-12-18
+    TreeListy v2.19.0 | Build 479 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 478): Fix Gantt Critical Path toggle (was broken)
-    Previous (Build 477): Gantt Zoom-to-Focal-Point (selected item stays centered)
+    Changelog (Build 479): Critical Path CSS fix + navigation (→ Next button)
+    Previous (Build 478): Fix Gantt Critical Path toggle (was broken)
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 478,
+            build: 479,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57988,7 +57988,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 478; // Update this with each build
+                    const KNOWN_LATEST = 479; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58939,11 +58939,16 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     .gantt .bar-progress {
         fill: #4f46e5;
     }
-    .gantt .bar.critical {
-        fill: #ef4444;
+    /* BUILD 478: Frappe Gantt applies custom_class to .bar-wrapper, not .bar */
+    .gantt .bar-wrapper.critical .bar {
+        fill: #ff0000 !important;
     }
-    .gantt .bar.critical .bar-progress {
-        fill: #dc2626;
+    .gantt .bar-wrapper.critical .bar-progress {
+        fill: #cc0000 !important;
+    }
+    .gantt .bar-wrapper.critical .bar-label {
+        fill: #ffffff !important;
+        font-weight: bold;
     }
     .gantt .arrow {
         stroke: var(--treeplex-primary);
@@ -59097,6 +59102,9 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     </button>
     <button id="gantt-critical-btn" class="btn" style="padding: 8px 14px; background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
         ⚡ Critical Path
+    </button>
+    <button id="gantt-next-critical-btn" class="btn" style="display: none; padding: 8px 14px; background: rgba(255, 0, 0, 0.2); border: 1px solid rgba(255, 0, 0, 0.4); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;" title="Navigate to next critical task">
+        → Next
     </button>
     <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
     <label style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; cursor: pointer;">
@@ -59968,6 +59976,10 @@ console.log('📊 Frappe Gantt loaded');
 
         // Critical Path toggle (BUILD 478: Fixed to use correct function and variable)
         const criticalBtn = document.getElementById('gantt-critical-btn');
+        const nextCriticalBtn = document.getElementById('gantt-next-critical-btn');
+        let ganttCriticalNodes = []; // Store critical node IDs for navigation
+        let ganttCriticalIndex = -1; // Current position in critical path navigation
+
         if (criticalBtn) {
             criticalBtn.addEventListener('click', () => {
                 ganttShowCriticalPath = !ganttShowCriticalPath;
@@ -59981,10 +59993,19 @@ console.log('📊 Frappe Gantt loaded');
                             ganttShowCriticalPath = false;
                             return;
                         }
+                        // Store critical node IDs for navigation
+                        ganttCriticalNodes = criticalNodes.map(n => n.id);
+                        ganttCriticalIndex = -1;
+
                         renderGantt(); // Re-render with critical path classes
                         criticalBtn.style.background = 'rgba(255, 0, 0, 0.3)';
                         criticalBtn.style.borderColor = '#ff0000';
-                        showToast(`⚡ Critical path: ${criticalNodes.length} tasks highlighted`, 'success');
+                        // Show navigation button
+                        if (nextCriticalBtn) {
+                            nextCriticalBtn.style.display = 'inline-flex';
+                            nextCriticalBtn.textContent = `→ 1/${criticalNodes.length}`;
+                        }
+                        showToast(`⚡ Critical path: ${criticalNodes.length} tasks (use → Next to browse)`, 'success');
                     } else {
                         showToast('Critical path engine not available', 'error');
                         ganttShowCriticalPath = false;
@@ -59994,11 +60015,58 @@ console.log('📊 Frappe Gantt loaded');
                     if (typeof dependencyEngine !== 'undefined' && dependencyEngine.clearCriticalPath) {
                         dependencyEngine.clearCriticalPath(capexTree);
                     }
+                    ganttCriticalNodes = [];
+                    ganttCriticalIndex = -1;
                     criticalBtn.style.background = 'rgba(255, 0, 0, 0.1)';
                     criticalBtn.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+                    // Hide navigation button
+                    if (nextCriticalBtn) nextCriticalBtn.style.display = 'none';
                     renderGantt(); // Re-render without critical highlighting
                     showToast('⚡ Critical path hidden', 'info');
                 }
+            });
+        }
+
+        // Navigate to next critical task
+        if (nextCriticalBtn) {
+            nextCriticalBtn.addEventListener('click', () => {
+                if (ganttCriticalNodes.length === 0) return;
+
+                ganttCriticalIndex = (ganttCriticalIndex + 1) % ganttCriticalNodes.length;
+                const nodeId = ganttCriticalNodes[ganttCriticalIndex];
+
+                // Find the bar in the Gantt chart and scroll to it
+                const wrapper = document.getElementById('gantt-chart-wrapper');
+                const bar = wrapper?.querySelector(`.bar-wrapper[data-id="${nodeId}"] .bar`);
+
+                if (bar) {
+                    const barX = parseFloat(bar.getAttribute('x')) || 0;
+                    const barY = parseFloat(bar.getAttribute('y')) || 0;
+                    const barW = parseFloat(bar.getAttribute('width')) || 0;
+
+                    // Scroll to center the bar
+                    const centerX = (barX + barW / 2) * (ganttZoom / 100) - wrapper.clientWidth / 2;
+                    const centerY = barY * (ganttZoom / 100) - wrapper.clientHeight / 2;
+
+                    wrapper.scrollTo({
+                        left: Math.max(0, centerX),
+                        top: Math.max(0, centerY),
+                        behavior: 'smooth'
+                    });
+
+                    // Select the task (triggers info panel)
+                    selectedGanttTaskId = nodeId;
+                    document.querySelectorAll('.gantt .bar-wrapper.selected').forEach(el => el.classList.remove('selected'));
+                    const barWrapper = wrapper.querySelector(`.bar-wrapper[data-id="${nodeId}"]`);
+                    if (barWrapper) barWrapper.classList.add('selected');
+
+                    // Show info panel
+                    const node = getNodeById(nodeId);
+                    if (node) showGanttInfoPanel(node);
+                }
+
+                // Update button text
+                nextCriticalBtn.textContent = `→ ${ganttCriticalIndex + 1}/${ganttCriticalNodes.length}`;
             });
         }
 
