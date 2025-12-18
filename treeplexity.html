@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 474 | 2025-12-18
+    TreeListy v2.19.0 | Build 475 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 474): Gantt Minimap + Direct Wheel Zoom + Floating Controls
+    Changelog (Build 475): Gantt UX Improvements - Pan, Selection, Tooltips
+    Previous (Build 474): Gantt Minimap + Direct Wheel Zoom + Floating Controls
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
-    Previous (Build 472): Gantt Info Panel + Fit All
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
     Previous (Build 469): Quick Capture Mode
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 474,
+            build: 475,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57980,7 +57980,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 474; // Update this with each build
+                    const KNOWN_LATEST = 475; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58879,10 +58879,27 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     }
     .gantt .bar {
         fill: var(--treeplex-primary);
+        transition: filter 0.2s, stroke 0.2s;
+    }
+    /* BUILD 475: Selected bar highlight */
+    .gantt .bar-wrapper.selected .bar {
+        stroke: #FFD700;
+        stroke-width: 3px;
+        filter: brightness(1.2) drop-shadow(0 0 8px rgba(255, 215, 0, 0.6));
+    }
+    /* BUILD 475: Alternating bar shades for better distinction */
+    .gantt .bar-wrapper:nth-child(odd) .bar {
+        fill: rgba(99, 102, 241, 0.9);
+    }
+    .gantt .bar-wrapper:nth-child(even) .bar {
+        fill: rgba(139, 92, 246, 0.85);
     }
     .gantt .bar-label {
         fill: white;
         font-family: 'Inter', sans-serif;
+        font-weight: 600;
+        font-size: 13px;
+        text-shadow: 0 1px 2px rgba(0,0,0,0.5);
     }
     /* BUILD 470: Fix Gantt date labels - white text on dark background */
     .gantt .lower-text {
@@ -58928,12 +58945,27 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         background: var(--card-bg) !important;
         border: 1px solid var(--border) !important;
         border-radius: 8px !important;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4) !important;
+        padding: 12px !important;
+        z-index: 1000 !important;
     }
     .gantt-container .popup-wrapper .title {
         color: #ffffff !important;
+        font-size: 14px !important;
+        font-weight: 600 !important;
+        margin-bottom: 4px !important;
     }
     .gantt-container .popup-wrapper .subtitle {
         color: #a0a0a0 !important;
+        font-size: 12px !important;
+    }
+    /* BUILD 475: Hover effect on bars */
+    .gantt .bar-wrapper:hover .bar {
+        filter: brightness(1.15);
+        cursor: pointer;
+    }
+    .gantt .bar-wrapper:hover .bar-label {
+        font-weight: 700;
     }
 </style>
 
@@ -59301,11 +59333,32 @@ console.log('📊 Frappe Gantt loaded');
             ganttInstance = new Gantt('#gantt-chart', tasks, {
                 view_mode: ganttViewMode,
                 date_format: 'YYYY-MM-DD',
-                bar_height: 24,
-                bar_corner_radius: 4,
-                padding: 18,
-                popup_trigger: 'click',
+                bar_height: 28,  // BUILD 475: Taller bars for better readability
+                bar_corner_radius: 6,
+                padding: 20,
+                popup_trigger: 'mouseover',  // BUILD 475: Show tooltip on hover
                 language: 'en',
+
+                // BUILD 475: Custom popup with more details
+                custom_popup_html: function(task) {
+                    const node = getNodeById(task.id);
+                    const progress = node?.pmProgress || task.progress || 0;
+                    const status = node?.pmStatus || 'Not Started';
+                    const duration = node?.pmDuration || '—';
+                    const startStr = task.start ? new Date(task.start).toLocaleDateString() : '—';
+                    const endStr = task.end ? new Date(task.end).toLocaleDateString() : '—';
+
+                    return `
+                        <div class="title" style="font-size: 15px; font-weight: 700; margin-bottom: 8px;">${task.name}</div>
+                        <div class="subtitle" style="display: grid; gap: 4px;">
+                            <div>📅 ${startStr} → ${endStr}</div>
+                            <div>⏱️ Duration: ${duration} days</div>
+                            <div>📊 Progress: ${progress}%</div>
+                            <div>🔖 Status: ${status}</div>
+                        </div>
+                        <div style="margin-top: 8px; font-size: 11px; color: #6B7280;">Click for full details</div>
+                    `;
+                },
 
                 // Event handlers (bidirectional sync in Build 461)
                 on_click: function(task) {
@@ -59389,8 +59442,12 @@ console.log('📊 Frappe Gantt loaded');
     // Expose renderGantt globally
     window.renderGantt = renderGantt;
 
+    // BUILD 475: Track selected Gantt bar for highlighting
+    let selectedGanttTaskId = null;
+
     /**
      * BUILD 472: Show info panel with scheduling data when Gantt task clicked
+     * BUILD 475: Added selection highlight, X close button, click-away close
      */
     function showGanttInfoPanel(task) {
         const node = getNodeById(task.id);
@@ -59405,8 +59462,29 @@ console.log('📊 Frappe Gantt loaded');
 
         if (!panel || !titleEl || !bodyEl) return;
 
-        // Title
-        titleEl.innerHTML = `📊 ${node.name || node.title || 'Task'}`;
+        // BUILD 475: Clear previous selection and highlight new one
+        document.querySelectorAll('.gantt .bar-wrapper.selected').forEach(el => el.classList.remove('selected'));
+        const barWrapper = document.querySelector(`.gantt .bar-wrapper[data-id="${task.id}"]`);
+        if (barWrapper) {
+            barWrapper.classList.add('selected');
+        }
+        selectedGanttTaskId = task.id;
+
+        // Title with X close button
+        titleEl.innerHTML = `
+            <span style="flex: 1;">📊 ${node.name || node.title || 'Task'}</span>
+            <button id="gantt-info-close-btn" style="background: none; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 4px 8px; margin: -4px -8px -4px 0; border-radius: 4px; transition: all 0.2s;" onmouseover="this.style.color='#EF4444'; this.style.background='rgba(239,68,68,0.1)'" onmouseout="this.style.color='var(--text-secondary)'; this.style.background='none'">&times;</button>
+        `;
+        titleEl.style.display = 'flex';
+        titleEl.style.alignItems = 'center';
+
+        // Add X button click handler
+        setTimeout(() => {
+            const closeBtn = document.getElementById('gantt-info-close-btn');
+            if (closeBtn) {
+                closeBtn.onclick = () => closeGanttInfoPanel();
+            }
+        }, 0);
 
         // Calculate schedule info
         const startDate = node.pmStartDate ? new Date(node.pmStartDate) : null;
@@ -59536,6 +59614,37 @@ console.log('📊 Frappe Gantt loaded');
         // Open panel
         panel.classList.add('open');
     }
+
+    // BUILD 475: Close Gantt info panel and clear selection
+    function closeGanttInfoPanel() {
+        const panel = document.getElementById('info-panel');
+        if (panel) {
+            panel.classList.remove('open');
+        }
+        // Clear bar selection highlight
+        document.querySelectorAll('.gantt .bar-wrapper.selected').forEach(el => el.classList.remove('selected'));
+        selectedGanttTaskId = null;
+    }
+
+    // BUILD 475: Click-away to close info panel (only in Gantt view)
+    document.addEventListener('click', (e) => {
+        if (viewMode !== 'gantt') return;
+
+        const panel = document.getElementById('info-panel');
+        if (!panel || !panel.classList.contains('open')) return;
+
+        // Check if click is inside info panel
+        if (panel.contains(e.target)) return;
+
+        // Check if click is on a Gantt bar (opening new panel)
+        if (e.target.closest('.bar-wrapper, .bar, .bar-label, .bar-progress')) return;
+
+        // Check if click is on floating controls or minimap
+        if (e.target.closest('#gantt-floating-zoom, #gantt-minimap, #gantt-toolbar')) return;
+
+        // Otherwise close the panel
+        closeGanttInfoPanel();
+    });
 
     // Helper: Edit node from Gantt
     window.editNodeFromGantt = function(nodeId) {
@@ -59824,6 +59933,48 @@ console.log('📊 Frappe Gantt loaded');
                 }
                 applyGanttZoom();
             }, { passive: false });
+
+            // BUILD 475: Click-drag pan navigation
+            let isPanning = false;
+            let panStartX = 0;
+            let panStartY = 0;
+            let scrollStartX = 0;
+            let scrollStartY = 0;
+
+            ganttWrapper.addEventListener('mousedown', (e) => {
+                // Only pan on middle-click or if clicking empty space (not on bars)
+                if (e.button === 1 || (e.button === 0 && !e.target.closest('.bar-wrapper, .bar, .bar-label, .bar-progress'))) {
+                    isPanning = true;
+                    panStartX = e.clientX;
+                    panStartY = e.clientY;
+                    scrollStartX = ganttWrapper.scrollLeft;
+                    scrollStartY = ganttWrapper.scrollTop;
+                    ganttWrapper.style.cursor = 'grabbing';
+                    e.preventDefault();
+                }
+            });
+
+            document.addEventListener('mousemove', (e) => {
+                if (!isPanning) return;
+                const dx = e.clientX - panStartX;
+                const dy = e.clientY - panStartY;
+                ganttWrapper.scrollLeft = scrollStartX - dx;
+                ganttWrapper.scrollTop = scrollStartY - dy;
+            });
+
+            document.addEventListener('mouseup', () => {
+                if (isPanning) {
+                    isPanning = false;
+                    ganttWrapper.style.cursor = 'grab';
+                    // Update minimap viewport
+                    if (window.updateGanttMinimap) {
+                        setTimeout(window.updateGanttMinimap, 50);
+                    }
+                }
+            });
+
+            // Set default cursor
+            ganttWrapper.style.cursor = 'grab';
         }
 
         // Expose applyGanttZoom globally for Fit All
