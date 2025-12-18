@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 476 | 2025-12-18
+    TreeListy v2.19.0 | Build 477 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 476): Gantt Minimap Improvements - Drag-to-Pan, Layout Fix
-    Previous (Build 474): Gantt Minimap + Direct Wheel Zoom + Floating Controls
+    Changelog (Build 477): Gantt Zoom-to-Focal-Point (selected item stays centered)
+    Previous (Build 476): Gantt Minimap Improvements - Drag-to-Pan, Layout Fix
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 476,
+            build: 477,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57988,7 +57988,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 476; // Update this with each build
+                    const KNOWN_LATEST = 477; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -60006,15 +60006,34 @@ console.log('📊 Frappe Gantt loaded');
         }
 
         // BUILD 473: Zoom controls (BUILD 474: Also update minimap + floating panel)
-        function applyGanttZoom() {
+        // BUILD 477: Zoom-to-focal-point (keeps selected item or cursor position centered)
+        function applyGanttZoom(oldZoom, focalX, focalY) {
             const wrapper = document.getElementById('gantt-chart-wrapper');
             const levelEl = document.getElementById('gantt-zoom-level');
             const floatingLevelEl = document.getElementById('gantt-floating-zoom-level');
             if (wrapper) {
                 const svg = wrapper.querySelector('svg');
                 if (svg) {
-                    svg.style.transform = `scale(${ganttZoom / 100})`;
-                    svg.style.transformOrigin = 'top left';
+                    // If focal point provided, adjust scroll to keep it centered
+                    if (oldZoom !== undefined && focalX !== undefined && focalY !== undefined) {
+                        // Calculate the point in SVG space (unscaled coordinates)
+                        const svgX = (wrapper.scrollLeft + focalX) / (oldZoom / 100);
+                        const svgY = (wrapper.scrollTop + focalY) / (oldZoom / 100);
+
+                        // Apply new zoom
+                        svg.style.transform = `scale(${ganttZoom / 100})`;
+                        svg.style.transformOrigin = 'top left';
+
+                        // Calculate new scroll position to keep focal point stationary
+                        const newScrollLeft = svgX * (ganttZoom / 100) - focalX;
+                        const newScrollTop = svgY * (ganttZoom / 100) - focalY;
+
+                        wrapper.scrollLeft = Math.max(0, newScrollLeft);
+                        wrapper.scrollTop = Math.max(0, newScrollTop);
+                    } else {
+                        svg.style.transform = `scale(${ganttZoom / 100})`;
+                        svg.style.transformOrigin = 'top left';
+                    }
                 }
             }
             if (levelEl) {
@@ -60029,14 +60048,42 @@ console.log('📊 Frappe Gantt loaded');
             }
         }
 
+        // BUILD 477: Get focal point for zoom (selected task center, or viewport center)
+        function getGanttZoomFocalPoint() {
+            const wrapper = document.getElementById('gantt-chart-wrapper');
+            if (!wrapper) return { x: 0, y: 0 };
+
+            // If a task is selected, use its center as focal point
+            if (selectedGanttTaskId) {
+                const selectedBar = wrapper.querySelector(`.bar-wrapper[data-id="${selectedGanttTaskId}"] .bar`);
+                if (selectedBar) {
+                    const barX = parseFloat(selectedBar.getAttribute('x')) || 0;
+                    const barY = parseFloat(selectedBar.getAttribute('y')) || 0;
+                    const barW = parseFloat(selectedBar.getAttribute('width')) || 0;
+                    const barH = parseFloat(selectedBar.getAttribute('height')) || 0;
+
+                    // Convert bar center to wrapper-relative coordinates
+                    const centerX = (barX + barW / 2) * (ganttZoom / 100) - wrapper.scrollLeft;
+                    const centerY = (barY + barH / 2) * (ganttZoom / 100) - wrapper.scrollTop;
+
+                    return { x: centerX, y: centerY };
+                }
+            }
+
+            // Default: center of visible area
+            return { x: wrapper.clientWidth / 2, y: wrapper.clientHeight / 2 };
+        }
+
         const zoomInBtn = document.getElementById('gantt-zoom-in');
         const zoomOutBtn = document.getElementById('gantt-zoom-out');
 
         if (zoomInBtn) {
             zoomInBtn.addEventListener('click', () => {
                 if (ganttZoom < GANTT_ZOOM_MAX) {
+                    const oldZoom = ganttZoom;
+                    const focal = getGanttZoomFocalPoint();
                     ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
-                    applyGanttZoom();
+                    applyGanttZoom(oldZoom, focal.x, focal.y);
                 }
             });
         }
@@ -60044,13 +60091,16 @@ console.log('📊 Frappe Gantt loaded');
         if (zoomOutBtn) {
             zoomOutBtn.addEventListener('click', () => {
                 if (ganttZoom > GANTT_ZOOM_MIN) {
+                    const oldZoom = ganttZoom;
+                    const focal = getGanttZoomFocalPoint();
                     ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
-                    applyGanttZoom();
+                    applyGanttZoom(oldZoom, focal.x, focal.y);
                 }
             });
         }
 
         // BUILD 474: Mouse wheel always zooms in Gantt (pan via click-drag)
+        // BUILD 477: Zoom toward cursor position
         const ganttWrapper = document.getElementById('gantt-chart-wrapper');
         if (ganttWrapper) {
             ganttWrapper.addEventListener('wheel', (e) => {
@@ -60060,12 +60110,18 @@ console.log('📊 Frappe Gantt loaded');
                     return;
                 }
                 e.preventDefault();
+                const oldZoom = ganttZoom;
+                // Use cursor position as focal point
+                const rect = ganttWrapper.getBoundingClientRect();
+                const focalX = e.clientX - rect.left;
+                const focalY = e.clientY - rect.top;
+
                 if (e.deltaY < 0 && ganttZoom < GANTT_ZOOM_MAX) {
                     ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
                 } else if (e.deltaY > 0 && ganttZoom > GANTT_ZOOM_MIN) {
                     ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
                 }
-                applyGanttZoom();
+                applyGanttZoom(oldZoom, focalX, focalY);
             }, { passive: false });
 
             // BUILD 475: Click-drag pan navigation
@@ -60122,8 +60178,10 @@ console.log('📊 Frappe Gantt loaded');
         if (floatingZoomIn) {
             floatingZoomIn.addEventListener('click', () => {
                 if (ganttZoom < GANTT_ZOOM_MAX) {
+                    const oldZoom = ganttZoom;
+                    const focal = getGanttZoomFocalPoint();
                     ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
-                    applyGanttZoom();
+                    applyGanttZoom(oldZoom, focal.x, focal.y);
                 }
             });
         }
@@ -60131,8 +60189,10 @@ console.log('📊 Frappe Gantt loaded');
         if (floatingZoomOut) {
             floatingZoomOut.addEventListener('click', () => {
                 if (ganttZoom > GANTT_ZOOM_MIN) {
+                    const oldZoom = ganttZoom;
+                    const focal = getGanttZoomFocalPoint();
                     ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
-                    applyGanttZoom();
+                    applyGanttZoom(oldZoom, focal.x, focal.y);
                 }
             });
         }
