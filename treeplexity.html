@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 489 | 2025-12-18
+    TreeListy v2.19.0 | Build 490 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 489): Tree View selected node highlighting
+    Changelog (Build 490): Treebeard PM Assistant Phase 5 - Proactive Nudges
+    Previous (Build 489): Tree View selected node highlighting
     Previous (Build 488): Treebeard PM Assistant Phase 4 - Context Injection
     Previous (Build 487): Treebeard PM Assistant Phase 3 - Edit commands
     Previous (Build 486): Treebeard PM Assistant Phase 2 - Analysis commands
@@ -728,7 +729,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 489,
+            build: 490,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -55403,6 +55404,116 @@ WHAT WE'VE CAPTURED (${allMemories.length} memories)
         window.getScheduleContext = getScheduleContext;
 
         /**
+         * BUILD 490: Proactive Nudges for Treebeard PM Assistant
+         * Tracks shown nudges per session to avoid repetition
+         */
+        const treebeardNudges = new Set();
+
+        /**
+         * Get proactive nudges based on schedule issues
+         * Only returns nudges that haven't been shown this session
+         * @returns {Array} Array of nudge strings to show
+         */
+        function getProactiveNudges() {
+            // Check if proactive hints are enabled
+            const hintsEnabled = localStorage.getItem('treebeardProactiveHints') !== 'false';
+            if (!hintsEnabled) return [];
+
+            // Only in Deep Mode
+            if (!chatState.conversationMode) return [];
+
+            // Need getAllTasksWithDates
+            if (typeof getAllTasksWithDates !== 'function') return [];
+
+            const tasks = getAllTasksWithDates();
+            if (!tasks || tasks.length === 0) return [];
+
+            const nudges = [];
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Check 1: Tasks overdue
+            const overdue = tasks.filter(t => t.isOverdue);
+            if (overdue.length > 0) {
+                const nudgeKey = `overdue_${overdue.length}`;
+                if (!treebeardNudges.has(nudgeKey)) {
+                    if (overdue.length === 1) {
+                        nudges.push(`💡 I notice "${overdue[0].name}" is overdue by ${overdue[0].daysOverdue} days. Want me to show details?`);
+                    } else {
+                        nudges.push(`💡 I notice ${overdue.length} tasks are overdue. Want me to list them? (Say "show overdue")`);
+                    }
+                    treebeardNudges.add(nudgeKey);
+                }
+            }
+
+            // Check 2: Critical task overdue (highest priority warning)
+            const criticalOverdue = tasks.filter(t => t.isCritical && t.isOverdue);
+            if (criticalOverdue.length > 0) {
+                const nudgeKey = `critical_overdue_${criticalOverdue[0].id}`;
+                if (!treebeardNudges.has(nudgeKey)) {
+                    nudges.push(`⚠️ "${criticalOverdue[0].name}" is overdue AND on the critical path - this directly affects your end date!`);
+                    treebeardNudges.add(nudgeKey);
+                }
+            }
+
+            // Check 3: Zero-slack task starting soon (within 3 days)
+            const zeroSlackSoon = tasks.filter(t => {
+                if (t.slack !== 0) return false;
+                if (!t.pmStartDate) return false;
+                const startDate = new Date(t.pmStartDate);
+                const daysUntilStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                return daysUntilStart > 0 && daysUntilStart <= 3;
+            });
+            if (zeroSlackSoon.length > 0) {
+                const task = zeroSlackSoon[0];
+                const startDate = new Date(task.pmStartDate);
+                const daysUntilStart = Math.ceil((startDate - today) / (1000 * 60 * 60 * 24));
+                const nudgeKey = `zero_slack_${task.id}`;
+                if (!treebeardNudges.has(nudgeKey)) {
+                    nudges.push(`⏰ "${task.name}" starts in ${daysUntilStart} day${daysUntilStart > 1 ? 's' : ''} with 0 slack. Any delay will impact the project end date.`);
+                    treebeardNudges.add(nudgeKey);
+                }
+            }
+
+            // Check 4: Circular dependency (if dependencyEngine available)
+            if (typeof dependencyEngine !== 'undefined' && typeof capexTree !== 'undefined') {
+                try {
+                    const cpResult = dependencyEngine.calculateCriticalPath(capexTree);
+                    if (cpResult && cpResult.hasCycle) {
+                        const nudgeKey = 'circular_dep';
+                        if (!treebeardNudges.has(nudgeKey)) {
+                            nudges.push(`⚠️ I detected a circular dependency in your schedule. This prevents critical path calculation. Want me to help find it?`);
+                            treebeardNudges.add(nudgeKey);
+                        }
+                    }
+                } catch (e) {
+                    // Ignore errors
+                }
+            }
+
+            // Check 5: Blocked tasks
+            const blocked = tasks.filter(t => t.pmStatus === 'Blocked');
+            if (blocked.length > 0) {
+                const nudgeKey = `blocked_${blocked.length}`;
+                if (!treebeardNudges.has(nudgeKey)) {
+                    if (blocked.length === 1) {
+                        nudges.push(`🚧 "${blocked[0].name}" is blocked. Need help resolving the blocker?`);
+                    } else {
+                        nudges.push(`🚧 ${blocked.length} tasks are currently blocked. Say "show blockers" to review them.`);
+                    }
+                    treebeardNudges.add(nudgeKey);
+                }
+            }
+
+            // Return max 1 nudge per response to avoid overwhelming
+            return nudges.slice(0, 1);
+        }
+
+        // Expose for testing
+        window.getProactiveNudges = getProactiveNudges;
+        window.treebeardNudges = treebeardNudges;
+
+        /**
          * Toggle conversation mode manually
          */
         window.toggleConversationMode = function() {
@@ -57121,8 +57232,15 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
                 hideTypingIndicator();
 
+                // BUILD 490: Inject proactive nudges (Deep Mode only, once per session per issue)
+                let finalMessage = result.message;
+                const nudges = getProactiveNudges();
+                if (nudges.length > 0) {
+                    finalMessage += '\n\n---\n' + nudges[0];
+                }
+
                 // Add assistant response
-                addMessage(result.message, 'assistant', result.buttons);
+                addMessage(finalMessage, 'assistant', result.buttons);
 
                 // BUILD 383: Execute ALL actions for real-time saves (navigate + add in one go)
                 if (result.actions && result.actions.length > 0) {
@@ -59013,7 +59131,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 489; // Update this with each build
+                    const KNOWN_LATEST = 490; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
