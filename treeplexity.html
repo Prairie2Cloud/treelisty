@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 481 | 2025-12-18
+    TreeListy v2.19.0 | Build 482 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 481): Smooth Gantt zoom (no jarring visual jumps)
-    Previous (Build 480): Grey Critical Path button when no dependencies
+    Changelog (Build 482): Gantt color design - unique task colors + past fade
+    Previous (Build 481): Smooth Gantt zoom (no jarring visual jumps)
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 481,
+            build: 482,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57988,7 +57988,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 481; // Update this with each build
+                    const KNOWN_LATEST = 482; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -59305,6 +59305,195 @@ console.log('📊 Frappe Gantt loaded');
     }
 
     /**
+     * BUILD 482: Generate a stable hue from task ID using hash
+     * Uses golden ratio for optimal distribution when walking through tasks
+     */
+    function hashStringToHue(str) {
+        let hash = 0;
+        for (let i = 0; i < str.length; i++) {
+            const char = str.charCodeAt(i);
+            hash = ((hash << 5) - hash) + char;
+            hash = hash & hash; // Convert to 32-bit integer
+        }
+        // Use golden ratio multiplier for better distribution
+        const goldenRatio = 0.618033988749895;
+        const hue = ((Math.abs(hash) * goldenRatio) % 1) * 360;
+        return hue;
+    }
+
+    /**
+     * BUILD 482: Apply smooth task colors based on ID hash + status
+     * Each task gets a unique hue, with status affecting saturation/lightness
+     */
+    function applyGanttTaskColors() {
+        const wrapper = document.getElementById('gantt-chart-wrapper');
+        if (!wrapper) return;
+
+        const barWrappers = wrapper.querySelectorAll('.bar-wrapper');
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        barWrappers.forEach((barWrapper, index) => {
+            const taskId = barWrapper.getAttribute('data-id');
+            if (!taskId) return;
+
+            // Skip if critical path is showing and this is critical
+            if (ganttShowCriticalPath && barWrapper.classList.contains('critical')) return;
+
+            const node = getNodeById(taskId);
+            if (!node) return;
+
+            // Get base hue from task ID hash
+            const baseHue = hashStringToHue(taskId);
+
+            // Determine status modifiers
+            const status = node.pmStatus || 'Not Started';
+            const progress = node.pmProgress || 0;
+            const dueDate = node.pmDueDate ? new Date(node.pmDueDate) : null;
+            const isOverdue = dueDate && dueDate < today && status !== 'Done' && status !== 'Completed';
+
+            // Calculate saturation and lightness based on status
+            let saturation, lightness;
+
+            if (status === 'Done' || status === 'Completed' || progress >= 100) {
+                // Done: desaturated, slightly faded
+                saturation = 25;
+                lightness = 45;
+            } else if (status === 'Blocked') {
+                // Blocked: red tint override
+                saturation = 70;
+                lightness = 50;
+            } else if (status === 'In Progress') {
+                // In Progress: full vibrance
+                saturation = 65;
+                lightness = 55;
+            } else {
+                // Not Started: slightly muted
+                saturation = 45;
+                lightness = 50;
+            }
+
+            // Apply color to bar
+            const bar = barWrapper.querySelector('.bar');
+            const barProgress = barWrapper.querySelector('.bar-progress');
+            const barLabel = barWrapper.querySelector('.bar-label');
+
+            if (bar) {
+                let fillColor;
+                if (status === 'Blocked') {
+                    fillColor = `hsl(0, ${saturation}%, ${lightness}%)`; // Red for blocked
+                } else if (isOverdue) {
+                    // Overdue: orange-shifted hue
+                    fillColor = `hsl(30, 70%, 50%)`; // Orange
+                } else {
+                    fillColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
+                }
+                bar.style.fill = fillColor;
+
+                // Add subtle glow for overdue
+                if (isOverdue) {
+                    bar.style.filter = 'drop-shadow(0 0 4px rgba(245, 158, 11, 0.6))';
+                }
+            }
+
+            if (barProgress) {
+                // Progress bar is slightly darker version
+                const progressLightness = Math.max(lightness - 15, 25);
+                if (status === 'Blocked') {
+                    barProgress.style.fill = `hsl(0, ${saturation + 10}%, ${progressLightness}%)`;
+                } else if (isOverdue) {
+                    barProgress.style.fill = `hsl(25, 75%, 40%)`;
+                } else {
+                    barProgress.style.fill = `hsl(${baseHue}, ${saturation + 10}%, ${progressLightness}%)`;
+                }
+            }
+
+            if (barLabel) {
+                // Ensure label is readable
+                barLabel.style.fill = lightness > 50 ? '#1a1a2e' : '#ffffff';
+                if (status === 'Done' || status === 'Completed') {
+                    barLabel.style.opacity = '0.7';
+                }
+            }
+        });
+
+        console.log('🎨 Gantt task colors applied');
+    }
+
+    /**
+     * BUILD 482: Apply past column desaturation effect
+     * Columns before today are visually faded to show completed time
+     */
+    function applyGanttPastFade() {
+        const wrapper = document.getElementById('gantt-chart-wrapper');
+        if (!wrapper) return;
+
+        const svg = wrapper.querySelector('svg');
+        if (!svg) return;
+
+        // Find or create the past-fade overlay
+        let fadeOverlay = svg.querySelector('#gantt-past-fade');
+        if (fadeOverlay) fadeOverlay.remove(); // Remove old one
+
+        // Get the grid dimensions
+        const gridBackground = svg.querySelector('.grid-background');
+        if (!gridBackground) return;
+
+        const gridHeight = parseFloat(gridBackground.getAttribute('height')) || 500;
+        const headerHeight = 50; // Frappe Gantt default header height
+
+        // Find today's position
+        const todayHighlight = svg.querySelector('.today-highlight');
+        if (!todayHighlight) {
+            // No today marker, try to calculate from dates
+            // For now, skip if no today marker
+            return;
+        }
+
+        const todayX = parseFloat(todayHighlight.getAttribute('x')) || 0;
+
+        // Create a subtle gradient overlay for past time
+        const defs = svg.querySelector('defs') || document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+        if (!svg.querySelector('defs')) {
+            svg.insertBefore(defs, svg.firstChild);
+        }
+
+        // Create gradient
+        const gradientId = 'gantt-past-gradient';
+        let gradient = defs.querySelector(`#${gradientId}`);
+        if (!gradient) {
+            gradient = document.createElementNS('http://www.w3.org/2000/svg', 'linearGradient');
+            gradient.setAttribute('id', gradientId);
+            gradient.innerHTML = `
+                <stop offset="0%" stop-color="rgba(0,0,0,0.3)" />
+                <stop offset="90%" stop-color="rgba(0,0,0,0.15)" />
+                <stop offset="100%" stop-color="rgba(0,0,0,0)" />
+            `;
+            defs.appendChild(gradient);
+        }
+
+        // Create overlay rectangle
+        fadeOverlay = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+        fadeOverlay.setAttribute('id', 'gantt-past-fade');
+        fadeOverlay.setAttribute('x', '0');
+        fadeOverlay.setAttribute('y', headerHeight.toString());
+        fadeOverlay.setAttribute('width', todayX.toString());
+        fadeOverlay.setAttribute('height', (gridHeight - headerHeight).toString());
+        fadeOverlay.setAttribute('fill', `url(#${gradientId})`);
+        fadeOverlay.setAttribute('pointer-events', 'none');
+
+        // Insert after grid but before bars
+        const gridLayer = svg.querySelector('g.grid');
+        if (gridLayer && gridLayer.nextSibling) {
+            svg.insertBefore(fadeOverlay, gridLayer.nextSibling);
+        } else {
+            svg.appendChild(fadeOverlay);
+        }
+
+        console.log('🌫️ Gantt past fade applied');
+    }
+
+    /**
      * Check if tree has any schedule data (nodes with dates)
      */
     function treeHasScheduleData() {
@@ -59514,6 +59703,10 @@ console.log('📊 Frappe Gantt loaded');
 
             // BUILD 479: Update Critical Path button state based on dependencies
             updateGanttCriticalPathButton();
+
+            // BUILD 482: Apply smooth task colors + past fade
+            applyGanttTaskColors();
+            applyGanttPastFade();
 
         } catch (error) {
             console.error('📊 Gantt render error:', error);
