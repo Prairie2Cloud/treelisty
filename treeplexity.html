@@ -31473,6 +31473,14 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             function searchNode(node) {
                 if (node.id === nodeId) return node;
 
+                // Search phases (MS Project imports use this structure)
+                if (node.phases) {
+                    for (const phase of node.phases) {
+                        const found = searchNode(phase);
+                        if (found) return found;
+                    }
+                }
+
                 // Search children (phases)
                 if (node.children) {
                     for (const child of node.children) {
@@ -59482,9 +59490,21 @@ console.log('📊 Frappe Gantt loaded');
         const svg = wrapper.querySelector('svg');
         if (!svg) return;
 
+        // Helper: Find bar-wrapper by walking up the SVG tree (closest() unreliable on SVG)
+        function findBarWrapper(el) {
+            let current = el;
+            while (current && current !== svg) {
+                if (current.classList && current.classList.contains('bar-wrapper')) {
+                    return current;
+                }
+                current = current.parentElement;
+            }
+            return null;
+        }
+
         // Event delegation for all bars
         svg.addEventListener('mouseover', (e) => {
-            const barWrapper = e.target.closest('.bar-wrapper');
+            const barWrapper = findBarWrapper(e.target);
             if (!barWrapper) return;
 
             const taskId = barWrapper.getAttribute('data-id');
@@ -59538,7 +59558,7 @@ console.log('📊 Frappe Gantt loaded');
         });
 
         svg.addEventListener('mouseout', (e) => {
-            const barWrapper = e.target.closest('.bar-wrapper');
+            const barWrapper = findBarWrapper(e.target);
             const relatedTarget = e.relatedTarget;
 
             // Only hide if we're leaving the bar-wrapper entirely
