@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 450 | 2025-12-17
+    TreeListy v2.19.0 | Build 451 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 450): Logo with proper background
-    - Updated treelisty-icon2.png with #1E2128 background
-    - Fixes checkered pattern showing in About modal
+    Changelog (Build 451): Fix Critical Path + Typed Dependencies
+    - Fix traverseTree not defined error in dependencyEngine
+    - Fix [object Object] display in info panel dependencies
+    - Support both legacy string IDs and typed dependency objects
+    Previous (Build 450): Logo with proper background
     Previous (Build 449): ⚡ Critical Path Visualization
     Previous (Build 448): ✏️ Dependency Edit/Delete UI
     Previous (Build 447): ➕ Dependency Creation UI
@@ -699,7 +701,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 450,
+            build: 451,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -14998,6 +15000,19 @@ Focus on logical structure and content organization best practices.`;
 
         // BUILD 449: Critical Path Engine
         // Forward/backward pass algorithm for critical path calculation
+
+        // Helper: Traverse tree and apply callback to each node
+        function traverseTreeForCriticalPath(node, callback) {
+            if (!node) return;
+            callback(node);
+            if (node.children) {
+                node.children.forEach(child => traverseTreeForCriticalPath(child, callback));
+            }
+            if (node.items) {
+                node.items.forEach(item => traverseTreeForCriticalPath(item, callback));
+            }
+        }
+
         const dependencyEngine = {
             // Build adjacency lists from tree
             buildGraph(tree) {
@@ -15005,7 +15020,7 @@ Focus on logical structure and content organization best practices.`;
                 const successors = new Map();  // nodeId → [successorIds]
                 const predecessors = new Map(); // nodeId → [predecessorIds]
 
-                traverseTree(tree, node => {
+                traverseTreeForCriticalPath(tree, node => {
                     nodes.push(node);
                     successors.set(node.id, []);
                     predecessors.set(node.id, []);
@@ -15151,7 +15166,7 @@ Focus on logical structure and content organization best practices.`;
                 console.time('calculateCriticalPath');
 
                 // Clear previous critical path data
-                traverseTree(tree, node => {
+                traverseTreeForCriticalPath(tree, node => {
                     node._earlyStart = undefined;
                     node._earlyFinish = undefined;
                     node._lateStart = undefined;
@@ -15170,7 +15185,7 @@ Focus on logical structure and content organization best practices.`;
                 }
 
                 const criticalNodes = [];
-                traverseTree(tree, node => {
+                traverseTreeForCriticalPath(tree, node => {
                     if (node._isCritical) criticalNodes.push(node);
                 });
 
@@ -15181,7 +15196,7 @@ Focus on logical structure and content organization best practices.`;
 
             // Clear critical path data
             clearCriticalPath(tree) {
-                traverseTree(tree, node => {
+                traverseTreeForCriticalPath(tree, node => {
                     node._earlyStart = undefined;
                     node._earlyFinish = undefined;
                     node._lateStart = undefined;
@@ -22343,10 +22358,15 @@ function hidePatternDescription() {
 
             const body = document.getElementById('info-body');
 
-            // Build dependencies section
+            // Build dependencies section (supports both legacy string IDs and typed objects)
             let depsHtml = '';
             if (node.dependencies && node.dependencies.length > 0) {
-                const depNames = node.dependencies.map(depId => {
+                const depNames = node.dependencies.map(dep => {
+                    // Handle both string IDs (legacy) and typed objects (Build 446+)
+                    const depId = typeof dep === 'string' ? dep : (dep.predecessorId || dep);
+                    const depType = typeof dep === 'object' ? dep.type : 'FS';
+                    const depLag = typeof dep === 'object' ? (dep.lag || 0) : 0;
+
                     // Find the dependency item to get its name
                     function findItemById(id, n = capexTree) {
                         if (n.id === id) return n;
@@ -22363,12 +22383,20 @@ function hidePatternDescription() {
                         return null;
                     }
                     const depItem = findItemById(depId);
-                    return depItem ? `${depItem.icon} ${depItem.name}` : depId;
+                    const itemName = depItem ? `${depItem.icon || '📄'} ${depItem.name || depItem.title}` : depId;
+
+                    // Show type info if not standard FS+0
+                    let typeInfo = '';
+                    if (depType !== 'FS' || depLag !== 0) {
+                        typeInfo = ` <span style="color: var(--primary); font-size: 0.85em;">(${depType}${depLag ? `+${depLag}d` : ''})</span>`;
+                    }
+
+                    return itemName + typeInfo;
                 }).join('<br>');
 
                 depsHtml = `
                     <div class="info-section">
-                        <h4>Dependencies</h4>
+                        <h4>DEPENDENCIES</h4>
                         <p style="line-height: 1.8;">${depNames}</p>
                     </div>
                 `;
@@ -22378,9 +22406,19 @@ function hidePatternDescription() {
             let dependentsHtml = '';
             if (node.id) {
                 function findDependents(nodeId, n = capexTree, dependents = []) {
+                    // Helper to check if an item depends on nodeId
+                    function hasDependencyOn(item, targetId) {
+                        if (!item.dependencies || !Array.isArray(item.dependencies)) return false;
+                        return item.dependencies.some(dep => {
+                            // Handle both string IDs (legacy) and typed objects (Build 446+)
+                            const depId = typeof dep === 'string' ? dep : (dep.predecessorId || '');
+                            return depId === targetId;
+                        });
+                    }
+
                     if (n.items) {
                         n.items.forEach(item => {
-                            if (item.dependencies && item.dependencies.includes(nodeId)) {
+                            if (hasDependencyOn(item, nodeId)) {
                                 dependents.push(item);
                             }
                         });
@@ -22393,7 +22431,7 @@ function hidePatternDescription() {
 
                 const dependents = findDependents(node.id);
                 if (dependents.length > 0) {
-                    const depList = dependents.map(d => `${d.icon} ${d.name}`).join('<br>');
+                    const depList = dependents.map(d => `${d.icon || '📄'} ${d.name || d.title}`).join('<br>');
                     dependentsHtml = `
                         <div class="info-section">
                             <h4>Required By</h4>
@@ -57175,7 +57213,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 450; // Update this with each build
+                    const KNOWN_LATEST = 451; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
