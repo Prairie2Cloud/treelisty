@@ -58,17 +58,25 @@ Longest task: Development (20 days)"
 
 ## Quick vs Deep Mode
 
-**Quick Mode (default):**
-- Minimal schedule context (~50 tokens)
-- Brief command responses
-- No proactive nudges
-- Fast, cheap, stays out of the way
+### Quick Mode (default)
+- **Model:** Claude Sonnet 4 for intent detection
+- **Responses:** Templated from command functions (no AI generation)
+- **Context:** Minimal schedule summary (~50 tokens)
+- **Nudges:** Disabled
+- **Speed:** Fast, cheap, predictable
 
-**Deep Mode (user toggles or asks "analyze my schedule"):**
-- Full schedule analysis (~200 tokens)
-- Educational, detailed responses
-- Proactive nudges enabled
-- Thorough analysis, higher token usage
+### Deep Mode (user toggles or asks "analyze my schedule")
+- **Model:** Claude Sonnet 4 for intent detection, then **user's chosen AI** (from header dropdown) generates the analysis narrative
+- **Responses:** AI-generated, natural language insights
+- **Context:** Full schedule analysis (~200 tokens)
+- **Nudges:** Enabled
+- **Speed:** Slower, smarter, more insightful
+
+### Why Two Models in Deep Mode?
+1. Sonnet 4 is fast/cheap for intent detection ("what command?")
+2. User's chosen AI (Claude/Gemini/ChatGPT) generates the actual analysis
+3. Respects user preference - some want speed, others want depth
+4. Consistent with rest of app's AI usage
 
 ---
 
