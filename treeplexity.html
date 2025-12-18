@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 472 | 2025-12-18
+    TreeListy v2.19.0 | Build 473 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 472): Gantt Info Panel + Fit All
+    Changelog (Build 473): Gantt Zoom + Prominent Info Panel
+    Previous (Build 472): Gantt Info Panel + Fit All
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
     Previous (Build 469): Quick Capture Mode
@@ -724,7 +725,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 472,
+            build: 473,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57978,7 +57979,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 472; // Update this with each build
+                    const KNOWN_LATEST = 473; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58796,6 +58797,14 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         height: calc(100% - 20px);
         overflow: auto;
         padding: 10px;
+        cursor: grab;
+    }
+    #gantt-chart-wrapper:active {
+        cursor: grabbing;
+    }
+    /* BUILD 473: Ensure SVG handles zoom correctly */
+    #gantt-chart-wrapper svg {
+        transition: transform 0.15s ease-out;
     }
 
     /* Empty State */
@@ -58916,6 +58925,17 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         <option value="Month" style="background: #1a1a2e; color: #ffffff;">Month</option>
         <option value="Year" style="background: #1a1a2e; color: #ffffff;">Year</option>
     </select>
+    <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
+    <!-- BUILD 473: Zoom Controls -->
+    <button id="gantt-zoom-out" class="btn" style="padding: 8px 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px 0 0 8px; color: var(--text-primary); font-size: 14px; cursor: pointer; border-right: none;">
+        −
+    </button>
+    <span id="gantt-zoom-level" style="padding: 8px 12px; background: rgba(99, 102, 241, 0.05); border: 1px solid rgba(99, 102, 241, 0.3); color: var(--text-primary); font-size: 12px; font-weight: 600; min-width: 50px; text-align: center;">
+        100%
+    </span>
+    <button id="gantt-zoom-in" class="btn" style="padding: 8px 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 0 8px 8px 0; color: var(--text-primary); font-size: 14px; cursor: pointer; border-left: none;">
+        +
+    </button>
     <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
     <button id="gantt-today-btn" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
         📍 Today
@@ -59088,6 +59108,10 @@ console.log('📊 Frappe Gantt loaded');
     let ganttViewMode = 'Week';
     let ganttShowCriticalPath = false;
     let ganttReadOnly = false;
+    let ganttZoom = 100; // BUILD 473: Zoom level (25-200%)
+    const GANTT_ZOOM_MIN = 25;
+    const GANTT_ZOOM_MAX = 200;
+    const GANTT_ZOOM_STEP = 10;
 
     /**
      * Check if tree has any schedule data (nodes with dates)
@@ -59377,6 +59401,18 @@ console.log('📊 Frappe Gantt loaded');
 
         // Build panel content
         bodyEl.innerHTML = `
+            <!-- PROMINENT TITLE SECTION -->
+            <div style="margin-bottom: 20px; padding: 16px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.2), rgba(139, 92, 246, 0.1)); border-radius: 12px; border-left: 4px solid var(--primary);">
+                <div style="font-size: 20px; font-weight: 700; color: var(--text-primary); line-height: 1.3; margin-bottom: 8px;">
+                    ${node.name || node.title || 'Task'}
+                </div>
+                ${node.description ? `
+                <div style="font-size: 14px; color: var(--text-secondary); line-height: 1.5;">
+                    ${node.description}
+                </div>
+                ` : '<div style="font-size: 13px; color: var(--text-secondary); font-style: italic;">No description</div>'}
+            </div>
+
             <!-- Status & Progress Row -->
             <div style="display: flex; gap: 12px; margin-bottom: 16px;">
                 <div style="flex: 1; padding: 16px; background: ${statusStyle.bg}; border-radius: 10px; border: 2px solid ${statusStyle.color}; text-align: center;">
@@ -59416,13 +59452,6 @@ console.log('📊 Frappe Gantt loaded');
             <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 16px;">
                 <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">👤 OWNER</div>
                 <div style="font-size: 14px; font-weight: 600;">${node.pmOwner}</div>
-            </div>
-            ` : ''}
-
-            ${node.description ? `
-            <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 16px;">
-                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">📝 DESCRIPTION</div>
-                <div style="font-size: 13px; line-height: 1.5;">${node.description}</div>
             </div>
             ` : ''}
 
@@ -59573,28 +59602,49 @@ console.log('📊 Frappe Gantt loaded');
             });
         }
 
-        // Fit All button - switch to Month view and reset scroll (BUILD 472)
+        // Fit All button - calculate zoom to fit entire chart (BUILD 473)
         const fitBtn = document.getElementById('gantt-fit-btn');
         if (fitBtn) {
             fitBtn.addEventListener('click', () => {
-                // Switch to Month view for wider timeline
-                ganttViewMode = 'Month';
-                const viewModeSelect = document.getElementById('gantt-view-mode');
-                if (viewModeSelect) viewModeSelect.value = 'Month';
+                const wrapper = document.getElementById('gantt-chart-wrapper');
+                if (!wrapper) return;
 
-                // Re-render with new view mode
-                renderGantt();
+                const svg = wrapper.querySelector('svg');
+                if (!svg) return;
 
-                // Reset scroll after render
+                // Reset zoom first to get true dimensions
+                ganttZoom = 100;
+                svg.style.transform = 'scale(1)';
+
+                // Get dimensions after a brief delay
                 setTimeout(() => {
-                    const wrapper = document.getElementById('gantt-chart-wrapper');
-                    if (wrapper) {
-                        wrapper.scrollLeft = 0;
-                        wrapper.scrollTop = 0;
-                    }
-                }, 100);
+                    const svgWidth = svg.scrollWidth || svg.getBoundingClientRect().width;
+                    const wrapperWidth = wrapper.clientWidth;
 
-                showToast('⊡ Fit All: Switched to Month view', 'info');
+                    if (svgWidth > 0 && wrapperWidth > 0) {
+                        // Calculate zoom to fit width
+                        const fitZoom = Math.floor((wrapperWidth / svgWidth) * 100);
+                        ganttZoom = Math.max(GANTT_ZOOM_MIN, Math.min(GANTT_ZOOM_MAX, fitZoom));
+                    } else {
+                        ganttZoom = 50; // Default to 50% if calculation fails
+                    }
+
+                    // Apply zoom
+                    if (window.applyGanttZoom) {
+                        window.applyGanttZoom();
+                    } else {
+                        svg.style.transform = `scale(${ganttZoom / 100})`;
+                        svg.style.transformOrigin = 'top left';
+                        const levelEl = document.getElementById('gantt-zoom-level');
+                        if (levelEl) levelEl.textContent = `${ganttZoom}%`;
+                    }
+
+                    // Reset scroll
+                    wrapper.scrollLeft = 0;
+                    wrapper.scrollTop = 0;
+
+                    showToast(`⊡ Fit All: Zoomed to ${ganttZoom}%`, 'info');
+                }, 50);
             });
         }
 
@@ -59636,6 +59686,63 @@ console.log('📊 Frappe Gantt loaded');
                 showToast(ganttReadOnly ? '🔒 Read-only mode' : '✏️ Edit mode', 'info');
             });
         }
+
+        // BUILD 473: Zoom controls
+        function applyGanttZoom() {
+            const wrapper = document.getElementById('gantt-chart-wrapper');
+            const levelEl = document.getElementById('gantt-zoom-level');
+            if (wrapper) {
+                const svg = wrapper.querySelector('svg');
+                if (svg) {
+                    svg.style.transform = `scale(${ganttZoom / 100})`;
+                    svg.style.transformOrigin = 'top left';
+                }
+            }
+            if (levelEl) {
+                levelEl.textContent = `${ganttZoom}%`;
+            }
+        }
+
+        const zoomInBtn = document.getElementById('gantt-zoom-in');
+        const zoomOutBtn = document.getElementById('gantt-zoom-out');
+
+        if (zoomInBtn) {
+            zoomInBtn.addEventListener('click', () => {
+                if (ganttZoom < GANTT_ZOOM_MAX) {
+                    ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
+                    applyGanttZoom();
+                }
+            });
+        }
+
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', () => {
+                if (ganttZoom > GANTT_ZOOM_MIN) {
+                    ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
+                    applyGanttZoom();
+                }
+            });
+        }
+
+        // Mouse wheel zoom on Gantt chart
+        const ganttWrapper = document.getElementById('gantt-chart-wrapper');
+        if (ganttWrapper) {
+            ganttWrapper.addEventListener('wheel', (e) => {
+                // Only zoom if Ctrl/Cmd is held
+                if (e.ctrlKey || e.metaKey) {
+                    e.preventDefault();
+                    if (e.deltaY < 0 && ganttZoom < GANTT_ZOOM_MAX) {
+                        ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
+                    } else if (e.deltaY > 0 && ganttZoom > GANTT_ZOOM_MIN) {
+                        ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
+                    }
+                    applyGanttZoom();
+                }
+            }, { passive: false });
+        }
+
+        // Expose applyGanttZoom globally for Fit All
+        window.applyGanttZoom = applyGanttZoom;
     });
 
     // --- 2. Toggle View ---
