@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 462 | 2025-12-18
+    TreeListy v2.19.0 | Build 463 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 462): MS Project Export Dependency Fix
+    Changelog (Build 463): MS Project Import Dependency Types
+    Previous (Build 462): MS Project Export Dependency Fix
     - Export now preserves typed dependencies (FS/FF/SS/SF)
     - Handles both string IDs and object format dependencies
     - Exports lag values correctly
@@ -714,8 +715,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 462,
-            date: '2025-12-17',
+            build: 463,
+            date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -48193,12 +48194,27 @@ STRATEGIES:
                 // Get assigned resources
                 const assignees = assignmentMap.get(uid) || [];
 
-                // Parse predecessor links (dependencies)
-                const predecessorUIDs = [];
+                // Parse predecessor links (dependencies) with type and lag
+                const predecessorData = [];
                 const predecessorLinks = task.querySelectorAll('PredecessorLink');
                 predecessorLinks.forEach(link => {
                     const predUID = link.querySelector('PredecessorUID')?.textContent;
-                    if (predUID) predecessorUIDs.push(predUID);
+                    if (predUID) {
+                        // Get dependency type: 0=FF, 1=FS, 2=SF, 3=SS
+                        const typeCode = parseInt(link.querySelector('Type')?.textContent || '1');
+                        const typeMap = {0: 'FF', 1: 'FS', 2: 'SF', 3: 'SS'};
+                        const depType = typeMap[typeCode] || 'FS';
+
+                        // Get lag in tenths of minutes, convert to days (8 hours/day * 60 min * 10)
+                        const lagTenths = parseInt(link.querySelector('LinkLag')?.textContent || '0');
+                        const lagDays = Math.round(lagTenths / (8 * 60 * 10));
+
+                        predecessorData.push({
+                            uid: predUID,
+                            type: depType,
+                            lag: lagDays
+                        });
+                    }
                 });
 
                 const taskData = {
@@ -48217,7 +48233,7 @@ STRATEGIES:
                     priority,
                     status,
                     assignees,
-                    predecessorUIDs
+                    predecessorData
                 };
 
                 taskList.push(taskData);
@@ -48363,7 +48379,7 @@ STRATEGIES:
                         pmDueDate: task.finishDate,
                         pmNotes: '',
                         dependencies: [], // Will be resolved later
-                        _predecessorUIDs: task.predecessorUIDs,
+                        _predecessorData: task.predecessorData,
                         subtasks: []
                     };
                     currentPhase.items.push(currentItem);
@@ -48394,7 +48410,7 @@ STRATEGIES:
                             pmDueDate: '',
                             pmNotes: '',
                             dependencies: [],
-                            _predecessorUIDs: [],
+                            _predecessorData: [],
                             subtasks: []
                         };
                         currentPhase.items.push(currentItem);
@@ -48414,7 +48430,7 @@ STRATEGIES:
                         pmDueDate: task.finishDate,
                         cost: task.cost || 0,
                         dependencies: [],
-                        _predecessorUIDs: task.predecessorUIDs
+                        _predecessorData: task.predecessorData
                     };
                     currentItem.subtasks.push(subtask);
                     subtaskIndex++;
@@ -48446,7 +48462,7 @@ STRATEGIES:
                         pmDueDate: task.finishDate,
                         pmNotes: '',
                         dependencies: [],
-                        _predecessorUIDs: task.predecessorUIDs,
+                        _predecessorData: task.predecessorData,
                         subtasks: []
                     };
                     currentPhase.items.push(currentItem);
@@ -48454,25 +48470,41 @@ STRATEGIES:
                 }
             });
 
-            // Resolve dependencies using UID map
+            // Resolve dependencies using UID map - create typed dependency objects
             phases.forEach(phase => {
                 phase.items.forEach(item => {
-                    if (item._predecessorUIDs && item._predecessorUIDs.length > 0) {
-                        item.dependencies = item._predecessorUIDs
-                            .map(uid => uidToIdMap.get(uid))
-                            .filter(id => id);
+                    if (item._predecessorData && item._predecessorData.length > 0) {
+                        item.dependencies = item._predecessorData
+                            .map(pred => {
+                                const treelistyId = uidToIdMap.get(pred.uid);
+                                if (!treelistyId) return null;
+                                return {
+                                    predecessorId: treelistyId,
+                                    type: pred.type || 'FS',
+                                    lag: pred.lag || 0
+                                };
+                            })
+                            .filter(dep => dep);
                     }
-                    delete item._predecessorUIDs;
+                    delete item._predecessorData;
 
                     // Resolve subtask dependencies too
                     if (item.subtasks) {
                         item.subtasks.forEach(subtask => {
-                            if (subtask._predecessorUIDs && subtask._predecessorUIDs.length > 0) {
-                                subtask.dependencies = subtask._predecessorUIDs
-                                    .map(uid => uidToIdMap.get(uid))
-                                    .filter(id => id);
+                            if (subtask._predecessorData && subtask._predecessorData.length > 0) {
+                                subtask.dependencies = subtask._predecessorData
+                                    .map(pred => {
+                                        const treelistyId = uidToIdMap.get(pred.uid);
+                                        if (!treelistyId) return null;
+                                        return {
+                                            predecessorId: treelistyId,
+                                            type: pred.type || 'FS',
+                                            lag: pred.lag || 0
+                                        };
+                                    })
+                                    .filter(dep => dep);
                             }
-                            delete subtask._predecessorUIDs;
+                            delete subtask._predecessorData;
                         });
                     }
                 });
@@ -48601,7 +48633,7 @@ STRATEGIES:
                             pmDueDate: task.finishDate,
                             pmNotes: '',
                             dependencies: [],
-                            _predecessorUIDs: task.predecessorUIDs,
+                            _predecessorData: task.predecessorData,
                             subtasks: []
                         };
                     })
@@ -48611,15 +48643,23 @@ STRATEGIES:
                 phaseIndex++;
             });
 
-            // Resolve dependencies
+            // Resolve dependencies - create typed dependency objects
             phases.forEach(phase => {
                 phase.items.forEach(item => {
-                    if (item._predecessorUIDs && item._predecessorUIDs.length > 0) {
-                        item.dependencies = item._predecessorUIDs
-                            .map(uid => uidToIdMap.get(uid))
-                            .filter(id => id);
+                    if (item._predecessorData && item._predecessorData.length > 0) {
+                        item.dependencies = item._predecessorData
+                            .map(pred => {
+                                const treelistyId = uidToIdMap.get(pred.uid);
+                                if (!treelistyId) return null;
+                                return {
+                                    predecessorId: treelistyId,
+                                    type: pred.type || 'FS',
+                                    lag: pred.lag || 0
+                                };
+                            })
+                            .filter(dep => dep);
                     }
-                    delete item._predecessorUIDs;
+                    delete item._predecessorData;
                 });
             });
 
@@ -48963,8 +49003,9 @@ STRATEGIES:
                         // Try to find the UID for this dependency
                         const depUID = findTaskUIDByTreeListyId(tasks, predId);
                         if (depUID !== null) {
-                            // Map dependency type: FS=1, FF=0, SS=2, SF=3
-                            const typeCode = {'FF': 0, 'FS': 1, 'SF': 2, 'SS': 3}[depType] || 1;
+                            // Map dependency type: FF=0, FS=1, SF=2, SS=3
+                            // Use ?? instead of || because FF=0 is falsy
+                            const typeCode = {'FF': 0, 'FS': 1, 'SF': 2, 'SS': 3}[depType] ?? 1;
                             // Convert lag from days to tenths of minutes (1 day = 8h * 60min * 10)
                             const lagTenths = depLag * 8 * 60 * 10;
 
@@ -57360,7 +57401,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 462; // Update this with each build
+                    const KNOWN_LATEST = 463; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
