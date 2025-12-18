@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 461 | 2025-12-18
+    TreeListy v2.19.0 | Build 462 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 461): Gantt Keyboard Shortcut
-    - Press 'G' key to toggle Gantt View on/off
-    - Works from Tree, Canvas, or 3D views
+    Changelog (Build 462): MS Project Export Dependency Fix
+    - Export now preserves typed dependencies (FS/FF/SS/SF)
+    - Handles both string IDs and object format dependencies
+    - Exports lag values correctly
+    - Supports task-a style IDs from MS Project imports
+    - Fixed numeric pmDuration handling
+    Previous (Build 461): Gantt Keyboard Shortcut
     Previous (Build 460): Gantt Bidirectional Sync & Toolbar
     Previous (Build 459): Gantt Data Conversion & Rendering
     Previous (Build 458): Inline Frappe Gantt Library
@@ -710,7 +714,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 461,
+            build: 462,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -48781,11 +48785,12 @@ STRATEGIES:
                 tasks.push({
                     UID: taskUID,
                     ID: taskID,
-                    Name: phase.name || `Phase ${phaseIndex + 1}`,
+                    Name: phase.name || phase.title || `Phase ${phaseIndex + 1}`,
                     OutlineLevel: 1,
                     Summary: true,
                     WBS: phaseWBS,
-                    Notes: phase.subtitle || ''
+                    Notes: phase.subtitle || phase.description || '',
+                    nodeId: phase.id  // Store original node ID for dependency lookup
                 });
                 const phaseTaskUID = taskUID;
                 taskUID++;
@@ -48806,19 +48811,20 @@ STRATEGIES:
                     tasks.push({
                         UID: taskUID,
                         ID: taskID,
-                        Name: item.name || 'Unnamed Task',
+                        Name: item.name || item.title || 'Unnamed Task',
                         OutlineLevel: 2,
                         Summary: hasSubtasks,
                         WBS: itemWBS,
                         Notes: item.description || '',
                         Start: item.pmStartDate ? formatDateForMSProject(item.pmStartDate) : now,
                         Finish: item.pmDueDate ? formatDateForMSProject(item.pmDueDate) : now,
-                        Duration: formatDurationForMSProject(item.leadTime),
+                        Duration: formatDurationForMSProject(item.leadTime || item.pmDuration),
                         PercentComplete: item.pmProgress || 0,
                         Cost: item.cost || 0,
                         Priority: mapPriorityToMSProject(item.pmPriority),
                         Assignee: item.pmAssignee,
-                        Dependencies: item.dependencies || []
+                        Dependencies: item.dependencies || [],
+                        nodeId: item.id  // Store original node ID for dependency lookup
                     });
                     const itemTaskUID = taskUID;
                     taskUID++;
@@ -48838,19 +48844,20 @@ STRATEGIES:
                         tasks.push({
                             UID: taskUID,
                             ID: taskID,
-                            Name: subtask.name || 'Unnamed Subtask',
+                            Name: subtask.name || subtask.title || 'Unnamed Subtask',
                             OutlineLevel: 3,
                             Summary: false,
                             WBS: subtaskWBS,
                             Notes: subtask.description || '',
                             Start: subtask.pmStartDate ? formatDateForMSProject(subtask.pmStartDate) : now,
                             Finish: subtask.pmDueDate ? formatDateForMSProject(subtask.pmDueDate) : now,
-                            Duration: formatDurationForMSProject(subtask.leadTime || '1 day'),
+                            Duration: formatDurationForMSProject(subtask.leadTime || subtask.pmDuration || '1 day'),
                             PercentComplete: subtask.pmProgress || 0,
                             Cost: subtask.cost || 0,
                             Priority: mapPriorityToMSProject(subtask.pmPriority),
                             Assignee: subtask.pmAssignee,
-                            Dependencies: subtask.dependencies || []
+                            Dependencies: subtask.dependencies || [],
+                            nodeId: subtask.id  // Store original node ID for dependency lookup
                         });
                         taskUID++;
                         taskID++;
@@ -48947,14 +48954,25 @@ STRATEGIES:
 
                 // Add predecessor links (dependencies)
                 if (task.Dependencies && task.Dependencies.length > 0) {
-                    task.Dependencies.forEach(depId => {
+                    task.Dependencies.forEach(dep => {
+                        // Handle both string IDs (legacy) and typed objects {predecessorId, type, lag}
+                        const predId = typeof dep === 'string' ? dep : (dep.predecessorId || dep);
+                        const depType = typeof dep === 'object' ? (dep.type || 'FS') : 'FS';
+                        const depLag = typeof dep === 'object' ? (dep.lag || 0) : 0;
+
                         // Try to find the UID for this dependency
-                        // Dependencies in TreeListy are stored as item IDs like "item-0-1"
-                        const depUID = findTaskUIDByTreeListyId(tasks, depId);
+                        const depUID = findTaskUIDByTreeListyId(tasks, predId);
                         if (depUID !== null) {
+                            // Map dependency type: FS=1, FF=0, SS=2, SF=3
+                            const typeCode = {'FF': 0, 'FS': 1, 'SF': 2, 'SS': 3}[depType] || 1;
+                            // Convert lag from days to tenths of minutes (1 day = 8h * 60min * 10)
+                            const lagTenths = depLag * 8 * 60 * 10;
+
                             xml += `            <PredecessorLink>
                 <PredecessorUID>${depUID}</PredecessorUID>
-                <Type>1</Type>
+                <Type>${typeCode}</Type>
+                <LinkLag>${lagTenths}</LinkLag>
+                <LagFormat>7</LagFormat>
             </PredecessorLink>
 `;
                         }
@@ -49007,10 +49025,30 @@ STRATEGIES:
         }
 
         /**
-         * Find task UID by TreeListy ID (e.g., "item-0-1", "phase-2")
+         * Find task UID by TreeListy ID (e.g., "item-0-1", "phase-2", "task-a")
          */
         function findTaskUIDByTreeListyId(tasks, treelistyId) {
             if (!treelistyId) return null;
+
+            // First, try direct lookup by stored nodeId
+            const directMatch = tasks.find(t => t.nodeId === treelistyId);
+            if (directMatch) return directMatch.UID;
+
+            // Try matching by name containing the ID (for task-a, task-b style)
+            // Extract letter/number suffix: "task-a" → "A", "task-12" → "12"
+            const taskMatch = treelistyId.match(/task-([a-z]|\d+)/i);
+            if (taskMatch) {
+                const suffix = taskMatch[1].toUpperCase();
+                // Look for task name containing "Task A:" or similar
+                const nameMatch = tasks.find(t =>
+                    t.Name && (
+                        t.Name.includes(`Task ${suffix}:`) ||
+                        t.Name.includes(`Task ${suffix} `) ||
+                        t.Name.startsWith(`Task ${suffix}`)
+                    )
+                );
+                if (nameMatch) return nameMatch.UID;
+            }
 
             // Parse TreeListy ID format: "item-{phase}-{item}" or "phase-{phase}"
             const itemMatch = treelistyId.match(/item-(\d+)-(\d+)/);
@@ -49054,7 +49092,13 @@ STRATEGIES:
         function formatDurationForMSProject(durationStr) {
             if (!durationStr) return 'PT8H0M0S'; // Default 1 day
 
-            const lower = durationStr.toLowerCase();
+            // Handle numeric duration (days as number)
+            if (typeof durationStr === 'number') {
+                const hours = durationStr * 8; // 8 hours per day
+                return `PT${hours}H0M0S`;
+            }
+
+            const lower = String(durationStr).toLowerCase();
 
             // Parse common formats
             const dayMatch = lower.match(/(\d+)\s*d/);
@@ -57316,7 +57360,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 461; // Update this with each build
+                    const KNOWN_LATEST = 462; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
