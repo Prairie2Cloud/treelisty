@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 459 | 2025-12-18
+    TreeListy v2.19.0 | Build 460 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,11 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 459): Gantt Data Conversion & Rendering
-    - treeHasScheduleData() checks for nodes with dates
-    - convertTreeToGanttTasks() maps tree to Frappe Gantt format
-    - renderGantt() initializes chart with converted tasks
-    - Shows empty state for trees without schedule data
+    Changelog (Build 460): Gantt Bidirectional Sync & Toolbar
+    - Drag task bars to update dates (syncs to tree)
+    - Drag progress bar to update completion %
+    - View mode selector: Day/Week/Month/Year
+    - Today button, Fit All, Critical Path toggle
+    - Read-only checkbox prevents edits
+    Previous (Build 459): Gantt Data Conversion & Rendering
     Previous (Build 458): Inline Frappe Gantt Library
     Previous (Build 457): Gantt View Foundation
     Previous (Build 456): Hide Critical Path if no dependencies
@@ -710,7 +712,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 459,
+            build: 460,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57298,7 +57300,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 459; // Update this with each build
+                    const KNOWN_LATEST = 460; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58377,6 +58379,7 @@ console.log('📊 Frappe Gantt loaded');
     let ganttInstance = null;
     let ganttViewMode = 'Week';
     let ganttShowCriticalPath = false;
+    let ganttReadOnly = false;
 
     /**
      * Check if tree has any schedule data (nodes with dates)
@@ -58515,12 +58518,57 @@ console.log('📊 Frappe Gantt loaded');
 
                 on_date_change: function(task, start, end) {
                     console.log('📊 Gantt date changed:', task.name, start, end);
-                    // Will add bidirectional sync in Build 461
+                    // Build 461: Bidirectional sync - update tree node
+                    if (ganttReadOnly) {
+                        showToast('🔒 Read-only mode - changes not saved', 'warning');
+                        return;
+                    }
+                    const node = getNodeById(task.id);
+                    if (node) {
+                        // Format dates as YYYY-MM-DD
+                        const formatDate = (d) => {
+                            if (d instanceof Date) {
+                                return d.toISOString().split('T')[0];
+                            }
+                            return String(d).split('T')[0];
+                        };
+                        node.pmStartDate = formatDate(start);
+                        node.pmDueDate = formatDate(end);
+
+                        // Calculate duration in days
+                        const startDate = new Date(node.pmStartDate);
+                        const endDate = new Date(node.pmDueDate);
+                        const diffDays = Math.ceil((endDate - startDate) / (1000 * 60 * 60 * 24));
+                        if (diffDays > 0) {
+                            node.pmDuration = diffDays;
+                        }
+
+                        saveState('Gantt: Update dates for ' + (node.name || node.title));
+                        showToast(`📊 Updated dates: ${node.name || node.title}`, 'success');
+                    }
                 },
 
                 on_progress_change: function(task, progress) {
                     console.log('📊 Gantt progress changed:', task.name, progress);
-                    // Will add bidirectional sync in Build 461
+                    // Build 461: Bidirectional sync - update tree node
+                    if (ganttReadOnly) {
+                        showToast('🔒 Read-only mode - changes not saved', 'warning');
+                        return;
+                    }
+                    const node = getNodeById(task.id);
+                    if (node) {
+                        node.pmProgress = Math.round(progress);
+
+                        // Update status based on progress
+                        if (progress >= 100) {
+                            node.pmStatus = 'Done';
+                        } else if (progress > 0) {
+                            node.pmStatus = 'In Progress';
+                        }
+
+                        saveState('Gantt: Update progress for ' + (node.name || node.title));
+                        showToast(`📊 Progress: ${node.name || node.title} → ${Math.round(progress)}%`, 'success');
+                    }
                 }
             });
 
@@ -58596,6 +58644,101 @@ console.log('📊 Frappe Gantt loaded');
                 } else {
                     showToast('Import MS Project XML from the Open menu', 'info');
                 }
+            });
+        }
+
+        // BUILD 462: Gantt Toolbar Controls
+        // View mode selector (Day/Week/Month/Year)
+        const viewModeSelect = document.getElementById('gantt-view-mode');
+        if (viewModeSelect) {
+            viewModeSelect.addEventListener('change', (e) => {
+                ganttViewMode = e.target.value;
+                if (ganttInstance) {
+                    ganttInstance.change_view_mode(ganttViewMode);
+                    showToast(`📊 View: ${ganttViewMode}`, 'info');
+                }
+            });
+        }
+
+        // Today button - scroll to current date
+        const todayBtn = document.getElementById('gantt-today-btn');
+        if (todayBtn) {
+            todayBtn.addEventListener('click', () => {
+                if (ganttInstance) {
+                    // Frappe Gantt doesn't have a native scroll_today, so we'll re-render centered on today
+                    const today = new Date().toISOString().split('T')[0];
+                    // Find a task that includes today in its date range
+                    const tasks = convertTreeToGanttTasks();
+                    const todayDate = new Date(today);
+
+                    // Scroll the wrapper to show today's column
+                    const wrapper = document.getElementById('gantt-chart-wrapper');
+                    const chartSvg = wrapper?.querySelector('svg');
+                    if (chartSvg) {
+                        // Estimate position based on start date of first task
+                        const firstTask = tasks[0];
+                        if (firstTask) {
+                            const startDate = new Date(firstTask.start);
+                            const daysDiff = Math.floor((todayDate - startDate) / (1000 * 60 * 60 * 24));
+                            const pixelsPerDay = ganttViewMode === 'Day' ? 38 : ganttViewMode === 'Week' ? 140 / 7 : ganttViewMode === 'Month' ? 300 / 30 : 365 / 365;
+                            const scrollX = daysDiff * pixelsPerDay - wrapper.clientWidth / 2;
+                            wrapper.scrollLeft = Math.max(0, scrollX);
+                        }
+                    }
+                    showToast('📍 Scrolled to today', 'info');
+                }
+            });
+        }
+
+        // Fit All button - fit all tasks in view
+        const fitBtn = document.getElementById('gantt-fit-btn');
+        if (fitBtn) {
+            fitBtn.addEventListener('click', () => {
+                const wrapper = document.getElementById('gantt-chart-wrapper');
+                if (wrapper) {
+                    wrapper.scrollLeft = 0;
+                    wrapper.scrollTop = 0;
+                    showToast('⊡ Fit to view', 'info');
+                }
+            });
+        }
+
+        // Critical Path toggle
+        const criticalBtn = document.getElementById('gantt-critical-btn');
+        if (criticalBtn) {
+            let criticalPathOn = false;
+            criticalBtn.addEventListener('click', () => {
+                criticalPathOn = !criticalPathOn;
+
+                if (criticalPathOn) {
+                    // Calculate critical path and highlight
+                    if (typeof calculateCriticalPath === 'function') {
+                        calculateCriticalPath();
+                        renderGantt(); // Re-render with critical path classes
+                    }
+                    criticalBtn.style.background = 'rgba(255, 0, 0, 0.3)';
+                    criticalBtn.style.borderColor = '#ff0000';
+                    showToast('⚡ Critical path highlighted', 'success');
+                } else {
+                    // Clear critical path highlighting
+                    criticalBtn.style.background = 'rgba(255, 0, 0, 0.1)';
+                    criticalBtn.style.borderColor = 'rgba(255, 0, 0, 0.3)';
+                    renderGantt(); // Re-render without critical highlighting
+                    showToast('⚡ Critical path hidden', 'info');
+                }
+            });
+        }
+
+        // Read-only checkbox
+        const readonlyCheck = document.getElementById('gantt-readonly');
+        if (readonlyCheck) {
+            readonlyCheck.addEventListener('change', (e) => {
+                ganttReadOnly = e.target.checked;
+                if (ganttInstance) {
+                    // Re-render with read-only setting
+                    renderGantt();
+                }
+                showToast(ganttReadOnly ? '🔒 Read-only mode' : '✏️ Edit mode', 'info');
             });
         }
     });
