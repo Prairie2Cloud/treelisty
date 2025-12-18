@@ -8786,12 +8786,58 @@ The AI will analyze the structure and convert it to a tree."
             document.addEventListener('mousemove', handleMouseMove);
             document.addEventListener('mouseup', handleMouseUp);
 
+            // BUILD 491: Pinch-to-zoom for mobile Tree View
+            let treeTouchState = { initialDistance: 0, initialZoom: 1, isPinching: false, lastTouchX: 0, lastTouchY: 0 };
+
+            container.addEventListener('touchstart', (e) => {
+                if (e.touches.length === 2) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    treeTouchState.initialDistance = Math.hypot(dx, dy);
+                    treeTouchState.initialZoom = zoomLevel;
+                    treeTouchState.isPinching = true;
+                } else if (e.touches.length === 1) {
+                    // Single finger - check if not on a node (for panning)
+                    if (!e.target.closest('.tree-node, button')) {
+                        treeTouchState.lastTouchX = e.touches[0].clientX;
+                        treeTouchState.lastTouchY = e.touches[0].clientY;
+                        treeTouchState.isPinching = false;
+                    }
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchmove', (e) => {
+                if (treeTouchState.isPinching && e.touches.length === 2) {
+                    e.preventDefault();
+                    const dx = e.touches[0].clientX - e.touches[1].clientX;
+                    const dy = e.touches[0].clientY - e.touches[1].clientY;
+                    const currentDistance = Math.hypot(dx, dy);
+                    const scale = currentDistance / treeTouchState.initialDistance;
+                    zoomLevel = Math.max(MIN_ZOOM, Math.min(MAX_ZOOM, treeTouchState.initialZoom * scale));
+                    applyTransform();
+                } else if (e.touches.length === 1 && !treeTouchState.isPinching && !e.target.closest('.tree-node, button')) {
+                    // Single finger pan
+                    const deltaX = e.touches[0].clientX - treeTouchState.lastTouchX;
+                    const deltaY = e.touches[0].clientY - treeTouchState.lastTouchY;
+                    panX += deltaX;
+                    panY += deltaY;
+                    treeTouchState.lastTouchX = e.touches[0].clientX;
+                    treeTouchState.lastTouchY = e.touches[0].clientY;
+                    applyTransform();
+                }
+            }, { passive: false });
+
+            container.addEventListener('touchend', () => {
+                treeTouchState.isPinching = false;
+            });
+
             // Prevent context menu on drag
             container.addEventListener('contextmenu', (e) => {
                 if (isPanning) e.preventDefault();
             });
 
-            console.log('✅ Pan/Zoom initialized');
+            console.log('✅ Pan/Zoom initialized (with mobile pinch support)');
         }
 
         // =============================================================================
@@ -9972,13 +10018,22 @@ Do not ask permission—just provide the critique, then help.
                 }
 
                 document.addEventListener('touchstart', (e) => {
-                    // Don't intercept if touching a scrollable panel or modal
-                    if (e.target.closest('.info-panel, #chat-assistant-panel, #command-frame, .modal, .dropdown-menu-content')) {
+                    const touchX = e.touches[0].clientX;
+                    const touchY = e.touches[0].clientY;
+                    const screenWidth = window.innerWidth;
+                    const EDGE_ZONE = 50; // pixels from screen edge
+
+                    // Always allow edge swipes (like iOS back gesture)
+                    const isEdgeSwipe = touchX < EDGE_ZONE || touchX > screenWidth - EDGE_ZONE;
+
+                    // Block swipes starting inside scrollable content (but allow edge swipes)
+                    if (!isEdgeSwipe && e.target.closest('.modal, .dropdown-menu-content')) {
                         swipeState.isSwipe = false;
                         return;
                     }
-                    swipeState.startX = e.touches[0].clientX;
-                    swipeState.startY = e.touches[0].clientY;
+
+                    swipeState.startX = touchX;
+                    swipeState.startY = touchY;
                     swipeState.isSwipe = true;
                 }, { passive: true });
 
