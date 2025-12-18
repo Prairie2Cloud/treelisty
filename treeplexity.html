@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 477 | 2025-12-18
+    TreeListy v2.19.0 | Build 478 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 477): Gantt Zoom-to-Focal-Point (selected item stays centered)
-    Previous (Build 476): Gantt Minimap Improvements - Drag-to-Pan, Layout Fix
+    Changelog (Build 478): Fix Gantt Critical Path toggle (was broken)
+    Previous (Build 477): Gantt Zoom-to-Focal-Point (selected item stays centered)
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 477,
+            build: 478,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57988,7 +57988,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 477; // Update this with each build
+                    const KNOWN_LATEST = 478; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -59966,24 +59966,34 @@ console.log('📊 Frappe Gantt loaded');
             });
         }
 
-        // Critical Path toggle
+        // Critical Path toggle (BUILD 478: Fixed to use correct function and variable)
         const criticalBtn = document.getElementById('gantt-critical-btn');
         if (criticalBtn) {
-            let criticalPathOn = false;
             criticalBtn.addEventListener('click', () => {
-                criticalPathOn = !criticalPathOn;
+                ganttShowCriticalPath = !ganttShowCriticalPath;
 
-                if (criticalPathOn) {
-                    // Calculate critical path and highlight
-                    if (typeof calculateCriticalPath === 'function') {
-                        calculateCriticalPath();
+                if (ganttShowCriticalPath) {
+                    // Calculate critical path using dependencyEngine
+                    if (typeof dependencyEngine !== 'undefined' && dependencyEngine.calculateCriticalPath) {
+                        const criticalNodes = dependencyEngine.calculateCriticalPath(capexTree);
+                        if (!criticalNodes || criticalNodes.length === 0) {
+                            showToast('No critical path found (needs dependencies with durations)', 'info');
+                            ganttShowCriticalPath = false;
+                            return;
+                        }
                         renderGantt(); // Re-render with critical path classes
+                        criticalBtn.style.background = 'rgba(255, 0, 0, 0.3)';
+                        criticalBtn.style.borderColor = '#ff0000';
+                        showToast(`⚡ Critical path: ${criticalNodes.length} tasks highlighted`, 'success');
+                    } else {
+                        showToast('Critical path engine not available', 'error');
+                        ganttShowCriticalPath = false;
                     }
-                    criticalBtn.style.background = 'rgba(255, 0, 0, 0.3)';
-                    criticalBtn.style.borderColor = '#ff0000';
-                    showToast('⚡ Critical path highlighted', 'success');
                 } else {
                     // Clear critical path highlighting
+                    if (typeof dependencyEngine !== 'undefined' && dependencyEngine.clearCriticalPath) {
+                        dependencyEngine.clearCriticalPath(capexTree);
+                    }
                     criticalBtn.style.background = 'rgba(255, 0, 0, 0.1)';
                     criticalBtn.style.borderColor = 'rgba(255, 0, 0, 0.3)';
                     renderGantt(); // Re-render without critical highlighting
