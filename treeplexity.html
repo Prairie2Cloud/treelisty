@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 473 | 2025-12-18
+    TreeListy v2.19.0 | Build 474 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 473): Gantt Zoom + Prominent Info Panel
+    Changelog (Build 474): Gantt Minimap + Direct Wheel Zoom + Floating Controls
+    Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 472): Gantt Info Panel + Fit All
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
@@ -725,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 473,
+            build: 474,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57979,7 +57980,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 473; // Update this with each build
+                    const KNOWN_LATEST = 474; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58807,6 +58808,50 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         transition: transform 0.15s ease-out;
     }
 
+    /* BUILD 474: Gantt Minimap */
+    .gantt-minimap {
+        position: absolute;
+        bottom: 20px;
+        left: 20px;
+        width: 250px;
+        height: 100px;
+        background: rgba(20, 20, 30, 0.95);
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: 8px;
+        overflow: hidden;
+        z-index: 200;
+        cursor: pointer;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        transition: border-color 0.2s;
+        display: none;
+    }
+    #view-gantt.active .gantt-minimap {
+        display: block;
+    }
+    .gantt-minimap:hover {
+        border-color: rgba(99, 102, 241, 0.5);
+    }
+    #gantt-minimap-canvas {
+        width: 100%;
+        height: 100%;
+    }
+    .gantt-minimap-viewport {
+        position: absolute;
+        border: 2px solid rgba(99, 102, 241, 0.8);
+        background: rgba(99, 102, 241, 0.15);
+        pointer-events: auto;
+        cursor: grab;
+        transition: all 0.1s ease;
+    }
+    .gantt-minimap-viewport:active {
+        cursor: grabbing;
+    }
+    @media (max-width: 768px) {
+        .gantt-minimap {
+            display: none !important;
+        }
+    }
+
     /* Empty State */
     #gantt-empty-state {
         display: none;
@@ -58914,6 +58959,21 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     <!-- Gantt Chart Container (populated by Frappe Gantt) -->
     <div id="gantt-chart-wrapper" style="display: none;">
         <svg id="gantt-chart"></svg>
+    </div>
+
+    <!-- BUILD 474: Gantt Minimap -->
+    <div class="gantt-minimap" id="gantt-minimap">
+        <canvas id="gantt-minimap-canvas" width="250" height="100"></canvas>
+        <div class="gantt-minimap-viewport" id="gantt-minimap-viewport"></div>
+    </div>
+
+    <!-- BUILD 474: Floating Zoom Controls (left side) -->
+    <div id="gantt-floating-zoom" style="position: absolute; bottom: 130px; left: 20px; display: flex; flex-direction: column; gap: 4px; background: rgba(20, 20, 30, 0.95); border: 2px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 8px; z-index: 100;">
+        <button id="gantt-floating-zoom-in" style="width: 32px; height: 32px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 6px; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
+        <span id="gantt-floating-zoom-level" style="text-align: center; font-size: 10px; color: rgba(255,255,255,0.8); padding: 2px 0;">100%</span>
+        <button id="gantt-floating-zoom-out" style="width: 32px; height: 32px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 6px; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">−</button>
+        <div style="border-top: 1px solid rgba(99, 102, 241, 0.2); margin: 4px 0;"></div>
+        <button id="gantt-floating-fit" style="width: 32px; height: 32px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 6px; color: white; font-size: 12px; cursor: pointer; display: flex; align-items: center; justify-content: center;" title="Fit All">⊡</button>
     </div>
 </div>
 
@@ -59313,6 +59373,11 @@ console.log('📊 Frappe Gantt loaded');
             console.log('📊 Gantt chart rendered with', tasks.length, 'tasks');
             showToast(`📊 Gantt chart: ${tasks.length} tasks`, 'success');
 
+            // BUILD 474: Update minimap after chart renders
+            if (window.updateGanttMinimap) {
+                setTimeout(window.updateGanttMinimap, 100);
+            }
+
         } catch (error) {
             console.error('📊 Gantt render error:', error);
             showToast('Failed to render Gantt chart', 'error');
@@ -59505,11 +59570,18 @@ console.log('📊 Frappe Gantt loaded');
 
         const isActive = viewGantt.classList.contains('active');
 
+        // BUILD 474: Minimap and floating zoom elements
+        const minimap = document.getElementById('gantt-minimap');
+        const floatingZoom = document.getElementById('gantt-floating-zoom');
+
         if (isActive) {
             // Close Gantt view
             viewGantt.classList.remove('active');
             toolbar.classList.remove('active');
             treeView.classList.remove('hidden');
+            // BUILD 474: Hide minimap and floating zoom
+            if (minimap) minimap.style.display = 'none';
+            if (floatingZoom) floatingZoom.style.display = 'none';
             viewMode = 'tree';
             if (window.updateViewDropdown) window.updateViewDropdown('tree');
             render();
@@ -59520,6 +59592,9 @@ console.log('📊 Frappe Gantt loaded');
             treeView.classList.add('hidden');
             canvasView.classList.remove('active');
             view3D.classList.remove('active');
+            // BUILD 474: Show minimap and floating zoom
+            if (minimap) minimap.style.display = 'block';
+            if (floatingZoom) floatingZoom.style.display = 'flex';
             viewMode = 'gantt';
 
             // BUILD 468: Hide canvas toolbar when entering Gantt view
@@ -59687,10 +59762,11 @@ console.log('📊 Frappe Gantt loaded');
             });
         }
 
-        // BUILD 473: Zoom controls
+        // BUILD 473: Zoom controls (BUILD 474: Also update minimap + floating panel)
         function applyGanttZoom() {
             const wrapper = document.getElementById('gantt-chart-wrapper');
             const levelEl = document.getElementById('gantt-zoom-level');
+            const floatingLevelEl = document.getElementById('gantt-floating-zoom-level');
             if (wrapper) {
                 const svg = wrapper.querySelector('svg');
                 if (svg) {
@@ -59700,6 +59776,13 @@ console.log('📊 Frappe Gantt loaded');
             }
             if (levelEl) {
                 levelEl.textContent = `${ganttZoom}%`;
+            }
+            if (floatingLevelEl) {
+                floatingLevelEl.textContent = `${ganttZoom}%`;
+            }
+            // Update minimap viewport after zoom change
+            if (window.updateGanttMinimap) {
+                setTimeout(window.updateGanttMinimap, 50);
             }
         }
 
@@ -59724,25 +59807,202 @@ console.log('📊 Frappe Gantt loaded');
             });
         }
 
-        // Mouse wheel zoom on Gantt chart
+        // BUILD 474: Mouse wheel always zooms in Gantt (pan via click-drag)
         const ganttWrapper = document.getElementById('gantt-chart-wrapper');
         if (ganttWrapper) {
             ganttWrapper.addEventListener('wheel', (e) => {
-                // Only zoom if Ctrl/Cmd is held
-                if (e.ctrlKey || e.metaKey) {
-                    e.preventDefault();
-                    if (e.deltaY < 0 && ganttZoom < GANTT_ZOOM_MAX) {
-                        ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
-                    } else if (e.deltaY > 0 && ganttZoom > GANTT_ZOOM_MIN) {
-                        ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
-                    }
-                    applyGanttZoom();
+                // Wheel always zooms (hold Shift to scroll horizontally instead)
+                if (e.shiftKey) {
+                    // Shift+wheel = horizontal scroll (let browser handle)
+                    return;
                 }
+                e.preventDefault();
+                if (e.deltaY < 0 && ganttZoom < GANTT_ZOOM_MAX) {
+                    ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
+                } else if (e.deltaY > 0 && ganttZoom > GANTT_ZOOM_MIN) {
+                    ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
+                }
+                applyGanttZoom();
             }, { passive: false });
         }
 
         // Expose applyGanttZoom globally for Fit All
         window.applyGanttZoom = applyGanttZoom;
+
+        // BUILD 474: Floating zoom control event listeners
+        const floatingZoomIn = document.getElementById('gantt-floating-zoom-in');
+        const floatingZoomOut = document.getElementById('gantt-floating-zoom-out');
+        const floatingFit = document.getElementById('gantt-floating-fit');
+
+        if (floatingZoomIn) {
+            floatingZoomIn.addEventListener('click', () => {
+                if (ganttZoom < GANTT_ZOOM_MAX) {
+                    ganttZoom = Math.min(GANTT_ZOOM_MAX, ganttZoom + GANTT_ZOOM_STEP);
+                    applyGanttZoom();
+                }
+            });
+        }
+
+        if (floatingZoomOut) {
+            floatingZoomOut.addEventListener('click', () => {
+                if (ganttZoom > GANTT_ZOOM_MIN) {
+                    ganttZoom = Math.max(GANTT_ZOOM_MIN, ganttZoom - GANTT_ZOOM_STEP);
+                    applyGanttZoom();
+                }
+            });
+        }
+
+        if (floatingFit) {
+            floatingFit.addEventListener('click', () => {
+                // Trigger the main Fit All button
+                const fitBtn = document.getElementById('gantt-fit-btn');
+                if (fitBtn) fitBtn.click();
+            });
+        }
+
+        // =====================================================================
+        // BUILD 474: Gantt Minimap
+        // =====================================================================
+        const ganttMinimapConfig = {
+            width: 250,
+            height: 100,
+            padding: 5,
+            taskColor: 'rgba(99, 102, 241, 0.7)',
+            criticalColor: 'rgba(239, 68, 68, 0.7)',
+            backgroundColor: 'rgba(30, 30, 40, 0.9)'
+        };
+
+        let ganttMinimapBounds = { totalWidth: 1000, totalHeight: 500 };
+
+        function updateGanttMinimap() {
+            const canvas = document.getElementById('gantt-minimap-canvas');
+            const wrapper = document.getElementById('gantt-chart-wrapper');
+            const svg = wrapper?.querySelector('svg');
+
+            if (!canvas || !svg || viewMode !== 'gantt') return;
+
+            const ctx = canvas.getContext('2d');
+            const { width, height, padding } = ganttMinimapConfig;
+
+            // Clear canvas
+            ctx.fillStyle = ganttMinimapConfig.backgroundColor;
+            ctx.fillRect(0, 0, width, height);
+
+            // Get actual SVG dimensions (accounting for zoom)
+            const svgRect = svg.getBoundingClientRect();
+            const actualWidth = svgRect.width / (ganttZoom / 100);
+            const actualHeight = svgRect.height / (ganttZoom / 100);
+
+            ganttMinimapBounds = {
+                totalWidth: actualWidth || 1000,
+                totalHeight: actualHeight || 500
+            };
+
+            // Calculate scale to fit
+            const scaleX = (width - padding * 2) / ganttMinimapBounds.totalWidth;
+            const scaleY = (height - padding * 2) / ganttMinimapBounds.totalHeight;
+            const scale = Math.min(scaleX, scaleY);
+
+            // Draw simplified representation of Gantt bars
+            const bars = svg.querySelectorAll('.bar');
+            bars.forEach(bar => {
+                const x = parseFloat(bar.getAttribute('x')) || 0;
+                const y = parseFloat(bar.getAttribute('y')) || 0;
+                const w = parseFloat(bar.getAttribute('width')) || 50;
+                const h = parseFloat(bar.getAttribute('height')) || 20;
+
+                const miniX = padding + x * scale;
+                const miniY = padding + y * scale;
+                const miniW = Math.max(w * scale, 2);
+                const miniH = Math.max(h * scale, 2);
+
+                // Check if critical
+                const isCritical = bar.classList.contains('critical') ||
+                                   bar.parentElement?.classList.contains('critical');
+                ctx.fillStyle = isCritical ? ganttMinimapConfig.criticalColor : ganttMinimapConfig.taskColor;
+                ctx.fillRect(miniX, miniY, miniW, miniH);
+            });
+
+            // Update viewport indicator
+            updateGanttMinimapViewport();
+        }
+
+        function updateGanttMinimapViewport() {
+            const viewport = document.getElementById('gantt-minimap-viewport');
+            const wrapper = document.getElementById('gantt-chart-wrapper');
+
+            if (!viewport || !wrapper || viewMode !== 'gantt') return;
+
+            const { width, height, padding } = ganttMinimapConfig;
+            const { totalWidth, totalHeight } = ganttMinimapBounds;
+
+            // Calculate scale
+            const scaleX = (width - padding * 2) / totalWidth;
+            const scaleY = (height - padding * 2) / totalHeight;
+            const scale = Math.min(scaleX, scaleY);
+
+            // Current visible area (accounting for zoom)
+            const visibleWidth = wrapper.clientWidth / (ganttZoom / 100);
+            const visibleHeight = wrapper.clientHeight / (ganttZoom / 100);
+            const scrollLeft = wrapper.scrollLeft / (ganttZoom / 100);
+            const scrollTop = wrapper.scrollTop / (ganttZoom / 100);
+
+            // Calculate viewport rectangle
+            const vpLeft = padding + scrollLeft * scale;
+            const vpTop = padding + scrollTop * scale;
+            const vpWidth = Math.max(visibleWidth * scale, 20);
+            const vpHeight = Math.max(visibleHeight * scale, 10);
+
+            viewport.style.left = vpLeft + 'px';
+            viewport.style.top = vpTop + 'px';
+            viewport.style.width = vpWidth + 'px';
+            viewport.style.height = vpHeight + 'px';
+        }
+
+        // Update minimap on scroll
+        if (ganttWrapper) {
+            ganttWrapper.addEventListener('scroll', () => {
+                updateGanttMinimapViewport();
+            });
+        }
+
+        // Click on minimap to navigate
+        const ganttMinimap = document.getElementById('gantt-minimap');
+        if (ganttMinimap) {
+            ganttMinimap.addEventListener('click', (e) => {
+                const wrapper = document.getElementById('gantt-chart-wrapper');
+                if (!wrapper) return;
+
+                const rect = ganttMinimap.getBoundingClientRect();
+                const clickX = e.clientX - rect.left;
+                const clickY = e.clientY - rect.top;
+
+                const { width, height, padding } = ganttMinimapConfig;
+                const { totalWidth, totalHeight } = ganttMinimapBounds;
+
+                // Calculate scale
+                const scaleX = (width - padding * 2) / totalWidth;
+                const scaleY = (height - padding * 2) / totalHeight;
+                const scale = Math.min(scaleX, scaleY);
+
+                // Convert click position to scroll position
+                const targetX = ((clickX - padding) / scale) * (ganttZoom / 100);
+                const targetY = ((clickY - padding) / scale) * (ganttZoom / 100);
+
+                // Center the view on the clicked position
+                const visibleWidth = wrapper.clientWidth;
+                const visibleHeight = wrapper.clientHeight;
+
+                wrapper.scrollTo({
+                    left: targetX - visibleWidth / 2,
+                    top: targetY - visibleHeight / 2,
+                    behavior: 'smooth'
+                });
+            });
+        }
+
+        // Expose minimap update function
+        window.updateGanttMinimap = updateGanttMinimap;
     });
 
     // --- 2. Toggle View ---
