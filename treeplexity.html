@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 487 | 2025-12-18
+    TreeListy v2.19.0 | Build 488 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 487): Treebeard PM Assistant Phase 3 - Edit commands
+    Changelog (Build 488): Treebeard PM Assistant Phase 4 - Context Injection
+    Previous (Build 487): Treebeard PM Assistant Phase 3 - Edit commands
     Previous (Build 486): Treebeard PM Assistant Phase 2 - Analysis commands
     Previous (Build 483): Gantt UX Polish - smooth zoom, Edit Task fix, muted colors
     Previous (Build 471): Fix Gantt not showing MS Project tasks
@@ -726,7 +727,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 487,
+            build: 488,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6644,6 +6645,20 @@ The AI will analyze the structure and convert it to a tree."
                 </label>
             </div>
 
+            <!-- BUILD 488: Treebeard Proactive Hints Toggle -->
+            <div style="margin-bottom: 25px; padding: 15px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
+                <label style="display: flex; align-items: flex-start; gap: 12px; cursor: pointer;">
+                    <input type="checkbox" id="treebeard-proactive-hints" checked style="width: 18px; height: 18px; accent-color: #10b981; margin-top: 2px;">
+                    <div>
+                        <strong style="color: #6ee7b7;">🌲 TreeBeard Proactive Hints</strong>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px;">
+                            TreeBeard will notice schedule issues (overdue tasks, critical path risks) and gently nudge you.
+                            <br><span style="color: rgba(255,255,255,0.5);">Only in Deep Mode with schedule data present.</span>
+                        </div>
+                    </div>
+                </label>
+            </div>
+
             <!-- Live Preview -->
             <div style="margin-bottom: 25px; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
                 <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
@@ -9828,6 +9843,10 @@ Do not ask permission—just provide the critique, then help.
             // BUILD 396: Load Chat UI preference
             document.getElementById('use-classic-chat').checked = !window.useNewChatUI;
 
+            // BUILD 488: Load Treebeard proactive hints preference
+            const proactiveHints = localStorage.getItem('treebeardProactiveHints') !== 'false'; // Default true
+            document.getElementById('treebeard-proactive-hints').checked = proactiveHints;
+
             // Update preview
             updateAIPreview();
 
@@ -9890,6 +9909,10 @@ Do not ask permission—just provide the critique, then help.
             const useClassic = document.getElementById('use-classic-chat').checked;
             window.useNewChatUI = !useClassic;
             localStorage.setItem('useNewChatUI', String(!useClassic));
+
+            // BUILD 488: Save Treebeard proactive hints preference
+            const proactiveHints = document.getElementById('treebeard-proactive-hints').checked;
+            localStorage.setItem('treebeardProactiveHints', String(proactiveHints));
 
             // Close any open chat panels if switching UI mode
             if (typeof chatState !== 'undefined' && chatState.isOpen) {
@@ -55243,6 +55266,107 @@ WHAT WE'VE CAPTURED (${allMemories.length} memories)
         }
 
         /**
+         * BUILD 488: Schedule context for Treebeard PM Assistant
+         * Returns schedule summary for AI context injection
+         * @param {boolean} deep - If true, returns detailed analysis (~200 tokens), else quick (~50 tokens)
+         */
+        function getScheduleContext(deep = false) {
+            // Use getAllTasksWithDates if available (Build 486)
+            if (typeof getAllTasksWithDates !== 'function') {
+                return null; // No schedule data functions available
+            }
+
+            const tasks = getAllTasksWithDates();
+            if (!tasks || tasks.length === 0) {
+                return null; // No tasks with schedule data
+            }
+
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+
+            // Calculate stats
+            const overdue = tasks.filter(t => t.isOverdue);
+            const critical = tasks.filter(t => t.isCritical);
+            const done = tasks.filter(t => t.pmStatus === 'Done');
+            const inProgress = tasks.filter(t => t.pmStatus === 'In Progress');
+            const notStarted = tasks.filter(t => t.pmStatus === 'Not Started' || !t.pmStatus);
+            const blocked = tasks.filter(t => t.pmStatus === 'Blocked');
+
+            // Calculate critical path duration
+            let criticalPathDuration = 0;
+            if (typeof dependencyEngine !== 'undefined' && typeof capexTree !== 'undefined') {
+                try {
+                    const cpResult = dependencyEngine.calculateCriticalPath(capexTree);
+                    if (cpResult && cpResult.criticalNodes) {
+                        criticalPathDuration = cpResult.criticalNodes.reduce((sum, n) => sum + (n.pmDuration || 1), 0);
+                    }
+                } catch (e) {
+                    console.warn('Could not calculate critical path for context:', e);
+                }
+            }
+
+            if (!deep) {
+                // Quick Mode (~50 tokens)
+                return `📊 ${tasks.length} tasks, ${overdue.length} overdue, ${critical.length} on critical path${criticalPathDuration > 0 ? ` (${criticalPathDuration} days)` : ''}`;
+            }
+
+            // Deep Mode (~200 tokens)
+            let context = `📊 SCHEDULE ANALYSIS:\n`;
+            context += `- Total: ${tasks.length} tasks`;
+
+            // Status breakdown
+            const statusParts = [];
+            if (done.length) statusParts.push(`${done.length} Done`);
+            if (inProgress.length) statusParts.push(`${inProgress.length} In Progress`);
+            if (notStarted.length) statusParts.push(`${notStarted.length} Not Started`);
+            if (blocked.length) statusParts.push(`${blocked.length} Blocked`);
+            if (statusParts.length) context += ` (${statusParts.join(', ')})`;
+            context += '\n';
+
+            // Overdue items
+            if (overdue.length > 0) {
+                context += `- Overdue: `;
+                const overdueList = overdue.slice(0, 3).map(t =>
+                    `${t.name} (${t.daysOverdue} days)`
+                ).join(', ');
+                context += overdueList;
+                if (overdue.length > 3) context += ` +${overdue.length - 3} more`;
+                context += '\n';
+            }
+
+            // Critical path
+            if (critical.length > 0 && criticalPathDuration > 0) {
+                const critNames = critical.slice(0, 4).map(t => t.name.substring(0, 20));
+                context += `- Critical path: ${criticalPathDuration} days (${critNames.join(' → ')}${critical.length > 4 ? ' → ...' : ''})\n`;
+            }
+
+            // Slack distribution
+            const tasksWithSlack = tasks.filter(t => typeof t.slack === 'number');
+            if (tasksWithSlack.length > 0) {
+                const zeroSlack = tasksWithSlack.filter(t => t.slack === 0).length;
+                const lowSlack = tasksWithSlack.filter(t => t.slack > 0 && t.slack < 5).length;
+                context += `- Slack: ${zeroSlack} tasks with 0 slack, ${lowSlack} with <5 days\n`;
+            }
+
+            // Dependencies count
+            const depsCount = tasks.reduce((sum, t) => sum + (t.dependencies?.length || 0), 0);
+            if (depsCount > 0) {
+                context += `- Dependencies: ${depsCount} total\n`;
+            }
+
+            // Risks - critical tasks that are overdue
+            const criticalOverdue = tasks.filter(t => t.isCritical && t.isOverdue);
+            if (criticalOverdue.length > 0) {
+                context += `- ⚠️ RISK: ${criticalOverdue.map(t => t.name).join(', ')} ${criticalOverdue.length === 1 ? 'is' : 'are'} overdue AND on critical path!\n`;
+            }
+
+            return context;
+        }
+
+        // Expose for testing
+        window.getScheduleContext = getScheduleContext;
+
+        /**
          * Toggle conversation mode manually
          */
         window.toggleConversationMode = function() {
@@ -55611,8 +55735,22 @@ Return ONLY valid JSON.`;
                 systemPrompt += getLifeTreeBiographerPrompt(phases, context, chatState);
             }
 
+            // BUILD 488: Tier 6 - Schedule context for PM Assistant
+            // Inject when: in Gantt view, schedule keywords detected, or tree has schedule data with status questions
+            const isInGanttView = typeof viewMode !== 'undefined' && viewMode === 'gantt';
+            // Use existing conversationMode toggle (Deep mode = more detailed context)
+            const useDeepScheduleContext = chatState.conversationMode === true;
+
+            if (intent.needsScheduleHelp || isInGanttView) {
+                const scheduleContext = getScheduleContext(useDeepScheduleContext);
+                if (scheduleContext) {
+                    systemPrompt += '\n\n' + scheduleContext;
+                    systemPrompt += '\n\nYou can use GANTT/SCHEDULE commands to help with schedule tasks. Explain PM concepts briefly when relevant (critical path = longest chain, slack = buffer time, etc).';
+                }
+            }
+
             // Log token savings in dev
-            console.log(`🌳 TreeBeard prompt tiers: greeting=${intent.isGreeting}, nav=${intent.needsNavigation}, edit=${intent.needsEditing}, help=${intent.needsFeatureHelp}, pattern=${intent.needsPatternInfo}, lifetree=${context.pattern === 'lifetree'}, healthCheck=${intent.needsHealthCheck}`);
+            console.log(`🌳 TreeBeard prompt tiers: greeting=${intent.isGreeting}, nav=${intent.needsNavigation}, edit=${intent.needsEditing}, help=${intent.needsFeatureHelp}, pattern=${intent.needsPatternInfo}, lifetree=${context.pattern === 'lifetree'}, healthCheck=${intent.needsHealthCheck}, schedule=${intent.needsScheduleHelp || isInGanttView}`);
 
             // Always add minimal rules
             systemPrompt += `
@@ -58839,7 +58977,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 487; // Update this with each build
+                    const KNOWN_LATEST = 488; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
