@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 464 | 2025-12-18
+    TreeListy v2.19.0 | Build 465 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 464): Milestone Dependency Preservation
+    Changelog (Build 465): Fix Gantt View Switching
+    Previous (Build 464): Milestone Dependency Preservation
     Previous (Build 463): MS Project Import Dependency Types
     Previous (Build 462): MS Project Export Dependency Fix
     - Export now preserves typed dependencies (FS/FF/SS/SF)
@@ -716,7 +717,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 464,
+            build: 465,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -9158,11 +9159,29 @@ Do not ask permission—just provide the critique, then help.
                 }
             }
 
+            // Helper: Close Gantt view if active
+            function closeGanttViewIfActive() {
+                const viewGantt = document.getElementById('view-gantt');
+                const toolbar = document.getElementById('gantt-toolbar');
+                if (viewGantt && viewGantt.classList.contains('active')) {
+                    viewGantt.classList.remove('active');
+                    if (toolbar) toolbar.classList.remove('active');
+                    return true;  // Was in Gantt view
+                }
+                return false;
+            }
+
             // Tree View button
             document.getElementById('view-tree-btn')?.addEventListener('click', () => {
                 if (typeof viewMode !== 'undefined' && viewMode !== 'tree') {
-                    // Click the hidden toggle button to switch from canvas
-                    if (viewMode === 'canvas') {
+                    // Close Gantt view if active
+                    if (viewMode === 'gantt') {
+                        closeGanttViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                        render();
+                    } else if (viewMode === 'canvas') {
                         document.getElementById('toggle-view-mode')?.click();
                     } else if (viewMode === '3d') {
                         document.getElementById('toggle-3d-mode')?.click();
@@ -9174,7 +9193,15 @@ Do not ask permission—just provide the critique, then help.
             // Canvas View button
             document.getElementById('view-canvas-btn')?.addEventListener('click', () => {
                 if (typeof viewMode !== 'undefined') {
-                    if (viewMode === 'tree') {
+                    // Close Gantt view if active
+                    if (viewMode === 'gantt') {
+                        closeGanttViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                        // Now switch to canvas
+                        document.getElementById('toggle-view-mode')?.click();
+                    } else if (viewMode === 'tree') {
                         document.getElementById('toggle-view-mode')?.click();
                     } else if (viewMode === '3d') {
                         document.getElementById('toggle-3d-mode')?.click();
@@ -9190,6 +9217,13 @@ Do not ask permission—just provide the critique, then help.
             // 3D View button
             document.getElementById('view-3d-btn')?.addEventListener('click', () => {
                 if (typeof viewMode !== 'undefined' && viewMode !== '3d') {
+                    // Close Gantt view if active
+                    if (viewMode === 'gantt') {
+                        closeGanttViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                    }
                     document.getElementById('toggle-3d-mode')?.click();
                 }
                 updateViewDropdown('3d');
@@ -57415,7 +57449,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 464; // Update this with each build
+                    const KNOWN_LATEST = 465; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
