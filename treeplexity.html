@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 475 | 2025-12-18
+    TreeListy v2.19.0 | Build 476 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 475): Gantt UX Improvements - Pan, Selection, Tooltips
+    Changelog (Build 476): Gantt Minimap Improvements - Drag-to-Pan, Layout Fix
     Previous (Build 474): Gantt Minimap + Direct Wheel Zoom + Floating Controls
     Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 475,
+            build: 476,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57988,7 +57988,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 475; // Update this with each build
+                    const KNOWN_LATEST = 476; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58816,11 +58816,11 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         transition: transform 0.15s ease-out;
     }
 
-    /* BUILD 474: Gantt Minimap */
+    /* BUILD 474: Gantt Minimap (BUILD 475: Fixed position to avoid sidebar) */
     .gantt-minimap {
         position: absolute;
         bottom: 20px;
-        left: 20px;
+        left: 70px;  /* Offset to avoid sidebar overlap */
         width: 250px;
         height: 100px;
         background: rgba(20, 20, 30, 0.95);
@@ -58851,8 +58851,11 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         cursor: grab;
         transition: all 0.1s ease;
     }
-    .gantt-minimap-viewport:active {
+    .gantt-minimap-viewport:active,
+    .gantt-minimap-viewport.dragging {
         cursor: grabbing;
+        border-color: rgba(99, 102, 241, 1);
+        background: rgba(99, 102, 241, 0.25);
     }
     @media (max-width: 768px) {
         .gantt-minimap {
@@ -59056,8 +59059,8 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         <div class="gantt-minimap-viewport" id="gantt-minimap-viewport"></div>
     </div>
 
-    <!-- BUILD 474: Floating Zoom Controls (left side) -->
-    <div id="gantt-floating-zoom" style="position: absolute; bottom: 130px; left: 20px; display: flex; flex-direction: column; gap: 4px; background: rgba(20, 20, 30, 0.95); border: 2px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 8px; z-index: 100;">
+    <!-- BUILD 474: Floating Zoom Controls (BUILD 475: Fixed position to avoid sidebar) -->
+    <div id="gantt-floating-zoom" style="position: absolute; bottom: 130px; left: 70px; display: flex; flex-direction: column; gap: 4px; background: rgba(20, 20, 30, 0.95); border: 2px solid rgba(99, 102, 241, 0.3); border-radius: 8px; padding: 8px; z-index: 100;">
         <button id="gantt-floating-zoom-in" style="width: 32px; height: 32px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 6px; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">+</button>
         <span id="gantt-floating-zoom-level" style="text-align: center; font-size: 10px; color: rgba(255,255,255,0.8); padding: 2px 0;">100%</span>
         <button id="gantt-floating-zoom-out" style="width: 32px; height: 32px; background: rgba(99, 102, 241, 0.2); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 6px; color: white; font-size: 16px; cursor: pointer; display: flex; align-items: center; justify-content: center;">−</button>
@@ -60241,17 +60244,87 @@ console.log('📊 Frappe Gantt loaded');
             viewport.style.height = vpHeight + 'px';
         }
 
-        // Update minimap on scroll
+        // BUILD 476: Throttled scroll updates using requestAnimationFrame
+        let ganttMinimapScrollPending = false;
         if (ganttWrapper) {
             ganttWrapper.addEventListener('scroll', () => {
-                updateGanttMinimapViewport();
+                if (!ganttMinimapScrollPending) {
+                    ganttMinimapScrollPending = true;
+                    requestAnimationFrame(() => {
+                        updateGanttMinimapViewport();
+                        ganttMinimapScrollPending = false;
+                    });
+                }
             });
         }
 
-        // Click on minimap to navigate
+        // BUILD 476: Viewport drag-to-pan (like Canvas minimap)
+        let ganttMinimapDragging = false;
+        let ganttMinimapDragStart = { x: 0, y: 0 };
+        let ganttMinimapScrollStart = { left: 0, top: 0 };
+
         const ganttMinimap = document.getElementById('gantt-minimap');
+        const ganttMinimapViewport = document.getElementById('gantt-minimap-viewport');
+
+        if (ganttMinimapViewport) {
+            // Mouse down on viewport starts drag
+            ganttMinimapViewport.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                ganttMinimapDragging = true;
+                ganttMinimapDragStart = { x: e.clientX, y: e.clientY };
+                const wrapper = document.getElementById('gantt-chart-wrapper');
+                if (wrapper) {
+                    ganttMinimapScrollStart = { left: wrapper.scrollLeft, top: wrapper.scrollTop };
+                }
+                ganttMinimapViewport.style.cursor = 'grabbing';
+                ganttMinimapViewport.classList.add('dragging');
+            });
+        }
+
+        // Global mousemove for viewport drag
+        document.addEventListener('mousemove', (e) => {
+            if (!ganttMinimapDragging) return;
+
+            const wrapper = document.getElementById('gantt-chart-wrapper');
+            if (!wrapper) return;
+
+            const { width, height, padding } = ganttMinimapConfig;
+            const { totalWidth, totalHeight } = ganttMinimapBounds;
+
+            // Calculate scale
+            const scaleX = (width - padding * 2) / totalWidth;
+            const scaleY = (height - padding * 2) / totalHeight;
+            const scale = Math.min(scaleX, scaleY);
+
+            // Calculate delta in minimap space and convert to scroll space
+            const deltaX = e.clientX - ganttMinimapDragStart.x;
+            const deltaY = e.clientY - ganttMinimapDragStart.y;
+
+            // Convert to chart scroll (accounting for zoom)
+            const scrollDeltaX = (deltaX / scale) * (ganttZoom / 100);
+            const scrollDeltaY = (deltaY / scale) * (ganttZoom / 100);
+
+            wrapper.scrollLeft = ganttMinimapScrollStart.left + scrollDeltaX;
+            wrapper.scrollTop = ganttMinimapScrollStart.top + scrollDeltaY;
+        });
+
+        // Global mouseup ends drag
+        document.addEventListener('mouseup', () => {
+            if (ganttMinimapDragging) {
+                ganttMinimapDragging = false;
+                if (ganttMinimapViewport) {
+                    ganttMinimapViewport.style.cursor = 'grab';
+                    ganttMinimapViewport.classList.remove('dragging');
+                }
+            }
+        });
+
+        // Click on minimap (not viewport) to navigate
         if (ganttMinimap) {
             ganttMinimap.addEventListener('click', (e) => {
+                // Skip if clicking on viewport or just finished dragging
+                if (e.target.id === 'gantt-minimap-viewport' || ganttMinimapDragging) return;
+
                 const wrapper = document.getElementById('gantt-chart-wrapper');
                 if (!wrapper) return;
 
