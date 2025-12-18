@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 488 | 2025-12-18
+    TreeListy v2.19.0 | Build 489 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 488): Treebeard PM Assistant Phase 4 - Context Injection
+    Changelog (Build 489): Tree View selected node highlighting
+    Previous (Build 488): Treebeard PM Assistant Phase 4 - Context Injection
     Previous (Build 487): Treebeard PM Assistant Phase 3 - Edit commands
     Previous (Build 486): Treebeard PM Assistant Phase 2 - Analysis commands
     Previous (Build 483): Gantt UX Polish - smooth zoom, Edit Task fix, muted colors
@@ -727,7 +728,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 488,
+            build: 489,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1179,6 +1180,26 @@
             transform: translateX(4px) translateY(-2px);
             border-color: var(--treeplex-primary);
             background: linear-gradient(145deg, #3A3F52, var(--card-bg-light));
+        }
+
+        /* BUILD 489: Selected node styling - indicates which node's info panel is open */
+        .tree-node.selected {
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.35), 0 0 0 2px var(--treeplex-primary);
+            border-color: var(--treeplex-primary);
+            background: linear-gradient(145deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05));
+            transform: translateX(4px);
+            z-index: 20;
+        }
+
+        .tree-node.selected::before {
+            content: '◀';
+            position: absolute;
+            right: -24px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--treeplex-primary);
+            font-size: 14px;
+            opacity: 0.8;
         }
 
         .tree-node::after {
@@ -1792,9 +1813,14 @@
                 background: rgba(255,255,255,0.05) !important;
             }
 
+            /* BUILD 489: Enhanced selected node styling */
             .tree-node.selected {
-                background: rgba(99, 102, 241, 0.15) !important;
-                border-left: 3px solid var(--primary) !important;
+                background: rgba(99, 102, 241, 0.2) !important;
+                border-left: 4px solid var(--primary) !important;
+                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.25), 0 2px 6px rgba(0, 0, 0, 0.15) !important;
+                transform: translateX(2px) !important;
+                position: relative !important;
+                z-index: 10 !important;
             }
 
             /* File-system indentation */
@@ -24208,6 +24234,13 @@ function hidePatternDescription() {
             panel.classList.add('open');
             currentOpenItemId = node.id;
 
+            // BUILD 489: Highlight selected node in tree view
+            document.querySelectorAll('.tree-node.selected').forEach(n => n.classList.remove('selected'));
+            const selectedNode = document.querySelector(`.tree-node[data-node-id="${node.id}"]`);
+            if (selectedNode) {
+                selectedNode.classList.add('selected');
+            }
+
             // Reposition hyperedge panel if it's open
             repositionHyperedgePanel(true);
 
@@ -24458,6 +24491,9 @@ function hidePatternDescription() {
         document.getElementById('close-info').addEventListener('click', () => {
             document.getElementById('info-panel').classList.remove('open');
             currentOpenItemId = null;
+
+            // BUILD 489: Clear tree node selection
+            document.querySelectorAll('.tree-node.selected').forEach(n => n.classList.remove('selected'));
 
             // Reposition hyperedge panel back to right edge
             repositionHyperedgePanel(false);
@@ -58977,7 +59013,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 488; // Update this with each build
+                    const KNOWN_LATEST = 489; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
