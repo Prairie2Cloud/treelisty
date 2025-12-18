@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 471 | 2025-12-18
+    TreeListy v2.19.0 | Build 472 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 471): Fix Gantt not showing MS Project tasks
+    Changelog (Build 472): Gantt Info Panel + Fit All
+    Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
     Previous (Build 469): Quick Capture Mode
     Previous (Build 468): Gantt View Layout Fixes + Global Dropdown Styling
@@ -723,7 +724,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 471,
+            build: 472,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -57977,7 +57978,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 471; // Update this with each build
+                    const KNOWN_LATEST = 472; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -59225,6 +59226,8 @@ console.log('📊 Frappe Gantt loaded');
                 // Event handlers (bidirectional sync in Build 461)
                 on_click: function(task) {
                     console.log('📊 Gantt task clicked:', task.name);
+                    // BUILD 472: Show info panel with scheduling data
+                    showGanttInfoPanel(task);
                 },
 
                 on_date_change: function(task, start, end) {
@@ -59296,6 +59299,171 @@ console.log('📊 Frappe Gantt loaded');
 
     // Expose renderGantt globally
     window.renderGantt = renderGantt;
+
+    /**
+     * BUILD 472: Show info panel with scheduling data when Gantt task clicked
+     */
+    function showGanttInfoPanel(task) {
+        const node = getNodeById(task.id);
+        if (!node) {
+            console.warn('📊 Node not found for task:', task.id);
+            return;
+        }
+
+        const panel = document.getElementById('info-panel');
+        const titleEl = document.getElementById('info-title');
+        const bodyEl = document.getElementById('info-body');
+
+        if (!panel || !titleEl || !bodyEl) return;
+
+        // Title
+        titleEl.innerHTML = `📊 ${node.name || node.title || 'Task'}`;
+
+        // Calculate schedule info
+        const startDate = node.pmStartDate ? new Date(node.pmStartDate) : null;
+        const endDate = node.pmDueDate ? new Date(node.pmDueDate) : null;
+        const today = new Date();
+
+        let daysInfo = '';
+        if (endDate) {
+            const diffDays = Math.ceil((endDate - today) / (1000 * 60 * 60 * 24));
+            if (node.pmStatus === 'Done' || node.pmProgress >= 100) {
+                daysInfo = '<span style="color: #10B981;">✅ Completed</span>';
+            } else if (diffDays < 0) {
+                daysInfo = `<span style="color: #EF4444; font-weight: 600;">⚠️ ${Math.abs(diffDays)} days overdue</span>`;
+            } else if (diffDays === 0) {
+                daysInfo = '<span style="color: #F59E0B; font-weight: 600;">📅 Due today!</span>';
+            } else if (diffDays <= 7) {
+                daysInfo = `<span style="color: #F59E0B;">⏰ ${diffDays} days left</span>`;
+            } else {
+                daysInfo = `<span style="color: var(--text-secondary);">${diffDays} days remaining</span>`;
+            }
+        }
+
+        // Status color
+        const statusColors = {
+            'To Do': { bg: 'rgba(156, 163, 175, 0.3)', color: '#9CA3AF' },
+            'Not Started': { bg: 'rgba(156, 163, 175, 0.3)', color: '#9CA3AF' },
+            'In Progress': { bg: 'rgba(59, 130, 246, 0.3)', color: '#3B82F6' },
+            'Done': { bg: 'rgba(16, 185, 129, 0.3)', color: '#10B981' },
+            'Completed': { bg: 'rgba(16, 185, 129, 0.3)', color: '#10B981' },
+            'Blocked': { bg: 'rgba(239, 68, 68, 0.3)', color: '#EF4444' }
+        };
+        const status = node.pmStatus || 'Not Started';
+        const statusStyle = statusColors[status] || statusColors['Not Started'];
+
+        // Format dates
+        const formatDate = (d) => d ? new Date(d).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : '—';
+
+        // Build dependencies list
+        let depsHtml = '';
+        if (node.dependencies && node.dependencies.length > 0) {
+            const depItems = node.dependencies.map(dep => {
+                const depId = typeof dep === 'string' ? dep : (dep.predecessorId || '');
+                const depType = typeof dep === 'object' ? dep.type : 'FS';
+                const depLag = typeof dep === 'object' ? (dep.lag || 0) : 0;
+                const depNode = getNodeById(depId);
+                const name = depNode ? (depNode.name || depNode.title) : depId;
+                let typeInfo = depType !== 'FS' || depLag ? ` (${depType}${depLag ? '+' + depLag + 'd' : ''})` : '';
+                return `<div style="padding: 4px 0;">📌 ${name}<span style="color: var(--primary); font-size: 0.85em;">${typeInfo}</span></div>`;
+            }).join('');
+            depsHtml = `
+                <div style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px;">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: var(--primary);">⬅️ Depends On</div>
+                    ${depItems}
+                </div>
+            `;
+        }
+
+        // Build panel content
+        bodyEl.innerHTML = `
+            <!-- Status & Progress Row -->
+            <div style="display: flex; gap: 12px; margin-bottom: 16px;">
+                <div style="flex: 1; padding: 16px; background: ${statusStyle.bg}; border-radius: 10px; border: 2px solid ${statusStyle.color}; text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">STATUS</div>
+                    <div style="font-size: 18px; font-weight: 700; color: ${statusStyle.color};">${status}</div>
+                </div>
+                <div style="flex: 1; padding: 16px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.15), rgba(99, 102, 241, 0.05)); border-radius: 10px; border: 2px solid rgba(99, 102, 241, 0.4); text-align: center;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">PROGRESS</div>
+                    <div style="font-size: 24px; font-weight: 700; color: var(--primary);">${node.pmProgress || 0}%</div>
+                    <div style="width: 100%; height: 6px; background: rgba(0,0,0,0.3); border-radius: 3px; margin-top: 8px;">
+                        <div style="height: 100%; width: ${node.pmProgress || 0}%; background: var(--primary); border-radius: 3px;"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Schedule Grid -->
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 16px;">
+                <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">📅 START</div>
+                    <div style="font-size: 14px; font-weight: 600;">${formatDate(node.pmStartDate)}</div>
+                </div>
+                <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">🏁 END</div>
+                    <div style="font-size: 14px; font-weight: 600;">${formatDate(node.pmDueDate)}</div>
+                </div>
+                <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">⏱️ DURATION</div>
+                    <div style="font-size: 14px; font-weight: 600;">${node.pmDuration || '—'} days</div>
+                </div>
+                <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px;">
+                    <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">⏳ TIMELINE</div>
+                    <div style="font-size: 14px; font-weight: 600;">${daysInfo || '—'}</div>
+                </div>
+            </div>
+
+            ${node.pmOwner ? `
+            <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 16px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">👤 OWNER</div>
+                <div style="font-size: 14px; font-weight: 600;">${node.pmOwner}</div>
+            </div>
+            ` : ''}
+
+            ${node.description ? `
+            <div style="padding: 12px; background: rgba(255,255,255,0.05); border-radius: 8px; margin-bottom: 16px;">
+                <div style="font-size: 11px; color: var(--text-secondary); margin-bottom: 4px;">📝 DESCRIPTION</div>
+                <div style="font-size: 13px; line-height: 1.5;">${node.description}</div>
+            </div>
+            ` : ''}
+
+            ${depsHtml}
+
+            <!-- Actions -->
+            <div style="margin-top: 20px; display: flex; gap: 8px;">
+                <button onclick="window.editNodeFromGantt('${node.id}')" style="flex: 1; padding: 10px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">
+                    ✏️ Edit Task
+                </button>
+                <button onclick="window.goToNodeInTree('${node.id}')" style="flex: 1; padding: 10px; background: rgba(99, 102, 241, 0.2); color: var(--text-primary); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; cursor: pointer; font-weight: 600;">
+                    🌲 View in Tree
+                </button>
+            </div>
+        `;
+
+        // Open panel
+        panel.classList.add('open');
+    }
+
+    // Helper: Edit node from Gantt
+    window.editNodeFromGantt = function(nodeId) {
+        const node = getNodeById(nodeId);
+        if (node && typeof editItem === 'function') {
+            editItem(node);
+        }
+    };
+
+    // Helper: Navigate to node in Tree view
+    window.goToNodeInTree = function(nodeId) {
+        // Close Gantt view
+        toggleGanttView();
+        // Find and select the node in tree view
+        setTimeout(() => {
+            const nodeElement = document.querySelector(`[data-item-id="${nodeId}"]`);
+            if (nodeElement) {
+                nodeElement.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                nodeElement.click();
+            }
+        }, 300);
+    };
 
     // --- BUILD 457: Gantt View Toggle ---
     function toggleGanttView() {
@@ -59405,16 +59573,28 @@ console.log('📊 Frappe Gantt loaded');
             });
         }
 
-        // Fit All button - fit all tasks in view
+        // Fit All button - switch to Month view and reset scroll (BUILD 472)
         const fitBtn = document.getElementById('gantt-fit-btn');
         if (fitBtn) {
             fitBtn.addEventListener('click', () => {
-                const wrapper = document.getElementById('gantt-chart-wrapper');
-                if (wrapper) {
-                    wrapper.scrollLeft = 0;
-                    wrapper.scrollTop = 0;
-                    showToast('⊡ Fit to view', 'info');
-                }
+                // Switch to Month view for wider timeline
+                ganttViewMode = 'Month';
+                const viewModeSelect = document.getElementById('gantt-view-mode');
+                if (viewModeSelect) viewModeSelect.value = 'Month';
+
+                // Re-render with new view mode
+                renderGantt();
+
+                // Reset scroll after render
+                setTimeout(() => {
+                    const wrapper = document.getElementById('gantt-chart-wrapper');
+                    if (wrapper) {
+                        wrapper.scrollLeft = 0;
+                        wrapper.scrollTop = 0;
+                    }
+                }, 100);
+
+                showToast('⊡ Fit All: Switched to Month view', 'info');
             });
         }
 
