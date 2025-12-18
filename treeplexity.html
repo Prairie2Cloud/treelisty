@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 460 | 2025-12-18
+    TreeListy v2.19.0 | Build 461 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,12 +19,10 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 460): Gantt Bidirectional Sync & Toolbar
-    - Drag task bars to update dates (syncs to tree)
-    - Drag progress bar to update completion %
-    - View mode selector: Day/Week/Month/Year
-    - Today button, Fit All, Critical Path toggle
-    - Read-only checkbox prevents edits
+    Changelog (Build 461): Gantt Keyboard Shortcut
+    - Press 'G' key to toggle Gantt View on/off
+    - Works from Tree, Canvas, or 3D views
+    Previous (Build 460): Gantt Bidirectional Sync & Toolbar
     Previous (Build 459): Gantt Data Conversion & Rendering
     Previous (Build 458): Inline Frappe Gantt Library
     Previous (Build 457): Gantt View Foundation
@@ -712,7 +710,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 460,
+            build: 461,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -19436,6 +19434,24 @@ Be specific and insightful, not generic.`;
                 if (viewMode === 'canvas' && selectedNodes.length > 0) {
                     console.log('⌨️ Escape pressed - clearing selection');
                     clearSelection();
+                }
+            }
+
+            // BUILD 461: G key - Toggle Gantt View
+            if (e.key === 'g' || e.key === 'G') {
+                // Don't trigger if user is typing in an input/textarea
+                const activeElement = document.activeElement;
+                if (activeElement &&
+                    (activeElement.tagName === 'INPUT' ||
+                     activeElement.tagName === 'TEXTAREA' ||
+                     activeElement.isContentEditable)) {
+                    return;
+                }
+
+                e.preventDefault();
+                console.log('⌨️ G key pressed - toggling Gantt view');
+                if (typeof toggleGanttView === 'function') {
+                    toggleGanttView();
                 }
             }
         });
@@ -57300,7 +57316,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 460; // Update this with each build
+                    const KNOWN_LATEST = 461; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
