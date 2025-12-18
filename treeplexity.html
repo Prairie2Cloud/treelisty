@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 456 | 2025-12-17
+    TreeListy v2.19.0 | Build 457 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 456): Hide Critical Path if no dependencies
-    - Add treeHasDependencies() check function
-    - Hide Critical Path button when tree has no dependencies
+    Changelog (Build 457): Gantt View Foundation
+    - Add Gantt Chart option to view dropdown
+    - Gantt container HTML and CSS (empty state)
+    - Prepare for Frappe Gantt library integration
+    Previous (Build 456): Hide Critical Path if no dependencies
     Previous (Build 455): Fix dependency edit modal
     Previous (Build 454): Fix pattern rename for imported JSON
     Previous (Build 453): Fix dependency lines not drawing
@@ -705,7 +707,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 456,
+            build: 457,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -5857,6 +5859,11 @@
                             <span class="item-label">3D Navigator</span>
                             <span class="item-shortcut" id="3d-check" style="opacity: 0;">✓</span>
                         </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="view-gantt-btn" data-view="gantt">
+                            <span class="item-icon">📊</span>
+                            <span class="item-label">Gantt Chart</span>
+                            <span class="item-shortcut" id="gantt-check" style="opacity: 0;">✓</span>
+                        </button>
                         <div class="dropdown-menu-divider"></div>
                         <button class="dropdown-menu-item" role="menuitem" id="export-canvas-btn" style="display: none;">
                             <span class="item-icon">📷</span>
@@ -9119,8 +9126,8 @@ Do not ask permission—just provide the critique, then help.
 
         // BUILD 333: View Selector Dropdown - handles view switching
         document.addEventListener('DOMContentLoaded', () => {
-            const viewIcons = { tree: '🌲', canvas: '🎨', '3d': '🧊' };
-            const viewLabels = { tree: 'Tree', canvas: 'Canvas', '3d': '3D' };
+            const viewIcons = { tree: '🌲', canvas: '🎨', '3d': '🧊', gantt: '📊' };
+            const viewLabels = { tree: 'Tree', canvas: 'Canvas', '3d': '3D', gantt: 'Gantt' };
 
             function updateViewDropdown(newView) {
                 // Update trigger button to show current state
@@ -9133,6 +9140,7 @@ Do not ask permission—just provide the critique, then help.
                 document.getElementById('tree-check').style.opacity = newView === 'tree' ? '1' : '0';
                 document.getElementById('canvas-check').style.opacity = newView === 'canvas' ? '1' : '0';
                 document.getElementById('3d-check').style.opacity = newView === '3d' ? '1' : '0';
+                document.getElementById('gantt-check').style.opacity = newView === 'gantt' ? '1' : '0';
 
                 // Show/hide export option based on view
                 const exportBtn = document.getElementById('export-canvas-btn');
@@ -9176,6 +9184,19 @@ Do not ask permission—just provide the critique, then help.
                     document.getElementById('toggle-3d-mode')?.click();
                 }
                 updateViewDropdown('3d');
+            });
+
+            // BUILD 457: Gantt View button
+            document.getElementById('view-gantt-btn')?.addEventListener('click', () => {
+                if (typeof viewMode !== 'undefined' && viewMode !== 'gantt') {
+                    if (typeof toggleGanttView === 'function') {
+                        toggleGanttView();
+                    } else {
+                        console.warn('Gantt view not yet implemented');
+                        showToast('Gantt view coming soon!', 'info');
+                    }
+                }
+                updateViewDropdown('gantt');
             });
 
             // Expose update function globally so existing view toggle code can call it
@@ -57274,7 +57295,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 456; // Update this with each build
+                    const KNOWN_LATEST = 457; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -58043,6 +58064,162 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     }
 </style>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     BUILD 457: GANTT VIEW CONTAINER
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+    /* Gantt View Container */
+    #view-gantt {
+        display: none;
+        position: fixed;
+        top: 140px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg);
+        overflow: hidden;
+        z-index: 100;
+    }
+
+    #view-gantt.active {
+        display: block;
+    }
+
+    /* Gantt Toolbar */
+    #gantt-toolbar {
+        position: fixed;
+        top: 120px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 200;
+        display: none;
+        align-items: center;
+        gap: 8px;
+        padding: 10px 16px;
+        background: rgba(20, 20, 30, 0.98);
+        backdrop-filter: blur(10px);
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: 16px;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+
+    #gantt-toolbar.active {
+        display: flex;
+    }
+
+    /* Gantt Chart Wrapper */
+    #gantt-chart-wrapper {
+        width: 100%;
+        height: calc(100% - 20px);
+        overflow: auto;
+        padding: 10px;
+    }
+
+    /* Empty State */
+    #gantt-empty-state {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        padding: 40px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: 16px;
+        max-width: 500px;
+    }
+
+    /* Frappe Gantt Dark Theme Overrides (will be used when library is added) */
+    .gantt .grid-header {
+        fill: var(--card-bg);
+    }
+    .gantt .grid-row {
+        fill: var(--bg);
+    }
+    .gantt .grid-row:nth-child(even) {
+        fill: rgba(99, 102, 241, 0.05);
+    }
+    .gantt .bar {
+        fill: var(--treeplex-primary);
+    }
+    .gantt .bar-label {
+        fill: white;
+        font-family: 'Inter', sans-serif;
+    }
+    .gantt .bar-progress {
+        fill: #4f46e5;
+    }
+    .gantt .bar.critical {
+        fill: #ef4444;
+    }
+    .gantt .bar.critical .bar-progress {
+        fill: #dc2626;
+    }
+    .gantt .arrow {
+        stroke: var(--treeplex-primary);
+        stroke-width: 1.5;
+    }
+    .gantt .today-highlight {
+        fill: rgba(99, 102, 241, 0.2);
+    }
+    .gantt-container .popup-wrapper {
+        background: var(--card-bg) !important;
+        border: 1px solid var(--border) !important;
+        border-radius: 8px !important;
+    }
+</style>
+
+<div id="view-gantt">
+    <!-- Empty State (shown when no schedule data) -->
+    <div id="gantt-empty-state">
+        <div style="font-size: 48px; margin-bottom: 16px;">📊</div>
+        <h2 style="font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Gantt View</h2>
+        <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
+            This tree has no items with start/due dates.<br>
+            Import an MS Project XML file or add schedule data to nodes.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn" id="gantt-import-xml-btn" style="background: linear-gradient(135deg, #8b5cf6, #6366f1); padding: 12px 24px; font-size: 15px; font-weight: 600; color: white; border-radius: 8px; border: none; cursor: pointer;">
+                📥 Import MS Project
+            </button>
+            <button class="btn" id="gantt-back-btn" style="background: rgba(99, 102, 241, 0.1); padding: 12px 24px; font-size: 15px; font-weight: 600; color: var(--text-primary); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.3); cursor: pointer;">
+                ← Back to Tree
+            </button>
+        </div>
+    </div>
+
+    <!-- Gantt Chart Container (populated by Frappe Gantt) -->
+    <div id="gantt-chart-wrapper" style="display: none;">
+        <svg id="gantt-chart"></svg>
+    </div>
+</div>
+
+<!-- Gantt Toolbar (shown when Gantt view is active) -->
+<div id="gantt-toolbar">
+    <select id="gantt-view-mode" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">
+        <option value="Day">Day</option>
+        <option value="Week" selected>Week</option>
+        <option value="Month">Month</option>
+        <option value="Year">Year</option>
+    </select>
+    <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
+    <button id="gantt-today-btn" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
+        📍 Today
+    </button>
+    <button id="gantt-fit-btn" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
+        ⊡ Fit All
+    </button>
+    <button id="gantt-critical-btn" class="btn" style="padding: 8px 14px; background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
+        ⚡ Critical Path
+    </button>
+    <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
+    <label style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 12px; cursor: pointer;">
+        <input type="checkbox" id="gantt-readonly" style="accent-color: var(--treeplex-primary);">
+        Read-only
+    </label>
+</div>
+
 <div id="view-3d">
     <!-- Floating Title Overlay -->
     <div id="title-3d">
@@ -58183,6 +58360,69 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         btn.addEventListener('click', toggle3DView);
         console.log('🧊 3D View button initialized');
     }
+
+    // --- BUILD 457: Gantt View Toggle ---
+    function toggleGanttView() {
+        const viewGantt = document.getElementById('view-gantt');
+        const treeView = document.querySelector('.tree-view-container');
+        const canvasView = document.getElementById('canvas-container');
+        const view3D = document.getElementById('view-3d');
+        const toolbar = document.getElementById('gantt-toolbar');
+        const emptyState = document.getElementById('gantt-empty-state');
+
+        const isActive = viewGantt.classList.contains('active');
+
+        if (isActive) {
+            // Close Gantt view
+            viewGantt.classList.remove('active');
+            toolbar.classList.remove('active');
+            treeView.classList.remove('hidden');
+            viewMode = 'tree';
+            if (window.updateViewDropdown) window.updateViewDropdown('tree');
+            render();
+        } else {
+            // Open Gantt view
+            viewGantt.classList.add('active');
+            toolbar.classList.add('active');
+            treeView.classList.add('hidden');
+            canvasView.classList.remove('active');
+            view3D.classList.remove('active');
+            viewMode = 'gantt';
+
+            // For now, show empty state (library integration in Build 458+)
+            emptyState.style.display = 'block';
+            document.getElementById('gantt-chart-wrapper').style.display = 'none';
+
+            if (window.updateViewDropdown) window.updateViewDropdown('gantt');
+            console.log('📊 Gantt view opened');
+        }
+    }
+
+    // Expose toggleGanttView globally
+    window.toggleGanttView = toggleGanttView;
+
+    // Initialize Gantt back button
+    document.addEventListener('DOMContentLoaded', () => {
+        const backBtn = document.getElementById('gantt-back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', () => {
+                toggleGanttView();
+            });
+        }
+
+        const importBtn = document.getElementById('gantt-import-xml-btn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                // Trigger MS Project import
+                const msInput = document.getElementById('ms-project-import-input');
+                if (msInput) {
+                    msInput.click();
+                } else {
+                    showToast('Import MS Project XML from the Open menu', 'info');
+                }
+            });
+        }
+    });
 
     // --- 2. Toggle View ---
     function toggle3DView() {
