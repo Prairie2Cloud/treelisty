@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 482 | 2025-12-18
+    TreeListy v2.19.0 | Build 483 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 482): Gantt color design - unique task colors + past fade
+    Changelog (Build 483): Gantt UX Polish - smooth zoom, Edit Task fix, muted colors
+    Previous (Build 482): Gantt color design - unique task colors + past fade
     Previous (Build 481): Smooth Gantt zoom (no jarring visual jumps)
-    Previous (Build 473): Gantt Zoom + Prominent Info Panel
     Previous (Build 471): Fix Gantt not showing MS Project tasks
     Previous (Build 470): Gantt Dark Theme Text Fix
     Previous (Build 469): Quick Capture Mode
@@ -726,7 +726,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 482,
+            build: 483,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -26988,6 +26988,10 @@ Your response:`;
                 handleEdit(); // Re-render the edit modal
             }
         };
+
+        // BUILD 483: Expose handleEdit globally for Gantt view integration
+        window.handleEdit = handleEdit;
+        window.setActiveNode = function(node) { activeNode = node; };
 
         async function handleAI() {
             if (activeNode) {
@@ -57988,7 +57992,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 482; // Update this with each build
+                    const KNOWN_LATEST = 483; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -59353,24 +59357,25 @@ console.log('📊 Frappe Gantt loaded');
             const isOverdue = dueDate && dueDate < today && status !== 'Done' && status !== 'Completed';
 
             // Calculate saturation and lightness based on status
+            // BUILD 483: More muted/grey tones for professional look
             let saturation, lightness;
 
             if (status === 'Done' || status === 'Completed' || progress >= 100) {
-                // Done: desaturated, slightly faded
-                saturation = 25;
-                lightness = 45;
+                // Done: very desaturated, faded grey
+                saturation = 18;
+                lightness = 42;
             } else if (status === 'Blocked') {
-                // Blocked: red tint override
-                saturation = 70;
-                lightness = 50;
+                // Blocked: noticeable red but muted
+                saturation = 55;
+                lightness = 48;
             } else if (status === 'In Progress') {
-                // In Progress: full vibrance
-                saturation = 65;
-                lightness = 55;
+                // In Progress: moderate saturation, not too vibrant
+                saturation = 42;
+                lightness = 52;
             } else {
-                // Not Started: slightly muted
-                saturation = 45;
-                lightness = 50;
+                // Not Started: grey-ish, subtle
+                saturation = 32;
+                lightness = 48;
             }
 
             // Apply color to bar
@@ -59381,18 +59386,18 @@ console.log('📊 Frappe Gantt loaded');
             if (bar) {
                 let fillColor;
                 if (status === 'Blocked') {
-                    fillColor = `hsl(0, ${saturation}%, ${lightness}%)`; // Red for blocked
+                    fillColor = `hsl(0, ${saturation}%, ${lightness}%)`; // Muted red for blocked
                 } else if (isOverdue) {
-                    // Overdue: orange-shifted hue
-                    fillColor = `hsl(30, 70%, 50%)`; // Orange
+                    // Overdue: muted orange (BUILD 483)
+                    fillColor = `hsl(30, 50%, 48%)`;
                 } else {
                     fillColor = `hsl(${baseHue}, ${saturation}%, ${lightness}%)`;
                 }
                 bar.style.fill = fillColor;
 
-                // Add subtle glow for overdue
+                // Add subtle glow for overdue (reduced intensity)
                 if (isOverdue) {
-                    bar.style.filter = 'drop-shadow(0 0 4px rgba(245, 158, 11, 0.6))';
+                    bar.style.filter = 'drop-shadow(0 0 3px rgba(245, 158, 11, 0.4))';
                 }
             }
 
@@ -59400,11 +59405,11 @@ console.log('📊 Frappe Gantt loaded');
                 // Progress bar is slightly darker version
                 const progressLightness = Math.max(lightness - 15, 25);
                 if (status === 'Blocked') {
-                    barProgress.style.fill = `hsl(0, ${saturation + 10}%, ${progressLightness}%)`;
+                    barProgress.style.fill = `hsl(0, ${saturation + 8}%, ${progressLightness}%)`;
                 } else if (isOverdue) {
-                    barProgress.style.fill = `hsl(25, 75%, 40%)`;
+                    barProgress.style.fill = `hsl(25, 55%, 38%)`;
                 } else {
-                    barProgress.style.fill = `hsl(${baseHue}, ${saturation + 10}%, ${progressLightness}%)`;
+                    barProgress.style.fill = `hsl(${baseHue}, ${saturation + 8}%, ${progressLightness}%)`;
                 }
             }
 
@@ -60015,11 +60020,19 @@ console.log('📊 Frappe Gantt loaded');
         closeGanttInfoPanel();
     });
 
-    // Helper: Edit node from Gantt
+    // Helper: Edit node from Gantt (BUILD 483: Fixed to use handleEdit)
     window.editNodeFromGantt = function(nodeId) {
         const node = getNodeById(nodeId);
-        if (node && typeof editItem === 'function') {
-            editItem(node);
+        if (node) {
+            // Set activeNode using the exposed setter and call handleEdit
+            if (typeof window.setActiveNode === 'function') {
+                window.setActiveNode(node);
+            }
+            if (typeof window.handleEdit === 'function') {
+                window.handleEdit();
+            } else {
+                showToast('Edit function not available', 'error');
+            }
         }
     };
 
@@ -60312,7 +60325,9 @@ console.log('📊 Frappe Gantt loaded');
 
         // BUILD 473: Zoom controls (BUILD 474: Also update minimap + floating panel)
         // BUILD 477: Zoom-to-focal-point (keeps selected item or cursor position centered)
-        // BUILD 481: Smooth zoom transition (no jarring jumps)
+        // BUILD 483: Smooth zoom via JS animation (replaces choppy CSS transitions)
+        let ganttZoomAnimation = null;
+
         function applyGanttZoom(oldZoom, focalX, focalY) {
             const wrapper = document.getElementById('gantt-chart-wrapper');
             const levelEl = document.getElementById('gantt-zoom-level');
@@ -60320,35 +60335,65 @@ console.log('📊 Frappe Gantt loaded');
             if (wrapper) {
                 const svg = wrapper.querySelector('svg');
                 if (svg) {
-                    // Add smooth transition for zoom
-                    svg.style.transition = 'transform 0.15s ease-out';
+                    // Remove any CSS transition - we'll animate with JS
+                    svg.style.transition = 'none';
+                    svg.style.transformOrigin = 'top left';
 
-                    // If focal point provided, adjust scroll to keep it centered
+                    // If focal point provided, animate both scroll and scale together
                     if (oldZoom !== undefined && focalX !== undefined && focalY !== undefined) {
+                        // Cancel any running animation
+                        if (ganttZoomAnimation) cancelAnimationFrame(ganttZoomAnimation);
+
                         // Calculate the point in SVG space (unscaled coordinates)
                         const svgX = (wrapper.scrollLeft + focalX) / (oldZoom / 100);
                         const svgY = (wrapper.scrollTop + focalY) / (oldZoom / 100);
 
-                        // Calculate new scroll position BEFORE applying transform
-                        const newScrollLeft = svgX * (ganttZoom / 100) - focalX;
-                        const newScrollTop = svgY * (ganttZoom / 100) - focalY;
+                        // Calculate target scroll position
+                        const targetScrollLeft = Math.max(0, svgX * (ganttZoom / 100) - focalX);
+                        const targetScrollTop = Math.max(0, svgY * (ganttZoom / 100) - focalY);
 
-                        // Temporarily disable smooth scroll for synchronous update
+                        // Starting values
+                        const startScrollLeft = wrapper.scrollLeft;
+                        const startScrollTop = wrapper.scrollTop;
+                        const startZoom = oldZoom;
+                        const targetZoom = ganttZoom;
+
+                        // Animation parameters
+                        const duration = 120; // ms - fast but smooth
+                        const startTime = performance.now();
+
+                        // Disable scroll behavior during animation
                         wrapper.style.scrollBehavior = 'auto';
 
-                        // Apply scroll and transform together
-                        wrapper.scrollLeft = Math.max(0, newScrollLeft);
-                        wrapper.scrollTop = Math.max(0, newScrollTop);
-                        svg.style.transform = `scale(${ganttZoom / 100})`;
-                        svg.style.transformOrigin = 'top left';
+                        function animateZoom(currentTime) {
+                            const elapsed = currentTime - startTime;
+                            const progress = Math.min(elapsed / duration, 1);
 
-                        // Re-enable smooth scroll after a frame
-                        requestAnimationFrame(() => {
-                            wrapper.style.scrollBehavior = '';
-                        });
+                            // Ease-out cubic for smooth deceleration
+                            const eased = 1 - Math.pow(1 - progress, 3);
+
+                            // Interpolate zoom
+                            const currentZoom = startZoom + (targetZoom - startZoom) * eased;
+                            svg.style.transform = `scale(${currentZoom / 100})`;
+
+                            // Interpolate scroll
+                            wrapper.scrollLeft = startScrollLeft + (targetScrollLeft - startScrollLeft) * eased;
+                            wrapper.scrollTop = startScrollTop + (targetScrollTop - startScrollTop) * eased;
+
+                            if (progress < 1) {
+                                ganttZoomAnimation = requestAnimationFrame(animateZoom);
+                            } else {
+                                // Final values
+                                svg.style.transform = `scale(${ganttZoom / 100})`;
+                                wrapper.scrollLeft = targetScrollLeft;
+                                wrapper.scrollTop = targetScrollTop;
+                                ganttZoomAnimation = null;
+                            }
+                        }
+
+                        ganttZoomAnimation = requestAnimationFrame(animateZoom);
                     } else {
                         svg.style.transform = `scale(${ganttZoom / 100})`;
-                        svg.style.transformOrigin = 'top left';
                     }
                 }
             }
