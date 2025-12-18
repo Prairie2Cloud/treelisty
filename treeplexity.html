@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 455 | 2025-12-17
+    TreeListy v2.19.0 | Build 456 | 2025-12-17
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,10 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 455): Fix dependency edit modal
-    - Use querySelector for modal-body instead of non-existent modal-content id
+    Changelog (Build 456): Hide Critical Path if no dependencies
+    - Add treeHasDependencies() check function
+    - Hide Critical Path button when tree has no dependencies
+    Previous (Build 455): Fix dependency edit modal
     Previous (Build 454): Fix pattern rename for imported JSON
     Previous (Build 453): Fix dependency lines not drawing
     Previous (Build 452): Critical Path Debug Logging
@@ -703,7 +705,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 455,
+            build: 456,
             date: '2025-12-17',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -13951,6 +13953,8 @@ Focus on logical structure and content organization best practices.`;
             updateCanvasTransform();
             // BUILD 435: Update minimap after rendering
             if (typeof updateMinimap === 'function') updateMinimap();
+            // BUILD 456: Show/hide Critical Path button based on dependencies
+            if (typeof updateCriticalPathVisibility === 'function') updateCriticalPathVisibility();
         }
 
         // Recursive function to render a node and all its descendants
@@ -15256,6 +15260,40 @@ Focus on logical structure and content organization best practices.`;
         // Expose for external use
         window.dependencyEngine = dependencyEngine;
         window.toggleCriticalPath = toggleCriticalPath;
+
+        // BUILD 456: Check if tree has any dependencies
+        function treeHasDependencies(node = capexTree) {
+            if (!node) return false;
+            // Check this node
+            if (node.dependencies && node.dependencies.length > 0) return true;
+            // Check children
+            if (node.children) {
+                for (const child of node.children) {
+                    if (treeHasDependencies(child)) return true;
+                }
+            }
+            // Check items
+            if (node.items) {
+                for (const item of node.items) {
+                    if (treeHasDependencies(item)) return true;
+                }
+            }
+            // Check subItems
+            if (node.subItems) {
+                for (const sub of node.subItems) {
+                    if (treeHasDependencies(sub)) return true;
+                }
+            }
+            return false;
+        }
+
+        // BUILD 456: Update Critical Path button visibility
+        function updateCriticalPathVisibility() {
+            const btn = document.getElementById('critical-path-toggle');
+            if (btn) {
+                btn.style.display = treeHasDependencies() ? '' : 'none';
+            }
+        }
 
         /**
          * Draw all hyperedges as convex hull blobs
@@ -57245,7 +57283,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 455; // Update this with each build
+                    const KNOWN_LATEST = 456; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
