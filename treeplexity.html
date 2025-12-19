@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 504 | 2025-12-19
+    TreeListy v2.19.0 | Build 505 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 505): Safari voice capture fix - auto-restart on 30s timeout instead of error
     Changelog (Build 504): Enhanced Quick Capture - auto-detect pattern, date extraction, fix transcription errors
-    Changelog (Build 503): Bigger splash logo (200px) with glowing drop-shadow animation
     Changelog (Build 499): Voice FAB now triggers Quick Capture for conversation/debate recording
     Changelog (Build 498): Fix modal z-index stacking - modals now above mobile header
     Previous (Build 497): Fix mobile modal blocking - reasonable z-index, pointer-events fix
@@ -734,7 +734,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 504,
+            build: 505,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -51608,22 +51608,47 @@ ${transcript}`;
                 }
             };
 
+            // BUILD 505: Track restart attempts for Safari workaround
+            let restartAttempts = 0;
+            const maxRestarts = 50; // Allow many restarts for long recordings
+
             recognition.onerror = (event) => {
-                console.log('Recognition error:', event.error);
+                console.log('Recognition error:', event.error, 'attempts:', restartAttempts);
+
                 if (event.error === 'not-allowed') {
                     showCaptureError('Microphone access denied. Please allow microphone permission.');
-                } else if (event.error === 'audio-capture') {
-                    showCaptureError('No microphone found. Please connect a microphone.');
+                } else if (event.error === 'audio-capture' || event.error === 'network' || event.error === 'aborted') {
+                    // BUILD 505: Safari throws audio-capture after ~30s timeout
+                    // Don't show error - try to restart instead
+                    if (quickCapture.active && restartAttempts < maxRestarts) {
+                        restartAttempts++;
+                        console.log('🎙️ Safari workaround: restarting recognition (attempt ' + restartAttempts + ')');
+                        setTimeout(() => {
+                            if (quickCapture.active && quickCapture.recognition) {
+                                try {
+                                    recognition.start();
+                                } catch (e) {
+                                    console.log('Restart failed:', e);
+                                }
+                            }
+                        }, 200);
+                    } else if (restartAttempts >= maxRestarts) {
+                        showCaptureError('Recording stopped. Tap Done to process captured audio.');
+                    }
+                } else if (event.error === 'no-speech') {
+                    // No speech detected - this is ok, just keep listening
+                    console.log('No speech detected, continuing...');
                 }
             };
 
             recognition.onend = () => {
-                // Restart if still active (Chrome stops after silence)
-                if (quickCapture.active) {
+                // Restart if still active (Chrome stops after silence, Safari after ~30s)
+                if (quickCapture.active && restartAttempts < maxRestarts) {
                     setTimeout(() => {
                         if (quickCapture.active && quickCapture.recognition) {
                             try {
                                 recognition.start();
+                                console.log('🎙️ Recognition restarted after onend');
                             } catch (e) {
                                 console.log('Recognition restart blocked:', e);
                             }
@@ -59826,7 +59851,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 504; // Update this with each build
+                    const KNOWN_LATEST = 505; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
