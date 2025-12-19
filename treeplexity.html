@@ -1552,7 +1552,7 @@
         }
 
         /* Mobile menu overlay - catches taps outside menu to close */
-        /* z-index MUST be lower than .controls (100000) so menu is clickable */
+        /* z-index MUST be lower than .controls so menu is clickable */
         .mobile-menu-overlay {
             display: none;
             position: fixed;
@@ -1603,9 +1603,18 @@
                 border-radius: 8px !important;
             }
 
-            /* Show overlay when menu is open */
+            /* Show overlay when menu is open - MUST block touch to tree */
             .mobile-menu-overlay.visible {
                 display: block !important;
+                position: fixed !important;
+                top: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                background: rgba(0, 0, 0, 0.5) !important;
+                z-index: 2147483640 !important; /* Just below menu */
+                touch-action: none !important;
+                -webkit-tap-highlight-color: transparent !important;
             }
 
             /* Logo container: full width on mobile so hamburger pushes to right */
@@ -1646,10 +1655,11 @@
                 right: -320px !important;
                 width: 300px !important;
                 height: 100% !important;
+                height: 100dvh !important; /* iOS dynamic viewport */
                 background: #1a1d24 !important;
-                padding: 56px 10px 20px 10px !important;
+                padding: 56px 10px 100px 10px !important; /* Extra bottom padding for scroll */
                 gap: 8px !important;
-                overflow-y: auto !important;
+                overflow-y: scroll !important; /* Always show scrollbar hint */
                 overflow-x: hidden !important;
                 z-index: 2147483647 !important;
                 box-shadow: -4px 0 20px rgba(0,0,0,0.5) !important;
@@ -1657,6 +1667,7 @@
                 pointer-events: auto !important;
                 touch-action: pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
+                overscroll-behavior: contain !important; /* Prevent scroll chaining */
                 isolation: isolate !important;
             }
 
@@ -9922,6 +9933,7 @@ Do not ask permission—just provide the critique, then help.
                 menuOverlay?.classList.add('visible');
                 hamburgerBtn?.setAttribute('aria-expanded', 'true');
                 document.body.style.overflow = 'hidden'; // Prevent scroll
+                document.body.style.touchAction = 'none'; // Block touch on body
             }
 
             function closeMobileMenu() {
@@ -9930,6 +9942,27 @@ Do not ask permission—just provide the critique, then help.
                 menuOverlay?.classList.remove('visible');
                 hamburgerBtn?.setAttribute('aria-expanded', 'false');
                 document.body.style.overflow = '';
+                document.body.style.touchAction = '';
+            }
+
+            // BUILD 492: Prevent touch events from passing through overlay to tree
+            if (menuOverlay) {
+                menuOverlay.addEventListener('touchstart', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    closeMobileMenu(); // Close on tap
+                }, { passive: false });
+                menuOverlay.addEventListener('touchmove', (e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                }, { passive: false });
+            }
+
+            // BUILD 492: Ensure menu scroll works but doesn't pass through
+            if (controlsMenu) {
+                controlsMenu.addEventListener('touchmove', (e) => {
+                    e.stopPropagation(); // Don't prevent - allow scrolling
+                }, { passive: true });
             }
 
             if (hamburgerBtn) {
