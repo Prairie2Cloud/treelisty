@@ -1625,14 +1625,18 @@
             }
 
             /* Header: Minimal - just logo + hamburger */
+            /* iOS: Use position:fixed (not sticky) to avoid stacking context issues */
             .header {
                 padding: 8px 12px !important;
                 gap: 8px !important;
                 min-height: 48px !important;
                 max-height: 48px !important;
-                position: sticky !important;
+                position: fixed !important;
                 top: 0 !important;
-                z-index: 300 !important;
+                left: 0 !important;
+                right: 0 !important;
+                z-index: 2000 !important; /* Above panels (1000-1001) */
+                background: #0f1117 !important; /* Solid background */
             }
 
             /* Hide logo subtitle on mobile */
@@ -1669,7 +1673,6 @@
                 touch-action: pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
                 overscroll-behavior: contain !important; /* Prevent scroll chaining */
-                isolation: isolate !important;
             }
 
             /* When menu is open, slide in */
@@ -2057,10 +2060,12 @@
                 background: #1a1d24 !important; /* Solid dark background */
                 overflow-y: auto !important;
                 -webkit-overflow-scrolling: touch !important;
+                pointer-events: none !important; /* iOS: prevent touch intercept when off-screen */
             }
 
             .info-panel.open {
                 transform: translateX(0) !important;
+                pointer-events: auto !important; /* Enable touch when visible */
             }
 
             /* Chat panel: Full screen */
@@ -2080,11 +2085,13 @@
                 transition: transform 0.3s ease !important;
                 z-index: 1001 !important;
                 background: #1a1d24 !important; /* Solid dark background */
+                pointer-events: none !important; /* iOS: prevent touch intercept when off-screen */
             }
 
             #chat-assistant-panel.open,
             .chat-assistant-panel.open {
                 transform: translateX(0) !important;
+                pointer-events: auto !important; /* Enable touch when visible */
             }
 
             /* Tree view: Full screen base layer */
