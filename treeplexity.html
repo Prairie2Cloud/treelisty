@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 503 | 2025-12-19
+    TreeListy v2.19.0 | Build 504 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 504): Enhanced Quick Capture - auto-detect pattern, date extraction, fix transcription errors
     Changelog (Build 503): Bigger splash logo (200px) with glowing drop-shadow animation
-    Changelog (Build 502): Fix mobile menu flex-wrap causing Help/Theme to be hidden off-screen
     Changelog (Build 499): Voice FAB now triggers Quick Capture for conversation/debate recording
     Changelog (Build 498): Fix modal z-index stacking - modals now above mobile header
     Previous (Build 497): Fix mobile modal blocking - reasonable z-index, pointer-events fix
@@ -734,7 +734,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 503,
+            build: 504,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -51707,37 +51707,58 @@ ${transcript}`;
             const fullTranscript = quickCapture.transcript.map(t => t.text).join(' ');
             const duration = Math.floor((Date.now() - quickCapture.startTime) / 1000);
 
-            const systemPrompt = `You are analyzing a captured conversation or debate to create a structured insight tree.
+            // BUILD 504: Enhanced Quick Capture AI prompt
+            const systemPrompt = `You are converting voice notes into a structured tree. The input may be:
+- Rambling thoughts or brainstorming
+- Meeting notes or planning discussion
+- A debate between multiple people
+- Project planning with timelines
 
-Analyze the transcript for:
-1. SPEAKERS - Identify different voices/perspectives if multiple people
-2. KEY THEMES - Main topics and arguments discussed
-3. POINTS OF AGREEMENT - Where speakers align
-4. POINTS OF TENSION - Disagreements, debates, conflicts
-5. INSIGHTS - Surprising patterns, repeated phrases, emotional moments
-6. ACTION ITEMS - Decisions made, next steps mentioned
+ANALYZE THE CONTENT TO DETERMINE:
+1. PATTERN - Choose the best fit:
+   - "capex" if there are dates, timelines, schedules, deadlines, or project phases
+   - "dialogue" if there's a debate or multiple speakers with opposing views
+   - "generic" for general notes, ideas, or brainstorming
 
-CRITICAL: Every node MUST have a "name" field with actual text (never undefined or empty).
+2. THEMES - Group related ideas into 2-5 logical categories
 
-Output this EXACT JSON structure (fill in ALL bracketed values):
+3. KEY POINTS - Extract specific items under each theme (2-6 per theme)
+
+4. DATES - If dates/times mentioned (e.g., "next Tuesday", "November 2027"), include them
+
+5. FIX TRANSCRIPTION ERRORS - Common speech-to-text mistakes:
+   - "sunk" might mean "sun"
+   - Numbers may be spelled out
+   - Proper nouns may be mangled
+
+CRITICAL RULES:
+- Every "name" field MUST have real descriptive text (NEVER "undefined" or placeholder)
+- "description" should add context, not repeat the name
+- Do NOT include hyperedges array
+- Clean up obvious speech recognition errors
+
+Output ONLY this JSON structure:
 {
-  "id": "conversation-${Date.now()}",
-  "name": "REQUIRED: Create a compelling title summarizing the conversation",
+  "id": "capture-${Date.now()}",
+  "name": "[Compelling 3-8 word title summarizing the content]",
   "type": "session",
-  "pattern": "generic",
+  "pattern": "[capex|dialogue|generic - choose best fit]",
+  "description": "[1-2 sentence summary of what was captured]",
   "expanded": true,
   "children": [
     {
       "id": "theme-1",
-      "name": "REQUIRED: Theme or topic name",
+      "name": "[Theme/category name]",
       "type": "phase",
       "expanded": true,
       "items": [
         {
           "id": "point-1",
-          "name": "REQUIRED: Key point or insight (3-10 words)",
+          "name": "[Specific point - 3-10 words]",
           "type": "item",
-          "description": "Details, quotes, or context",
+          "description": "[Additional context or details]",
+          "startDate": "[YYYY-MM-DD if date mentioned, otherwise omit]",
+          "endDate": "[YYYY-MM-DD if end date mentioned, otherwise omit]",
           "subItems": []
         }
       ]
@@ -51745,13 +51766,7 @@ Output this EXACT JSON structure (fill in ALL bracketed values):
   ]
 }
 
-Rules:
-- EVERY "name" field must contain real text from the analysis
-- Create 2-5 theme groupings (phases)
-- Each theme should have 2-6 key points (items)
-- Use quoted text from transcript when relevant
-- If debate/disagreement detected, create a "Points of Tension" theme
-- Duration was ${duration} seconds`;
+Recording duration: ${duration} seconds`;
 
             const userPrompt = `Analyze this conversation transcript and return ONLY valid JSON (no markdown, no explanation):
 
@@ -51775,32 +51790,60 @@ ${fullTranscript}`;
                     throw new Error('No valid JSON in response');
                 }
 
-                // Build 500: Validate and fix any undefined names
-                function fixUndefinedNames(node, depth = 0) {
+                // BUILD 504: Clean and validate the tree
+                function cleanTree(node, depth = 0) {
                     if (!node) return;
-                    if (!node.name || node.name === 'undefined' || node.name.includes('REQUIRED')) {
-                        node.name = depth === 0 ? 'Captured Conversation' :
+
+                    // Fix undefined/placeholder names
+                    if (!node.name || node.name === 'undefined' || node.name.includes('[') || node.name.includes('REQUIRED')) {
+                        node.name = depth === 0 ? 'Voice Capture' :
                                     depth === 1 ? `Topic ${node.id || 'Unknown'}` :
                                     `Point ${node.id || 'Unknown'}`;
                     }
-                    if (node.children) node.children.forEach(c => fixUndefinedNames(c, depth + 1));
-                    if (node.items) node.items.forEach(i => fixUndefinedNames(i, depth + 1));
-                    if (node.subItems) node.subItems.forEach(s => fixUndefinedNames(s, depth + 2));
+
+                    // Remove placeholder descriptions
+                    if (node.description && (node.description.includes('[') || node.description === node.name)) {
+                        delete node.description;
+                    }
+
+                    // Remove invalid dates
+                    if (node.startDate && (node.startDate.includes('[') || node.startDate === 'undefined')) {
+                        delete node.startDate;
+                    }
+                    if (node.endDate && (node.endDate.includes('[') || node.endDate === 'undefined')) {
+                        delete node.endDate;
+                    }
+
+                    if (node.children) node.children.forEach(c => cleanTree(c, depth + 1));
+                    if (node.items) node.items.forEach(i => cleanTree(i, depth + 1));
+                    if (node.subItems) node.subItems.forEach(s => cleanTree(s, depth + 2));
                 }
-                fixUndefinedNames(tree);
+                cleanTree(tree);
+
+                // BUILD 504: Ensure no stale data - clear hyperedges, set fresh properties
+                tree.hyperedges = []; // Start with no hyperedges
+                tree.canvasX = 700;
+                tree.canvasY = 450;
+                tree.viewState = { viewMode: 'tree', treeZoom: 1, canvasZoom: 1 };
+
+                // Extract pattern from AI response (default to generic)
+                const detectedPattern = tree.pattern || 'generic';
+                const validPatterns = ['generic', 'capex', 'dialogue', 'philosophy', 'sales'];
+                const finalPattern = validPatterns.includes(detectedPattern) ? detectedPattern : 'generic';
+                tree.pattern = finalPattern;
 
                 progressBar.style.width = '100%';
 
                 // Small delay for visual feedback
                 await new Promise(resolve => setTimeout(resolve, 300));
 
-                // Load the tree (use window. since we're in an IIFE)
-                window.currentPattern = 'generic';
+                // Load the tree with detected pattern
+                window.currentPattern = finalPattern;
                 window.capexTree = tree;
 
-                // Update pattern selector UI
+                // Update pattern selector UI to match detected pattern
                 const patternSelect = document.getElementById('pattern-select');
-                if (patternSelect) patternSelect.value = 'generic';
+                if (patternSelect) patternSelect.value = finalPattern;
 
                 // Render the tree
                 if (typeof window.render === 'function') {
@@ -59783,7 +59826,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 503; // Update this with each build
+                    const KNOWN_LATEST = 504; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
