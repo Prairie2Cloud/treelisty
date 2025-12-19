@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 496 | 2025-12-19
+    TreeListy v2.19.0 | Build 497 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 497): Fix mobile modal blocking - reasonable z-index, pointer-events fix
     Changelog (Build 496): Fix Calendar IIFE scope - use window.capexTree for pattern detection
     Changelog (Build 495): Fix Calendar month view CSS - proper daygrid rendering
     Changelog (Build 494): Calendar View - FullCalendar integration with pattern-aware date extraction
@@ -733,7 +734,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 496,
+            build: 497,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1556,6 +1557,7 @@
 
         /* Mobile menu overlay - catches taps outside menu to close */
         /* z-index MUST be lower than .controls so menu is clickable */
+        /* BUILD 497: Reasonable z-index values */
         .mobile-menu-overlay {
             display: none;
             position: fixed;
@@ -1565,7 +1567,7 @@
             right: 300px;
             bottom: 0;
             background: rgba(0, 0, 0, 0.3);
-            z-index: 99990;
+            z-index: 9999; /* Below controls (10000) */
         }
         .mobile-menu-overlay.visible {
             display: block;
@@ -1607,6 +1609,7 @@
             }
 
             /* Show overlay when menu is open - covers LEFT side only (not menu) */
+            /* BUILD 497: Reasonable z-index */
             .mobile-menu-overlay.visible {
                 display: block !important;
                 position: fixed !important;
@@ -1615,7 +1618,7 @@
                 right: 300px !important; /* Leave menu area clear */
                 bottom: 0 !important;
                 background: rgba(0, 0, 0, 0.5) !important;
-                z-index: 2147483640 !important; /* Just below menu */
+                z-index: 9999 !important; /* Below menu (10000) */
                 touch-action: none !important;
                 -webkit-tap-highlight-color: transparent !important;
             }
@@ -1654,6 +1657,7 @@
             /* ===== BUILD 491: MOBILE SLIDE-OUT MENU - DARK THEME ===== */
 
             /* Controls panel: Dark themed slide-out */
+            /* BUILD 497: Fix z-index and pointer-events to prevent blocking modals */
             .header .controls {
                 display: flex !important;
                 flex-direction: column !important;
@@ -1668,18 +1672,20 @@
                 gap: 8px !important;
                 overflow-y: scroll !important; /* Always show scrollbar hint */
                 overflow-x: hidden !important;
-                z-index: 2147483647 !important;
+                z-index: 10000 !important; /* Reasonable z-index, not max int */
                 box-shadow: -4px 0 20px rgba(0,0,0,0.5) !important;
-                transition: right 0.25s ease-out !important;
-                pointer-events: auto !important;
+                transition: right 0.25s ease-out, pointer-events 0s 0.25s !important;
+                pointer-events: none !important; /* CRITICAL: Don't capture events when closed */
                 touch-action: pan-y !important;
                 -webkit-overflow-scrolling: touch !important;
                 overscroll-behavior: contain !important; /* Prevent scroll chaining */
             }
 
-            /* When menu is open, slide in */
+            /* When menu is open, slide in and enable touch */
             .header .controls.mobile-menu-open {
                 right: 0 !important;
+                pointer-events: auto !important; /* Enable touch only when open */
+                transition: right 0.25s ease-out, pointer-events 0s 0s !important;
             }
 
             /* All child elements must be visible AND clickable */
@@ -59744,7 +59750,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 496; // Update this with each build
+                    const KNOWN_LATEST = 497; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
