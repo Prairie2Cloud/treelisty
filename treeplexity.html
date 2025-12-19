@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 491 | 2025-12-18
+    TreeListy v2.19.0 | Build 492 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 491): Mobile UX - Pinch zoom, fullscreen, swipe navigation
+    Changelog (Build 492): Mobile Menu Dark Theme + View Dropdown Fix
+    Previous (Build 491): Mobile UX - Pinch zoom, fullscreen, swipe navigation
     Previous (Build 490): Treebeard PM Assistant Phase 5 - Proactive Nudges
     Previous (Build 489): Tree View selected node highlighting
     Previous (Build 488): Treebeard PM Assistant Phase 4 - Context Injection
@@ -729,7 +730,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 491,
+            build: 492,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1634,9 +1635,9 @@
                 font-size: 15px !important;
             }
 
-            /* ===== BUILD 349: MOBILE SLIDE-OUT MENU - TOP LAYER ===== */
+            /* ===== BUILD 491: MOBILE SLIDE-OUT MENU - DARK THEME ===== */
 
-            /* Controls panel: ABSOLUTE TOP LAYER for touch/tap */
+            /* Controls panel: Dark themed slide-out */
             .header .controls {
                 display: flex !important;
                 flex-direction: column !important;
@@ -1645,13 +1646,13 @@
                 right: -320px !important;
                 width: 300px !important;
                 height: 100% !important;
-                background: #ffffff !important;
-                padding: 60px 12px 20px 12px !important;
-                gap: 12px !important;
+                background: #1a1d24 !important;
+                padding: 56px 10px 20px 10px !important;
+                gap: 8px !important;
                 overflow-y: auto !important;
                 overflow-x: hidden !important;
                 z-index: 2147483647 !important;
-                box-shadow: -2px 0 10px rgba(0,0,0,0.2) !important;
+                box-shadow: -4px 0 20px rgba(0,0,0,0.5) !important;
                 transition: right 0.25s ease-out !important;
                 pointer-events: auto !important;
                 touch-action: pan-y !important;
@@ -1671,58 +1672,68 @@
                 pointer-events: auto !important;
             }
 
-            /* Control sections - vertical stack */
+            /* Control sections - dark cards */
             .header .controls .control-section {
                 display: flex !important;
                 flex-direction: row !important;
                 flex-wrap: wrap !important;
-                gap: 8px !important;
-                padding: 8px !important;
-                background: #f1f5f9 !important;
-                border-radius: 8px !important;
+                gap: 6px !important;
+                padding: 10px !important;
+                background: #252932 !important;
+                border: 1px solid #363b47 !important;
+                border-radius: 10px !important;
                 width: 100% !important;
                 box-sizing: border-box !important;
                 pointer-events: auto !important;
             }
 
-            /* Buttons - clear styling + MUST BE CLICKABLE */
-            .header .controls .btn,
-            .header .controls button {
+            /* Buttons - indigo accent on dark (exclude dropdown items and hidden compat buttons) */
+            .header .controls .btn:not([style*="display: none"]),
+            .header .controls button:not(.dropdown-menu-item):not(.dropdown-menu-trigger):not([style*="display: none"]) {
                 display: flex !important;
                 align-items: center !important;
                 justify-content: center !important;
-                background: #3b82f6 !important;
+                gap: 6px !important;
+                background: #4f46e5 !important;
                 color: #ffffff !important;
                 border: none !important;
-                padding: 10px 14px !important;
+                padding: 8px 12px !important;
                 font-size: 13px !important;
-                font-weight: 600 !important;
-                border-radius: 6px !important;
-                min-height: 40px !important;
+                font-weight: 500 !important;
+                border-radius: 8px !important;
+                min-height: 38px !important;
                 cursor: pointer !important;
                 pointer-events: auto !important;
                 touch-action: manipulation !important;
-                -webkit-tap-highlight-color: rgba(0,0,0,0.1) !important;
+                -webkit-tap-highlight-color: rgba(99,102,241,0.3) !important;
+                flex: 1 1 auto !important;
+                min-width: 60px !important;
             }
 
-            /* Dropdown triggers */
+            /* Keep hidden buttons hidden */
+            .header .controls #toggle-view-mode,
+            .header .controls #toggle-3d-mode {
+                display: none !important;
+            }
+
+            /* Dropdown triggers - darker */
             .header .controls .dropdown-menu-trigger {
-                background: #1e293b !important;
-                color: #ffffff !important;
+                background: #363b47 !important;
+                color: #e2e8f0 !important;
                 pointer-events: auto !important;
             }
 
-            /* Selects/dropdowns */
+            /* Selects/dropdowns - dark */
             .header .controls select {
                 display: block !important;
                 width: 100% !important;
-                background: #ffffff !important;
-                color: #1e293b !important;
-                border: 2px solid #cbd5e1 !important;
+                background: #2a2f3a !important;
+                color: #e2e8f0 !important;
+                border: 1px solid #4a5568 !important;
                 padding: 10px 12px !important;
                 font-size: 13px !important;
                 font-weight: 500 !important;
-                border-radius: 6px !important;
+                border-radius: 8px !important;
                 min-height: 40px !important;
                 pointer-events: auto !important;
                 touch-action: manipulation !important;
@@ -1731,48 +1742,64 @@
             /* Dropdown menu */
             .header .controls .dropdown-menu {
                 pointer-events: auto !important;
+                width: 100% !important;
             }
 
-            /* Dropdown menu content */
+            /* Dropdown menu content - hidden by default, dark themed */
             .header .controls .dropdown-menu-content {
                 position: relative !important;
-                display: none;
+                display: none !important;
+                opacity: 0 !important;
+                visibility: hidden !important;
                 width: 100% !important;
-                background: #ffffff !important;
-                border: 1px solid #e2e8f0 !important;
-                border-radius: 6px !important;
+                background: #2a2f3a !important;
+                border: 1px solid #4a5568 !important;
+                border-radius: 8px !important;
                 margin-top: 4px !important;
-                box-shadow: none !important;
-                pointer-events: auto !important;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.3) !important;
+                pointer-events: none !important;
             }
 
-            /* BUILD 350: Match actual JS class structure */
+            /* BUILD 350: Dropdown content visible when open */
             .header .controls .dropdown-menu-content.open {
                 display: block !important;
                 opacity: 1 !important;
                 visibility: visible !important;
+                pointer-events: auto !important;
             }
 
-            .header .controls .dropdown-menu-item {
+            /* Dropdown menu items - MUST override button styles */
+            .header .controls .dropdown-menu-content .dropdown-menu-item,
+            .header .controls button.dropdown-menu-item {
                 display: flex !important;
-                padding: 10px 12px !important;
-                color: #1e293b !important;
-                font-size: 13px !important;
-                background: #ffffff !important;
+                align-items: center !important;
+                justify-content: flex-start !important;
+                padding: 12px 16px !important;
+                color: #e2e8f0 !important;
+                font-size: 14px !important;
+                background: #2a2f3a !important;
+                border: none !important;
+                border-bottom: 1px solid #363b47 !important;
+                border-radius: 0 !important;
+                min-height: auto !important;
+                flex: none !important;
+                width: 100% !important;
                 pointer-events: auto !important;
                 cursor: pointer !important;
             }
 
-            .header .controls .dropdown-menu-item:active {
-                background: #e2e8f0 !important;
+            .header .controls .dropdown-menu-content .dropdown-menu-item:active,
+            .header .controls button.dropdown-menu-item:active {
+                background: #4f46e5 !important;
+                color: #ffffff !important;
             }
 
-            /* Labels */
+            /* Labels - light text for dark theme */
             .header .controls label {
                 display: flex !important;
                 flex-direction: column !important;
                 gap: 4px !important;
-                color: #475569 !important;
+                color: #9ca3af !important;
                 font-size: 12px !important;
                 font-weight: 600 !important;
                 width: 100% !important;
@@ -59422,7 +59449,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 491; // Update this with each build
+                    const KNOWN_LATEST = 492; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
