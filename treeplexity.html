@@ -2155,6 +2155,49 @@
                 opacity: 1 !important;
             }
 
+            /* 3D View controls - compact on mobile */
+            #controls-3d {
+                bottom: 10px !important;
+                gap: 4px !important;
+                padding: 6px !important;
+                border-radius: 12px !important;
+                flex-wrap: wrap !important;
+                max-width: calc(100vw - 20px) !important;
+                justify-content: center !important;
+            }
+
+            #controls-3d .btn {
+                padding: 6px 8px !important;
+                font-size: 11px !important;
+                min-height: 32px !important;
+                flex: 0 1 auto !important;
+            }
+
+            /* Hide instruction text on mobile */
+            #controls-3d > div[style*="color: #888"] {
+                display: none !important;
+            }
+
+            /* Gantt toolbar - compact on mobile */
+            #gantt-toolbar {
+                flex-wrap: wrap !important;
+                gap: 4px !important;
+                padding: 8px !important;
+            }
+
+            #gantt-toolbar .btn,
+            #gantt-toolbar button,
+            #gantt-toolbar select {
+                padding: 6px 8px !important;
+                font-size: 11px !important;
+                min-height: 32px !important;
+            }
+
+            /* Hide Gantt floating zoom on mobile (use toolbar instead) */
+            #gantt-floating-zoom {
+                display: none !important;
+            }
+
             /* Touch-friendly tap targets */
             .tree-node,
             .btn,
@@ -9566,9 +9609,10 @@ Do not ask permission—just provide the critique, then help.
                         viewMode = 'tree';
                         render();
                     } else if (viewMode === 'canvas') {
-                        document.getElementById('toggle-view-mode')?.click();
+                        // Call function directly (button may be hidden on mobile)
+                        if (typeof toggleViewMode === 'function') toggleViewMode();
                     } else if (viewMode === '3d') {
-                        document.getElementById('toggle-3d-mode')?.click();
+                        if (typeof toggle3DView === 'function') toggle3DView();
                     }
                 }
                 updateViewDropdown('tree');
@@ -9584,14 +9628,15 @@ Do not ask permission—just provide the critique, then help.
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
                         // Now switch to canvas
-                        document.getElementById('toggle-view-mode')?.click();
+                        if (typeof toggleViewMode === 'function') toggleViewMode();
                     } else if (viewMode === 'tree') {
-                        document.getElementById('toggle-view-mode')?.click();
+                        // Call function directly (button may be hidden on mobile)
+                        if (typeof toggleViewMode === 'function') toggleViewMode();
                     } else if (viewMode === '3d') {
-                        document.getElementById('toggle-3d-mode')?.click();
-                        // After exiting 3D, we're in tree, so click again to go to canvas
+                        if (typeof toggle3DView === 'function') toggle3DView();
+                        // After exiting 3D, we're in tree, so toggle again to go to canvas
                         setTimeout(() => {
-                            document.getElementById('toggle-view-mode')?.click();
+                            if (typeof toggleViewMode === 'function') toggleViewMode();
                         }, 100);
                     }
                 }
@@ -9608,7 +9653,8 @@ Do not ask permission—just provide the critique, then help.
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
                     }
-                    document.getElementById('toggle-3d-mode')?.click();
+                    // Call function directly (button may be hidden on mobile)
+                    if (typeof toggle3DView === 'function') toggle3DView();
                 }
                 updateViewDropdown('3d');
             });
@@ -62589,6 +62635,9 @@ console.log('📊 Frappe Gantt loaded');
             if (window.updateViewDropdown) window.updateViewDropdown('3d');
         }
     }
+
+    // Expose toggle3DView globally for mobile view switching
+    window.toggle3DView = toggle3DView;
 
     // Update floating title from tree data - max 3 words
     function updateTitle() {
