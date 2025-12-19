@@ -318,8 +318,8 @@ describe('Calendar View', () => {
     describe('Pattern-Specific Date Handling', () => {
         const functionCode = extractFunction('getNodeDates');
 
-        it('should get pattern from capexTree', () => {
-            expect(functionCode).toContain("capexTree.pattern?.key || 'generic'");
+        it('should get pattern from window.capexTree', () => {
+            expect(functionCode).toContain("tree?.pattern?.key || 'generic'");
         });
 
         it('should return empty array for nodes without dates', () => {

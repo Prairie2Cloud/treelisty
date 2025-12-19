@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 495 | 2025-12-19
+    TreeListy v2.19.0 | Build 496 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 496): Fix Calendar IIFE scope - use window.capexTree for pattern detection
     Changelog (Build 495): Fix Calendar month view CSS - proper daygrid rendering
     Changelog (Build 494): Calendar View - FullCalendar integration with pattern-aware date extraction
     Previous (Build 492): Mobile Menu Dark Theme + View Dropdown Fix
@@ -732,7 +733,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 495,
+            build: 496,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -59743,7 +59744,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 495; // Update this with each build
+                    const KNOWN_LATEST = 496; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -62205,7 +62206,9 @@ console.log('📊 Frappe Gantt loaded');
      */
     function getNodeDates(node) {
         const dates = [];
-        const pattern = capexTree.pattern?.key || 'generic';
+        // Use window.capexTree since this runs in IIFE scope
+        const tree = window.capexTree;
+        const pattern = tree?.pattern?.key || 'generic';
 
         // Universal PM dates (all patterns)
         if (node.pmStartDate && !isNaN(Date.parse(node.pmStartDate))) {
@@ -62284,7 +62287,8 @@ console.log('📊 Frappe Gantt loaded');
             }
         }
 
-        traverse(capexTree);
+        // Use window.capexTree since this runs in IIFE scope
+        traverse(window.capexTree);
         return events;
     }
 
@@ -62391,6 +62395,12 @@ console.log('📊 Frappe Gantt loaded');
     // Expose toggleCalendarView globally
     window.toggleCalendarView = toggleCalendarView;
     window.renderCalendar = renderCalendar;
+    window.getCalendarEvents = getCalendarEvents;
+    // Expose calendarInstance for navigation (gotoDate, etc.)
+    Object.defineProperty(window, 'calendarInstance', {
+        get: () => calendarInstance,
+        configurable: true
+    });
 
     // Initialize Calendar back button
     document.addEventListener('DOMContentLoaded', () => {
