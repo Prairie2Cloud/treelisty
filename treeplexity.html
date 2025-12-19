@@ -1603,13 +1603,13 @@
                 border-radius: 8px !important;
             }
 
-            /* Show overlay when menu is open - MUST block touch to tree */
+            /* Show overlay when menu is open - covers LEFT side only (not menu) */
             .mobile-menu-overlay.visible {
                 display: block !important;
                 position: fixed !important;
                 top: 0 !important;
                 left: 0 !important;
-                right: 0 !important;
+                right: 300px !important; /* Leave menu area clear */
                 bottom: 0 !important;
                 background: rgba(0, 0, 0, 0.5) !important;
                 z-index: 2147483640 !important; /* Just below menu */
@@ -2007,13 +2007,32 @@
                 opacity: 0.6 !important;
             }
 
-            /* Hide complex elements */
+            /* Hide complex elements (but NOT views - we have pinch-to-zoom now) */
             .dependency-svg,
             .empty-state-cta,
-            #canvas-container,
-            #view-3d,
             .hyperedge-indicator {
                 display: none !important;
+            }
+
+            /* BUILD 492: Enable all views on mobile with pinch-to-zoom */
+            #canvas-container {
+                display: none; /* Shown when viewMode === 'canvas' */
+                width: 100% !important;
+                height: calc(100vh - 48px) !important;
+                height: calc(100dvh - 48px) !important;
+            }
+
+            #view-3d {
+                display: none; /* Shown when viewMode === '3d' */
+                width: 100% !important;
+                height: calc(100vh - 48px) !important;
+                height: calc(100dvh - 48px) !important;
+            }
+
+            #gantt-container {
+                width: 100% !important;
+                height: calc(100vh - 48px) !important;
+                height: calc(100dvh - 48px) !important;
             }
 
             /* Info panel: Bottom sheet */
@@ -9857,12 +9876,8 @@ Do not ask permission—just provide the critique, then help.
             if (isMobile) {
                 console.log('📱 Mobile device detected - compact view enabled');
                 document.body.classList.add('mobile-view');
-
-                // Hide Canvas/3D options in view dropdown on mobile (CSS hides the views anyway)
-                const canvasBtn = document.getElementById('view-canvas-btn');
-                const view3dBtn = document.getElementById('view-3d-btn');
-                if (canvasBtn) canvasBtn.style.display = 'none';
-                if (view3dBtn) view3dBtn.style.display = 'none';
+                // BUILD 492: All views now enabled on mobile with pinch-to-zoom
+                // Canvas, 3D, and Gantt views all work with touch gestures
             }
 
             // Long-press context menu for touch devices
