@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 492 | 2025-12-18
+    TreeListy v2.19.0 | Build 493 | 2025-12-18
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 492): Mobile Menu Dark Theme + View Dropdown Fix
+    Changelog (Build 493): Mobile Single-Pane Navigation Architecture
+    Previous (Build 492): Mobile Menu Dark Theme + View Dropdown Fix
     Previous (Build 491): Mobile UX - Pinch zoom, fullscreen, swipe navigation
     Previous (Build 490): Treebeard PM Assistant Phase 5 - Proactive Nudges
     Previous (Build 489): Tree View selected node highlighting
@@ -730,7 +731,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 492,
+            build: 493,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2035,23 +2036,116 @@
                 height: calc(100dvh - 48px) !important;
             }
 
-            /* Info panel: Bottom sheet */
+            /* ===== BUILD 493: MOBILE SINGLE-PANE NAVIGATION ===== */
+            /* Each screen takes full viewport, one visible at a time */
+
+            /* Info panel: Full screen (not bottom sheet) */
             .info-panel {
                 position: fixed !important;
-                bottom: 0 !important;
+                top: 48px !important;
                 left: 0 !important;
                 right: 0 !important;
-                top: auto !important;
+                bottom: 0 !important;
                 width: 100% !important;
-                max-height: 60vh !important;
-                border-radius: 16px 16px 0 0 !important;
-                transform: translateY(100%) !important;
+                height: calc(100vh - 48px) !important;
+                height: calc(100dvh - 48px) !important;
+                max-height: none !important;
+                border-radius: 0 !important;
+                transform: translateX(100%) !important;
                 transition: transform 0.3s ease !important;
                 z-index: 1000 !important;
+                background: #1a1d24 !important; /* Solid dark background */
+                overflow-y: auto !important;
+                -webkit-overflow-scrolling: touch !important;
             }
 
             .info-panel.open {
-                transform: translateY(0) !important;
+                transform: translateX(0) !important;
+            }
+
+            /* Chat panel: Full screen */
+            #chat-assistant-panel,
+            .chat-assistant-panel {
+                position: fixed !important;
+                top: 48px !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                width: 100% !important;
+                height: calc(100vh - 48px) !important;
+                height: calc(100dvh - 48px) !important;
+                max-width: none !important;
+                border-radius: 0 !important;
+                transform: translateX(100%) !important;
+                transition: transform 0.3s ease !important;
+                z-index: 1001 !important;
+                background: #1a1d24 !important; /* Solid dark background */
+            }
+
+            #chat-assistant-panel.open,
+            .chat-assistant-panel.open {
+                transform: translateX(0) !important;
+            }
+
+            /* Tree view: Full screen base layer */
+            .tree-view-container {
+                position: fixed !important;
+                top: 48px !important;
+                left: 0 !important;
+                right: 0 !important;
+                bottom: 0 !important;
+                z-index: 1 !important;
+            }
+
+            /* Navigation indicator dots */
+            .mobile-nav-dots {
+                position: fixed !important;
+                bottom: 20px !important;
+                left: 50% !important;
+                transform: translateX(-50%) !important;
+                display: flex !important;
+                gap: 8px !important;
+                z-index: 2000 !important;
+                background: rgba(0,0,0,0.5) !important;
+                padding: 8px 16px !important;
+                border-radius: 20px !important;
+            }
+
+            .mobile-nav-dot {
+                width: 8px !important;
+                height: 8px !important;
+                border-radius: 50% !important;
+                background: rgba(255,255,255,0.3) !important;
+                transition: all 0.2s ease !important;
+            }
+
+            .mobile-nav-dot.active {
+                background: #6366f1 !important;
+                width: 24px !important;
+                border-radius: 4px !important;
+            }
+
+            /* Swipe hint indicators */
+            .swipe-hint-left,
+            .swipe-hint-right {
+                position: fixed !important;
+                top: 50% !important;
+                transform: translateY(-50%) !important;
+                width: 4px !important;
+                height: 60px !important;
+                background: linear-gradient(to bottom, transparent, rgba(99,102,241,0.5), transparent) !important;
+                z-index: 999 !important;
+                opacity: 0 !important;
+                transition: opacity 0.3s ease !important;
+                pointer-events: none !important;
+            }
+
+            .swipe-hint-left { left: 0 !important; }
+            .swipe-hint-right { right: 0 !important; }
+
+            .swipe-hint-left.visible,
+            .swipe-hint-right.visible {
+                opacity: 1 !important;
             }
 
             /* Touch-friendly tap targets */
@@ -5989,6 +6083,15 @@
 
     <!-- BUILD 335: Mobile Menu Overlay (click to close) -->
     <div id="mobile-menu-overlay" class="mobile-menu-overlay"></div>
+
+    <!-- BUILD 493: Mobile Navigation Dots -->
+    <div id="mobile-nav-dots" class="mobile-nav-dots" style="display: none;">
+        <div class="mobile-nav-dot active" data-screen="tree" title="Tree View"></div>
+        <div class="mobile-nav-dot" data-screen="info" title="Info Panel"></div>
+        <div class="mobile-nav-dot" data-screen="chat" title="Treebeard Chat"></div>
+    </div>
+    <div id="swipe-hint-left" class="swipe-hint-left"></div>
+    <div id="swipe-hint-right" class="swipe-hint-right"></div>
 
     <!-- BUILD 491: Exit Fullscreen Button (shown only in fullscreen mode) -->
     <button id="fullscreen-exit-btn" class="fullscreen-exit-btn" aria-label="Exit fullscreen">✕</button>
@@ -10048,61 +10151,86 @@ Do not ask permission—just provide the critique, then help.
                 }
             });
 
-            // BUILD 491: Mobile Swipe Navigation between modals (Tree ↔ Info Panel ↔ Treebeard)
-            // Only active on mobile (touch devices with small screens)
+            // BUILD 493: Mobile Single-Pane Navigation (Tree ↔ Info ↔ Chat)
+            // Full-screen panels with swipe navigation
             if ('ontouchstart' in window && window.innerWidth <= 768) {
                 let swipeState = { startX: 0, startY: 0, isSwipe: false };
                 const SWIPE_THRESHOLD = 80;
-                const SWIPE_VERTICAL_LIMIT = 50; // Ignore vertical swipes
+                const SWIPE_VERTICAL_LIMIT = 50;
+                const SCREENS = ['tree', 'info', 'chat'];
 
-                // Get current modal state: 0=tree, 1=info, 2=chat
-                function getMobileModalState() {
+                // Show navigation dots on mobile
+                const navDots = document.getElementById('mobile-nav-dots');
+                if (navDots) navDots.style.display = 'flex';
+
+                // Get current screen: 0=tree, 1=info, 2=chat
+                function getMobileScreen() {
                     const infoPanel = document.getElementById('info-panel');
                     const chatPanel = document.getElementById('chat-assistant-panel') || document.getElementById('command-frame');
-                    const infoPanelOpen = infoPanel?.classList.contains('open');
-                    const chatPanelOpen = chatPanel?.classList.contains('open');
-
-                    if (chatPanelOpen) return 2; // Chat
-                    if (infoPanelOpen) return 1; // Info
-                    return 0; // Tree
+                    if (chatPanel?.classList.contains('open')) return 2;
+                    if (infoPanel?.classList.contains('open')) return 1;
+                    return 0;
                 }
 
-                function setMobileModalState(state) {
+                // Set current screen with animations
+                function setMobileScreen(screenIndex) {
                     const infoPanel = document.getElementById('info-panel');
-                    const chatBubble = document.getElementById('chat-assistant-bubble');
+                    const chatPanel = document.getElementById('chat-assistant-panel') || document.getElementById('command-frame');
 
-                    if (state === 0) {
-                        // Show only tree - close panels
-                        infoPanel?.classList.remove('open');
-                        if (typeof chatState !== 'undefined' && chatState.isOpen) {
-                            if (typeof toggleChatPanel === 'function') toggleChatPanel();
-                        }
-                    } else if (state === 1) {
-                        // Show info panel
-                        if (typeof chatState !== 'undefined' && chatState.isOpen) {
-                            if (typeof toggleChatPanel === 'function') toggleChatPanel();
-                        }
+                    // Close all panels first
+                    infoPanel?.classList.remove('open');
+                    if (typeof chatState !== 'undefined' && chatState.isOpen) {
+                        if (typeof toggleChatPanel === 'function') toggleChatPanel();
+                    }
+
+                    // Open target panel
+                    if (screenIndex === 1) {
                         infoPanel?.classList.add('open');
-                    } else if (state === 2) {
-                        // Show chat panel
-                        infoPanel?.classList.remove('open');
+                    } else if (screenIndex === 2) {
                         if (typeof chatState !== 'undefined' && !chatState.isOpen) {
                             if (typeof toggleChatPanel === 'function') toggleChatPanel();
                         }
                     }
+
+                    // Update navigation dots
+                    updateNavDots(screenIndex);
+                    updateSwipeHints(screenIndex);
                 }
 
+                // Update nav dots UI
+                function updateNavDots(activeIndex) {
+                    const dots = document.querySelectorAll('.mobile-nav-dot');
+                    dots.forEach((dot, i) => {
+                        dot.classList.toggle('active', i === activeIndex);
+                    });
+                }
+
+                // Update swipe hint indicators
+                function updateSwipeHints(screenIndex) {
+                    const leftHint = document.getElementById('swipe-hint-left');
+                    const rightHint = document.getElementById('swipe-hint-right');
+
+                    // Show left hint if can go back (not on tree)
+                    leftHint?.classList.toggle('visible', screenIndex > 0);
+                    // Show right hint if can go forward (not on chat)
+                    rightHint?.classList.toggle('visible', screenIndex < 2);
+                }
+
+                // Nav dot click handler
+                document.querySelectorAll('.mobile-nav-dot').forEach((dot, i) => {
+                    dot.addEventListener('click', () => setMobileScreen(i));
+                });
+
+                // Swipe gesture handlers
                 document.addEventListener('touchstart', (e) => {
                     const touchX = e.touches[0].clientX;
                     const touchY = e.touches[0].clientY;
                     const screenWidth = window.innerWidth;
-                    const EDGE_ZONE = 50; // pixels from screen edge
+                    const EDGE_ZONE = 50;
 
-                    // Always allow edge swipes (like iOS back gesture)
                     const isEdgeSwipe = touchX < EDGE_ZONE || touchX > screenWidth - EDGE_ZONE;
 
-                    // Block swipes starting inside scrollable content (but allow edge swipes)
-                    if (!isEdgeSwipe && e.target.closest('.modal, .dropdown-menu-content')) {
+                    if (!isEdgeSwipe && e.target.closest('.modal, .dropdown-menu-content, .mobile-menu-open')) {
                         swipeState.isSwipe = false;
                         return;
                     }
@@ -10121,25 +10249,27 @@ Do not ask permission—just provide the critique, then help.
                     const deltaX = endX - swipeState.startX;
                     const deltaY = endY - swipeState.startY;
 
-                    // Ignore if mostly vertical
                     if (Math.abs(deltaY) > SWIPE_VERTICAL_LIMIT) return;
 
-                    const currentState = getMobileModalState();
+                    const currentScreen = getMobileScreen();
 
-                    if (deltaX < -SWIPE_THRESHOLD) {
-                        // Swipe left → next modal (Tree→Info→Chat)
-                        if (currentState < 2) {
-                            setMobileModalState(currentState + 1);
-                        }
-                    } else if (deltaX > SWIPE_THRESHOLD) {
-                        // Swipe right → previous modal (Chat→Info→Tree)
-                        if (currentState > 0) {
-                            setMobileModalState(currentState - 1);
-                        }
+                    if (deltaX < -SWIPE_THRESHOLD && currentScreen < 2) {
+                        // Swipe left → next screen
+                        setMobileScreen(currentScreen + 1);
+                    } else if (deltaX > SWIPE_THRESHOLD && currentScreen > 0) {
+                        // Swipe right → previous screen
+                        setMobileScreen(currentScreen - 1);
                     }
                 }, { passive: true });
 
-                console.log('👆 Mobile swipe navigation enabled (Tree ↔ Info ↔ Chat)');
+                // Initialize hints for tree view
+                updateSwipeHints(0);
+
+                // Expose for external use
+                window.setMobileScreen = setMobileScreen;
+                window.getMobileScreen = getMobileScreen;
+
+                console.log('📱 Mobile single-pane navigation enabled (Tree ↔ Info ↔ Chat)');
             }
 
         });
@@ -59497,7 +59627,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 492; // Update this with each build
+                    const KNOWN_LATEST = 493; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
