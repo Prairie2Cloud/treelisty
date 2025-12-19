@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 493 | 2025-12-18
+    TreeListy v2.19.0 | Build 494 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 493): Mobile Single-Pane Navigation Architecture
+    Changelog (Build 494): Calendar View - FullCalendar integration with pattern-aware date extraction
     Previous (Build 492): Mobile Menu Dark Theme + View Dropdown Fix
     Previous (Build 491): Mobile UX - Pinch zoom, fullscreen, swipe navigation
     Previous (Build 490): Treebeard PM Assistant Phase 5 - Proactive Nudges
@@ -731,7 +731,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 493,
+            build: 494,
             date: '2025-12-18',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6078,6 +6078,8 @@
     <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <!-- JSZip for .treelisty bundle export/import -->
     <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+    <!-- BUILD 494: FullCalendar for Calendar View -->
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
     <!-- Google API Client Library for OAuth and Drive API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -6203,6 +6205,11 @@
                             <span class="item-icon">📊</span>
                             <span class="item-label">Gantt Chart</span>
                             <span class="item-shortcut" id="gantt-check" style="opacity: 0;">✓</span>
+                        </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="view-calendar-btn" data-view="calendar">
+                            <span class="item-icon">📅</span>
+                            <span class="item-label">Calendar</span>
+                            <span class="item-shortcut" id="calendar-check" style="opacity: 0;">✓</span>
                         </button>
                         <div class="dropdown-menu-divider"></div>
                         <button class="dropdown-menu-item" role="menuitem" id="export-canvas-btn" style="display: none;">
@@ -9563,8 +9570,8 @@ Do not ask permission—just provide the critique, then help.
 
         // BUILD 333: View Selector Dropdown - handles view switching
         document.addEventListener('DOMContentLoaded', () => {
-            const viewIcons = { tree: '🌲', canvas: '🎨', '3d': '🧊', gantt: '📊' };
-            const viewLabels = { tree: 'Tree', canvas: 'Canvas', '3d': '3D', gantt: 'Gantt' };
+            const viewIcons = { tree: '🌲', canvas: '🎨', '3d': '🧊', gantt: '📊', calendar: '📅' };
+            const viewLabels = { tree: 'Tree', canvas: 'Canvas', '3d': '3D', gantt: 'Gantt', calendar: 'Calendar' };
 
             function updateViewDropdown(newView) {
                 // Update trigger button to show current state
@@ -9578,6 +9585,7 @@ Do not ask permission—just provide the critique, then help.
                 document.getElementById('canvas-check').style.opacity = newView === 'canvas' ? '1' : '0';
                 document.getElementById('3d-check').style.opacity = newView === '3d' ? '1' : '0';
                 document.getElementById('gantt-check').style.opacity = newView === 'gantt' ? '1' : '0';
+                document.getElementById('calendar-check').style.opacity = newView === 'calendar' ? '1' : '0';
 
                 // Show/hide export option based on view
                 const exportBtn = document.getElementById('export-canvas-btn');
@@ -9598,12 +9606,29 @@ Do not ask permission—just provide the critique, then help.
                 return false;
             }
 
+            // BUILD 494: Helper: Close Calendar view if active
+            function closeCalendarViewIfActive() {
+                const viewCalendar = document.getElementById('view-calendar');
+                if (viewCalendar && viewCalendar.classList.contains('active')) {
+                    viewCalendar.classList.remove('active');
+                    return true;  // Was in Calendar view
+                }
+                return false;
+            }
+
             // Tree View button
             document.getElementById('view-tree-btn')?.addEventListener('click', () => {
                 if (typeof viewMode !== 'undefined' && viewMode !== 'tree') {
                     // Close Gantt view if active
                     if (viewMode === 'gantt') {
                         closeGanttViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                        render();
+                    } else if (viewMode === 'calendar') {
+                        // BUILD 494: Close Calendar view
+                        closeCalendarViewIfActive();
                         const treeView = document.querySelector('.tree-view-container');
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
@@ -9629,6 +9654,13 @@ Do not ask permission—just provide the critique, then help.
                         viewMode = 'tree';
                         // Now switch to canvas
                         if (typeof toggleViewMode === 'function') toggleViewMode();
+                    } else if (viewMode === 'calendar') {
+                        // BUILD 494: Close Calendar view then switch to canvas
+                        closeCalendarViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                        if (typeof toggleViewMode === 'function') toggleViewMode();
                     } else if (viewMode === 'tree') {
                         // Call function directly (button may be hidden on mobile)
                         if (typeof toggleViewMode === 'function') toggleViewMode();
@@ -9653,6 +9685,13 @@ Do not ask permission—just provide the critique, then help.
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
                     }
+                    // BUILD 494: Close Calendar view if active
+                    if (viewMode === 'calendar') {
+                        closeCalendarViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                    }
                     // Call function directly (button may be hidden on mobile)
                     if (typeof toggle3DView === 'function') toggle3DView();
                 }
@@ -9662,6 +9701,13 @@ Do not ask permission—just provide the critique, then help.
             // BUILD 457: Gantt View button
             document.getElementById('view-gantt-btn')?.addEventListener('click', () => {
                 if (typeof viewMode !== 'undefined' && viewMode !== 'gantt') {
+                    // BUILD 494: Close Calendar view if active
+                    if (viewMode === 'calendar') {
+                        closeCalendarViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                    }
                     if (typeof toggleGanttView === 'function') {
                         toggleGanttView();
                     } else {
@@ -9670,6 +9716,19 @@ Do not ask permission—just provide the critique, then help.
                     }
                 }
                 updateViewDropdown('gantt');
+            });
+
+            // BUILD 494: Calendar View button
+            document.getElementById('view-calendar-btn')?.addEventListener('click', () => {
+                if (typeof viewMode !== 'undefined' && viewMode !== 'calendar') {
+                    if (typeof toggleCalendarView === 'function') {
+                        toggleCalendarView();
+                    } else {
+                        console.warn('Calendar view not yet implemented');
+                        showToast('Calendar view coming soon!', 'info');
+                    }
+                }
+                updateViewDropdown('calendar');
             });
 
             // Expose update function globally so existing view toggle code can call it
@@ -14214,6 +14273,9 @@ Focus on logical structure and content organization best practices.`;
                 document.getElementById('view-mode-text').textContent = 'Tree View';
                 document.querySelector('.tree-view-container').classList.add('hidden');
                 document.getElementById('canvas-container').classList.add('active');
+                // BUILD 494: Close Calendar view if open
+                const viewCalendar = document.getElementById('view-calendar');
+                if (viewCalendar) viewCalendar.classList.remove('active');
 
                 const toolbar = document.getElementById('canvas-toolbar');
                 if (toolbar) {
@@ -59680,7 +59742,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 493; // Update this with each build
+                    const KNOWN_LATEST = 494; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -60766,6 +60828,214 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     </div>
 </div>
 
+<!-- ═══════════════════════════════════════════════════════════════════════════
+     BUILD 494: CALENDAR VIEW CONTAINER
+     ═══════════════════════════════════════════════════════════════════════════ -->
+<style>
+    /* Calendar View Container */
+    #view-calendar {
+        display: none;
+        position: fixed;
+        top: 140px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg);
+        overflow: hidden;
+        z-index: 100;
+        padding: 20px;
+    }
+
+    #view-calendar.active {
+        display: block;
+    }
+
+    /* Calendar wrapper takes full height */
+    #calendar-wrapper {
+        height: 100%;
+        max-height: calc(100vh - 180px);
+    }
+
+    /* FullCalendar Dark Theme Overrides */
+    .fc {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        color: var(--text-primary);
+        height: 100%;
+    }
+
+    .fc-theme-standard .fc-scrollgrid {
+        border-color: var(--border);
+    }
+
+    .fc-theme-standard td, .fc-theme-standard th {
+        border-color: var(--border);
+    }
+
+    .fc-col-header-cell-cushion, .fc-daygrid-day-number {
+        color: var(--text-secondary);
+        text-decoration: none;
+    }
+
+    .fc-col-header-cell-cushion:hover, .fc-daygrid-day-number:hover {
+        color: var(--text-primary);
+    }
+
+    .fc-day-today {
+        background-color: rgba(99, 102, 241, 0.08) !important;
+    }
+
+    .fc-day-today .fc-daygrid-day-number {
+        color: var(--treeplex-primary);
+        font-weight: 700;
+    }
+
+    /* Toolbar buttons */
+    .fc .fc-button-primary {
+        background-color: var(--card-bg) !important;
+        border-color: var(--border) !important;
+        color: var(--text-primary) !important;
+        font-weight: 500;
+        text-transform: capitalize;
+    }
+
+    .fc .fc-button-primary:hover {
+        background-color: rgba(99, 102, 241, 0.2) !important;
+        border-color: var(--treeplex-primary) !important;
+    }
+
+    .fc .fc-button-primary:disabled {
+        opacity: 0.5;
+    }
+
+    .fc .fc-button-primary:not(:disabled).fc-button-active,
+    .fc .fc-button-primary:not(:disabled):active {
+        background-color: var(--treeplex-primary) !important;
+        border-color: var(--treeplex-primary) !important;
+        color: white !important;
+    }
+
+    /* Toolbar title */
+    .fc .fc-toolbar-title {
+        color: var(--text-primary);
+        font-size: 1.4em;
+        font-weight: 700;
+    }
+
+    /* Calendar Events */
+    .fc-event {
+        cursor: pointer;
+        border: none !important;
+        padding: 2px 6px;
+        font-size: 12px;
+        font-weight: 500;
+        border-radius: 4px;
+        transition: transform 0.15s, box-shadow 0.15s;
+    }
+
+    .fc-event:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+    }
+
+    .fc-event-title {
+        font-weight: 500;
+    }
+
+    .fc-daygrid-event-dot {
+        border-color: currentColor !important;
+    }
+
+    /* More events link */
+    .fc-daygrid-more-link {
+        color: var(--treeplex-primary);
+        font-weight: 600;
+    }
+
+    /* Week/Day time grid */
+    .fc-timegrid-slot-label {
+        color: var(--text-secondary);
+    }
+
+    .fc-timegrid-axis {
+        color: var(--text-secondary);
+    }
+
+    /* Calendar Empty State */
+    #calendar-empty-state {
+        display: none;
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        text-align: center;
+        padding: 40px;
+        background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1));
+        border: 2px solid rgba(99, 102, 241, 0.3);
+        border-radius: 16px;
+        max-width: 500px;
+    }
+
+    #calendar-empty-state h2 {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    #calendar-empty-state p {
+        font-size: 14px;
+        color: var(--text-secondary);
+        margin-bottom: 24px;
+        line-height: 1.6;
+    }
+
+    /* Mobile Calendar Adjustments */
+    @media (max-width: 768px) {
+        #view-calendar {
+            top: 100px;
+            padding: 10px;
+        }
+
+        #calendar-wrapper {
+            max-height: calc(100vh - 120px);
+        }
+
+        .fc .fc-toolbar {
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .fc .fc-toolbar-title {
+            font-size: 1.1em;
+        }
+
+        .fc .fc-button {
+            padding: 6px 10px;
+            font-size: 12px;
+        }
+    }
+</style>
+
+<div id="view-calendar">
+    <!-- Calendar Wrapper (populated by FullCalendar) -->
+    <div id="calendar-wrapper"></div>
+
+    <!-- Empty State (shown when no dated items) -->
+    <div id="calendar-empty-state">
+        <div style="font-size: 48px; margin-bottom: 16px;">📅</div>
+        <h2>Calendar View</h2>
+        <p>
+            No dated items found in this tree.<br>
+            Add Start Dates, Due Dates, or Events to see them here.
+        </p>
+        <div style="display: flex; gap: 12px; justify-content: center; flex-wrap: wrap;">
+            <button class="btn" id="calendar-back-btn" style="background: rgba(99, 102, 241, 0.1); padding: 12px 24px; font-size: 15px; font-weight: 600; color: var(--text-primary); border-radius: 8px; border: 1px solid rgba(99, 102, 241, 0.3); cursor: pointer;">
+                ← Back to Tree
+            </button>
+        </div>
+    </div>
+</div>
+
 <!-- Gantt Toolbar (shown when Gantt view is active) -->
 <div id="gantt-toolbar">
     <select id="gantt-view-mode" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">
@@ -61848,6 +62118,9 @@ console.log('📊 Frappe Gantt loaded');
             treeView.classList.add('hidden');
             canvasView.classList.remove('active');
             view3D.classList.remove('active');
+            // BUILD 494: Close Calendar view if open
+            const viewCalendar = document.getElementById('view-calendar');
+            if (viewCalendar) viewCalendar.classList.remove('active');
             // BUILD 474: Show minimap and floating zoom
             if (minimap) minimap.style.display = 'block';
             if (floatingZoom) floatingZoom.style.display = 'flex';
@@ -61867,6 +62140,213 @@ console.log('📊 Frappe Gantt loaded');
 
     // Expose toggleGanttView globally
     window.toggleGanttView = toggleGanttView;
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // BUILD 494: CALENDAR VIEW LOGIC
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    let calendarInstance = null;
+
+    /**
+     * Extract dates from a node based on pattern
+     */
+    function getNodeDates(node) {
+        const dates = [];
+        const pattern = capexTree.pattern?.key || 'generic';
+
+        // Universal PM dates (all patterns)
+        if (node.pmStartDate && !isNaN(Date.parse(node.pmStartDate))) {
+            dates.push({ date: node.pmStartDate, type: 'Start', color: '#3B82F6' }); // Blue
+        }
+        if (node.pmDueDate && !isNaN(Date.parse(node.pmDueDate))) {
+            dates.push({ date: node.pmDueDate, type: 'Due', color: '#EF4444' }); // Red
+        }
+
+        // Pattern-specific dates
+        if (pattern === 'lifetree' || pattern === 'familytree') {
+            if (node.eventDate && !isNaN(Date.parse(node.eventDate))) {
+                dates.push({ date: node.eventDate, type: 'Event', color: '#10B981' }); // Green
+            }
+            if (node.birthDate && !isNaN(Date.parse(node.birthDate))) {
+                dates.push({ date: node.birthDate, type: 'Birth', color: '#EC4899' }); // Pink
+            }
+            if (node.deathDate && !isNaN(Date.parse(node.deathDate))) {
+                dates.push({ date: node.deathDate, type: 'Death', color: '#6B7280' }); // Gray
+            }
+            if (node.marriageDate && !isNaN(Date.parse(node.marriageDate))) {
+                dates.push({ date: node.marriageDate, type: 'Marriage', color: '#F59E0B' }); // Orange
+            }
+        }
+
+        if (pattern === 'sales' && node.expectedCloseDate && !isNaN(Date.parse(node.expectedCloseDate))) {
+            dates.push({ date: node.expectedCloseDate, type: 'Close', color: '#10B981' }); // Green
+        }
+
+        if (pattern === 'event') {
+            if (node.bookingDeadline && !isNaN(Date.parse(node.bookingDeadline))) {
+                dates.push({ date: node.bookingDeadline, type: 'Deadline', color: '#F59E0B' }); // Orange
+            }
+        }
+
+        return dates;
+    }
+
+    /**
+     * Traverse tree and collect all calendar events
+     */
+    function getCalendarEvents() {
+        const events = [];
+
+        function traverse(node, parentPhase = null) {
+            const nodeDates = getNodeDates(node);
+
+            nodeDates.forEach(d => {
+                events.push({
+                    id: `${node.id}-${d.type}`,
+                    title: `${d.type}: ${node.name}`,
+                    start: d.date,
+                    backgroundColor: d.color,
+                    borderColor: d.color,
+                    textColor: '#ffffff',
+                    extendedProps: {
+                        nodeId: node.id,
+                        type: d.type,
+                        nodeName: node.name
+                    }
+                });
+            });
+
+            // Traverse children
+            if (node.children) {
+                node.children.forEach(child => traverse(child, child));
+            }
+            if (node.items) {
+                node.items.forEach(item => traverse(item, parentPhase));
+            }
+            if (node.subtasks) {
+                node.subtasks.forEach(sub => traverse(sub, parentPhase));
+            }
+            if (node.subItems) {
+                node.subItems.forEach(sub => traverse(sub, parentPhase));
+            }
+        }
+
+        traverse(capexTree);
+        return events;
+    }
+
+    /**
+     * Render the calendar view
+     */
+    function renderCalendar() {
+        const calendarEl = document.getElementById('calendar-wrapper');
+        const emptyState = document.getElementById('calendar-empty-state');
+        const events = getCalendarEvents();
+
+        if (events.length === 0) {
+            calendarEl.style.display = 'none';
+            emptyState.style.display = 'block';
+            return;
+        }
+
+        calendarEl.style.display = 'block';
+        emptyState.style.display = 'none';
+
+        // Initialize FullCalendar if not already done
+        if (!calendarInstance) {
+            calendarInstance = new FullCalendar.Calendar(calendarEl, {
+                initialView: 'dayGridMonth',
+                headerToolbar: {
+                    left: 'prev,next today',
+                    center: 'title',
+                    right: 'dayGridMonth,timeGridWeek'
+                },
+                height: '100%',
+                events: events,
+                eventClick: function(info) {
+                    const nodeId = info.event.extendedProps.nodeId;
+                    // Find and select the node
+                    const node = typeof getNodeById === 'function' ? getNodeById(nodeId) : null;
+                    if (node) {
+                        if (typeof showInfo === 'function') {
+                            showInfo(node);
+                        }
+                        showToast(`Selected: ${node.name}`, 'info');
+                    }
+                },
+                eventDidMount: function(info) {
+                    // Add tooltip
+                    const props = info.event.extendedProps;
+                    info.el.title = `${props.type}: ${props.nodeName}\nClick to view details`;
+                },
+                // Responsive settings
+                windowResize: function() {
+                    calendarInstance.updateSize();
+                }
+            });
+            calendarInstance.render();
+        } else {
+            // Refresh events
+            calendarInstance.removeAllEvents();
+            calendarInstance.addEventSource(events);
+            calendarInstance.render();
+        }
+    }
+
+    /**
+     * Toggle Calendar view on/off
+     */
+    function toggleCalendarView() {
+        const viewCalendar = document.getElementById('view-calendar');
+        const treeView = document.querySelector('.tree-view-container');
+        const canvasView = document.getElementById('canvas-container');
+        const view3D = document.getElementById('view-3d');
+        const viewGantt = document.getElementById('view-gantt');
+        const ganttToolbar = document.getElementById('gantt-toolbar');
+
+        const isActive = viewCalendar.classList.contains('active');
+
+        if (isActive) {
+            // Close Calendar view
+            viewCalendar.classList.remove('active');
+            treeView.classList.remove('hidden');
+            viewMode = 'tree';
+            if (window.updateViewDropdown) window.updateViewDropdown('tree');
+            render();
+            console.log('📅 Calendar view closed');
+        } else {
+            // Open Calendar view
+            viewCalendar.classList.add('active');
+            treeView.classList.add('hidden');
+            canvasView?.classList.remove('active');
+            view3D?.classList.remove('active');
+            viewGantt?.classList.remove('active');
+            if (ganttToolbar) ganttToolbar.classList.remove('active');
+
+            // Hide canvas toolbar
+            const canvasToolbar = document.getElementById('canvas-toolbar');
+            if (canvasToolbar) canvasToolbar.classList.remove('active');
+
+            viewMode = 'calendar';
+            renderCalendar();
+            if (window.updateViewDropdown) window.updateViewDropdown('calendar');
+            console.log('📅 Calendar view opened');
+        }
+    }
+
+    // Expose toggleCalendarView globally
+    window.toggleCalendarView = toggleCalendarView;
+    window.renderCalendar = renderCalendar;
+
+    // Initialize Calendar back button
+    document.addEventListener('DOMContentLoaded', () => {
+        const calendarBackBtn = document.getElementById('calendar-back-btn');
+        if (calendarBackBtn) {
+            calendarBackBtn.addEventListener('click', () => {
+                toggleCalendarView();
+            });
+        }
+    });
 
     // Initialize Gantt back button
     document.addEventListener('DOMContentLoaded', () => {
@@ -62621,6 +63101,9 @@ console.log('📊 Frappe Gantt loaded');
             view3D.classList.add('active');
             treeView.classList.add('hidden');
             canvasView.classList.remove('active'); // Ensure 2D canvas is off
+            // BUILD 494: Close Calendar view if open
+            const viewCalendar = document.getElementById('view-calendar');
+            if (viewCalendar) viewCalendar.classList.remove('active');
             btn.style.border = '2px solid #fff';
             // BUILD 352: Update viewMode variable so view switching works correctly
             viewMode = '3d';
