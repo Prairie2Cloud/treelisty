@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 509 | 2025-12-19
+    TreeListy v2.19.0 | Build 510 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 510): Canvas dependency controls - toggle on/off, show for selected only, color by type
     Changelog (Build 509): Reader nav edge case fixes (node not in list, empty list)
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
@@ -738,7 +739,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 509,
+            build: 510,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -15756,7 +15757,7 @@ Focus on logical structure and content organization best practices.`;
             },
             dependency: {
                 style: 'bezier',
-                color: '#ff6b6b',            // Red
+                color: '#ff6b6b',            // Red (legacy/default)
                 width: 2,
                 opacity: 0.8,
                 arrow: true,
@@ -15771,6 +15772,43 @@ Focus on logical structure and content organization best practices.`;
                 arrow: true,
                 animated: true,
                 dashPattern: null            // Solid line with glow
+            },
+            // BUILD 510: Color-coded dependency types
+            dependencyFS: {
+                style: 'bezier',
+                color: '#3b82f6',            // Blue - Finish-to-Start
+                width: 2,
+                opacity: 0.85,
+                arrow: true,
+                animated: true,
+                dashPattern: [8, 4]
+            },
+            dependencySS: {
+                style: 'bezier',
+                color: '#22c55e',            // Green - Start-to-Start
+                width: 2,
+                opacity: 0.85,
+                arrow: true,
+                animated: true,
+                dashPattern: [6, 3]
+            },
+            dependencyFF: {
+                style: 'bezier',
+                color: '#f97316',            // Orange - Finish-to-Finish
+                width: 2,
+                opacity: 0.85,
+                arrow: true,
+                animated: true,
+                dashPattern: [6, 3]
+            },
+            dependencySF: {
+                style: 'bezier',
+                color: '#a855f7',            // Purple - Start-to-Finish
+                width: 2,
+                opacity: 0.85,
+                arrow: true,
+                animated: true,
+                dashPattern: [4, 4]
             }
         };
 
@@ -16065,6 +16103,11 @@ Focus on logical structure and content organization best practices.`;
         // State for critical path display
         let showCriticalPath = false;
 
+        // BUILD 510: Dependency display controls
+        let showDependencies = true;           // Toggle all dependency lines
+        let showDepsForSelectedOnly = true;    // Only show deps for selected/hovered node
+        let selectedCanvasNodeId = null;       // Track selected node for filtering
+
         // BUILD 449: Toggle critical path visualization
         function toggleCriticalPath() {
             showCriticalPath = !showCriticalPath;
@@ -16091,9 +16134,49 @@ Focus on logical structure and content organization best practices.`;
             renderCanvas();
         }
 
+        // BUILD 510: Toggle dependency visibility
+        function toggleDependencyDisplay() {
+            showDependencies = !showDependencies;
+            const btn = document.getElementById('deps-toggle');
+            if (btn) {
+                if (showDependencies) {
+                    btn.style.background = 'rgba(255, 107, 107, 0.3)';
+                    btn.style.borderColor = '#ff6b6b';
+                    btn.style.color = '#ff6b6b';
+                    btn.textContent = '🔗 Deps: On';
+                } else {
+                    btn.style.background = 'rgba(99, 102, 241, 0.1)';
+                    btn.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                    btn.style.color = 'var(--text-secondary)';
+                    btn.textContent = '🔗 Deps: Off';
+                }
+            }
+            renderCanvas();
+        }
+
+        // BUILD 510: Toggle selected-only mode
+        function toggleDepsSelectedOnly() {
+            showDepsForSelectedOnly = !showDepsForSelectedOnly;
+            const btn = document.getElementById('deps-filter-toggle');
+            if (btn) {
+                if (showDepsForSelectedOnly) {
+                    btn.style.background = 'rgba(34, 197, 94, 0.2)';
+                    btn.style.borderColor = 'rgba(34, 197, 94, 0.5)';
+                    btn.textContent = '👁 Selected';
+                } else {
+                    btn.style.background = 'rgba(99, 102, 241, 0.1)';
+                    btn.style.borderColor = 'rgba(99, 102, 241, 0.3)';
+                    btn.textContent = '👁 All';
+                }
+            }
+            renderCanvas();
+        }
+
         // Expose for external use
         window.dependencyEngine = dependencyEngine;
         window.toggleCriticalPath = toggleCriticalPath;
+        window.toggleDependencyDisplay = toggleDependencyDisplay;
+        window.toggleDepsSelectedOnly = toggleDepsSelectedOnly;
 
         // BUILD 456: Check if tree has any dependencies
         function treeHasDependencies(node = capexTree) {
@@ -16986,6 +17069,9 @@ Be specific and insightful, not generic.`;
             // Draw lines for dependencies only if both nodes are visible
             // BUILD 446: Use getDependencies() for normalized typed dependencies
             // BUILD 449: Highlight critical path dependencies
+            // BUILD 510: Respect showDependencies and showDepsForSelectedOnly filters
+            if (!showDependencies) return;  // Skip all dependencies if toggle is off
+
             const deps = getDependencies(node);
             if (deps.length > 0) {
                 deps.forEach(dep => {
@@ -16993,6 +17079,14 @@ Be specific and insightful, not generic.`;
                     if (depNode && depNode.data) {
                         // Only draw if both the dependency and this node are visible
                         if (isNodeVisible(dep.predecessorId) && isNodeVisible(node.id)) {
+                            // BUILD 510: Filter by selected node if enabled
+                            if (showDepsForSelectedOnly && selectedCanvasNodeId) {
+                                // Only show deps connected to selected node
+                                if (node.id !== selectedCanvasNodeId && dep.predecessorId !== selectedCanvasNodeId) {
+                                    return; // Skip this dependency
+                                }
+                            }
+
                             const fromX = depNode.data.canvasX + 160;
                             const fromY = depNode.data.canvasY + 60;
                             const toX = node.canvasX;
@@ -17002,20 +17096,27 @@ Be specific and insightful, not generic.`;
                             const isCritical = showCriticalPath &&
                                 depNode.data._isCritical &&
                                 node._isCritical;
-                            if (showCriticalPath) {
-                                console.log('Dep check:', dep.predecessorId, '→', node.id,
-                                    'pred._isCritical:', depNode.data._isCritical,
-                                    'succ._isCritical:', node._isCritical,
-                                    'isCritical:', isCritical);
+
+                            // BUILD 510: Determine link type based on dependency type and critical status
+                            let linkType;
+                            if (isCritical) {
+                                linkType = 'criticalPath';
+                            } else {
+                                // Use color-coded link type based on dependency type
+                                const depType = dep.type || 'FS';
+                                linkType = `dependency${depType}`;  // dependencyFS, dependencySS, etc.
+                                // Fallback to generic dependency if type not found
+                                if (!LINK_TYPES[linkType]) {
+                                    linkType = 'dependency';
+                                }
                             }
-                            const linkType = isCritical ? 'criticalPath' : 'dependency';
 
                             drawConnection(
                                 fromX, fromY,  // From predecessor
                                 toX, toY,      // To successor
                                 null,          // Color from link type
                                 'dashed',
-                                linkType       // Use dependency or criticalPath link type
+                                linkType       // Use typed dependency link
                             );
 
                             // Draw type badge for non-default dependencies (or always for clickability)
@@ -18302,6 +18403,10 @@ Be specific and insightful, not generic.`;
                     selectedNodes = [item];
                     node.classList.add('selected');
 
+                    // BUILD 510: Track selected node for dependency filtering
+                    const prevSelected = selectedCanvasNodeId;
+                    selectedCanvasNodeId = item.id;
+
                     // Update selection counter
                     updateSelectionCounter();
 
@@ -18322,6 +18427,11 @@ Be specific and insightful, not generic.`;
                         showInfo(item);
                     } else {
                         console.error('showInfo function not found!');
+                    }
+
+                    // BUILD 510: Re-draw connections if selection-based filtering is on
+                    if (showDepsForSelectedOnly && prevSelected !== selectedCanvasNodeId) {
+                        drawConnections();
                     }
                 }
             });
@@ -60091,7 +60201,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 509; // Update this with each build
+                    const KNOWN_LATEST = 510; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -60305,6 +60415,13 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             </button>
             <button id="critical-path-toggle" onclick="toggleCriticalPath()" class="btn" style="padding: 8px 14px; background: rgba(255, 0, 0, 0.1); border: 1px solid rgba(255, 0, 0, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;" title="Highlight critical path dependencies">
                 ⚡ Critical Path
+            </button>
+            <!-- BUILD 510: Dependency display controls -->
+            <button id="deps-toggle" onclick="toggleDependencyDisplay()" class="btn" style="padding: 8px 14px; background: rgba(255, 107, 107, 0.3); border: 1px solid #ff6b6b; border-radius: 8px; color: #ff6b6b; font-size: 13px; transition: all 0.2s;" title="Toggle dependency lines on/off">
+                🔗 Deps: On
+            </button>
+            <button id="deps-filter-toggle" onclick="toggleDepsSelectedOnly()" class="btn" style="padding: 8px 14px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.5); border-radius: 8px; color: var(--text-primary); font-size: 13px; transition: all 0.2s;" title="Show deps for selected node only, or all">
+                👁 Selected
             </button>
             <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
             <div style="display: flex; align-items: center; gap: 6px;">
