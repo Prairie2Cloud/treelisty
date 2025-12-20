@@ -1,28 +1,29 @@
 # TreeListy MCP Bridge
 
-WebSocket bridge connecting TreeListy (browser) to Claude Code via MCP (Model Context Protocol).
+Connect [Claude Code](https://claude.ai/claude-code) to [TreeListy](https://treelisty.netlify.app) via the Model Context Protocol (MCP).
 
 ## Overview
 
+This bridge enables Claude Code to read and modify TreeListy trees programmatically. It acts as a translator between:
+
+- **Claude Code** (communicates via MCP over stdio)
+- **TreeListy** (runs in your browser, communicates via WebSocket)
+
 ```
-┌─────────────────┐     ┌─────────────────┐     ┌─────────────────┐
-│  Claude Code    │     │   MCP Bridge    │     │   TreeListy     │
-│  (CLI)          │◄───►│  (this pkg)     │◄───►│  (Browser)      │
-│                 │stdio│                 │ ws  │                 │
-└─────────────────┘     └─────────────────┘     └─────────────────┘
+Claude Code <-- stdio/MCP --> Bridge <-- WebSocket --> TreeListy Browser
 ```
 
-## Installation
+## Quick Start
 
-No installation required! Use `npx`:
+### 1. Add to Claude Code
+
+Run in your terminal:
 
 ```bash
-npx treelisty-mcp-bridge
+/mcp add treelisty npx treelisty-mcp-bridge
 ```
 
-## Claude Code Configuration
-
-Add to `~/.claude/settings.json`:
+Or add to `~/.claude/settings.json`:
 
 ```json
 {
@@ -35,77 +36,122 @@ Add to `~/.claude/settings.json`:
 }
 ```
 
-## Security Features
+### 2. Connect TreeListy
 
-- **Session Token**: Random UUID generated at startup, required for connection
-- **Origin Validation**: Only accepts connections from allowed origins
-- **Dynamic Port**: Uses OS-assigned port to avoid conflicts
-- **Heartbeat**: Ping/pong every 30s to detect stale connections
+1. Open [TreeListy](https://treelisty.netlify.app)
+2. Click the **MCP** button in the toolbar
+3. Enter the port and token shown in Claude Code's MCP server output
+4. Click **Connect**
 
-## Environment Variables
+### 3. Use Claude Code
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `TREELISTY_BRIDGE_PORT` | `0` (auto) | WebSocket port |
-| `TREELISTY_DEBUG` | `false` | Enable debug logging |
+Once connected, Claude Code can:
 
-## Output
+```
+You: Read my tree structure
+Claude: [Uses get_tree tool to read TreeListy data]
 
-On startup, the bridge outputs connection info to stderr:
-
-```json
-{
-  "type": "bridge_ready",
-  "port": 52341,
-  "token": "550e8400-e29b-41d4-a716-446655440000",
-  "version": "0.1.0"
-}
+You: Add a new phase called "Research"
+Claude: [Uses create_node tool to add the phase]
 ```
 
-TreeListy reads this to establish the WebSocket connection.
-
-## MCP Tools
-
-The bridge forwards these MCP tools to TreeListy:
+## Available Tools
 
 | Tool | Description |
 |------|-------------|
-| `get_tree` | Get full tree structure |
-| `get_tree_metadata` | Get tree hash, node count |
-| `get_subtree` | Get node with descendants |
-| `get_node` | Get single node |
-| `create_node` | Create new node |
-| `update_node` | Update node fields |
-| `delete_node` | Remove node |
-| `search_nodes` | Search by content/pattern |
+| `get_tree` | Get the full tree structure |
+| `get_tree_metadata` | Get node count, hash, last modified |
+| `get_node` | Get a specific node by ID |
+| `get_subtree` | Get a node and descendants |
+| `create_node` | Create a new node |
+| `update_node` | Update an existing node |
+| `delete_node` | Remove a node |
+| `search_nodes` | Find nodes by content |
+| `begin_transaction` | Start batched updates |
+| `commit_transaction` | Commit batch (single undo) |
+| `rollback_transaction` | Discard uncommitted changes |
 | `import_structured_content` | Import research as subtree |
-| `begin_transaction` | Start batch operation |
-| `commit_transaction` | Commit with single saveState |
-| `rollback_transaction` | Discard changes |
 | `get_pattern_schema` | Get pattern field definitions |
-| `get_activity_log` | Get agent activity history |
 
-## Multi-Tab Support
+## Security
 
-The bridge supports multiple TreeListy tabs via `tabId`:
+The bridge implements several security measures:
 
-```json
-{
-  "method": "get_tree",
-  "params": { "tabId": "tab-abc123" }
-}
+- **Session Token**: Random UUID generated at startup, required for connection
+- **Origin Validation**: Only accepts connections from allowed origins
+- **Dynamic Port**: OS-assigned port to avoid conflicts
+- **Heartbeat**: Ping/pong every 30s to detect stale connections
+
+### Allowed Origins
+
+By default, connections are only accepted from:
+- `https://treelisty.netlify.app`
+- `http://localhost`
+- `http://127.0.0.1`
+
+### Debug Mode
+
+Set `TREELISTY_DEBUG=1` to allow connections without origin header (for development).
+
+## Architecture
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                         Claude Code (CLI)                            │
+│                                                                      │
+│   Sends MCP requests via stdin, receives responses via stdout       │
+└─────────────────────────────┬───────────────────────────────────────┘
+                              │ stdio (JSON-RPC)
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     treelisty-mcp-bridge                             │
+│                                                                      │
+│   - Listens on dynamic port for WebSocket connections               │
+│   - Translates MCP requests to WebSocket messages                   │
+│   - Routes responses back to Claude Code                            │
+└─────────────────────────────┬───────────────────────────────────────┘
+                              │ WebSocket (localhost)
+                              ▼
+┌─────────────────────────────────────────────────────────────────────┐
+│                     TreeListy (Browser)                              │
+│                                                                      │
+│   - Connects via WebSocket with token                               │
+│   - Handles MCP tool calls                                          │
+│   - Returns results to bridge                                       │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-If only one tab is connected, `tabId` is optional.
+## Transaction Semantics
+
+For batch operations (e.g., importing 50 nodes), wrap them in a transaction:
+
+```javascript
+// Claude Code sends:
+{ method: 'begin_transaction' }
+{ method: 'create_node', params: { ... } }  // x50
+{ method: 'commit_transaction', params: { transaction_id: '...' } }
+```
+
+Benefits:
+- Single undo checkpoint (instead of 50)
+- Atomic rollback on failure
+- Better performance
+
+## Browser Client
+
+The `client.js` file contains browser-side code for TreeListy:
+
+- `TreeListyMCPClient`: WebSocket connection to bridge
+- `TreeListyMCPHandler`: Handles MCP requests from Claude Code
+
+This code is designed to be inlined into `treeplexity.html`.
 
 ## Development
 
 ```bash
-# Clone repo
-git clone https://github.com/Prairie2Cloud/treelisty
-
-# Navigate to package
-cd packages/treelisty-mcp-bridge
+# Clone the repo
+git clone https://github.com/Prairie2Cloud/treelisty.git
+cd treelisty/packages/treelisty-mcp-bridge
 
 # Install dependencies
 npm install
@@ -113,17 +159,37 @@ npm install
 # Run locally
 npm start
 
-# Run with debug logging
-TREELISTY_DEBUG=true npm start
+# Run with debug mode
+TREELISTY_DEBUG=1 npm start
 ```
 
-## Testing
+## Troubleshooting
 
-```bash
-# Run tests
-npm test
-```
+### "No browser connected" error
+
+TreeListy isn't connected to the bridge. Make sure:
+1. TreeListy is open in your browser
+2. You've clicked the MCP button and entered the correct port/token
+3. The connection status shows "Connected"
+
+### Connection refused
+
+The bridge might not be running. Check:
+1. Claude Code's MCP server status
+2. Try restarting Claude Code
+
+### Invalid origin error
+
+Your TreeListy origin isn't in the allowlist. This can happen with:
+- Custom localhost ports (use `http://localhost` or `http://127.0.0.1`)
+- Self-hosted TreeListy (add your origin to `CONFIG.allowedOrigins`)
 
 ## License
 
-MIT
+Apache-2.0. See [LICENSE](./LICENSE).
+
+## Links
+
+- [TreeListy](https://treelisty.netlify.app) - The hierarchical project tool
+- [Claude Code](https://claude.ai/claude-code) - AI-powered coding assistant
+- [MCP Specification](https://modelcontextprotocol.io) - Model Context Protocol

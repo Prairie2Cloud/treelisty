@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 517 | 2025-12-20
+    TreeListy v2.20.0 | Build 518 | 2025-12-20
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 518): MCP Bridge Connection UI - proper modal with setup instructions, activity log, status indicator
     Changelog (Build 517): Mobile Canvas UX - scrollable toolbar, compact minimap, bottom-sheet context menu
-    Changelog (Build 516): Fix Canvas/3D View not displaying on mobile - add .active class override
+    Previous (Build 516): Fix Canvas/3D View not displaying on mobile - add .active class override
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
     Previous (Build 506): Fix undefined icon in tree view - add fallback for items without icons
@@ -738,8 +739,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.19.0',
-            build: 517,
+            major: '2.20.0',
+            build: 518,
             date: '2025-12-20',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -8522,6 +8523,118 @@ The AI will analyze the structure and convert it to a tree."
                     <div id="api-guest-session"></div>
                     <div id="api-guest-host-name"></div>
                     <div id="api-guest-expires"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- MCP Bridge Connection Modal -->
+    <div class="modal" id="mcp-connect-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 520px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8b5cf6, #6366f1);">
+                <span>🤖 Claude Code Bridge</span>
+                <button class="modal-close" onclick="document.getElementById('mcp-connect-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <!-- NOT CONNECTED STATE -->
+                <div id="mcp-start-section">
+                    <div style="text-align: center; padding: 16px 0 20px;">
+                        <div style="font-size: 48px; margin-bottom: 12px;">🔗</div>
+                        <h3 style="margin: 0 0 8px; color: var(--text-primary);">Connect to Claude Code</h3>
+                        <p style="margin: 0 0 16px; font-size: 13px; color: var(--text-secondary);">
+                            Let Claude Code read and modify your tree via MCP
+                        </p>
+                    </div>
+
+                    <!-- Setup Instructions -->
+                    <details style="margin-bottom: 20px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
+                        <summary style="padding: 12px 16px; cursor: pointer; font-weight: 600; color: var(--text-primary); display: flex; align-items: center; gap: 8px;">
+                            <span>📋</span> First-time setup (one-time)
+                        </summary>
+                        <div style="padding: 0 16px 16px;">
+                            <p style="font-size: 13px; color: var(--text-secondary); margin: 8px 0 12px;">
+                                Add to Claude Code's MCP settings:
+                            </p>
+                            <div style="position: relative;">
+                                <pre id="mcp-setup-code" style="background: #1a1a2e; padding: 14px; border-radius: 6px; font-size: 12px; overflow-x: auto; color: #e2e8f0; margin: 0; line-height: 1.6;">{
+  "mcpServers": {
+    "treelisty": {
+      "command": "npx",
+      "args": ["treelisty-mcp-bridge"]
+    }
+  }
+}</pre>
+                                <button onclick="navigator.clipboard.writeText(document.getElementById('mcp-setup-code').textContent); showToast('Copied to clipboard!', 'success');" style="position: absolute; top: 8px; right: 8px; background: rgba(255,255,255,0.1); border: none; padding: 6px 10px; border-radius: 4px; cursor: pointer; font-size: 11px; color: #a0aec0;">
+                                    📋 Copy
+                                </button>
+                            </div>
+                            <p style="font-size: 12px; color: var(--text-secondary); margin: 12px 0 0;">
+                                Or run: <code style="background: rgba(139, 92, 246, 0.2); padding: 2px 6px; border-radius: 4px;">/mcp add treelisty npx treelisty-mcp-bridge</code>
+                            </p>
+                        </div>
+                    </details>
+
+                    <!-- Connection Form -->
+                    <div style="background: linear-gradient(135deg, rgba(139, 92, 246, 0.1), rgba(99, 102, 241, 0.05)); padding: 20px; border-radius: 12px; border: 2px solid rgba(139, 92, 246, 0.3);">
+                        <div style="font-weight: 600; margin-bottom: 16px; display: flex; align-items: center; gap: 8px;">
+                            <span style="font-size: 18px;">🔌</span>
+                            Enter connection details
+                        </div>
+                        <div style="margin-bottom: 14px;">
+                            <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Port (from bridge output)</label>
+                            <input type="number" id="mcp-port-input" placeholder="e.g., 52341"
+                                style="width: 100%; padding: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 16px; font-family: monospace; box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 16px;">
+                            <label style="display: block; font-size: 12px; color: var(--text-secondary); margin-bottom: 6px;">Token (from bridge output)</label>
+                            <input type="text" id="mcp-token-input" placeholder="xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx"
+                                style="width: 100%; padding: 12px; background: var(--bg); border: 2px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px; font-family: monospace; box-sizing: border-box;">
+                        </div>
+                        <button id="mcp-connect-btn" onclick="window.connectMCPFromModal()" style="width: 100%; padding: 14px; background: linear-gradient(135deg, #8b5cf6, #6366f1); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 15px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            🔗 Connect
+                        </button>
+                    </div>
+
+                    <div style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                        <strong style="color: var(--text-primary);">💡 Tip:</strong> When you start Claude Code with the MCP bridge configured, look for the port and token in the server output.
+                    </div>
+                </div>
+
+                <!-- CONNECTED STATE -->
+                <div id="mcp-connected-section" style="display: none;">
+                    <div style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.15)); padding: 24px; border-radius: 12px; border: 2px solid rgba(16, 185, 129, 0.4); margin-bottom: 20px; text-align: center;">
+                        <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 12px;">
+                            <div style="width: 12px; height: 12px; background: #10b981; border-radius: 50%; animation: watchPulse 2s ease-in-out infinite;"></div>
+                            <span style="font-weight: 700; color: #10b981; font-size: 18px;">Connected to Claude Code</span>
+                        </div>
+                        <p style="margin: 0; font-size: 13px; color: var(--text-secondary);">
+                            Claude Code can now read and modify your tree
+                        </p>
+                    </div>
+
+                    <!-- Connection Info -->
+                    <div style="background: var(--card-bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border); margin-bottom: 16px;">
+                        <div style="display: grid; grid-template-columns: auto 1fr; gap: 8px 16px; font-size: 13px;">
+                            <span style="color: var(--text-secondary);">Port:</span>
+                            <span id="mcp-connected-port" style="font-family: monospace; color: var(--text-primary);">--</span>
+                            <span style="color: var(--text-secondary);">Tab ID:</span>
+                            <span id="mcp-connected-tabid" style="font-family: monospace; color: var(--text-primary); font-size: 11px;">--</span>
+                        </div>
+                    </div>
+
+                    <!-- Activity Log -->
+                    <details style="margin-bottom: 16px;">
+                        <summary style="padding: 10px; cursor: pointer; font-weight: 600; color: var(--text-secondary); font-size: 13px; display: flex; align-items: center; gap: 6px;">
+                            <span>📋</span> Recent Activity
+                        </summary>
+                        <div id="mcp-activity-log" style="max-height: 150px; overflow-y: auto; padding: 8px; background: var(--bg); border-radius: 6px; font-size: 11px; font-family: monospace; margin-top: 8px;">
+                            <div style="color: var(--text-secondary);">No activity yet...</div>
+                        </div>
+                    </details>
+
+                    <button onclick="window.disconnectMCPFromModal()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer;">
+                        ⏹️ Disconnect
+                    </button>
                 </div>
             </div>
         </div>
@@ -37357,41 +37470,116 @@ https://treelisty.netlify.app`;
 
         function updateMCPStatusUI() {
             const btn = document.getElementById('mcp-bridge-btn');
-            if (!btn) return;
+            const startSection = document.getElementById('mcp-start-section');
+            const connectedSection = document.getElementById('mcp-connected-section');
+            const connectBtn = document.getElementById('mcp-connect-btn');
 
             const status = mcpBridgeState.status;
-            if (status === 'connected') {
-                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                btn.textContent = '🤖 Claude';
-                btn.title = 'Claude Code connected - click to disconnect';
-            } else if (status === 'connecting') {
-                btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
-                btn.textContent = '🤖 ...';
-                btn.title = 'Connecting to Claude Code...';
-            } else {
-                btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
-                btn.textContent = '🤖 MCP';
-                btn.title = 'Connect to Claude Code - click to enter port/token';
+
+            // Update header button
+            if (btn) {
+                if (status === 'connected') {
+                    btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                    btn.textContent = '🤖 Claude';
+                    btn.title = 'Claude Code connected - click to manage';
+                } else if (status === 'connecting') {
+                    btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                    btn.textContent = '🤖 ...';
+                    btn.title = 'Connecting to Claude Code...';
+                } else {
+                    btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                    btn.textContent = '🤖 MCP';
+                    btn.title = 'Connect to Claude Code - click to connect';
+                }
+            }
+
+            // Update modal sections
+            if (startSection && connectedSection) {
+                if (status === 'connected') {
+                    startSection.style.display = 'none';
+                    connectedSection.style.display = 'block';
+
+                    // Update connection info
+                    const portEl = document.getElementById('mcp-connected-port');
+                    const tabIdEl = document.getElementById('mcp-connected-tabid');
+                    if (portEl) portEl.textContent = mcpBridgeState.port || '--';
+                    if (tabIdEl && mcpBridgeState.client) tabIdEl.textContent = mcpBridgeState.client.tabId || '--';
+
+                    // Update activity log
+                    updateMCPActivityLog();
+                } else {
+                    startSection.style.display = 'block';
+                    connectedSection.style.display = 'none';
+                }
+            }
+
+            // Update connect button state
+            if (connectBtn) {
+                if (status === 'connecting') {
+                    connectBtn.disabled = true;
+                    connectBtn.innerHTML = '<span style="display: inline-block; animation: spin 1s linear infinite;">⏳</span> Connecting...';
+                } else {
+                    connectBtn.disabled = false;
+                    connectBtn.innerHTML = '🔗 Connect';
+                }
             }
         }
 
-        function showMCPConnectModal() {
-            if (mcpBridgeState.status === 'connected') {
-                if (confirm('Disconnect from Claude Code?')) {
-                    disconnectMCPBridge();
-                    showToast('🤖 Disconnected from Claude Code', 'info');
-                }
+        function updateMCPActivityLog() {
+            const logEl = document.getElementById('mcp-activity-log');
+            if (!logEl) return;
+
+            const logs = mcpBridgeState.activityLog || [];
+            if (logs.length === 0) {
+                logEl.innerHTML = '<div style="color: var(--text-secondary);">No activity yet...</div>';
                 return;
             }
 
-            const port = prompt('Enter MCP bridge port:', mcpBridgeState.port || '');
-            if (!port) return;
+            // Show last 10 entries
+            const recentLogs = logs.slice(-10).reverse();
+            logEl.innerHTML = recentLogs.map(log => {
+                const time = new Date(log.timestamp).toLocaleTimeString();
+                return `<div style="padding: 4px 0; border-bottom: 1px solid rgba(255,255,255,0.05);"><span style="color: #8b5cf6;">${time}</span> <span style="color: #10b981;">${log.method}</span></div>`;
+            }).join('');
+        }
 
-            const token = prompt('Enter session token:', '');
-            if (!token) return;
+        function showMCPConnectModal() {
+            const modal = document.getElementById('mcp-connect-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                updateMCPStatusUI();
 
-            initMCPBridge(parseInt(port), token).then(() => {
+                // Pre-fill port if we have it
+                const portInput = document.getElementById('mcp-port-input');
+                if (portInput && mcpBridgeState.port) {
+                    portInput.value = mcpBridgeState.port;
+                }
+            }
+        }
+
+        function connectMCPFromModal() {
+            const portInput = document.getElementById('mcp-port-input');
+            const tokenInput = document.getElementById('mcp-token-input');
+
+            const port = parseInt(portInput?.value);
+            const token = tokenInput?.value?.trim();
+
+            if (!port || isNaN(port)) {
+                showToast('Please enter a valid port number', 'error');
+                portInput?.focus();
+                return;
+            }
+
+            if (!token) {
+                showToast('Please enter the session token', 'error');
+                tokenInput?.focus();
+                return;
+            }
+
+            initMCPBridge(port, token).then(() => {
                 console.log('[MCP] Connected successfully');
+                // Clear token input for security
+                if (tokenInput) tokenInput.value = '';
             }).catch(err => {
                 showToast(`🤖 Connection failed: ${err.message}`, 'error');
                 mcpBridgeState.status = 'disconnected';
@@ -37399,11 +37587,19 @@ https://treelisty.netlify.app`;
             });
         }
 
+        function disconnectMCPFromModal() {
+            disconnectMCPBridge();
+            showToast('🤖 Disconnected from Claude Code', 'info');
+        }
+
         // Expose MCP functions globally
         window.mcpBridgeState = mcpBridgeState;
         window.initMCPBridge = initMCPBridge;
         window.disconnectMCPBridge = disconnectMCPBridge;
         window.showMCPConnectModal = showMCPConnectModal;
+        window.connectMCPFromModal = connectMCPFromModal;
+        window.disconnectMCPFromModal = disconnectMCPFromModal;
+        window.updateMCPActivityLog = updateMCPActivityLog;
 
         // Initialize MCP button after DOM ready
         document.addEventListener('DOMContentLoaded', () => {
@@ -61610,7 +61806,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 517; // Update this with each build
+                    const KNOWN_LATEST = 518; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
