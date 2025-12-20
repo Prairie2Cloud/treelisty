@@ -5,7 +5,7 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.19.0 (Build 431)
+**Version**: 2.19.0 (Build 517)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -25,55 +25,62 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 ---
 
-## What's New (Builds 378-431)
+## What's New (Builds 494-517)
 
-### Builds 427-431: Debate Mode
-- **AI vs AI spectator debates** with insight extraction
-- **Defender vs Challenger** roles (Build 430)
-- **4 argument styles**: Scholar, Socratic, Passionate, Pragmatist
-- **Floating draggable panel** with transcript
-- **Structured output** (Build 431): Arguments extracted as hierarchical tree
-- **Navigation fix** (Build 431): New insights highlight, scroll, expand parent
-- Right-click node -> "Debate This Topic"
-- Key functions: `handleDebate()`, `startDebate()`, `getNextDebateTurn()`, `addInsightsToTree()`
+### Builds 516-517: Mobile Canvas View UX
+- **Canvas View works on mobile** - was previously broken (display:none override)
+- **Scrollable compact toolbar** - horizontally scrollable with touch
+- **Minimap** - 100x75px positioned bottom-left
+- **Context menu** - bottom-sheet style for touch
+- CSS: `#canvas-container.active`, `#view-3d.active` overrides in mobile media query
 
-### Build 425: Cloud Share via Firebase
-- Firebase short URLs for large trees
-- Automatic fallback for trees > 8KB
-- Short codes like `treelisty.netlify.app/?s=abc123`
+### Builds 514-515: Info Panel Redesign
+- **Separate reader nav row** - controls grouped logically
+- **Better typography** - 16px font, 1.8 line height for readability
+- **Visible close button** - red background, always accessible
+- **Compact metadata** - type, ID, cost in footer row
 
-### Build 424: Share URL Size Warnings
-- Warning modal for large trees (>100KB)
-- "Lite Share" option strips descriptions/subtasks
-- Size display shows URL length
+### Builds 512-513: TTS Read Aloud
+- **Text-to-speech** for node descriptions via Web Speech API
+- **Auto-Play mode** - sequential reading through tree
+- **autoPlayNavigating flag** - prevents self-interruption during navigation
+- Functions: `speakNode()`, `toggleTTS()`, `toggleAutoPlay()`
 
-### Build 420: Phase Color Cycling
-- LifeTree decades get unique colors
-- Cycling through 8 distinct hues
-- Visual differentiation per time period
+### Builds 507-508: Reader Navigation
+- **Prev/Next buttons** - sequential node traversal
+- **Group iteration** - navigate hyperedge members or dependency chains
+- **Position indicator** - "3 of 12" display
+- Functions: `navigatePrev()`, `navigateNext()`, `navigateToNode()`
 
-### Builds 414-415: Share View State + 3D Splash
-- Share links capture view state (view type, selection, zoom)
-- 3D cinematic splash on shared link open
-- Shape hierarchy: Root=diamond, Phase=hexagon, Item=square, Subtask=circle
+### Build 510: Dependency Display Controls
+- **Toggle deps on/off** - `toggleDependencyDisplay()`
+- **Filter to selected** - `toggleDepsSelectedOnly()`
+- Canvas toolbar buttons for both
 
-### Build 412: MS Project XML Import/Export
-- Import .xml files from Microsoft Project
-- Export to MS Project format
-- Task hierarchy preservation
+### Build 511: Voice Input for Import
+- **Mic button** on import modal paste field
+- **toggleImportVoiceCapture()** - speech recognition to text
 
-### Builds 409-411: UX Improvements
-- **Zoom to Cursor** (410): Canvas zoom centers on mouse
-- **Reader Navigation** (411): Sequential reading mode
-- **Context menu fixes** (409): Right-click reliability
+## Previous Major Features (Builds 457-493)
 
-### Builds 405-408: Live Tree Agent
-- **Floating frame** replaces cramped wizard modal
-- **Draggable**, position saved to localStorage
-- **Visual node highlighting**: green=new, yellow=modified
-- **Full chat history** with scrollable messages
-- **Progress bar** synced with tree building
-- Key functions: `openTreeAgent()`, `addAgentMessage()`, `trackNodeChange()`
+### Gantt View (457-484)
+- **Frappe Gantt integration** - professional scheduling view
+- **Critical path visualization** - highlight 0-slack tasks
+- **Zoom/pan controls** - day/week/month/year views
+- **Minimap** - overview navigation
+- Key functions: `renderGantt()`, `toggleCriticalPath()`, `updateGanttTask()`
+
+### TreeBeard PM Assistant (485-490)
+- **27 Gantt commands** - navigation, analysis, editing
+- **Context injection** - tree structure in prompts
+- **Proactive nudges** - suggestions based on tree state
+- Commands: `gantt_summary`, `gantt_critical_path`, `gantt_set_dates`, etc.
+
+### Mobile UX (491-493)
+- **Single-pane navigation** - swipe between views
+- **Pinch-to-zoom** - Canvas, 3D, Gantt all support touch
+- **All views enabled** - no mobile restrictions
+- **Swipe gestures** - edge swipes navigate panels
 
 ---
 
@@ -136,11 +143,23 @@ Two modes in sidebar chat:
 
 ### TreeBeard Commands
 ```
-VIEW: switch_to_canvas, switch_to_tree, toggle_view, zoom_fit
+VIEW: switch_to_canvas, switch_to_tree, switch_to_3d, view_gantt, toggle_view, zoom_fit
 NAVIGATE: find_node:{query}, expand_node, collapse_node, first_child, parent_node
 EDIT: set_title:{text}, set_description:{text}, add_child:{name}, delete_node
 AI: ai_enhance_field:{field}, deep_dive, find_redundancies, open_wizard
 FILE: new_project, import_text, export_json, live_sync
+
+GANTT (Build 485+):
+• gantt_view_mode:{day|week|month|year} - Change time scale
+• gantt_zoom_in / gantt_zoom_out / gantt_fit_all - Zoom controls
+• gantt_today - Scroll to today
+• gantt_toggle_critical_path - Highlight critical path
+• gantt_summary - Schedule health overview
+• gantt_critical_path - Critical path breakdown
+• gantt_overdue - List overdue tasks
+• gantt_set_dates:{task}, {start}, {end} - Update dates
+• gantt_set_progress:{task}, {0-100} - Update progress
+• gantt_mark_done:{task} - Complete a task
 ```
 
 ### Chat Builder / Tree Agent
@@ -181,24 +200,39 @@ window.startVoiceChat()          // Open Jitsi Meet
 
 ---
 
-## Views
+## Views (5 Total)
 
 ### Tree View
 - Hierarchical list for editing
 - PM tracking (status, progress, priority)
 - Expandable nodes
+- Reader navigation mode (prev/next)
 
 ### Canvas View
 - Infinite 2D canvas with drag & drop
-- 5 layouts: Classic, Timeline, Hierarchical, Force-Directed, Radial
+- 5 layouts: Hierarchical, Timeline, Force-Directed, Radial, Grid
 - Hyperedge visualization
-- Zoom to cursor (Build 410)
+- Dependency lines with types (FS/SS/FF/SF)
+- Zoom to cursor, minimap, search overlay (Ctrl+F)
+- Mobile: scrollable toolbar, touch gestures
 
 ### 3D View
 - Three.js WebGL visualization
 - Interactive nodes (hover, click)
 - Orbit controls
-- Cinematic splash on shared links (Build 414)
+- Cinematic splash on shared links
+
+### Gantt View (Build 457+)
+- Frappe Gantt integration
+- Day/week/month/year zoom levels
+- Critical path highlighting
+- Task drag-to-reschedule
+- Minimap navigation
+
+### Calendar View
+- Monthly calendar display
+- Events from nodes with dates
+- Click to navigate to source node
 
 ---
 
@@ -251,8 +285,8 @@ When releasing a new build, update these 4 locations:
 
 1. **Header comment** (~line 9): `TreeListy v2.19.0 | Build XXX | YYYY-MM-DD`
 2. **Changelog** (~lines 21-28): Add new entry at top
-3. **TREELISTY_VERSION object** (~line 681): `build: XXX`
-4. **KNOWN_LATEST** (~line 54512): `const KNOWN_LATEST = XXX;`
+3. **TREELISTY_VERSION object** (~line 740): `build: XXX`
+4. **KNOWN_LATEST** (~line 60687): `const KNOWN_LATEST = XXX;`
 
 Use the `treelisty-release` skill to automate this.
 
@@ -306,4 +340,4 @@ Use the `treelisty-release` skill to automate this.
 
 ---
 
-**End of TreeListy Skill v2.19.0 (Build 431)**
+**End of TreeListy Skill v2.19.0 (Build 517)**
