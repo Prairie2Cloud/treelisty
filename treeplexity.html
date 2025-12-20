@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 515 | 2025-12-20
+    TreeListy v2.19.0 | Build 517 | 2025-12-20
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 515): Info panel redesign - separate reader nav row, better typography, compact metadata
-    Changelog (Build 509): Reader nav edge case fixes (node not in list, empty list)
+    Changelog (Build 517): Mobile Canvas UX - scrollable toolbar, compact minimap, bottom-sheet context menu
+    Changelog (Build 516): Fix Canvas/3D View not displaying on mobile - add .active class override
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
     Previous (Build 506): Fix undefined icon in tree view - add fallback for items without icons
@@ -739,8 +739,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 515,
-            date: '2025-12-19',
+            build: 517,
+            date: '2025-12-20',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -2032,19 +2032,26 @@
                 display: none !important;
             }
 
-            /* BUILD 492: Enable all views on mobile with pinch-to-zoom */
+            /* BUILD 516: Enable all views on mobile with pinch-to-zoom */
+            /* Must override with .active class to show when view is selected */
             #canvas-container {
-                display: none; /* Shown when viewMode === 'canvas' */
+                display: none;
                 width: 100% !important;
                 height: calc(100vh - 48px) !important;
                 height: calc(100dvh - 48px) !important;
             }
+            #canvas-container.active {
+                display: block !important;
+            }
 
             #view-3d {
-                display: none; /* Shown when viewMode === '3d' */
+                display: none;
                 width: 100% !important;
                 height: calc(100vh - 48px) !important;
                 height: calc(100dvh - 48px) !important;
+            }
+            #view-3d.active {
+                display: block !important;
             }
 
             #gantt-container {
@@ -2210,6 +2217,93 @@
             /* Hide Gantt floating zoom on mobile (use toolbar instead) */
             #gantt-floating-zoom {
                 display: none !important;
+            }
+
+            /* BUILD 517: Canvas toolbar - compact scrollable on mobile */
+            #canvas-toolbar {
+                top: 52px !important;
+                left: 4px !important;
+                right: 4px !important;
+                transform: none !important;
+                width: auto !important;
+                max-width: calc(100vw - 8px) !important;
+                overflow-x: auto !important;
+                overflow-y: hidden !important;
+                -webkit-overflow-scrolling: touch !important;
+                flex-wrap: nowrap !important;
+                padding: 6px 8px !important;
+                gap: 4px !important;
+                border-radius: 10px !important;
+                scrollbar-width: none !important; /* Firefox */
+            }
+            #canvas-toolbar::-webkit-scrollbar {
+                display: none !important; /* Chrome/Safari */
+            }
+            #canvas-toolbar button,
+            #canvas-toolbar select {
+                padding: 6px 8px !important;
+                font-size: 11px !important;
+                min-height: 32px !important;
+                white-space: nowrap !important;
+                flex-shrink: 0 !important;
+            }
+            /* Hide labels on mobile toolbar, keep icons */
+            #canvas-toolbar #grid-toggle { font-size: 14px !important; padding: 6px !important; }
+            #canvas-toolbar #reset-view { font-size: 14px !important; padding: 6px !important; }
+            #canvas-toolbar #fit-view { font-size: 14px !important; padding: 6px !important; }
+            #canvas-toolbar #critical-path-toggle { font-size: 11px !important; }
+            /* Hide toolbar dividers on mobile */
+            #canvas-toolbar > div[style*="width: 1px"] {
+                display: none !important;
+            }
+
+            /* BUILD 517: Canvas minimap - smaller on mobile, bottom-left to avoid FABs */
+            #canvas-minimap,
+            .canvas-minimap {
+                display: block !important; /* Override base mobile hide */
+                position: fixed !important; /* Fixed to viewport, not container */
+                width: 100px !important;
+                height: 75px !important;
+                bottom: 20px !important;
+                left: 8px !important; /* Left side to avoid FABs */
+                right: auto !important;
+                opacity: 0.9 !important;
+                z-index: 300 !important; /* Above toolbar */
+            }
+            #canvas-minimap #minimap-canvas,
+            .canvas-minimap #minimap-canvas {
+                width: 100px !important;
+                height: 75px !important;
+            }
+
+            /* BUILD 517: Canvas context menu - bottom sheet style */
+            #canvas-context-menu {
+                position: fixed !important;
+                bottom: 0 !important;
+                left: 0 !important;
+                right: 0 !important;
+                top: auto !important;
+                max-width: none !important;
+                border-radius: 16px 16px 0 0 !important;
+                padding: 12px !important;
+                max-height: 60vh !important;
+                overflow-y: auto !important;
+            }
+            #canvas-context-menu button {
+                width: 100% !important;
+                padding: 14px 16px !important;
+                font-size: 15px !important;
+                text-align: left !important;
+                justify-content: flex-start !important;
+            }
+
+            /* BUILD 517: Canvas search overlay - full width on mobile */
+            #canvas-search-overlay {
+                top: 52px !important;
+                left: 8px !important;
+                right: 8px !important;
+                width: auto !important;
+                max-width: calc(100vw - 16px) !important;
             }
 
             /* Touch-friendly tap targets */
@@ -60596,7 +60690,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 515; // Update this with each build
+                    const KNOWN_LATEST = 517; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
