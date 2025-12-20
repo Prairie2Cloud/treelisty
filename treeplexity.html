@@ -27126,10 +27126,21 @@ Your response:`;
                 const vs = data.viewState;
                 console.log('📐 Restoring view state:', vs);
 
-                // Restore tree view zoom/pan
-                if (typeof vs.treeZoom === 'number') zoomLevel = vs.treeZoom;
-                if (typeof vs.treePanX === 'number') panX = vs.treePanX;
-                if (typeof vs.treePanY === 'number') panY = vs.treePanY;
+                // BUILD 507: Reset pan position on mobile (saved desktop pan may be off-screen)
+                const isMobileView = window.matchMedia('(max-width: 768px)').matches ||
+                                     ('ontouchstart' in window && window.innerWidth <= 768);
+                if (isMobileView) {
+                    // Reset to centered view on mobile
+                    panX = 0;
+                    panY = 0;
+                    zoomLevel = vs.treeZoom || 1;
+                    console.log('📱 Mobile: reset pan to center');
+                } else {
+                    // Restore tree view zoom/pan on desktop
+                    if (typeof vs.treeZoom === 'number') zoomLevel = vs.treeZoom;
+                    if (typeof vs.treePanX === 'number') panX = vs.treePanX;
+                    if (typeof vs.treePanY === 'number') panY = vs.treePanY;
+                }
 
                 // Restore canvas zoom/pan
                 if (typeof vs.canvasZoom === 'number') canvasZoom = vs.canvasZoom;
