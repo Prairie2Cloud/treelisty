@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 510 | 2025-12-19
+    TreeListy v2.19.0 | Build 511 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 510): Canvas dependency controls - toggle on/off, show for selected only, color by type
+    Changelog (Build 511): Voice input button in Import modal paste field for speech-to-text
     Changelog (Build 509): Reader nav edge case fixes (node not in list, empty list)
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
@@ -739,7 +739,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 510,
+            build: 511,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6783,9 +6783,15 @@
 
                 <!-- Paste Text Section -->
                 <div style="margin-bottom: 24px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
-                        📝 Paste Text
-                    </label>
+                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                        <label style="font-weight: 600; color: var(--text-primary);">
+                            📝 Paste Text
+                        </label>
+                        <!-- BUILD 511: Voice input for paste field -->
+                        <button id="import-voice-btn" onclick="toggleImportVoiceCapture()" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; color: #ef4444; font-size: 12px; cursor: pointer; transition: all 0.2s;" title="Click to speak - voice will be transcribed to text">
+                            🎤 Voice
+                        </button>
+                    </div>
                     <textarea id="analysis-text-input" placeholder="Paste your text content here...
 
 Example:
@@ -41154,8 +41160,138 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 511: Voice Input for Import Modal
+        // ═══════════════════════════════════════════════════════════════
+
+        let importVoiceState = {
+            recognition: null,
+            isRecording: false,
+            finalText: ''
+        };
+
+        function toggleImportVoiceCapture() {
+            if (importVoiceState.isRecording) {
+                stopImportVoiceCapture();
+            } else {
+                startImportVoiceCapture();
+            }
+        }
+
+        function startImportVoiceCapture() {
+            // Check browser support
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                showToast('Voice input not supported in this browser', 'error');
+                return;
+            }
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            importVoiceState.recognition = new SpeechRecognition();
+            importVoiceState.recognition.continuous = true;
+            importVoiceState.recognition.interimResults = true;
+            importVoiceState.recognition.lang = 'en-US';
+            importVoiceState.finalText = '';
+
+            const textarea = document.getElementById('analysis-text-input');
+            const btn = document.getElementById('import-voice-btn');
+
+            // Get existing text to preserve
+            const existingText = textarea.value;
+
+            importVoiceState.recognition.onresult = (event) => {
+                let interimTranscript = '';
+                let finalTranscript = '';
+
+                for (let i = event.resultIndex; i < event.results.length; i++) {
+                    const transcript = event.results[i][0].transcript;
+                    if (event.results[i].isFinal) {
+                        finalTranscript += transcript;
+                    } else {
+                        interimTranscript += transcript;
+                    }
+                }
+
+                if (finalTranscript) {
+                    importVoiceState.finalText += finalTranscript + ' ';
+                }
+
+                // Show in textarea (append to existing)
+                const newText = existingText + (existingText ? ' ' : '') + importVoiceState.finalText + interimTranscript;
+                textarea.value = newText;
+                textarea.style.borderColor = '#10b981';
+
+                // Update character count
+                document.getElementById('char-count').textContent = newText.length + ' characters';
+            };
+
+            importVoiceState.recognition.onerror = (event) => {
+                console.error('Import voice error:', event.error);
+                stopImportVoiceCapture();
+
+                if (event.error === 'not-allowed') {
+                    showToast('Microphone access denied. Please allow mic in browser settings.', 'error');
+                } else if (event.error === 'no-speech') {
+                    showToast('No speech detected. Please speak louder.', 'warning');
+                } else if (event.error !== 'aborted') {
+                    showToast('Voice error: ' + event.error, 'error');
+                }
+            };
+
+            importVoiceState.recognition.onend = () => {
+                if (importVoiceState.isRecording) {
+                    // User didn't explicitly stop, might have timed out
+                    stopImportVoiceCapture();
+                }
+            };
+
+            // Start recording
+            try {
+                importVoiceState.recognition.start();
+                importVoiceState.isRecording = true;
+
+                // Update button appearance
+                btn.innerHTML = '🔴 Stop';
+                btn.style.background = 'rgba(239, 68, 68, 0.4)';
+                btn.style.borderColor = '#ef4444';
+                btn.style.animation = 'pulse 1s infinite';
+
+                showToast('🎤 Listening... Speak now', 'info');
+            } catch (e) {
+                console.error('Failed to start voice:', e);
+                showToast('Failed to start voice capture', 'error');
+            }
+        }
+
+        function stopImportVoiceCapture() {
+            if (importVoiceState.recognition) {
+                try {
+                    importVoiceState.recognition.stop();
+                } catch (e) {}
+            }
+
+            importVoiceState.isRecording = false;
+
+            const btn = document.getElementById('import-voice-btn');
+            if (btn) {
+                btn.innerHTML = '🎤 Voice';
+                btn.style.background = 'rgba(239, 68, 68, 0.15)';
+                btn.style.borderColor = 'rgba(239, 68, 68, 0.4)';
+                btn.style.animation = 'none';
+            }
+
+            const textarea = document.getElementById('analysis-text-input');
+            if (textarea) {
+                textarea.style.borderColor = '';
+            }
+
+            if (importVoiceState.finalText.trim()) {
+                showToast('Voice captured: ' + importVoiceState.finalText.trim().substring(0, 50) + '...', 'success');
+            }
+        }
+
         // Close Analysis Modal
         document.getElementById('analysis-cancel').addEventListener('click', () => {
+            stopImportVoiceCapture(); // Stop voice if recording
             document.getElementById('analysis-modal').style.display = 'none';
         });
 
@@ -60201,7 +60337,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 510; // Update this with each build
+                    const KNOWN_LATEST = 511; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
