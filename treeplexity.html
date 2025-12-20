@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 514 | 2025-12-20
+    TreeListy v2.19.0 | Build 515 | 2025-12-20
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 514): Make info panel close button more visible (red, flex-shrink:0)
+    Changelog (Build 515): Info panel redesign - separate reader nav row, better typography, compact metadata
     Changelog (Build 509): Reader nav edge case fixes (node not in list, empty list)
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
@@ -739,7 +739,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 514,
+            build: 515,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2757,57 +2757,78 @@
             right: 0;
         }
 
+        /* BUILD 515: Redesigned info panel */
         .info-header {
-            padding: 20px 24px;
+            padding: 16px 20px;
             border-bottom: 1px solid var(--border);
             display: flex;
             justify-content: space-between;
             align-items: center;
+            background: linear-gradient(180deg, var(--bg-secondary) 0%, var(--bg) 100%);
         }
 
         .info-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
+            flex: 1;
+            min-width: 0;
+            overflow: hidden;
         }
 
         .close-btn {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.3);
-            font-size: 20px;
+            background: rgba(239, 68, 68, 0.15);
+            border: 1px solid rgba(239, 68, 68, 0.4);
+            font-size: 18px;
             cursor: pointer;
             color: #ef4444;
-            width: 32px;
-            height: 32px;
-            min-width: 32px;
+            width: 36px;
+            height: 36px;
+            min-width: 36px;
             flex-shrink: 0;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 6px;
+            border-radius: 8px;
             transition: all 0.2s;
+            margin-left: 12px;
         }
 
         .close-btn:hover {
-            background: rgba(239, 68, 68, 0.2);
+            background: rgba(239, 68, 68, 0.25);
             border-color: #ef4444;
+            transform: scale(1.05);
         }
 
-        /* BUILD 411: Reader Navigation */
-        .reader-nav {
+        /* BUILD 515: Reader nav row */
+        .reader-nav-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px 16px;
+            background: rgba(99, 102, 241, 0.06);
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .reader-nav-controls {
             display: flex;
             align-items: center;
             gap: 8px;
-            margin-right: 12px;
-            padding-right: 12px;
-            border-right: 1px solid var(--border);
+        }
+
+        .reader-nav-options {
+            display: flex;
+            align-items: center;
+            gap: 6px;
         }
 
         .reader-nav-btn {
             background: var(--bg);
             border: 1px solid var(--border);
             color: var(--text);
-            width: 28px;
-            height: 28px;
+            width: 32px;
+            height: 32px;
             border-radius: 4px;
             cursor: pointer;
             display: flex;
@@ -2862,16 +2883,28 @@
             background: var(--bg);
             border: 1px solid var(--border);
             color: var(--text);
-            padding: 4px 8px;
-            border-radius: 4px;
-            font-size: 12px;
+            padding: 6px 8px;
+            border-radius: 6px;
+            font-size: 11px;
             cursor: pointer;
-            min-width: 100px;
+            min-width: 70px;
         }
 
         .reader-group-select:focus {
             outline: none;
             border-color: var(--treeplex-primary);
+        }
+
+        /* BUILD 515: TTS button styles */
+        .reader-tts-btn {
+            background: rgba(16, 185, 129, 0.15) !important;
+            border-color: rgba(16, 185, 129, 0.4) !important;
+            color: #10b981 !important;
+        }
+
+        .reader-tts-btn:hover:not(:disabled) {
+            background: rgba(16, 185, 129, 0.25) !important;
+            border-color: #10b981 !important;
         }
 
         /* Read mode: hide edit controls */
@@ -2936,31 +2969,44 @@
                 padding: 8px 12px;
             }
 
-            /* Make info header wrap on mobile */
+            /* BUILD 515: Mobile info panel */
             .info-header {
-                flex-wrap: wrap;
-                gap: 8px;
                 padding: 12px 16px;
             }
 
             .info-title {
-                font-size: 16px;
-                order: 2;
-                flex: 1;
-                min-width: 0;
-            }
-
-            .reader-nav {
-                order: 1;
-                border-right: none;
-                padding-right: 0;
-                margin-right: 0;
+                font-size: 15px;
             }
 
             .close-btn {
-                order: 3;
-                flex-shrink: 0;
-                min-width: 32px;
+                width: 40px;
+                height: 40px;
+                min-width: 40px;
+                font-size: 20px;
+            }
+
+            .reader-nav-row {
+                padding: 8px 12px;
+                gap: 8px;
+            }
+
+            .reader-nav-controls {
+                gap: 6px;
+            }
+
+            .reader-nav-options {
+                gap: 4px;
+            }
+
+            .reader-nav-btn {
+                width: 36px;
+                height: 36px;
+            }
+
+            .reader-group-select {
+                min-width: 60px;
+                font-size: 10px;
+                padding: 6px 4px;
             }
         }
 
@@ -6541,26 +6587,29 @@
 
     </div><!-- /tree-view-container -->
 
-    <!-- Info Panel -->
+    <!-- Info Panel - BUILD 515: Redesigned layout -->
     <div class="info-panel" id="info-panel">
         <div class="info-header">
-            <!-- BUILD 411/508: Reader Navigation bar with group selector -->
-            <div class="reader-nav" id="reader-nav" style="display: none;">
-                <button class="reader-nav-btn" id="reader-prev" title="Previous node (←)">◀</button>
-                <button class="reader-nav-btn" id="reader-next" title="Next node (→)">▶</button>
-                <span class="reader-position" id="reader-position">1 of 1</span>
-                <select class="reader-group-select" id="reader-group-select" title="Iterate through...">
-                    <option value="all">🌳 All Nodes</option>
-                    <option value="hyperedge">🔗 Hyperedge</option>
-                    <option value="dependencies">⛓️ Dependencies</option>
-                </select>
-                <button class="reader-mode-btn" id="reader-mode-toggle" title="Toggle read mode">📖</button>
-                <!-- BUILD 512: Text-to-Speech controls -->
-                <button class="reader-nav-btn" id="reader-speak" title="Read description aloud" style="margin-left: 8px; background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4);">🔊</button>
-                <button class="reader-nav-btn" id="reader-play" title="Auto-play through all nodes" style="background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.4);">▶️</button>
-            </div>
             <div class="info-title" id="info-title">Details</div>
             <button class="close-btn" id="close-info">✕</button>
+        </div>
+        <!-- BUILD 515: Reader nav in its own row -->
+        <div class="reader-nav-row" id="reader-nav" style="display: none;">
+            <div class="reader-nav-controls">
+                <button class="reader-nav-btn" id="reader-prev" title="Previous node (←)">◀</button>
+                <span class="reader-position" id="reader-position">1 of 1</span>
+                <button class="reader-nav-btn" id="reader-next" title="Next node (→)">▶</button>
+            </div>
+            <div class="reader-nav-options">
+                <select class="reader-group-select" id="reader-group-select" title="Iterate through...">
+                    <option value="all">🌳 All</option>
+                    <option value="hyperedge">🔗 Group</option>
+                    <option value="dependencies">⛓️ Deps</option>
+                </select>
+                <button class="reader-nav-btn reader-tts-btn" id="reader-speak" title="Read aloud">🔊</button>
+                <button class="reader-nav-btn reader-tts-btn" id="reader-play" title="Auto-play all">▶️</button>
+                <button class="reader-mode-btn" id="reader-mode-toggle" title="Toggle read mode">📖</button>
+            </div>
         </div>
         <div class="info-body" id="info-body"></div>
     </div>
@@ -24982,29 +25031,31 @@ function hidePatternDescription() {
                 <!-- BUILD 422: Key Node Infographic (Root/Phase Dashboard) -->
                 ${keyNodeInfoHtml}
 
-                <!-- HERO: Description Field (Primary Content) -->
-                <div style="margin-bottom: 20px; padding: 20px; background: linear-gradient(135deg, rgba(0, 166, 125, 0.08), rgba(0, 140, 105, 0.04)); border-radius: 12px; border: 1px solid rgba(0, 166, 125, 0.2);">
-                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                        <span style="font-size: 18px;">📝</span>
-                        <span style="font-size: 13px; font-weight: 600; color: var(--treeplex-primary); text-transform: uppercase; letter-spacing: 0.5px;">Description</span>
+                <!-- BUILD 515: Improved Description Section -->
+                <div style="margin-bottom: 24px; padding: 24px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03)); border-radius: 16px; border: 1px solid rgba(99, 102, 241, 0.15);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(99, 102, 241, 0.1);">
+                        <span style="font-size: 20px;">📝</span>
+                        <span style="font-size: 12px; font-weight: 700; color: var(--treeplex-primary); text-transform: uppercase; letter-spacing: 1px;">Description</span>
                     </div>
-                    <div style="font-size: 15px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap;">${node.description || node.subtitle || '<span style="color: var(--text-secondary); font-style: italic;">No description yet. Double-click to edit.</span>'}</div>
+                    <div style="font-size: 16px; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap; font-weight: 400;">${node.description || node.subtitle || '<span style="color: var(--text-secondary); font-style: italic;">No description yet. Double-click to edit.</span>'}</div>
                 </div>
 
-                <!-- Metadata Row: Type + ID + Cost (compact) -->
-                <div style="display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap;">
-                    <div style="flex: 1; min-width: 100px; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid var(--border);">
-                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">Type</div>
-                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary);">${node.itemType || node.type || 'N/A'}</div>
+                <!-- BUILD 515: Compact Metadata Footer -->
+                <div style="display: flex; gap: 8px; margin-bottom: 20px; padding: 12px 16px; background: rgba(0,0,0,0.2); border-radius: 10px; align-items: center; flex-wrap: wrap;">
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Type:</span>
+                        <span style="font-size: 12px; font-weight: 500; color: var(--text-primary); background: rgba(255,255,255,0.05); padding: 4px 8px; border-radius: 4px;">${node.itemType || node.type || 'N/A'}</span>
                     </div>
-                    <div style="flex: 1; min-width: 140px; padding: 12px; background: rgba(255, 255, 255, 0.03); border-radius: 8px; border: 1px solid var(--border);">
-                        <div style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 4px;">ID</div>
-                        <div style="font-size: 11px; font-family: monospace; color: var(--text-secondary); word-break: break-all;">${node.id || 'N/A'}</div>
+                    <span style="color: var(--border);">•</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">ID:</span>
+                        <span style="font-size: 10px; font-family: monospace; color: var(--text-secondary);">${(node.id || 'N/A').substring(0, 20)}${(node.id || '').length > 20 ? '...' : ''}</span>
                     </div>
                     ${PATTERNS[currentPattern].fields?.cost && node.cost > 0 ? `
-                    <div style="flex: 1; min-width: 100px; padding: 12px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(5, 150, 105, 0.05)); border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.3);">
-                        <div style="font-size: 10px; font-weight: 600; color: #10B981; text-transform: uppercase; margin-bottom: 4px;">Cost</div>
-                        <div style="font-size: 15px; font-weight: 700; color: #10B981;">${formatCost(node.cost)}</div>
+                    <span style="color: var(--border);">•</span>
+                    <div style="display: flex; align-items: center; gap: 6px;">
+                        <span style="font-size: 10px; font-weight: 600; color: #10B981; text-transform: uppercase;">Cost:</span>
+                        <span style="font-size: 13px; font-weight: 700; color: #10B981;">${formatCost(node.cost)}</span>
                     </div>
                     ` : ''}
                 </div>
@@ -60545,7 +60596,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 514; // Update this with each build
+                    const KNOWN_LATEST = 515; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
