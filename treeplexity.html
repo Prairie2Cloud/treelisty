@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 511 | 2025-12-19
+    TreeListy v2.19.0 | Build 512 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 511): Voice input button in Import modal paste field for speech-to-text
+    Changelog (Build 512): Text-to-Speech - Read Aloud and Auto-Play buttons in reader nav
     Changelog (Build 509): Reader nav edge case fixes (node not in list, empty list)
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
@@ -739,7 +739,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 511,
+            build: 512,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6550,6 +6550,9 @@
                     <option value="dependencies">⛓️ Dependencies</option>
                 </select>
                 <button class="reader-mode-btn" id="reader-mode-toggle" title="Toggle read mode">📖</button>
+                <!-- BUILD 512: Text-to-Speech controls -->
+                <button class="reader-nav-btn" id="reader-speak" title="Read description aloud" style="margin-left: 8px; background: rgba(16, 185, 129, 0.2); border-color: rgba(16, 185, 129, 0.4);">🔊</button>
+                <button class="reader-nav-btn" id="reader-play" title="Auto-play through all nodes" style="background: rgba(99, 102, 241, 0.2); border-color: rgba(99, 102, 241, 0.4);">▶️</button>
             </div>
             <div class="info-title" id="info-title">Details</div>
             <button class="close-btn" id="close-info">✕</button>
@@ -25398,6 +25401,16 @@ function hidePatternDescription() {
                     updateReaderNav();
                 });
             }
+
+            // BUILD 512: TTS button event listeners
+            const speakBtn = document.getElementById('reader-speak');
+            const playBtn = document.getElementById('reader-play');
+            if (speakBtn) {
+                speakBtn.addEventListener('click', handleSpeakClick);
+            }
+            if (playBtn) {
+                playBtn.addEventListener('click', toggleAutoPlay);
+            }
         });
 
         // Keyboard navigation (arrow keys when info panel is open)
@@ -25424,6 +25437,186 @@ function hidePatternDescription() {
         // END BUILD 411: READER NAVIGATION
         // ========================================================================
 
+        // ========================================================================
+        // BUILD 512: TEXT-TO-SPEECH (Read Aloud / Auto-Play)
+        // ========================================================================
+
+        const ttsState = {
+            isPlaying: false,      // Auto-play mode active
+            isSpeaking: false,     // Currently speaking
+            utterance: null        // Current speech utterance
+        };
+
+        /**
+         * Speak the current node's description
+         */
+        function speakCurrentNode() {
+            if (!('speechSynthesis' in window)) {
+                showToast('Text-to-speech not supported in this browser', 'error');
+                return;
+            }
+
+            // Stop any current speech
+            window.speechSynthesis.cancel();
+
+            // Get current node
+            if (readerNavState.currentIndex < 0 || !readerNavState.linearList[readerNavState.currentIndex]) {
+                showToast('No node selected', 'warning');
+                return;
+            }
+
+            const entry = readerNavState.linearList[readerNavState.currentIndex];
+            const node = entry.node;
+
+            // Build text to speak: name + description
+            let textToSpeak = node.name || 'Untitled';
+            if (node.description) {
+                textToSpeak += '. ' + node.description;
+            }
+
+            // Create utterance
+            ttsState.utterance = new SpeechSynthesisUtterance(textToSpeak);
+            ttsState.utterance.rate = 1.0;
+            ttsState.utterance.pitch = 1.0;
+
+            ttsState.utterance.onstart = () => {
+                ttsState.isSpeaking = true;
+                updateTTSButtons();
+            };
+
+            ttsState.utterance.onend = () => {
+                ttsState.isSpeaking = false;
+                updateTTSButtons();
+
+                // If auto-play mode, advance to next
+                if (ttsState.isPlaying) {
+                    if (readerNavState.currentIndex < readerNavState.linearList.length - 1) {
+                        setTimeout(() => {
+                            navigateNext();
+                            setTimeout(() => speakCurrentNode(), 300);
+                        }, 500);
+                    } else {
+                        // Reached end
+                        stopAutoPlay();
+                        showToast('Finished reading all nodes', 'success');
+                    }
+                }
+            };
+
+            ttsState.utterance.onerror = (e) => {
+                console.error('TTS error:', e);
+                ttsState.isSpeaking = false;
+                if (ttsState.isPlaying) {
+                    stopAutoPlay();
+                }
+                updateTTSButtons();
+            };
+
+            window.speechSynthesis.speak(ttsState.utterance);
+        }
+
+        /**
+         * Toggle auto-play mode (read through all nodes)
+         */
+        function toggleAutoPlay() {
+            if (ttsState.isPlaying) {
+                stopAutoPlay();
+            } else {
+                startAutoPlay();
+            }
+        }
+
+        /**
+         * Start auto-play mode
+         */
+        function startAutoPlay() {
+            if (!('speechSynthesis' in window)) {
+                showToast('Text-to-speech not supported', 'error');
+                return;
+            }
+
+            ttsState.isPlaying = true;
+            updateTTSButtons();
+            showToast('Auto-play started. Click stop or navigate to interrupt.', 'info');
+            speakCurrentNode();
+        }
+
+        /**
+         * Stop auto-play mode
+         */
+        function stopAutoPlay() {
+            ttsState.isPlaying = false;
+            window.speechSynthesis.cancel();
+            ttsState.isSpeaking = false;
+            updateTTSButtons();
+        }
+
+        /**
+         * Update TTS button appearances
+         */
+        function updateTTSButtons() {
+            const speakBtn = document.getElementById('reader-speak');
+            const playBtn = document.getElementById('reader-play');
+
+            if (speakBtn) {
+                if (ttsState.isSpeaking && !ttsState.isPlaying) {
+                    speakBtn.textContent = '⏹️';
+                    speakBtn.style.background = 'rgba(239, 68, 68, 0.3)';
+                    speakBtn.title = 'Stop speaking';
+                } else {
+                    speakBtn.textContent = '🔊';
+                    speakBtn.style.background = 'rgba(16, 185, 129, 0.2)';
+                    speakBtn.title = 'Read description aloud';
+                }
+            }
+
+            if (playBtn) {
+                if (ttsState.isPlaying) {
+                    playBtn.textContent = '⏹️';
+                    playBtn.style.background = 'rgba(239, 68, 68, 0.3)';
+                    playBtn.title = 'Stop auto-play';
+                } else {
+                    playBtn.textContent = '▶️';
+                    playBtn.style.background = 'rgba(99, 102, 241, 0.2)';
+                    playBtn.title = 'Auto-play through all nodes';
+                }
+            }
+        }
+
+        /**
+         * Handle speak button click
+         */
+        function handleSpeakClick() {
+            if (ttsState.isSpeaking && !ttsState.isPlaying) {
+                // Stop current speech
+                window.speechSynthesis.cancel();
+                ttsState.isSpeaking = false;
+                updateTTSButtons();
+            } else {
+                speakCurrentNode();
+            }
+        }
+
+        // Stop TTS when user manually navigates (interruption)
+        const originalNavigateToNode = navigateToNode;
+        navigateToNode = function(index) {
+            if (ttsState.isPlaying || ttsState.isSpeaking) {
+                // User navigated manually - stop auto-play but continue to node
+                window.speechSynthesis.cancel();
+                ttsState.isSpeaking = false;
+                if (ttsState.isPlaying) {
+                    ttsState.isPlaying = false;
+                    showToast('Auto-play stopped', 'info');
+                }
+                updateTTSButtons();
+            }
+            originalNavigateToNode(index);
+        };
+
+        // ========================================================================
+        // END BUILD 512: TEXT-TO-SPEECH
+        // ========================================================================
+
         /**
          * Reposition the hyperedge visibility panel based on info panel state
          * @param {boolean} infoPanelOpen - Whether info panel is open
@@ -25439,6 +25632,11 @@ function hidePatternDescription() {
         document.getElementById('close-info').addEventListener('click', () => {
             document.getElementById('info-panel').classList.remove('open');
             currentOpenItemId = null;
+
+            // BUILD 512: Stop TTS when closing info panel
+            if (ttsState.isPlaying || ttsState.isSpeaking) {
+                stopAutoPlay();
+            }
 
             // BUILD 489: Clear tree node selection
             document.querySelectorAll('.tree-node.selected').forEach(n => n.classList.remove('selected'));
@@ -60337,7 +60535,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 511; // Update this with each build
+                    const KNOWN_LATEST = 512; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
