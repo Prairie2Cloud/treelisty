@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 512 | 2025-12-19
+    TreeListy v2.19.0 | Build 513 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 512): Text-to-Speech - Read Aloud and Auto-Play buttons in reader nav
+    Changelog (Build 513): Fix TTS auto-play stopping after 1-2 nodes
     Changelog (Build 509): Reader nav edge case fixes (node not in list, empty list)
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
@@ -739,7 +739,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 512,
+            build: 513,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -25444,7 +25444,8 @@ function hidePatternDescription() {
         const ttsState = {
             isPlaying: false,      // Auto-play mode active
             isSpeaking: false,     // Currently speaking
-            utterance: null        // Current speech utterance
+            utterance: null,       // Current speech utterance
+            autoPlayNavigating: false  // Flag to prevent interrupt during auto-play nav
         };
 
         /**
@@ -25492,7 +25493,10 @@ function hidePatternDescription() {
                 if (ttsState.isPlaying) {
                     if (readerNavState.currentIndex < readerNavState.linearList.length - 1) {
                         setTimeout(() => {
+                            // Set flag to prevent interrupt wrapper from stopping us
+                            ttsState.autoPlayNavigating = true;
                             navigateNext();
+                            ttsState.autoPlayNavigating = false;
                             setTimeout(() => speakCurrentNode(), 300);
                         }, 500);
                     } else {
@@ -25600,7 +25604,8 @@ function hidePatternDescription() {
         // Stop TTS when user manually navigates (interruption)
         const originalNavigateToNode = navigateToNode;
         navigateToNode = function(index) {
-            if (ttsState.isPlaying || ttsState.isSpeaking) {
+            // Skip interrupt if auto-play is doing the navigation
+            if (!ttsState.autoPlayNavigating && (ttsState.isPlaying || ttsState.isSpeaking)) {
                 // User navigated manually - stop auto-play but continue to node
                 window.speechSynthesis.cancel();
                 ttsState.isSpeaking = false;
@@ -60535,7 +60540,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 512; // Update this with each build
+                    const KNOWN_LATEST = 513; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
