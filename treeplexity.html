@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 507 | 2025-12-19
+    TreeListy v2.19.0 | Build 508 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
-    Changelog (Build 506): Fix undefined icon in tree view - add fallback for items without icons
+    Previous (Build 506): Fix undefined icon in tree view - add fallback for items without icons
     Previous (Build 505): Safari voice capture fix - auto-restart on 30s timeout instead of error
     Previous (Build 504): Enhanced Quick Capture - auto-detect pattern, date extraction, fix transcription errors
     Changelog (Build 499): Voice FAB now triggers Quick Capture for conversation/debate recording
@@ -736,7 +737,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 507,
+            build: 508,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2738,9 +2739,9 @@
         .info-panel {
             position: fixed;
             right: -450px;
-            top: 0;
+            top: 60px; /* BUILD 508: Below header bar */
             width: 450px;
-            height: 100vh;
+            height: calc(100vh - 60px);
             background: var(--card-bg);
             border-left: 1px solid var(--border);
             box-shadow: -4px 0 12px rgba(0,0,0,0.5);
@@ -2848,6 +2849,23 @@
         .reader-mode-btn.active {
             opacity: 1;
             background: rgba(99, 102, 241, 0.2);
+            border-color: var(--treeplex-primary);
+        }
+
+        /* BUILD 508: Reader Group Selector */
+        .reader-group-select {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            padding: 4px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+            cursor: pointer;
+            min-width: 100px;
+        }
+
+        .reader-group-select:focus {
+            outline: none;
             border-color: var(--treeplex-primary);
         }
 
@@ -6519,11 +6537,16 @@
     <!-- Info Panel -->
     <div class="info-panel" id="info-panel">
         <div class="info-header">
-            <!-- BUILD 411: Reader Navigation bar -->
+            <!-- BUILD 411/508: Reader Navigation bar with group selector -->
             <div class="reader-nav" id="reader-nav" style="display: none;">
                 <button class="reader-nav-btn" id="reader-prev" title="Previous node (←)">◀</button>
                 <button class="reader-nav-btn" id="reader-next" title="Next node (→)">▶</button>
                 <span class="reader-position" id="reader-position">1 of 1</span>
+                <select class="reader-group-select" id="reader-group-select" title="Iterate through...">
+                    <option value="all">🌳 All Nodes</option>
+                    <option value="hyperedge">🔗 Hyperedge</option>
+                    <option value="dependencies">⛓️ Dependencies</option>
+                </select>
                 <button class="reader-mode-btn" id="reader-mode-toggle" title="Toggle read mode">📖</button>
             </div>
             <div class="info-title" id="info-title">Details</div>
@@ -24951,7 +24974,10 @@ function hidePatternDescription() {
         const readerNavState = {
             linearList: [],      // Flattened list of all nodes
             currentIndex: -1,    // Current position in the list
-            readModeActive: false // Read mode toggle state
+            readModeActive: false, // Read mode toggle state
+            groupMode: 'all',    // BUILD 508: 'all', 'hyperedge', 'dependencies'
+            currentHyperedgeId: null, // Active hyperedge for filtering
+            currentDependencyChain: [] // Dependency chain node IDs
         };
 
         // Load read mode preference from localStorage
@@ -24959,10 +24985,12 @@ function hidePatternDescription() {
 
         /**
          * Flatten tree into linear node list (depth-first traversal)
-         * Respects current sort/filter if active
+         * BUILD 508: Supports group filtering (all, hyperedge, dependencies)
+         * @param {string} groupMode - 'all', 'hyperedge', or 'dependencies'
+         * @param {string} currentNodeId - Current node ID for context
          * @returns {Array} Array of node objects
          */
-        function getLinearNodeList() {
+        function getLinearNodeList(groupMode = 'all', currentNodeId = null) {
             const list = [];
 
             function traverse(node, depth = 0) {
@@ -24995,11 +25023,65 @@ function hidePatternDescription() {
                 traverse(capexTree, 0);
             }
 
+            // BUILD 508: Filter by group mode
+            if (groupMode === 'hyperedge' && currentNodeId) {
+                // Find hyperedge containing current node
+                const hyperedge = (capexTree.hyperedges || []).find(he =>
+                    he.nodeIds && he.nodeIds.includes(currentNodeId)
+                );
+                if (hyperedge) {
+                    readerNavState.currentHyperedgeId = hyperedge.id;
+                    const nodeIds = new Set(hyperedge.nodeIds);
+                    return list.filter(entry => nodeIds.has(entry.node.id));
+                }
+                // No hyperedge found, fall back to all
+                readerNavState.currentHyperedgeId = null;
+            } else if (groupMode === 'dependencies' && currentNodeId) {
+                // Build dependency chain (predecessors and successors)
+                const chainIds = new Set([currentNodeId]);
+
+                // Find all nodes and their dependencies
+                function findDependencyChain(nodeId, visited = new Set()) {
+                    if (visited.has(nodeId)) return;
+                    visited.add(nodeId);
+                    chainIds.add(nodeId);
+
+                    // Find the node
+                    const nodeEntry = list.find(e => e.node.id === nodeId);
+                    if (!nodeEntry) return;
+
+                    // Add predecessors (dependencies)
+                    const deps = nodeEntry.node.dependencies || [];
+                    deps.forEach(dep => {
+                        const depId = typeof dep === 'string' ? dep : dep.predecessorId;
+                        if (depId) findDependencyChain(depId, visited);
+                    });
+
+                    // Add successors (nodes that depend on this)
+                    list.forEach(e => {
+                        const nodeDeps = e.node.dependencies || [];
+                        nodeDeps.forEach(dep => {
+                            const depId = typeof dep === 'string' ? dep : dep.predecessorId;
+                            if (depId === nodeId) findDependencyChain(e.node.id, visited);
+                        });
+                    });
+                }
+
+                findDependencyChain(currentNodeId);
+                readerNavState.currentDependencyChain = Array.from(chainIds);
+
+                if (chainIds.size > 1) {
+                    return list.filter(entry => chainIds.has(entry.node.id));
+                }
+                // No dependencies found, fall back to all
+            }
+
             return list;
         }
 
         /**
          * Update the reader nav bar in info panel
+         * BUILD 508: Supports group modes (all, hyperedge, dependencies)
          */
         function updateReaderNav() {
             const readerNav = document.getElementById('reader-nav');
@@ -25007,6 +25089,7 @@ function hidePatternDescription() {
             const nextBtn = document.getElementById('reader-next');
             const positionText = document.getElementById('reader-position');
             const readModeBtn = document.getElementById('reader-mode-toggle');
+            const groupSelect = document.getElementById('reader-group-select');
             const infoPanel = document.getElementById('info-panel');
 
             if (!readerNav || !currentOpenItemId) {
@@ -25014,8 +25097,11 @@ function hidePatternDescription() {
                 return;
             }
 
-            // Rebuild linear list
-            readerNavState.linearList = getLinearNodeList();
+            // BUILD 508: Rebuild linear list with group filtering
+            readerNavState.linearList = getLinearNodeList(
+                readerNavState.groupMode,
+                currentOpenItemId
+            );
 
             // Find current index
             readerNavState.currentIndex = readerNavState.linearList.findIndex(
@@ -25025,17 +25111,42 @@ function hidePatternDescription() {
             const total = readerNavState.linearList.length;
             const current = readerNavState.currentIndex + 1;
 
-            if (total <= 1) {
-                // Hide nav for single-node trees
-                readerNav.style.display = 'none';
-                return;
-            }
-
-            // Show nav bar
+            // Show nav bar (even if only 1 node in filtered group)
             readerNav.style.display = 'flex';
 
-            // Update position text
-            positionText.textContent = `${current} of ${total}`;
+            // BUILD 508: Update position text with group context
+            let posLabel = `${current} of ${total}`;
+            if (readerNavState.groupMode === 'hyperedge' && readerNavState.currentHyperedgeId) {
+                posLabel = `${current}/${total} in hyperedge`;
+            } else if (readerNavState.groupMode === 'dependencies' && readerNavState.currentDependencyChain.length > 1) {
+                posLabel = `${current}/${total} in chain`;
+            }
+            positionText.textContent = posLabel;
+
+            // Update group selector
+            if (groupSelect) {
+                groupSelect.value = readerNavState.groupMode;
+                // Disable options if not applicable
+                const hyperedgeOpt = groupSelect.querySelector('option[value="hyperedge"]');
+                const depsOpt = groupSelect.querySelector('option[value="dependencies"]');
+                if (hyperedgeOpt) {
+                    const hasHyperedge = (capexTree.hyperedges || []).some(he =>
+                        he.nodeIds && he.nodeIds.includes(currentOpenItemId)
+                    );
+                    hyperedgeOpt.disabled = !hasHyperedge;
+                    hyperedgeOpt.textContent = hasHyperedge ? '🔗 Hyperedge' : '🔗 (no hyperedge)';
+                }
+                if (depsOpt) {
+                    const allNodes = getLinearNodeList('all');
+                    const currentNode = allNodes.find(e => e.node.id === currentOpenItemId)?.node;
+                    const hasDeps = currentNode?.dependencies?.length > 0 ||
+                        allNodes.some(e => (e.node.dependencies || []).some(d =>
+                            (typeof d === 'string' ? d : d.predecessorId) === currentOpenItemId
+                        ));
+                    depsOpt.disabled = !hasDeps;
+                    depsOpt.textContent = hasDeps ? '⛓️ Dependencies' : '⛓️ (no deps)';
+                }
+            }
 
             // Update button states
             prevBtn.disabled = readerNavState.currentIndex <= 0;
@@ -25136,6 +25247,7 @@ function hidePatternDescription() {
             const prevBtn = document.getElementById('reader-prev');
             const nextBtn = document.getElementById('reader-next');
             const readModeBtn = document.getElementById('reader-mode-toggle');
+            const groupSelect = document.getElementById('reader-group-select');
 
             if (prevBtn) {
                 prevBtn.addEventListener('click', navigatePrev);
@@ -25145,6 +25257,13 @@ function hidePatternDescription() {
             }
             if (readModeBtn) {
                 readModeBtn.addEventListener('click', toggleReadMode);
+            }
+            // BUILD 508: Group selector change handler
+            if (groupSelect) {
+                groupSelect.addEventListener('change', (e) => {
+                    readerNavState.groupMode = e.target.value;
+                    updateReaderNav();
+                });
             }
         });
 
@@ -59955,7 +60074,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 507; // Update this with each build
+                    const KNOWN_LATEST = 508; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
