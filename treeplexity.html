@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.19.0 | Build 506 | 2025-12-19
+    TreeListy v2.19.0 | Build 507 | 2025-12-19
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
     Changelog (Build 506): Fix undefined icon in tree view - add fallback for items without icons
-    Changelog (Build 505): Safari voice capture fix - auto-restart on 30s timeout instead of error
+    Previous (Build 505): Safari voice capture fix - auto-restart on 30s timeout instead of error
     Previous (Build 504): Enhanced Quick Capture - auto-detect pattern, date extraction, fix transcription errors
     Changelog (Build 499): Voice FAB now triggers Quick Capture for conversation/debate recording
     Changelog (Build 498): Fix modal z-index stacking - modals now above mobile header
@@ -735,7 +736,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.19.0',
-            build: 506,
+            build: 507,
             date: '2025-12-19',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -2874,6 +2875,68 @@
         @keyframes readerPulse {
             0%, 100% { box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.5), var(--shadow-md); }
             50% { box-shadow: 0 0 0 5px rgba(99, 102, 241, 0.3), var(--shadow-md); }
+        }
+
+        /* BUILD 507: Mobile Reader Navigation - bigger touch targets */
+        @media screen and (max-width: 768px), (pointer: coarse) {
+            .reader-nav {
+                margin-right: 8px;
+                padding-right: 8px;
+                gap: 4px;
+            }
+
+            .reader-nav-btn {
+                width: 44px;
+                height: 44px;
+                font-size: 18px;
+                border-radius: 8px;
+                background: var(--treeplex-primary);
+                border-color: var(--treeplex-primary);
+                color: white;
+            }
+
+            .reader-nav-btn:disabled {
+                background: var(--bg);
+                border-color: var(--border);
+                color: var(--text-secondary);
+                opacity: 0.4;
+            }
+
+            .reader-position {
+                font-size: 14px;
+                font-weight: 600;
+                min-width: 60px;
+            }
+
+            .reader-mode-btn {
+                font-size: 20px;
+                padding: 8px 12px;
+            }
+
+            /* Make info header wrap on mobile */
+            .info-header {
+                flex-wrap: wrap;
+                gap: 8px;
+                padding: 12px 16px;
+            }
+
+            .info-title {
+                font-size: 16px;
+                order: 2;
+                flex: 1;
+                min-width: 0;
+            }
+
+            .reader-nav {
+                order: 1;
+                border-right: none;
+                padding-right: 0;
+                margin-right: 0;
+            }
+
+            .close-btn {
+                order: 3;
+            }
         }
 
         .info-body {
@@ -24906,19 +24969,24 @@ function hidePatternDescription() {
                 // Add this node to the list
                 list.push({ node, depth });
 
-                // For root node, traverse children (phases)
-                if (node.type === 'root' && node.children) {
-                    node.children.forEach(phase => traverse(phase, depth + 1));
+                // Traverse children (for root nodes or any node with children array)
+                if (node.children && Array.isArray(node.children)) {
+                    node.children.forEach(child => traverse(child, depth + 1));
                 }
 
-                // For phases, traverse items
-                if (node.type === 'phase' && node.items) {
+                // Traverse items (for phases)
+                if (node.items && Array.isArray(node.items)) {
                     node.items.forEach(item => traverse(item, depth + 1));
                 }
 
-                // For items and subtasks, traverse subtasks
-                if ((node.type === 'item' || node.type === 'subtask') && node.subtasks) {
+                // Traverse subtasks (legacy naming)
+                if (node.subtasks && Array.isArray(node.subtasks)) {
                     node.subtasks.forEach(subtask => traverse(subtask, depth + 1));
+                }
+
+                // BUILD 507: Traverse subItems (used by voice capture and some patterns)
+                if (node.subItems && Array.isArray(node.subItems)) {
+                    node.subItems.forEach(subItem => traverse(subItem, depth + 1));
                 }
             }
 
@@ -27002,6 +27070,18 @@ Your response:`;
                 capexTree.type = 'root';
             }
 
+            // BUILD 507: Collapse phases on mobile for cleaner initial view
+            const isMobileDevice = window.matchMedia('(max-width: 768px)').matches ||
+                                   ('ontouchstart' in window && window.innerWidth <= 768);
+            if (isMobileDevice && capexTree.children) {
+                capexTree.children.forEach(phase => {
+                    if (phase.expanded !== false) {
+                        phase.expanded = false;  // Collapse phases on mobile
+                    }
+                });
+                console.log('📱 Mobile detected: phases collapsed for cleaner view');
+            }
+
             // Restore pattern if saved
             if (capexTree.pattern) {
                 // Handle both string and object formats
@@ -27541,6 +27621,18 @@ Your response:`;
                         console.log('📥 Loaded tree from LocalStorage:', treeId);
                         Object.assign(capexTree, tree);
                         this.currentTreeId = treeId;
+
+                        // BUILD 507: Collapse phases on mobile for cleaner initial view
+                        const isMobileDevice = window.matchMedia('(max-width: 768px)').matches ||
+                                               ('ontouchstart' in window && window.innerWidth <= 768);
+                        if (isMobileDevice && capexTree.children) {
+                            capexTree.children.forEach(phase => {
+                                if (phase.expanded !== false) {
+                                    phase.expanded = false;
+                                }
+                            });
+                            console.log('📱 Mobile: phases collapsed');
+                        }
 
                         // BUILD 379: Restore pattern from saved tree
                         if (tree.pattern) {
@@ -59852,7 +59944,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 506; // Update this with each build
+                    const KNOWN_LATEST = 507; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
