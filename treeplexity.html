@@ -6541,6 +6541,7 @@
                 </div>
 
                 <button class="btn" id="live-sync-btn" onclick="document.getElementById('live-sync-modal').style.display='flex'; window.initFirebaseAuthIfNeeded && window.initFirebaseAuthIfNeeded();" style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 6px 10px; font-size: 13px;" title="🔥 Firebase Live Sync">🔄 Live</button>
+                <button class="btn" id="mcp-bridge-btn" onclick="window.showMCPConnectModal && window.showMCPConnectModal();" style="background: linear-gradient(135deg, #6b7280, #4b5563); padding: 6px 10px; font-size: 13px;" title="Connect to Claude Code">🤖 MCP</button>
             </div>
 
             <div class="control-section" style="margin-right: 4px;">
@@ -36636,6 +36637,778 @@ https://treelisty.netlify.app`;
                 if (urlInput) urlInput.select();
             }, 100);
         }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // MCP BRIDGE - CLAUDE CODE INTEGRATION (Build 518)
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        // MCP Bridge state
+        const mcpBridgeState = {
+            client: null,
+            handler: null,
+            status: 'disconnected', // disconnected | connecting | connected
+            port: null,
+            token: null,
+            activityLog: []
+        };
+
+        /**
+         * TreeListy MCP Bridge Client
+         * WebSocket client for connecting to the MCP bridge (spawned by Claude Code)
+         */
+        class TreeListyMCPClient {
+            constructor(options = {}) {
+                this.options = {
+                    reconnectInterval: 5000,
+                    maxReconnectAttempts: 10,
+                    requestTimeout: 30000,
+                    ...options
+                };
+
+                this.socket = null;
+                this.tabId = 'tab-' + Math.random().toString(36).substr(2, 9);
+                this.requestId = 0;
+                this.pendingRequests = new Map();
+                this.reconnectAttempts = 0;
+                this.isConnected = false;
+                this.connectionInfo = null;
+
+                // Event handlers
+                this.onConnect = null;
+                this.onDisconnect = null;
+                this.onError = null;
+                this.onRequest = null;
+            }
+
+            async connect(port, token) {
+                return new Promise((resolve, reject) => {
+                    const url = `ws://localhost:${port}/?token=${encodeURIComponent(token)}&tabId=${this.tabId}`;
+
+                    try {
+                        this.socket = new WebSocket(url);
+                    } catch (err) {
+                        reject(new Error(`Failed to create WebSocket: ${err.message}`));
+                        return;
+                    }
+
+                    const timeout = setTimeout(() => {
+                        reject(new Error('Connection timeout'));
+                        this.socket?.close();
+                    }, 10000);
+
+                    this.socket.onopen = () => {
+                        clearTimeout(timeout);
+                        this.isConnected = true;
+                        this.reconnectAttempts = 0;
+                        this.connectionInfo = { port, token };
+
+                        console.log('[MCP Bridge] Connected to Claude Code');
+
+                        if (this.onConnect) this.onConnect();
+                        resolve();
+                    };
+
+                    this.socket.onclose = (event) => {
+                        clearTimeout(timeout);
+                        this.isConnected = false;
+
+                        console.log('[MCP Bridge] Disconnected:', event.code, event.reason);
+
+                        for (const [id, { reject }] of this.pendingRequests) {
+                            reject(new Error('Connection closed'));
+                        }
+                        this.pendingRequests.clear();
+
+                        if (this.onDisconnect) this.onDisconnect(event.code, event.reason);
+
+                        if (this.connectionInfo && this.reconnectAttempts < this.options.maxReconnectAttempts) {
+                            this.scheduleReconnect();
+                        }
+                    };
+
+                    this.socket.onerror = (err) => {
+                        console.error('[MCP Bridge] Error:', err);
+                        if (this.onError) this.onError(err);
+                    };
+
+                    this.socket.onmessage = (event) => {
+                        this.handleMessage(event.data);
+                    };
+                });
+            }
+
+            scheduleReconnect() {
+                this.reconnectAttempts++;
+                console.log(`[MCP Bridge] Reconnecting in ${this.options.reconnectInterval}ms (attempt ${this.reconnectAttempts})`);
+
+                setTimeout(() => {
+                    if (!this.isConnected && this.connectionInfo) {
+                        this.connect(this.connectionInfo.port, this.connectionInfo.token).catch(err => {
+                            console.error('[MCP Bridge] Reconnect failed:', err.message);
+                        });
+                    }
+                }, this.options.reconnectInterval);
+            }
+
+            handleMessage(data) {
+                try {
+                    const message = JSON.parse(data);
+
+                    if (message.id && this.pendingRequests.has(message.id)) {
+                        const { resolve, reject } = this.pendingRequests.get(message.id);
+                        this.pendingRequests.delete(message.id);
+
+                        if (message.error) {
+                            reject(new Error(message.error.message || 'Unknown error'));
+                        } else {
+                            resolve(message.result);
+                        }
+                        return;
+                    }
+
+                    // Incoming request from Claude Code
+                    if (message.method && this.onRequest) {
+                        this.handleIncomingRequest(message);
+                    }
+
+                } catch (err) {
+                    console.error('[MCP Bridge] Failed to parse message:', err);
+                }
+            }
+
+            async handleIncomingRequest(request) {
+                try {
+                    const result = await this.onRequest(request.method, request.params || {});
+
+                    const response = {
+                        jsonrpc: '2.0',
+                        id: request.id,
+                        result
+                    };
+                    this.socket.send(JSON.stringify(response));
+
+                } catch (err) {
+                    const response = {
+                        jsonrpc: '2.0',
+                        id: request.id,
+                        error: { code: -32000, message: err.message }
+                    };
+                    this.socket.send(JSON.stringify(response));
+                }
+            }
+
+            disconnect() {
+                this.connectionInfo = null;
+                if (this.socket) {
+                    this.socket.close(1000, 'Client disconnect');
+                    this.socket = null;
+                }
+                this.isConnected = false;
+            }
+
+            getStatus() {
+                return {
+                    connected: this.isConnected,
+                    tabId: this.tabId,
+                    pendingRequests: this.pendingRequests.size,
+                    reconnectAttempts: this.reconnectAttempts
+                };
+            }
+        }
+
+        /**
+         * TreeListy MCP Handler
+         * Handles incoming requests from Claude Code and maps them to TreeListy functions
+         */
+        class TreeListyMCPHandler {
+            constructor() {
+                this.activeTransaction = null;
+                this.transactionChanges = [];
+                this.transactionSnapshot = null; // Deep clone at txn start for rollback
+            }
+
+            async handleRequest(method, params) {
+                // Log activity
+                mcpBridgeState.activityLog.push({
+                    timestamp: new Date().toISOString(),
+                    method,
+                    params: { ...params, _truncated: true }
+                });
+
+                // Keep log size manageable
+                if (mcpBridgeState.activityLog.length > 100) {
+                    mcpBridgeState.activityLog = mcpBridgeState.activityLog.slice(-50);
+                }
+
+                switch (method) {
+                    case 'tools/call':
+                        return this.handleToolCall(params);
+                    case 'get_tree':
+                        return this.getTree(params);
+                    case 'get_tree_metadata':
+                        return this.getTreeMetadata(params);
+                    case 'get_subtree':
+                        return this.getSubtree(params);
+                    case 'get_node':
+                        return this.getNode(params);
+                    case 'create_node':
+                        return this.createNode(params);
+                    case 'update_node':
+                        return this.updateNode(params);
+                    case 'delete_node':
+                        return this.deleteNode(params);
+                    case 'search_nodes':
+                        return this.searchNodes(params);
+                    case 'import_structured_content':
+                        return this.importStructuredContent(params);
+                    case 'begin_transaction':
+                        return this.beginTransaction(params);
+                    case 'commit_transaction':
+                        return this.commitTransaction(params);
+                    case 'rollback_transaction':
+                        return this.rollbackTransaction(params);
+                    case 'get_pattern_schema':
+                        return this.getPatternSchema(params);
+                    case 'get_activity_log':
+                        return this.getActivityLog(params);
+                    default:
+                        throw new Error(`Unknown method: ${method}`);
+                }
+            }
+
+            handleToolCall(params) {
+                const { name, arguments: args } = params;
+                return this.handleRequest(name, args || {});
+            }
+
+            // Tree Adapter: Convert native schema to agent-friendly children[]
+            // Introspection-based: detects which child key exists rather than assuming by depth
+            toAgentFormat(node, depth = 0, maxDepth = Infinity) {
+                if (depth >= maxDepth) {
+                    return { ...node, children: [] };
+                }
+
+                // Introspection: detect which child key exists in this node
+                const children = node.children || node.items || node.subItems || node.subtasks || [];
+
+                const result = { ...node };
+                delete result.children;
+                delete result.items;
+                delete result.subItems;
+                delete result.subtasks;
+
+                result.children = (children || []).map(child =>
+                    this.toAgentFormat(child, depth + 1, maxDepth)
+                );
+
+                return result;
+            }
+
+            // Tree Adapter: Convert agent children[] back to native schema
+            // Pattern-aware: Filesystem always uses children[], others use 4-level schema
+            fromAgentFormat(agentNode, parentType, patternKey = null) {
+                // Determine pattern from tree root if not provided
+                const pattern = patternKey || (capexTree.pattern && capexTree.pattern.key) || 'generic';
+
+                // Filesystem pattern: always use children[] at every level
+                const useUniformChildren = pattern === 'filesystem';
+
+                const childKey = useUniformChildren ? 'children' :
+                                 (parentType === 'root' ? 'children' :
+                                  parentType === 'phase' ? 'items' : 'subtasks');
+
+                const { children, ...rest } = agentNode;
+                const result = {
+                    ...rest,
+                    id: rest.id || this.generateId()
+                };
+
+                if (children && children.length > 0) {
+                    // For filesystem, preserve type from node; for others, infer from parent
+                    const childType = useUniformChildren ? (rest.type || 'folder') :
+                                      (parentType === 'root' ? 'phase' :
+                                       parentType === 'phase' ? 'item' : 'subtask');
+                    result[childKey] = children.map(child => {
+                        child.type = child.type || childType;
+                        return this.fromAgentFormat(child, child.type, pattern);
+                    });
+                }
+
+                return result;
+            }
+
+            generateId() {
+                return 'mcp-' + Date.now().toString(36) + '-' + Math.random().toString(36).substr(2, 5);
+            }
+
+            findNodeById(id) {
+                function search(node) {
+                    if (node.id === id) return node;
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    for (const child of children) {
+                        const found = search(child);
+                        if (found) return found;
+                    }
+                    return null;
+                }
+                return search(capexTree);
+            }
+
+            findParentOf(nodeId) {
+                function search(parent, node) {
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    for (const child of children) {
+                        if (child.id === nodeId) return node;
+                        const found = search(node, child);
+                        if (found) return found;
+                    }
+                    return null;
+                }
+                return search(null, capexTree);
+            }
+
+            countNodes(node) {
+                let count = 1;
+                const children = node.children || node.items || node.subItems || node.subtasks || [];
+                for (const child of children) {
+                    count += this.countNodes(child);
+                }
+                return count;
+            }
+
+            hashTree(tree) {
+                const str = JSON.stringify(tree);
+                let hash = 0;
+                for (let i = 0; i < str.length; i++) {
+                    const char = str.charCodeAt(i);
+                    hash = ((hash << 5) - hash) + char;
+                    hash = hash & hash;
+                }
+                return Math.abs(hash).toString(16);
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Tool Implementations
+            // ═══════════════════════════════════════════════════════════════
+
+            getTree(params) {
+                const format = params.format || 'agent';
+                if (format === 'native') {
+                    return capexTree;
+                }
+                return this.toAgentFormat(capexTree);
+            }
+
+            getTreeMetadata(params) {
+                return {
+                    id: capexTree.id,
+                    name: capexTree.name,
+                    pattern: capexTree.pattern?.key,
+                    nodeCount: this.countNodes(capexTree),
+                    lastModified: new Date().toISOString(),
+                    hash: this.hashTree(capexTree)
+                };
+            }
+
+            getSubtree(params) {
+                const { nodeId, depth = 3, format = 'agent' } = params;
+                const node = this.findNodeById(nodeId);
+                if (!node) throw new Error(`Node not found: ${nodeId}`);
+
+                if (format === 'native') return node;
+                return this.toAgentFormat(node, 0, depth);
+            }
+
+            getNode(params) {
+                const { nodeId } = params;
+                const node = this.findNodeById(nodeId);
+                if (!node) throw new Error(`Node not found: ${nodeId}`);
+                return this.toAgentFormat(node, 0, 1);
+            }
+
+            createNode(params) {
+                const { parentId, node: nodeData, position } = params;
+
+                const parent = this.findNodeById(parentId);
+                if (!parent) throw new Error(`Parent not found: ${parentId}`);
+
+                // Pattern-aware child key and type determination
+                const pattern = (capexTree.pattern && capexTree.pattern.key) || 'generic';
+                const useUniformChildren = pattern === 'filesystem';
+
+                const childKey = useUniformChildren ? 'children' :
+                                 (parent.type === 'root' ? 'children' :
+                                  parent.type === 'phase' ? 'items' : 'subtasks');
+
+                if (!parent[childKey]) parent[childKey] = [];
+
+                // Create the new node (filesystem uses type from data, others infer from parent)
+                const defaultType = useUniformChildren ? (nodeData.type || 'folder') :
+                                    (parent.type === 'root' ? 'phase' :
+                                     parent.type === 'phase' ? 'item' : 'subtask');
+                const newNode = {
+                    id: nodeData.id || this.generateId(),
+                    name: nodeData.name || 'New Node',
+                    type: defaultType,
+                    description: nodeData.description || '',
+                    ...nodeData
+                };
+
+                // Insert at position or end
+                if (typeof position === 'number' && position >= 0) {
+                    parent[childKey].splice(position, 0, newNode);
+                } else {
+                    parent[childKey].push(newNode);
+                }
+
+                // Track for transaction or save immediately
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'create', nodeId: newNode.id });
+                } else {
+                    saveState('MCP: Created node');
+                    render();
+                }
+
+                showToast(`🤖 Claude created: ${newNode.name}`, 'info');
+                return { nodeId: newNode.id };
+            }
+
+            updateNode(params) {
+                const { nodeId, updates } = params;
+
+                const node = this.findNodeById(nodeId);
+                if (!node) throw new Error(`Node not found: ${nodeId}`);
+
+                // Apply updates (but protect system fields)
+                const protectedFields = ['id', 'type', 'children', 'items', 'subItems', 'subtasks'];
+                for (const [key, value] of Object.entries(updates)) {
+                    if (!protectedFields.includes(key)) {
+                        node[key] = value;
+                    }
+                }
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'update', nodeId });
+                } else {
+                    saveState('MCP: Updated node');
+                    render();
+                }
+
+                showToast(`🤖 Claude updated: ${node.name}`, 'info');
+                return { success: true };
+            }
+
+            deleteNode(params) {
+                const { nodeId } = params;
+
+                if (nodeId === 'root' || nodeId === capexTree.id) {
+                    throw new Error('Cannot delete root node');
+                }
+
+                const parent = this.findParentOf(nodeId);
+                if (!parent) throw new Error(`Node not found: ${nodeId}`);
+
+                // Find and remove from correct array
+                const childKeys = ['children', 'items', 'subItems', 'subtasks'];
+                let deleted = false;
+                for (const key of childKeys) {
+                    if (parent[key]) {
+                        const idx = parent[key].findIndex(c => c.id === nodeId);
+                        if (idx >= 0) {
+                            parent[key].splice(idx, 1);
+                            deleted = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!deleted) throw new Error(`Failed to delete node: ${nodeId}`);
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'delete', nodeId });
+                } else {
+                    saveState('MCP: Deleted node');
+                    render();
+                }
+
+                showToast(`🤖 Claude deleted node`, 'info');
+                return { success: true };
+            }
+
+            searchNodes(params) {
+                const { query, fields = ['name', 'description'], type } = params;
+                const results = [];
+                const lowerQuery = query.toLowerCase();
+
+                function search(node) {
+                    let matches = false;
+                    for (const field of fields) {
+                        if (node[field] && String(node[field]).toLowerCase().includes(lowerQuery)) {
+                            matches = true;
+                            break;
+                        }
+                    }
+
+                    if (matches && (!type || node.type === type)) {
+                        results.push(node);
+                    }
+
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    children.forEach(search);
+                }
+
+                search(capexTree);
+                return results.map(n => this.toAgentFormat(n, 0, 1));
+            }
+
+            importStructuredContent(params) {
+                const { parentId, content, source } = params;
+
+                const parent = this.findNodeById(parentId);
+                if (!parent) throw new Error(`Parent not found: ${parentId}`);
+
+                // Get pattern for schema-aware conversion
+                const pattern = (capexTree.pattern && capexTree.pattern.key) || 'generic';
+
+                // Convert from agent format to native
+                const nativeContent = this.fromAgentFormat(content, parent.type, pattern);
+
+                // Tag with provenance
+                function tagNodes(node) {
+                    node._provenance = {
+                        source: source || 'mcp-import',
+                        actor: 'claude-code',
+                        timestamp: Date.now()
+                    };
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    children.forEach(tagNodes);
+                }
+                tagNodes(nativeContent);
+
+                // Add to parent (pattern-aware child key)
+                const useUniformChildren = pattern === 'filesystem';
+                const childKey = useUniformChildren ? 'children' :
+                                 (parent.type === 'root' ? 'children' :
+                                  parent.type === 'phase' ? 'items' : 'subtasks');
+                if (!parent[childKey]) parent[childKey] = [];
+                parent[childKey].push(nativeContent);
+
+                // Collect all node IDs
+                const nodeIds = [];
+                function collectIds(node) {
+                    nodeIds.push(node.id);
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    children.forEach(collectIds);
+                }
+                collectIds(nativeContent);
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'import', nodeIds });
+                } else {
+                    saveState('MCP: Imported content');
+                    render();
+                }
+
+                showToast(`🤖 Claude imported ${nodeIds.length} nodes`, 'success');
+                return { nodeIds };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Transaction Operations
+            // ═══════════════════════════════════════════════════════════════
+
+            beginTransaction(params) {
+                if (this.activeTransaction) {
+                    throw new Error('Transaction already active');
+                }
+
+                // Deep clone tree state for potential rollback
+                this.transactionSnapshot = JSON.parse(JSON.stringify(capexTree));
+
+                this.activeTransaction = {
+                    id: 'txn-' + Math.random().toString(36).substr(2, 9),
+                    startTime: Date.now()
+                };
+                this.transactionChanges = [];
+
+                return { transactionId: this.activeTransaction.id };
+            }
+
+            commitTransaction(params) {
+                const { transactionId } = params;
+
+                if (!this.activeTransaction) {
+                    throw new Error('No active transaction');
+                }
+
+                if (this.activeTransaction.id !== transactionId) {
+                    throw new Error('Transaction ID mismatch');
+                }
+
+                saveState(`MCP: Transaction (${this.transactionChanges.length} changes)`);
+                render();
+
+                const result = {
+                    transactionId: this.activeTransaction.id,
+                    changes: this.transactionChanges.length,
+                    durationMs: Date.now() - this.activeTransaction.startTime
+                };
+
+                this.activeTransaction = null;
+                this.transactionChanges = [];
+                this.transactionSnapshot = null; // Clear snapshot on commit
+
+                showToast(`🤖 Claude committed ${result.changes} changes`, 'success');
+                return result;
+            }
+
+            rollbackTransaction(params) {
+                if (!this.activeTransaction) {
+                    throw new Error('No active transaction');
+                }
+
+                const result = {
+                    transactionId: this.activeTransaction.id,
+                    rolledBackChanges: this.transactionChanges.length
+                };
+
+                // Restore from transaction snapshot (not global undo stack)
+                if (this.transactionSnapshot) {
+                    // Restore tree state to pre-transaction snapshot
+                    Object.keys(capexTree).forEach(key => delete capexTree[key]);
+                    Object.assign(capexTree, this.transactionSnapshot);
+                    this.transactionSnapshot = null;
+                    render();
+                }
+
+                this.activeTransaction = null;
+                this.transactionChanges = [];
+
+                showToast(`🤖 Claude rolled back ${result.rolledBackChanges} changes`, 'warning');
+                return result;
+            }
+
+            getPatternSchema(params) {
+                const { pattern } = params;
+                if (typeof PATTERNS !== 'undefined' && PATTERNS[pattern]) {
+                    return PATTERNS[pattern];
+                }
+                return null;
+            }
+
+            getActivityLog(params) {
+                const { limit = 50, since } = params;
+                let log = mcpBridgeState.activityLog;
+
+                if (since) {
+                    log = log.filter(entry => new Date(entry.timestamp) > new Date(since));
+                }
+
+                return log.slice(-limit);
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // MCP Bridge Connection Management
+        // ═══════════════════════════════════════════════════════════════
+
+        function initMCPBridge(port, token) {
+            mcpBridgeState.port = port;
+            mcpBridgeState.token = token;
+            mcpBridgeState.status = 'connecting';
+            updateMCPStatusUI();
+
+            mcpBridgeState.client = new TreeListyMCPClient();
+            mcpBridgeState.handler = new TreeListyMCPHandler();
+
+            mcpBridgeState.client.onRequest = async (method, params) => {
+                return await mcpBridgeState.handler.handleRequest(method, params);
+            };
+
+            mcpBridgeState.client.onConnect = () => {
+                mcpBridgeState.status = 'connected';
+                updateMCPStatusUI();
+                showToast('🤖 Claude Code connected!', 'success');
+            };
+
+            mcpBridgeState.client.onDisconnect = (code, reason) => {
+                mcpBridgeState.status = 'disconnected';
+                updateMCPStatusUI();
+                if (code !== 1000) {
+                    showToast('🤖 Claude Code disconnected', 'warning');
+                }
+            };
+
+            mcpBridgeState.client.onError = (err) => {
+                console.error('[MCP] Connection error:', err);
+            };
+
+            return mcpBridgeState.client.connect(port, token);
+        }
+
+        function disconnectMCPBridge() {
+            if (mcpBridgeState.client) {
+                mcpBridgeState.client.disconnect();
+                mcpBridgeState.client = null;
+            }
+            mcpBridgeState.status = 'disconnected';
+            updateMCPStatusUI();
+        }
+
+        function updateMCPStatusUI() {
+            const btn = document.getElementById('mcp-bridge-btn');
+            if (!btn) return;
+
+            const status = mcpBridgeState.status;
+            if (status === 'connected') {
+                btn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                btn.textContent = '🤖 Claude';
+                btn.title = 'Claude Code connected - click to disconnect';
+            } else if (status === 'connecting') {
+                btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                btn.textContent = '🤖 ...';
+                btn.title = 'Connecting to Claude Code...';
+            } else {
+                btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                btn.textContent = '🤖 MCP';
+                btn.title = 'Connect to Claude Code - click to enter port/token';
+            }
+        }
+
+        function showMCPConnectModal() {
+            if (mcpBridgeState.status === 'connected') {
+                if (confirm('Disconnect from Claude Code?')) {
+                    disconnectMCPBridge();
+                    showToast('🤖 Disconnected from Claude Code', 'info');
+                }
+                return;
+            }
+
+            const port = prompt('Enter MCP bridge port:', mcpBridgeState.port || '');
+            if (!port) return;
+
+            const token = prompt('Enter session token:', '');
+            if (!token) return;
+
+            initMCPBridge(parseInt(port), token).then(() => {
+                console.log('[MCP] Connected successfully');
+            }).catch(err => {
+                showToast(`🤖 Connection failed: ${err.message}`, 'error');
+                mcpBridgeState.status = 'disconnected';
+                updateMCPStatusUI();
+            });
+        }
+
+        // Expose MCP functions globally
+        window.mcpBridgeState = mcpBridgeState;
+        window.initMCPBridge = initMCPBridge;
+        window.disconnectMCPBridge = disconnectMCPBridge;
+        window.showMCPConnectModal = showMCPConnectModal;
+
+        // Initialize MCP button after DOM ready
+        document.addEventListener('DOMContentLoaded', () => {
+            updateMCPStatusUI();
+        });
 
         // ═══════════════════════════════════════════════════════════════════════════
         // IMAGEN 4 - AI IMAGE GENERATION (Build 218)
