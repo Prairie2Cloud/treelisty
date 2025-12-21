@@ -61686,6 +61686,19 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     return;
                 }
 
+                // BUILD 522: Direct command matching for hyperedge commands
+                // This bypasses AI interpretation for exact command matches
+                const lowerMessage = message.toLowerCase().trim();
+                if (lowerMessage.includes('hyperedge') && (lowerMessage.includes('find') || lowerMessage.includes('suggest') || lowerMessage.includes('show') || lowerMessage.includes('analyze'))) {
+                    console.log('🔗 Direct hyperedge command match');
+                    hideTypingIndicator();
+                    const cmdResult = COMMAND_REGISTRY['find_hyperedges']();
+                    const response = typeof cmdResult === 'object' ? cmdResult : { message: cmdResult, buttons: null };
+                    addMessage(response.message, 'assistant', response.buttons);
+                    chatState.isProcessing = false;
+                    return;
+                }
+
                 // BUILD 368: Smart mode detection - conversation vs command
                 const interactionMode = chatState.conversationMode ? 'conversation' : detectInteractionMode(message);
 
