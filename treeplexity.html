@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 518 | 2025-12-20
+    TreeListy v2.20.0 | Build 519 | 2025-12-20
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 518): MCP Bridge Connection UI - proper modal with setup instructions, activity log, status indicator
+    Changelog (Build 519): RAG Phase 1 - Enhanced Document Import with PDF extraction (pdf.js), URL fetching, source type tabs, knowledge-base pattern
     Changelog (Build 517): Mobile Canvas UX - scrollable toolbar, compact minimap, bottom-sheet context menu
     Previous (Build 516): Fix Canvas/3D View not displaying on mobile - add .active class override
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
@@ -740,7 +740,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 518,
+            build: 519,
             date: '2025-12-20',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6877,6 +6877,24 @@
                     </div>
                 </div>
 
+                <!-- Source Type Selection (RAG Phase 1) -->
+                <div style="margin-bottom: 24px;">
+                    <label style="display: block; font-weight: 600; margin-bottom: 12px; color: var(--text-primary);">
+                        📁 Source Type
+                    </label>
+                    <div id="source-type-selector" style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button type="button" class="source-type-btn active" data-source="text" style="flex: 1; min-width: 100px; padding: 12px 16px; border: 2px solid var(--treeplex-primary); background: rgba(99, 102, 241, 0.15); color: var(--text-primary); border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            📝 Text/File
+                        </button>
+                        <button type="button" class="source-type-btn" data-source="pdf" style="flex: 1; min-width: 100px; padding: 12px 16px; border: 2px solid var(--border); background: transparent; color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            📄 PDF
+                        </button>
+                        <button type="button" class="source-type-btn" data-source="url" style="flex: 1; min-width: 100px; padding: 12px 16px; border: 2px solid var(--border); background: transparent; color: var(--text-secondary); border-radius: 8px; cursor: pointer; font-weight: 500; transition: all 0.2s; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                            🌐 URL
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Pattern Selection -->
                 <div style="margin-bottom: 24px; padding: 16px; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border);">
                     <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
@@ -6903,49 +6921,52 @@
                         <option value="dialogue" style="background: #1a1a2e; color: #ffffff;">💬 Dialogue & Rhetoric - Debate analysis</option>
                         <option value="capex" style="background: #1a1a2e; color: #ffffff;">💰 CAPEX / Angel Pitch - Investor-ready</option>
                         <option value="filesystem" style="background: #1a1a2e; color: #ffffff;">💾 File System - File organization</option>
+                        <option value="knowledge-base" style="background: #1a1a2e; color: #ffffff;">📚 Knowledge Base - RAG document corpus</option>
                     </select>
                     <div style="margin-top: 8px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
                         <strong style="color: var(--text-primary);">💡 Tip:</strong> Auto-detect lets AI analyze your text and recommend the best pattern. Or choose a specific pattern if you know what structure you want.
                     </div>
                 </div>
 
-                <!-- File Upload Section -->
-                <div style="margin-bottom: 24px;">
-                    <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
-                        📁 Upload File (.txt, .md)
-                    </label>
-                    <div id="file-drop-zone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 32px; text-align: center; background: var(--bg-secondary); cursor: pointer; transition: all 0.2s;">
-                        <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
-                        <div style="color: var(--text-primary); font-weight: 500; margin-bottom: 4px;">
-                            Drop file here or click to browse
-                        </div>
-                        <div style="color: var(--text-secondary); font-size: 13px;">
-                            Supports .txt and .md files (max 100KB recommended)
-                        </div>
-                        <input type="file" id="analysis-file-input" accept=".txt,.md" style="display: none;" />
-                    </div>
-                    <div id="file-name-display" style="margin-top: 8px; color: var(--text-secondary); font-size: 13px; display: none;">
-                        Selected: <span id="selected-file-name" style="color: var(--treeplex-primary); font-weight: 500;"></span>
-                        <button id="clear-file-btn" style="margin-left: 8px; color: var(--text-secondary); background: none; border: none; cursor: pointer; font-size: 13px;">[Clear]</button>
-                    </div>
-                </div>
-
-                <div style="text-align: center; margin: 16px 0; color: var(--text-secondary); font-size: 13px; font-weight: 600;">
-                    — OR —
-                </div>
-
-                <!-- Paste Text Section -->
-                <div style="margin-bottom: 24px;">
-                    <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-                        <label style="font-weight: 600; color: var(--text-primary);">
-                            📝 Paste Text
+                <!-- TEXT/FILE SOURCE SECTION -->
+                <div id="source-text-section">
+                    <!-- File Upload Section -->
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
+                            📁 Upload File (.txt, .md)
                         </label>
-                        <!-- BUILD 511: Voice input for paste field -->
-                        <button id="import-voice-btn" onclick="toggleImportVoiceCapture()" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; color: #ef4444; font-size: 12px; cursor: pointer; transition: all 0.2s;" title="Click to speak - voice will be transcribed to text">
-                            🎤 Voice
-                        </button>
+                        <div id="file-drop-zone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 32px; text-align: center; background: var(--bg-secondary); cursor: pointer; transition: all 0.2s;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
+                            <div style="color: var(--text-primary); font-weight: 500; margin-bottom: 4px;">
+                                Drop file here or click to browse
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 13px;">
+                                Supports .txt and .md files (max 100KB recommended)
+                            </div>
+                            <input type="file" id="analysis-file-input" accept=".txt,.md" style="display: none;" />
+                        </div>
+                        <div id="file-name-display" style="margin-top: 8px; color: var(--text-secondary); font-size: 13px; display: none;">
+                            Selected: <span id="selected-file-name" style="color: var(--treeplex-primary); font-weight: 500;"></span>
+                            <button id="clear-file-btn" style="margin-left: 8px; color: var(--text-secondary); background: none; border: none; cursor: pointer; font-size: 13px;">[Clear]</button>
+                        </div>
                     </div>
-                    <textarea id="analysis-text-input" placeholder="Paste your text content here...
+
+                    <div style="text-align: center; margin: 16px 0; color: var(--text-secondary); font-size: 13px; font-weight: 600;">
+                        — OR —
+                    </div>
+
+                    <!-- Paste Text Section -->
+                    <div style="margin-bottom: 24px;">
+                        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                            <label style="font-weight: 600; color: var(--text-primary);">
+                                📝 Paste Text
+                            </label>
+                            <!-- BUILD 511: Voice input for paste field -->
+                            <button id="import-voice-btn" onclick="toggleImportVoiceCapture()" style="display: flex; align-items: center; gap: 6px; padding: 6px 12px; background: rgba(239, 68, 68, 0.15); border: 1px solid rgba(239, 68, 68, 0.4); border-radius: 6px; color: #ef4444; font-size: 12px; cursor: pointer; transition: all 0.2s;" title="Click to speak - voice will be transcribed to text">
+                                🎤 Voice
+                            </button>
+                        </div>
+                        <textarea id="analysis-text-input" placeholder="Paste your text content here...
 
 Example:
 - Meeting notes
@@ -6956,9 +6977,91 @@ Example:
 - Course syllabus
 
 The AI will analyze the structure and convert it to a tree."
-                        style="width: 100%; min-height: 200px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-family: 'Inter', monospace; font-size: 13px; resize: vertical;"></textarea>
-                    <div id="char-count" style="margin-top: 6px; text-align: right; color: var(--text-secondary); font-size: 12px;">
-                        0 characters
+                            style="width: 100%; min-height: 200px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-family: 'Inter', monospace; font-size: 13px; resize: vertical;"></textarea>
+                        <div id="char-count" style="margin-top: 6px; text-align: right; color: var(--text-secondary); font-size: 12px;">
+                            0 characters
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PDF SOURCE SECTION -->
+                <div id="source-pdf-section" style="display: none;">
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
+                            📄 Upload PDF Document
+                        </label>
+                        <div id="pdf-drop-zone" style="border: 2px dashed var(--border); border-radius: 8px; padding: 32px; text-align: center; background: var(--bg-secondary); cursor: pointer; transition: all 0.2s;">
+                            <div style="font-size: 48px; margin-bottom: 12px;">📄</div>
+                            <div style="color: var(--text-primary); font-weight: 500; margin-bottom: 4px;">
+                                Drop PDF here or click to browse
+                            </div>
+                            <div style="color: var(--text-secondary); font-size: 13px;">
+                                Text will be extracted using pdf.js (max 10MB)
+                            </div>
+                            <input type="file" id="pdf-file-input" accept=".pdf" style="display: none;" />
+                        </div>
+                        <div id="pdf-name-display" style="margin-top: 8px; color: var(--text-secondary); font-size: 13px; display: none;">
+                            Selected: <span id="selected-pdf-name" style="color: var(--treeplex-primary); font-weight: 500;"></span>
+                            <button id="clear-pdf-btn" style="margin-left: 8px; color: var(--text-secondary); background: none; border: none; cursor: pointer; font-size: 13px;">[Clear]</button>
+                        </div>
+                        <!-- PDF extraction progress -->
+                        <div id="pdf-extraction-progress" style="display: none; margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                                <div class="spinner" style="width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--treeplex-primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                <span id="pdf-extraction-status" style="color: var(--text-primary); font-size: 13px;">Extracting text...</span>
+                            </div>
+                            <div style="height: 4px; background: var(--border); border-radius: 2px; overflow: hidden;">
+                                <div id="pdf-extraction-bar" style="height: 100%; background: var(--treeplex-primary); width: 0%; transition: width 0.3s;"></div>
+                            </div>
+                        </div>
+                        <!-- Extracted text preview -->
+                        <div id="pdf-text-preview" style="display: none; margin-top: 16px;">
+                            <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
+                                📝 Extracted Text Preview
+                            </label>
+                            <textarea id="pdf-extracted-text" readonly style="width: 100%; min-height: 150px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-family: 'Inter', monospace; font-size: 13px; resize: vertical;"></textarea>
+                            <div id="pdf-char-count" style="margin-top: 6px; text-align: right; color: var(--text-secondary); font-size: 12px;">
+                                0 characters extracted
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- URL SOURCE SECTION -->
+                <div id="source-url-section" style="display: none;">
+                    <div style="margin-bottom: 24px;">
+                        <label style="display: block; font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">
+                            🌐 Import from URL
+                        </label>
+                        <div style="display: flex; gap: 8px;">
+                            <input type="url" id="url-input" placeholder="https://example.com/article" style="flex: 1; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-primary); color: var(--text-primary); font-size: 14px;" />
+                            <button id="fetch-url-btn" style="padding: 12px 20px; background: linear-gradient(135deg, #6366f1, #8b5cf6); color: white; border: none; border-radius: 6px; cursor: pointer; font-weight: 500; white-space: nowrap;">
+                                Fetch
+                            </button>
+                        </div>
+                        <div style="margin-top: 8px; padding: 10px; background: rgba(99, 102, 241, 0.1); border-radius: 4px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
+                            <strong style="color: var(--text-primary);">💡 Tip:</strong> Paste any web page URL. We'll extract the main content and convert it to a tree structure.
+                        </div>
+                        <!-- URL fetch progress -->
+                        <div id="url-fetch-progress" style="display: none; margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 6px;">
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <div class="spinner" style="width: 16px; height: 16px; border: 2px solid var(--border); border-top-color: var(--treeplex-primary); border-radius: 50%; animation: spin 1s linear infinite;"></div>
+                                <span id="url-fetch-status" style="color: var(--text-primary); font-size: 13px;">Fetching page content...</span>
+                            </div>
+                        </div>
+                        <!-- Fetched content preview -->
+                        <div id="url-text-preview" style="display: none; margin-top: 16px;">
+                            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+                                <label style="font-weight: 600; color: var(--text-primary);">
+                                    📝 Fetched Content
+                                </label>
+                                <span id="url-source-info" style="font-size: 12px; color: var(--text-secondary);"></span>
+                            </div>
+                            <textarea id="url-fetched-text" readonly style="width: 100%; min-height: 150px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; background: var(--bg-secondary); color: var(--text-primary); font-family: 'Inter', monospace; font-size: 13px; resize: vertical;"></textarea>
+                            <div id="url-char-count" style="margin-top: 6px; text-align: right; color: var(--text-secondary); font-size: 12px;">
+                                0 characters fetched
+                            </div>
+                        </div>
                     </div>
                 </div>
 
@@ -21722,6 +21825,85 @@ const PATTERNS = {
             },
             includeDependencies: true,
             includeTracking: true
+        }
+    },
+    'knowledge-base': {
+        name: 'Knowledge Base',
+        icon: '📚',
+        levels: {
+            root: 'Knowledge Base',
+            phase: 'Source',
+            item: 'Section',
+            subtask: 'Chunk'
+        },
+        phaseSubtitles: ['Documents', 'Web Pages', 'Notes', 'Research'],
+        types: [
+            { value: 'pdf', label: '📄 PDF Document' },
+            { value: 'webpage', label: '🌐 Web Page' },
+            { value: 'text', label: '📝 Plain Text' },
+            { value: 'markdown', label: '📋 Markdown' },
+            { value: 'note', label: '🗒️ Personal Note' },
+            { value: 'research', label: '🔬 Research Paper' },
+            { value: 'article', label: '📰 Article' },
+            { value: 'transcript', label: '🎙️ Transcript' }
+        ],
+        description: 'Document corpus for knowledge retrieval and AI context',
+        sortOptions: [
+            { value: 'date-newest', label: '📅 Date (Newest First)', field: 'importDate', order: 'desc', type: 'date' },
+            { value: 'date-oldest', label: '📅 Date (Oldest First)', field: 'importDate', order: 'asc', type: 'date' },
+            { value: 'title-az', label: '🔤 Title (A-Z)', field: 'name', order: 'asc', type: 'text' },
+            { value: 'title-za', label: '🔤 Title (Z-A)', field: 'name', order: 'desc', type: 'text' },
+            { value: 'relevance', label: '⭐ Relevance Score', field: 'relevanceScore', order: 'desc', type: 'number' }
+        ],
+        fields: {
+            sourceUrl: {
+                label: 'Source URL',
+                type: 'text',
+                placeholder: 'https://example.com/article',
+                helpText: '🔗 Original source location'
+            },
+            sourceType: {
+                label: 'Source Type',
+                type: 'select',
+                options: ['PDF', 'Web Page', 'Plain Text', 'Markdown', 'Note', 'Transcript'],
+                helpText: '📁 Type of source document'
+            },
+            importDate: {
+                label: 'Import Date',
+                type: 'date',
+                helpText: '📅 When this content was imported'
+            },
+            author: {
+                label: 'Author',
+                type: 'text',
+                placeholder: 'Author name',
+                helpText: '✍️ Content author or source'
+            },
+            wordCount: {
+                label: 'Word Count',
+                type: 'number',
+                helpText: '📊 Total words in this section'
+            },
+            chunkIndex: {
+                label: 'Chunk Index',
+                type: 'number',
+                helpText: '🔢 Position in source document'
+            },
+            relevanceScore: {
+                label: 'Relevance',
+                type: 'number',
+                min: 0,
+                max: 100,
+                helpText: '⭐ How relevant this content is (0-100)'
+            },
+            tags: {
+                label: 'Tags',
+                type: 'text',
+                placeholder: 'tag1, tag2, tag3',
+                helpText: '🏷️ Comma-separated keywords'
+            },
+            includeDependencies: false,
+            includeTracking: false
         }
     },
     capex: {
@@ -42457,6 +42639,27 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
             analysisText = '';
             analysisFileName = '';
 
+            // BUILD 519: Reset source type and clear PDF/URL state
+            currentSourceType = 'text';
+            extractedPdfText = '';
+            fetchedUrlText = '';
+            pdfSourceInfo = null;
+            urlSourceInfo = null;
+            switchSourceType('text'); // Reset UI to text tab
+
+            // Reset PDF section
+            const pdfInput = document.getElementById('pdf-file-input');
+            if (pdfInput) pdfInput.value = '';
+            document.getElementById('pdf-name-display')?.style && (document.getElementById('pdf-name-display').style.display = 'none');
+            document.getElementById('pdf-text-preview')?.style && (document.getElementById('pdf-text-preview').style.display = 'none');
+            document.getElementById('pdf-extraction-progress')?.style && (document.getElementById('pdf-extraction-progress').style.display = 'none');
+
+            // Reset URL section
+            const urlInput = document.getElementById('url-input');
+            if (urlInput) urlInput.value = '';
+            document.getElementById('url-text-preview')?.style && (document.getElementById('url-text-preview').style.display = 'none');
+            document.getElementById('url-fetch-progress')?.style && (document.getElementById('url-fetch-progress').style.display = 'none');
+
             // Update the AI mode display to show current global mode
             updateAnalysisModeDisplay();
         }
@@ -42609,6 +42812,316 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
             if (importVoiceState.finalText.trim()) {
                 showToast('Voice captured: ' + importVoiceState.finalText.trim().substring(0, 50) + '...', 'success');
             }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 519: RAG Phase 1 - Source Type Switching
+        // ═══════════════════════════════════════════════════════════════
+
+        let currentSourceType = 'text'; // text | pdf | url
+        let extractedPdfText = '';
+        let fetchedUrlText = '';
+        let pdfSourceInfo = null;
+        let urlSourceInfo = null;
+
+        // Initialize source type buttons
+        document.querySelectorAll('.source-type-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const sourceType = btn.dataset.source;
+                switchSourceType(sourceType);
+            });
+        });
+
+        function switchSourceType(sourceType) {
+            currentSourceType = sourceType;
+
+            // Update button states
+            document.querySelectorAll('.source-type-btn').forEach(btn => {
+                if (btn.dataset.source === sourceType) {
+                    btn.style.border = '2px solid var(--treeplex-primary)';
+                    btn.style.background = 'rgba(99, 102, 241, 0.15)';
+                    btn.style.color = 'var(--text-primary)';
+                    btn.classList.add('active');
+                } else {
+                    btn.style.border = '2px solid var(--border)';
+                    btn.style.background = 'transparent';
+                    btn.style.color = 'var(--text-secondary)';
+                    btn.classList.remove('active');
+                }
+            });
+
+            // Show/hide sections
+            document.getElementById('source-text-section').style.display = sourceType === 'text' ? 'block' : 'none';
+            document.getElementById('source-pdf-section').style.display = sourceType === 'pdf' ? 'block' : 'none';
+            document.getElementById('source-url-section').style.display = sourceType === 'url' ? 'block' : 'none';
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 519: RAG Phase 1 - PDF Extraction with pdf.js
+        // ═══════════════════════════════════════════════════════════════
+
+        // Load pdf.js from CDN if not already loaded
+        let pdfJsLoaded = false;
+        async function loadPdfJs() {
+            if (pdfJsLoaded || window.pdfjsLib) {
+                pdfJsLoaded = true;
+                return;
+            }
+
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js';
+                script.onload = () => {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    pdfJsLoaded = true;
+                    resolve();
+                };
+                script.onerror = () => reject(new Error('Failed to load pdf.js'));
+                document.head.appendChild(script);
+            });
+        }
+
+        // PDF drop zone handlers
+        const pdfDropZone = document.getElementById('pdf-drop-zone');
+        const pdfFileInput = document.getElementById('pdf-file-input');
+
+        if (pdfDropZone && pdfFileInput) {
+            pdfDropZone.addEventListener('click', () => pdfFileInput.click());
+
+            pdfFileInput.addEventListener('change', async (e) => {
+                const file = e.target.files[0];
+                if (file) await handlePdfFile(file);
+            });
+
+            pdfDropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                pdfDropZone.style.borderColor = 'var(--treeplex-primary)';
+                pdfDropZone.style.background = 'rgba(99, 102, 241, 0.05)';
+            });
+
+            pdfDropZone.addEventListener('dragleave', (e) => {
+                e.preventDefault();
+                pdfDropZone.style.borderColor = 'var(--border)';
+                pdfDropZone.style.background = 'var(--bg-secondary)';
+            });
+
+            pdfDropZone.addEventListener('drop', async (e) => {
+                e.preventDefault();
+                pdfDropZone.style.borderColor = 'var(--border)';
+                pdfDropZone.style.background = 'var(--bg-secondary)';
+                const file = e.dataTransfer.files[0];
+                if (file && file.type === 'application/pdf') {
+                    await handlePdfFile(file);
+                } else {
+                    showToast('Please drop a PDF file', 'error');
+                }
+            });
+
+            // Clear PDF button
+            document.getElementById('clear-pdf-btn')?.addEventListener('click', () => {
+                pdfFileInput.value = '';
+                extractedPdfText = '';
+                pdfSourceInfo = null;
+                document.getElementById('pdf-name-display').style.display = 'none';
+                document.getElementById('pdf-text-preview').style.display = 'none';
+                document.getElementById('pdf-extraction-progress').style.display = 'none';
+            });
+        }
+
+        async function handlePdfFile(file) {
+            if (file.size > 10 * 1024 * 1024) {
+                showToast('PDF too large (max 10MB)', 'error');
+                return;
+            }
+
+            // Show file name
+            document.getElementById('selected-pdf-name').textContent = file.name;
+            document.getElementById('pdf-name-display').style.display = 'block';
+
+            // Show progress
+            const progress = document.getElementById('pdf-extraction-progress');
+            const progressBar = document.getElementById('pdf-extraction-bar');
+            const statusText = document.getElementById('pdf-extraction-status');
+            progress.style.display = 'block';
+            progressBar.style.width = '0%';
+            statusText.textContent = 'Loading pdf.js...';
+
+            try {
+                // Load pdf.js if needed
+                await loadPdfJs();
+                statusText.textContent = 'Reading PDF...';
+                progressBar.style.width = '20%';
+
+                // Read file as ArrayBuffer
+                const arrayBuffer = await file.arrayBuffer();
+                statusText.textContent = 'Parsing PDF...';
+                progressBar.style.width = '40%';
+
+                // Load PDF document
+                const pdf = await window.pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+                const numPages = pdf.numPages;
+                statusText.textContent = `Extracting text from ${numPages} pages...`;
+
+                let fullText = '';
+                for (let i = 1; i <= numPages; i++) {
+                    const page = await pdf.getPage(i);
+                    const textContent = await page.getTextContent();
+                    const pageText = textContent.items.map(item => item.str).join(' ');
+                    fullText += `\n\n--- Page ${i} ---\n\n${pageText}`;
+                    progressBar.style.width = `${40 + (i / numPages) * 50}%`;
+                }
+
+                // Store extracted text
+                extractedPdfText = fullText.trim();
+                pdfSourceInfo = {
+                    fileName: file.name,
+                    fileSize: file.size,
+                    pageCount: numPages,
+                    extractedAt: new Date().toISOString()
+                };
+
+                // Show preview
+                progress.style.display = 'none';
+                const preview = document.getElementById('pdf-text-preview');
+                const textArea = document.getElementById('pdf-extracted-text');
+                textArea.value = extractedPdfText.substring(0, 5000) + (extractedPdfText.length > 5000 ? '\n\n[... truncated preview ...]' : '');
+                document.getElementById('pdf-char-count').textContent = `${extractedPdfText.length.toLocaleString()} characters extracted from ${numPages} pages`;
+                preview.style.display = 'block';
+
+                showToast(`PDF extracted: ${extractedPdfText.length.toLocaleString()} characters`, 'success');
+
+            } catch (err) {
+                console.error('PDF extraction error:', err);
+                progress.style.display = 'none';
+                showToast('Failed to extract PDF text: ' + err.message, 'error');
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 519: RAG Phase 1 - URL Content Fetching
+        // ═══════════════════════════════════════════════════════════════
+
+        document.getElementById('fetch-url-btn')?.addEventListener('click', async () => {
+            const urlInput = document.getElementById('url-input');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                showToast('Please enter a URL', 'error');
+                return;
+            }
+
+            // Validate URL
+            try {
+                new URL(url);
+            } catch {
+                showToast('Invalid URL format', 'error');
+                return;
+            }
+
+            await fetchUrlContent(url);
+        });
+
+        // Allow Enter key to fetch
+        document.getElementById('url-input')?.addEventListener('keydown', async (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                document.getElementById('fetch-url-btn')?.click();
+            }
+        });
+
+        async function fetchUrlContent(url) {
+            const progress = document.getElementById('url-fetch-progress');
+            const statusText = document.getElementById('url-fetch-status');
+            progress.style.display = 'block';
+            statusText.textContent = 'Fetching page content...';
+
+            try {
+                // Use a CORS proxy or the Netlify function
+                // For now, we'll try direct fetch first, then fallback to a proxy
+                let response;
+                let content = '';
+
+                try {
+                    // Try fetching through our claude-proxy which can handle CORS
+                    const proxyUrl = '/.netlify/functions/url-proxy?url=' + encodeURIComponent(url);
+                    response = await fetch(proxyUrl, {
+                        method: 'GET',
+                        headers: { 'Accept': 'text/html,text/plain' }
+                    });
+
+                    if (response.ok) {
+                        content = await response.text();
+                    } else {
+                        throw new Error('Proxy fetch failed');
+                    }
+                } catch (proxyErr) {
+                    // Fallback: try direct fetch (may fail due to CORS)
+                    statusText.textContent = 'Trying direct fetch...';
+                    try {
+                        response = await fetch(url, { mode: 'cors' });
+                        content = await response.text();
+                    } catch (directErr) {
+                        throw new Error('Cannot fetch URL - CORS blocked. Try copying the page content manually.');
+                    }
+                }
+
+                // Extract text content from HTML
+                statusText.textContent = 'Extracting text...';
+                const extractedText = extractTextFromHtml(content, url);
+
+                // Store fetched text
+                fetchedUrlText = extractedText;
+                urlSourceInfo = {
+                    url: url,
+                    fetchedAt: new Date().toISOString(),
+                    contentLength: content.length
+                };
+
+                // Show preview
+                progress.style.display = 'none';
+                const preview = document.getElementById('url-text-preview');
+                const textArea = document.getElementById('url-fetched-text');
+                textArea.value = fetchedUrlText.substring(0, 5000) + (fetchedUrlText.length > 5000 ? '\n\n[... truncated preview ...]' : '');
+                document.getElementById('url-char-count').textContent = `${fetchedUrlText.length.toLocaleString()} characters fetched`;
+                document.getElementById('url-source-info').textContent = new URL(url).hostname;
+                preview.style.display = 'block';
+
+                showToast(`Page fetched: ${fetchedUrlText.length.toLocaleString()} characters`, 'success');
+
+            } catch (err) {
+                console.error('URL fetch error:', err);
+                progress.style.display = 'none';
+                showToast(err.message || 'Failed to fetch URL', 'error');
+            }
+        }
+
+        function extractTextFromHtml(html, url) {
+            // Create a DOM parser
+            const parser = new DOMParser();
+            const doc = parser.parseFromString(html, 'text/html');
+
+            // Remove scripts, styles, nav, footer, etc.
+            const removeSelectors = ['script', 'style', 'nav', 'footer', 'header', 'aside', 'noscript', 'iframe', 'svg'];
+            removeSelectors.forEach(sel => {
+                doc.querySelectorAll(sel).forEach(el => el.remove());
+            });
+
+            // Try to find main content
+            const mainContent = doc.querySelector('main, article, [role="main"], .content, .post, .article, #content, #main');
+            const contentEl = mainContent || doc.body;
+
+            // Get text content
+            let text = contentEl?.textContent || '';
+
+            // Clean up whitespace
+            text = text
+                .replace(/\s+/g, ' ')
+                .replace(/\n\s*\n/g, '\n\n')
+                .trim();
+
+            // Add source header
+            const title = doc.querySelector('title')?.textContent || url;
+            return `Source: ${title}\nURL: ${url}\n\n${text}`;
         }
 
         // Close Analysis Modal
@@ -44894,14 +45407,36 @@ ${jsonText}`;
 
         // Main Analyze button handler
         document.getElementById('analysis-start-btn').addEventListener('click', async () => {
-            // Get text from file or textarea
-            const textFromTextarea = document.getElementById('analysis-text-input').value.trim();
-            let finalText = analysisText || textFromTextarea;
+            // BUILD 519: Get text based on current source type
+            let finalText = '';
+            let sourceMetadata = null;
+
+            if (currentSourceType === 'text') {
+                // Original text/file behavior
+                const textFromTextarea = document.getElementById('analysis-text-input').value.trim();
+                finalText = analysisText || textFromTextarea;
+            } else if (currentSourceType === 'pdf') {
+                // PDF extracted text
+                finalText = extractedPdfText;
+                sourceMetadata = pdfSourceInfo;
+            } else if (currentSourceType === 'url') {
+                // URL fetched text
+                finalText = fetchedUrlText;
+                sourceMetadata = urlSourceInfo;
+            }
 
             if (!finalText) {
-                alert('Please upload a file or paste text to analyze.');
+                const sourceMessages = {
+                    'text': 'Please upload a file or paste text to analyze.',
+                    'pdf': 'Please upload a PDF file to extract text from.',
+                    'url': 'Please fetch a URL to import content from.'
+                };
+                alert(sourceMessages[currentSourceType]);
                 return;
             }
+
+            // Store source metadata for RAG
+            window._lastImportSourceMetadata = sourceMetadata;
 
             // Get global AI mode
             const mode = getGlobalAIMode();
@@ -45414,6 +45949,16 @@ ${jsonText}`;
                 document.getElementById('pattern-select').value = selectedPattern;
             }
 
+            // BUILD 519: Capture RAG source metadata
+            const ragSourceMeta = window._lastImportSourceMetadata;
+            const ragMetadata = ragSourceMeta ? {
+                sourceType: ragSourceMeta.fileName ? 'pdf' : ragSourceMeta.url ? 'url' : 'text',
+                sourceId: ragSourceMeta.fileName || ragSourceMeta.url || 'pasted-text',
+                importedAt: new Date().toISOString(),
+                ...(ragSourceMeta.fileName && { fileName: ragSourceMeta.fileName, pageCount: ragSourceMeta.pageCount }),
+                ...(ragSourceMeta.url && { url: ragSourceMeta.url })
+            } : null;
+
             // Convert analyzed data to TreeListy format
             const newTree = {
                 type: 'root',
@@ -45422,6 +45967,8 @@ ${jsonText}`;
                 icon: '🌲',
                 expanded: true,
                 hyperedges: [], // Initialize empty hyperedges array to prevent data loss
+                // BUILD 519: Add _rag metadata for RAG retrieval
+                ...(ragMetadata && { _rag: ragMetadata }),
                 children: treeData.phases?.map((phase, phaseIndex) => ({
                     type: 'phase',
                     id: `phase-${phaseIndex}`,
@@ -45436,6 +45983,8 @@ ${jsonText}`;
                         timestamp: new Date().toISOString(),
                         modelId: null
                     },
+                    // BUILD 519: Propagate _rag metadata to phases
+                    ...(ragMetadata && { _rag: { ...ragMetadata, level: 'phase', chunkIndex: phaseIndex } }),
                     items: phase.items?.map((item, itemIndex) => {
                         const itemId = `item-${phaseIndex}-${itemIndex}`;
 
@@ -45463,6 +46012,8 @@ ${jsonText}`;
                                 timestamp: new Date().toISOString(),
                                 modelId: null
                             },
+                            // BUILD 519: Add _rag metadata to items
+                            ...(ragMetadata && { _rag: { ...ragMetadata, level: 'item', chunkIndex: phaseIndex * 100 + itemIndex } }),
                             // Add any other fields from AI
                             ...item
                         };
@@ -45483,6 +46034,8 @@ ${jsonText}`;
                                     timestamp: new Date().toISOString(),
                                     modelId: null
                                 },
+                                // BUILD 519: Add _rag metadata to subtasks
+                                ...(ragMetadata && { _rag: { ...ragMetadata, level: 'subtask', chunkIndex: phaseIndex * 10000 + itemIndex * 100 + subtaskIndex } }),
                                 // Pattern-specific fields
                                 ...subtask
                             }));
@@ -61806,7 +62359,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 518; // Update this with each build
+                    const KNOWN_LATEST = 519; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
