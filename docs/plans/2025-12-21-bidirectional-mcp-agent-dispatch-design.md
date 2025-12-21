@@ -3,7 +3,7 @@
 **Date:** 2025-12-21
 **Status:** Draft
 **Author:** geej + Claude Code
-**Reviewed by:** Gemini (architectural feedback incorporated)
+**Reviewed by:** Gemini, OpenAI (architectural feedback incorporated)
 
 ## Problem Statement
 
@@ -40,69 +40,142 @@ Current MCP architecture is backwards for the 90% use case:
 
 The MCP bridge becomes bidirectional: accepts commands AND sends task requests.
 
-## Technical Protocol: MCP Sampling
+## Technical Protocol: Task Queue Model
 
-**Key Insight (from Gemini review):** We don't need a custom protocol. The MCP specification already defines **Sampling** (`sampling/createMessage`) for exactly this use case.
+### The MCP Compliance Challenge
 
-### How MCP Sampling Works
+**Risk (from OpenAI review):** If we invent "server pushes requests to Claude Code," we break MCP's client↔server contract and create a bespoke RPC hairball.
 
-- **Normal MCP:** Client (Claude Code) calls Tools on Server (TreeListy)
-- **Sampling (inverted):** Server (TreeListy) sends a Prompt to Client (Claude Code) and asks it to run its full agent loop
+**Solution:** Keep MCP's natural direction. Claude Code *pulls* tasks via tools; bridge never pushes.
+
+### Task Queue Architecture
 
 ```
-┌─────────────────┐     sampling/createMessage      ┌─────────────────┐
-│    TreeListy    │ ──────────────────────────────► │   Claude Code   │
-│    (Server)     │                                 │    (Client)     │
-│                 │   System: "You are a Research   │                 │
-│                 │   Agent. Use WebSearch..."      │  Runs full      │
-│                 │                                 │  agent loop:    │
-│                 │   User: "Research Nixon"        │  - WebSearch    │
-│                 │                                 │  - Read files   │
-│                 │ ◄────────────────────────────── │  - Synthesize   │
-│  Receives       │     Completed generation        │                 │
-│  structured     │     (JSON tree structure)       │                 │
-│  result         │                                 │                 │
-└─────────────────┘                                 └─────────────────┘
+┌─────────────────┐                           ┌─────────────────┐
+│    TreeListy    │                           │   Claude Code   │
+│    (Browser)    │                           │    (Client)     │
+│                 │      WebSocket            │                 │
+│  User: "Research│ ─────────────────────►    │                 │
+│   Nixon"        │    task.submit()          │                 │
+│                 │                           │                 │
+│                 │      MCP Tools            │                 │
+│                 │ ◄─────────────────────    │  polls:         │
+│  Bridge/Server  │    tasks.claimNext()      │  "any tasks?"   │
+│  (task queue)   │                           │                 │
+│                 │ ◄─────────────────────    │  works...       │
+│                 │    tasks.progress()       │                 │
+│                 │                           │                 │
+│                 │ ◄─────────────────────    │  returns ops    │
+│  Inbox shows    │    tasks.complete()       │                 │
+│  proposed ops   │    (with proposed_ops[])  │                 │
+└─────────────────┘                           └─────────────────┘
 ```
 
-### The "Ghost Agent" Pattern
+### MCP Tools (Bridge exposes these)
 
-Treebeard doesn't need to know *how* to search. It just knows how to *ask* for search.
-
-1. **User:** "Research Nixon" (in Browser)
-2. **Treebeard:** Formats `sampling/createMessage` with system prompt: *"You are a Research Agent. Use your WebSearch tools..."*
-3. **Bridge:** Forwards to Claude Code
-4. **Claude Code:** Enters its own loop (Search → Read → Search → Synthesize)
-5. **Return:** Claude Code sends final result back through Bridge
-6. **Treebeard:** Parses result and updates tree
+```javascript
+// Claude Code calls these via standard MCP
+tools: [
+  {
+    name: "tasks.claimNext",
+    description: "Get next pending task matching your capabilities",
+    inputSchema: {
+      capabilities: ["webSearch", "fileRead", ...]  // What CC can do
+    },
+    returns: { task: {...} | null }
+  },
+  {
+    name: "tasks.progress",
+    description: "Report progress on current task",
+    inputSchema: {
+      taskId: "string",
+      message: "string",
+      percent: "number"
+    }
+  },
+  {
+    name: "tasks.complete",
+    description: "Complete task with proposed operations",
+    inputSchema: {
+      taskId: "string",
+      proposed_ops: [...],  // Never direct writes
+      summary: "string"
+    }
+  }
+]
+```
 
 **Benefits:**
-- Standard MCP protocol (no custom invention)
-- Claude Code uses its internal capabilities (Chain of Thought, Tool Use)
-- TreeListy stays lightweight - just formats requests
+- 100% MCP compliant (client calls tools on server)
+- No custom bidirectional protocol
+- Bridge is just a task queue
+- Claude Code works at its own pace
 
-### Streaming Progress
+### The Ghost Agent Pattern (Refined)
 
-Use standard JSON-RPC `notifications/progress` to stream status updates:
+1. **User:** "Research Nixon" (in Browser)
+2. **TreeListy:** Submits task to Bridge queue
+3. **Claude Code:** Polls `tasks.claimNext()`, gets task
+4. **Claude Code:** Works (WebSearch, files, synthesis)
+5. **Claude Code:** Calls `tasks.progress()` with updates
+6. **Claude Code:** Calls `tasks.complete()` with `proposed_ops[]`
+7. **Bridge:** Forwards proposed ops to TreeListy Inbox
+8. **User:** Reviews and approves in Inbox
 
-```json
-{"jsonrpc": "2.0", "method": "notifications/progress", "params": {
-  "token": "task-123",
-  "progress": 3,
-  "total": 5,
-  "message": "Found 3 sources, researching presidency..."
-}}
+### Task Envelope (Standardized Now)
+
+Every task uses this schema from Day 1:
+
+```javascript
+{
+  // Identity
+  taskId: "task-uuid-123",
+  treeId: "root",
+  conversationId: "conv-456",  // For multi-turn
+
+  // Origin
+  origin: "chat" | "button" | "context-menu",
+  requestedCapabilities: ["webSearch", "treeWrite"],
+  interactionStyle: "autonomous" | "conversational",
+
+  // Agent definition
+  agentId: "research-lifetree",
+  systemPrompt: "You are a Research Agent...",
+  userMessage: "Research Nixon for a LifeTree",
+
+  // Context
+  targetNodeId: "phase-123",  // Where to apply results
+  treeContext: { ... },       // Relevant subtree
+  agentMemory: { ... }        // From _agentContext
+}
+```
+
+### Event Stream
+
+Tasks emit typed events for UI updates:
+
+```javascript
+// Progress
+{ type: "status", message: "Searching sources..." }
+{ type: "log", detail: "Found wikipedia.org/Nixon" }
+
+// Interaction
+{ type: "clarification", question: "Include family details?", options: [...] }
+
+// Results
+{ type: "proposed_ops", ops: [...] }
+{ type: "summary", text: "Created 5 phases with 23 nodes" }
+
+// Errors
+{ type: "error", code: "TIMEOUT", retryable: true }
 ```
 
 ### Concurrency
 
-Claude Code is single-threaded (one interactive session). The Bridge implements a simple queue:
-
-```
-Task 1: "Research Nixon" → Processing
-Task 2: "Analyze document" → Queued
-Task 3: "Generate image" → Queued (routes to Gemini instead)
-```
+- Bridge queues tasks
+- Claude Code processes one at a time (single-threaded)
+- Non-CC agents (Gemini, ChatGPT) can run in parallel
+- Each task has isolated event stream (no interleaving)
 
 ## Use Cases
 
@@ -194,14 +267,69 @@ Configurable per task:
 - **"Just do it"** - Agent makes best guess, user refines after
 - **"Ask along the way"** - Agent pauses for clarification at decision points
 
-### Result Integration
-Context-dependent:
-- **New content (research):** Preview before adding to tree
-- **Enhancements:** Auto-apply to existing nodes
+### Result Integration: Proposed Operations Inbox
+
+**Critical safety rule (from OpenAI):** Agents NEVER write directly to tree. They return proposed operations.
+
+```javascript
+// Agent returns this (never raw tree data)
+{
+  proposed_ops: [
+    { op: "create_node", parentId: "root", data: { name: "Early Life", ... } },
+    { op: "create_node", parentId: "phase-1", data: { name: "Birth", ... } },
+    { op: "set_field", nodeId: "phase-1", field: "description", value: "..." },
+    { op: "add_child", parentId: "phase-2", data: { name: "Presidency", ... } }
+  ],
+  rationale: "Created 4 nodes covering Nixon's early life and political rise",
+  sources: ["wikipedia.org/Nixon", "millercenter.org"],
+  confidence: 0.85
+}
+```
+
+### The Inbox UI
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  📥 INBOX                                    2 pending  │
+├─────────────────────────────────────────────────────────┤
+│                                                          │
+│  🔬 Research: Nixon LifeTree                            │
+│  Agent: research-lifetree • 2 min ago                   │
+│                                                          │
+│  Proposed changes:                                       │
+│  ├─ + Create "Early Life (1913-1934)"                   │
+│  │   └─ + Create "Birth in Yorba Linda"                 │
+│  │   └─ + Create "Quaker Upbringing"                    │
+│  ├─ + Create "Political Rise (1946-1960)"               │
+│  │   └─ + Create "Congress & Hiss Case"                 │
+│  └─ + Create "Presidency (1969-1974)"                   │
+│                                                          │
+│  Sources: wikipedia.org, millercenter.org, history.gov  │
+│                                                          │
+│  [Preview Diff]  [Approve All]  [Reject]  [Edit First]  │
+│                                                          │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Interaction modes:**
+- **Approve All:** Apply all ops atomically (single `saveState()`)
+- **Reject:** Discard all ops, optionally give feedback
+- **Edit First:** Open ops in editor, modify before applying
+- **Preview Diff:** Show visual before/after
+
+**Auto-approve option** (for trusted agents):
+```
+☐ Auto-approve results from this agent
+☐ Auto-approve for enhancements (low-risk ops only)
+```
 
 ## Tree-Scoped Agent Memory
 
 Memory persists across sessions but isolated per tree.
+
+### Governed `_agentContext` Schema
+
+**Guardrails (from OpenAI):** Version it, cap it, add provenance.
 
 ```javascript
 {
@@ -210,29 +338,61 @@ Memory persists across sessions but isolated per tree.
   "pattern": "lifetree",
   "children": [...],
 
-  // Agent memory - travels with tree
+  // Agent memory - governed payload
   "_agentContext": {
+    // Version for future migrations
+    "v": 1,
+
+    // Provenance (who/what generated this)
+    "generatedBy": "research-lifetree",
+    "model": "claude-opus-4-5-20251101",
+    "lastUpdated": "2025-12-21T07:30:00Z",
+
+    // Summary (capped, auto-compacted)
     "summary": "Building comprehensive Nixon LifeTree focused on foreign policy",
-    "sources": ["wikipedia.org/Nixon", "millercenter.org", "history.gov"],
+
+    // Sources (separate from conversation)
+    "sources": [
+      { "url": "wikipedia.org/Nixon", "accessed": "2025-12-21", "used": true },
+      { "url": "millercenter.org", "accessed": "2025-12-21", "used": true }
+    ],
+
+    // User decisions (preserved across sessions)
     "decisions": [
       "User prefers chronological structure",
-      "Focus on foreign policy over domestic",
-      "Include direct quotes where available"
+      "Focus on foreign policy over domestic"
     ],
+
+    // Conversation highlights (capped to last N)
     "conversationHighlights": [
       "User wants China trip details",
       "Skip childhood, emphasize presidency"
     ],
-    "lastAgentSession": "2025-12-21T..."
+
+    // Size tracking
+    "_sizeBytes": 2048,
+    "_maxBytes": 51200  // 50KB cap
   }
 }
 ```
 
+### Memory Governance Rules
+
+| Rule | Implementation |
+|------|----------------|
+| **Size cap** | Max 50KB; auto-summarize when exceeded |
+| **Versioning** | `v: 1` field for future migrations |
+| **Provenance** | Track which agent/model generated content |
+| **Separation** | Sources vs highlights vs decisions |
+| **Export toggle** | User can choose "export without agent context" |
+| **Compaction** | Old highlights summarized, recent kept verbatim |
+
 **Benefits:**
-- Export tree → memory comes with it
+- Export tree → memory comes with it (unless toggled off)
 - Share tree → collaborator gets context
 - Different trees = isolated memory (Nixon knows nothing about CAPEX)
 - Memory builds incrementally across sessions
+- No accidental data exfiltration via bloated context
 
 ## Agent Definitions
 
@@ -444,33 +604,134 @@ Trust agents from "geej@prairie2cloud.com"?
 - User controls permission level
 - Audit log of agent actions
 
+### Bridge as Policy Kernel
+
+**Key insight (from OpenAI):** Security enforcement must be *mechanical*, not prompt-based.
+
+The Bridge is the "syscall boundary" - all dangerous operations pass through it:
+
+```javascript
+// Bridge enforcement (not prompts)
+function validateToolCall(agentId, toolName, params) {
+  const agent = getAgentDefinition(agentId);
+  const declared = agent.requiredCapabilities;
+
+  // 1. Capability check
+  if (!declared.includes(toolName)) {
+    throw new Error(`BLOCKED: ${toolName} not in manifest`);
+  }
+
+  // 2. Path sandboxing (for file ops)
+  if (toolName === 'fileWrite' && !isAllowedPath(params.path)) {
+    throw new Error(`BLOCKED: write outside allowed dirs`);
+  }
+
+  // 3. Budget check
+  if (getTaskBudget(params.taskId).exceeded) {
+    throw new Error(`BLOCKED: task budget exceeded`);
+  }
+
+  // 4. Audit log
+  auditLog.append({ agentId, toolName, params, timestamp: Date.now() });
+
+  return true;  // Proceed
+}
+```
+
+### Budget Limits
+
+```javascript
+// Per-task budgets
+{
+  maxDurationMs: 300000,    // 5 minutes
+  maxTokens: 50000,         // Token budget
+  maxToolCalls: 100,        // Prevent infinite loops
+  maxNetworkRequests: 20    // Rate limit searches
+}
+```
+
+### Audit Log
+
+Every task produces an audit trail:
+
+```javascript
+{
+  taskId: "task-123",
+  agentId: "research-lifetree",
+  events: [
+    { t: 0, action: "task_claimed" },
+    { t: 1200, action: "tool_call", tool: "webSearch", query: "Nixon..." },
+    { t: 3400, action: "tool_call", tool: "webSearch", query: "China trip..." },
+    { t: 8900, action: "task_complete", opsCount: 12 }
+  ],
+  budget: { tokensUsed: 12000, toolCalls: 5, durationMs: 8900 }
+}
+```
+
 ## Implementation Phases
 
-### Phase 1: Bidirectional MCP Protocol
-- Extend bridge to accept task requests from browser
-- Define message format for task dispatch/response
-- Implement basic request/response flow
+### Phase 1: Task Queue + Proposed Ops
+- Add `tasks.claimNext`, `tasks.progress`, `tasks.complete` tools to Bridge
+- Implement task queue in Bridge
+- Build Inbox UI for proposed operations
+- Return proposed_ops from Claude Code (never direct writes)
+- Single agent: research-lifetree
 
-### Phase 2: TB Dispatch Integration
-- Add AgentDispatcher to TreeListy
-- Implement "needs Claude Code" detection in TB
-- Build conversation relay mechanism
+**Exit criteria:** User submits task in TB → CC claims → returns ops → Inbox shows → User approves → Tree updates
+
+### Phase 2: Task Envelope + Streaming
+- Implement full Task Envelope schema
+- Add event streaming (status, log, clarification, proposed_ops)
+- Build conversation relay for multi-turn tasks
+- Checkpoint/resume on disconnect
+
+**Exit criteria:** Long task shows live progress; disconnect mid-task preserves state; resume works
 
 ### Phase 3: Multi-Agent Orchestration
 - Add agent routing logic to TB
 - Integrate with existing Claude/Gemini/ChatGPT providers
 - Implement parallel agent execution for Debate Mode
+- Queue management for concurrent tasks
 
-### Phase 4: Memory & Persistence
-- Add `_agentContext` to tree schema
-- Implement checkpoint/resume logic
-- Build memory summarization for context management
+**Exit criteria:** User triggers Debate Mode → 3 agents run in parallel → Results merge into tree
 
-### Phase 5: Security & Polish
+### Phase 4: Memory + Governance
+- Add `_agentContext` to tree schema with governance rules
+- Implement size caps and compaction
+- Add provenance tracking
+- Export toggle for agent context
+
+**Exit criteria:** Memory persists across sessions; shared tree has manageable context size
+
+### Phase 5: Security + Polish
 - Implement permission tiers
-- Add shared agent trust prompts
-- Build audit logging
+- Add Safe Mode for shared trees
+- Build capabilities manifest enforcement
+- Budget limits and audit logging
 - Error handling and edge cases
+
+**Exit criteria:** Malicious shared tree blocked; undeclared capabilities blocked; audit log works
+
+## Verification Tests
+
+From OpenAI's recommendations:
+
+### Test 1: Concurrent Tasks
+- Run two tasks simultaneously
+- Verify no interleaving in UI (taskId-bound streams)
+- Inbox shows two independent proposed-op bundles
+
+### Test 2: Disconnect Recovery
+- Start long task, kill Claude Code mid-execution
+- Bridge persists checkpoints
+- Reconnect → UI shows resumable state
+- Resume completes task
+
+### Test 3: Malicious Shared Tree
+- Open shared tree with custom agents
+- Trust prompt appears
+- Dangerous capabilities disabled until explicitly enabled
+- Undeclared capability use blocked by Bridge
 
 ## Resolved Questions (from Gemini Review)
 
@@ -487,6 +748,29 @@ Trust agents from "geej@prairie2cloud.com"?
 2. **Agent versioning:** How to handle built-in agent updates without breaking user customizations?
 3. **Cost tracking:** How to show users estimated/actual API costs per agent run?
 
+## Architectural Insight
+
+**From OpenAI:** This design is secretly becoming an **operating system primitive**:
+
+| OS Concept | TreeListy Equivalent |
+|------------|---------------------|
+| Processes | Tasks |
+| Syscall boundary | Inbox (proposed_ops approval) |
+| Process memory | `_agentContext` |
+| Kernel | Bridge (policy enforcement) |
+| File system | Tree structure |
+
+If we keep the kernel (Bridge) small and policy-driven, we can scale to arbitrary capability without UI entropy.
+
+## Key Trade-offs
+
+| Decision | Trade-off | Why we chose this |
+|----------|-----------|-------------------|
+| Task Queue (pull) vs Push RPC | Slightly less "magic" | Vastly more robust, MCP compliant |
+| Proposed Ops Inbox | Adds friction | Prevents "agent silently rewrote my life system" |
+| Memory in tree JSON | Bloat risk | Portability wins; governed with caps |
+| Capability manifests | Agent authors must declare | Mechanical enforcement > prompt-based |
+
 ## Success Criteria
 
 - User can research and build a LifeTree entirely from TreeListy UI
@@ -494,3 +778,5 @@ Trust agents from "geej@prairie2cloud.com"?
 - Tree-scoped memory provides continuity across sessions
 - Shared trees with agents are safe by default
 - Graceful degradation when Claude Code unavailable
+- Inbox prevents unreviewed writes to tree
+- Bridge enforces capability boundaries mechanically
