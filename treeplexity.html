@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 522 | 2025-12-21
+    TreeListy v2.20.0 | Build 523 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 522): Treebeard Research Optimization - Fix hyperedge queries, bullet parsing, research followup
+    Changelog (Build 523): MCP Sync Commands - sync_gmail, sync_drive, sync_calendar, sync_all via Claude Chrome
+    Previous (Build 522): Treebeard Research Optimization - Fix hyperedge queries, bullet parsing, research followup
     Previous (Build 521): Fix MCP set_view to click view buttons for proper view switching
     Previous (Build 520): Fix modal close buttons - add .modal-close CSS for proper dismiss
     Previous (Build 519): RAG Phase 1 - Enhanced Document Import with PDF extraction
@@ -741,7 +742,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 522,
+            build: 523,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -56732,31 +56733,111 @@ Slack data not available. To calculate slack:
                 document.getElementById('live-sync-btn')?.click();
                 return '🔄 Firebase Live Sync modal opened!';
             },
-            'refresh_drive': () => {
-                return {
-                    message: '☁️ **Google Drive Refresh**\n\nTo refresh from Google Drive, run the Python script:\n\n```\npython export_google_drive_to_treelisty.py\n```\n\nThis creates a JSON file you can import.\n\n**First time?** You need:\n1. Google Cloud OAuth credentials (credentials.json)\n2. Install: `pip install google-auth google-auth-oauthlib google-api-python-client`',
-                    buttons: [
-                        { label: '📂 Import JSON', action: 'load_json' },
-                        { label: '🔑 Setup Guide', action: 'show_drive_setup' }
-                    ]
-                };
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 522: SERVICE SYNC COMMANDS (MCP-based via Claude Chrome)
+            // These dispatch tasks to Claude Code which uses Chrome to access services
+            // ═══════════════════════════════════════════════════════════════
+
+            'sync_gmail': (options) => {
+                if (!mcpBridgeState?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected to Claude Code**\n\nTo sync Gmail, you need Claude Code running with the TreeListy MCP bridge.\n\nClick "Connect" in the header or run `/mcp add treelisty` in Claude Code.',
+                        buttons: [
+                            { label: '🔗 Connect', action: 'show_mcp_connect' },
+                            { label: '📂 Import JSON (legacy)', action: 'load_json' }
+                        ]
+                    };
+                }
+                try {
+                    mcpBridgeState.client.submitTask({
+                        type: 'sync',
+                        service: 'gmail',
+                        options: { maxItems: 50, ...options },
+                        targetPattern: 'gmail'
+                    });
+                    return '📧 **Gmail Sync Started**\n\nClaude Code is fetching your emails via Chrome.\nResults will appear in your Inbox for review.';
+                } catch (e) {
+                    return `❌ Failed to start sync: ${e.message}`;
+                }
             },
 
-            // BUILD 522: Show Google Drive setup guide
-            'show_drive_setup': () => {
-                return '📋 **Google Drive Setup**\n\n1. Go to: console.cloud.google.com/apis/credentials\n2. Create OAuth 2.0 Client ID (Desktop app)\n3. Download as credentials.json\n4. Place in treeplexity folder\n5. Run: `python export_google_drive_to_treelisty.py`\n\nFirst run opens browser for auth. Token saved for future runs.';
+            'sync_drive': (options) => {
+                if (!mcpBridgeState?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected to Claude Code**\n\nTo sync Drive, you need Claude Code running with the TreeListy MCP bridge.',
+                        buttons: [
+                            { label: '🔗 Connect', action: 'show_mcp_connect' },
+                            { label: '📂 Import JSON (legacy)', action: 'load_json' }
+                        ]
+                    };
+                }
+                try {
+                    mcpBridgeState.client.submitTask({
+                        type: 'sync',
+                        service: 'drive',
+                        options: { maxDepth: 3, ...options },
+                        targetPattern: 'filesystem'
+                    });
+                    return '📁 **Drive Sync Started**\n\nClaude Code is scanning your Google Drive via Chrome.\nResults will appear in your Inbox for review.';
+                } catch (e) {
+                    return `❌ Failed to start sync: ${e.message}`;
+                }
             },
 
-            // BUILD 522: Gmail refresh
-            'refresh_gmail': () => {
-                return {
-                    message: '📧 **Gmail Refresh**\n\nTo refresh from Gmail, run the Python script:\n\n```\npython export_gmail_to_treelisty.py\n```\n\nThis creates a JSON file with your email threads.\n\n**Setup:** Same as Google Drive - you need credentials.json with Gmail API enabled.',
-                    buttons: [
-                        { label: '📂 Import JSON', action: 'load_json' },
-                        { label: '🔑 Setup Guide', action: 'show_drive_setup' }
-                    ]
-                };
+            'sync_calendar': (options) => {
+                if (!mcpBridgeState?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected to Claude Code**\n\nTo sync Calendar, you need Claude Code running with the TreeListy MCP bridge.',
+                        buttons: [
+                            { label: '🔗 Connect', action: 'show_mcp_connect' }
+                        ]
+                    };
+                }
+                try {
+                    mcpBridgeState.client.submitTask({
+                        type: 'sync',
+                        service: 'calendar',
+                        options: { days: 7, ...options },
+                        targetPattern: 'generic'
+                    });
+                    return '📅 **Calendar Sync Started**\n\nClaude Code is fetching your calendar events via Chrome.\nResults will appear in your Inbox for review.';
+                } catch (e) {
+                    return `❌ Failed to start sync: ${e.message}`;
+                }
             },
+
+            'sync_all': () => {
+                if (!mcpBridgeState?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected to Claude Code**\n\nTo sync services, connect to Claude Code first.',
+                        buttons: [{ label: '🔗 Connect', action: 'show_mcp_connect' }]
+                    };
+                }
+                try {
+                    ['gmail', 'drive', 'calendar'].forEach(service => {
+                        mcpBridgeState.client.submitTask({
+                            type: 'sync',
+                            service,
+                            options: {}
+                        });
+                    });
+                    return '🔄 **Syncing All Services**\n\nGmail, Drive, and Calendar sync started.\nResults will appear in your Inbox.';
+                } catch (e) {
+                    return `❌ Failed to start sync: ${e.message}`;
+                }
+            },
+
+            'show_mcp_connect': () => {
+                if (typeof showMCPConnectModal === 'function') {
+                    showMCPConnectModal();
+                    return null;
+                }
+                return '⚠️ MCP connect modal not available.';
+            },
+
+            // Legacy aliases for backwards compatibility
+            'refresh_drive': () => COMMAND_REGISTRY['sync_drive'](),
+            'refresh_gmail': () => COMMAND_REGISTRY['sync_gmail'](),
 
             // BUILD 522: Open file URL (for filesystem pattern)
             'open_file': (fileName) => {
@@ -60092,6 +60173,10 @@ GLOBAL (work anytime):
 • open_file:{name} - Open a file by name (for filesystem/Drive trees with URLs)
 • refresh_drive - Show Google Drive refresh instructions
 • refresh_gmail - Show Gmail refresh instructions
+• sync_gmail - Sync Gmail inbox via MCP/Claude Chrome (requires Claude Code connection)
+• sync_drive - Sync Google Drive files via MCP/Claude Chrome (requires Claude Code connection)
+• sync_calendar - Sync Google Calendar events via MCP/Claude Chrome (requires Claude Code connection)
+• sync_all - Sync all connected services (Gmail, Drive, Calendar)
 
 GANTT/SCHEDULE (for tasks with dates):
 • view_gantt - Switch to Gantt chart view
@@ -63685,7 +63770,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 522; // Update this with each build
+                    const KNOWN_LATEST = 523; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
