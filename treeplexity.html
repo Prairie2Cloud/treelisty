@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 528 | 2025-12-21
+    TreeListy v2.20.0 | Build 529 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 528): MCP Chrome file opening - open Google Drive files via Claude Chrome when connected
+    Changelog (Build 529): Fix PWA localStorage restore - re-render after loading saved tree
+    Previous (Build 528): MCP Chrome file opening - open Google Drive files via Claude Chrome when connected
     Previous (Build 527): Direct "open file" command matching - bypasses AI interpretation for instant response
     Previous (Build 526): Enhanced file opening - local paths, Google native format detection, helpful errors
     Previous (Build 525): Fix sync command connection check - use client.isConnected not state.isConnected
@@ -747,7 +748,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 528,
+            build: 529,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -28670,6 +28671,13 @@ Your response:`;
                                     }
                                 }, 100);
                             }
+                        }
+
+                        // BUILD 529: Re-render after loading from localStorage
+                        // This ensures the restored tree is displayed, especially in PWA mode
+                        if (typeof render === 'function') {
+                            console.log('🔄 Re-rendering after localStorage restore');
+                            render();
                         }
                     } catch (error) {
                         console.error('❌ Failed to load tree from LocalStorage:', error);
@@ -63947,7 +63955,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 528; // Update this with each build
+                    const KNOWN_LATEST = 529; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
