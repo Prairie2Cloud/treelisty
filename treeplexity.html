@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 537 | 2025-12-21
+    TreeListy v2.20.0 | Build 538 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 537): 3D and Canvas views now respect expand/collapse state
+    Changelog (Build 538): TreeBeard can now build trees from scratch - focus_root, create_tree, auto-focus on add_child
+    Previous (Build 537): 3D and Canvas views now respect expand/collapse state
     Previous (Build 536): Incremental expand/collapse - one level at a time instead of all-at-once
     Previous (Build 535): Fix MCP file open - use client.socket (not ws), add debug logging
     Previous (Build 531): Fix Open File button - now shows for files with filePath (not just fileUrl)
@@ -753,7 +754,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 537,
+            build: 538,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6699,7 +6700,9 @@
     <div class="tree-view-container">
 
     <!-- Empty State CTA (shown when tree is default/empty) -->
+    <!-- BUILD 538: Added close button -->
     <div id="empty-state-cta" style="display: none; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; z-index: 10; padding: 40px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1)); border: 2px solid rgba(99, 102, 241, 0.3); border-radius: 16px; max-width: 500px;">
+        <button id="empty-state-close-btn" style="position: absolute; top: 12px; right: 12px; background: transparent; border: none; color: var(--text-secondary); font-size: 20px; cursor: pointer; padding: 4px 8px; border-radius: 4px; opacity: 0.7; transition: opacity 0.2s;" title="Close (Esc)">✕</button>
         <div style="font-size: 48px; margin-bottom: 16px;">🚀</div>
         <h2 style="font-size: 24px; font-weight: 700; color: var(--text-primary); margin-bottom: 8px;">Get Started</h2>
         <p style="font-size: 14px; color: var(--text-secondary); margin-bottom: 24px; line-height: 1.6;">
@@ -23003,9 +23006,10 @@ function hidePatternDescription() {
             container.innerHTML = '';
 
             // Show/hide empty state CTA based on tree content
+            // BUILD 538: Respect manual dismissal
             const emptyStateCta = document.getElementById('empty-state-cta');
             if (emptyStateCta && typeof hasExistingContent === 'function') {
-                const showEmptyState = !hasExistingContent();
+                const showEmptyState = !hasExistingContent() && !window.emptyStateManuallyDismissed;
                 emptyStateCta.style.display = showEmptyState ? 'block' : 'none';
             }
 
@@ -43858,6 +43862,26 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
             document.getElementById('wizard-btn').click();
         });
 
+        // BUILD 538: Close button for empty state CTA
+        document.getElementById('empty-state-close-btn')?.addEventListener('click', () => {
+            const emptyStateCta = document.getElementById('empty-state-cta');
+            if (emptyStateCta) {
+                emptyStateCta.style.display = 'none';
+                window.emptyStateManuallyDismissed = true; // Remember user dismissed it
+            }
+        });
+
+        // BUILD 538: Allow Escape key to close empty state CTA
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                const emptyStateCta = document.getElementById('empty-state-cta');
+                if (emptyStateCta && emptyStateCta.style.display !== 'none') {
+                    emptyStateCta.style.display = 'none';
+                    window.emptyStateManuallyDismissed = true;
+                }
+            }
+        });
+
         // Show modal to choose analysis mode
         function showAnalysisModeChoice() {
             const pattern = PATTERNS[currentPattern];
@@ -57446,6 +57470,92 @@ Slack data not available. To calculate slack:
                 return `🎯 Focused on: "${node.name || node.title || nodeId}"`;
             },
 
+            // BUILD 538: Focus on root node - enables building from scratch
+            'focus_root': () => {
+                if (!capexTree) {
+                    return '❌ No tree loaded. Create or load a tree first.';
+                }
+
+                window.chatFocusedNode = capexTree;
+                window.selectedCanvasNodes = [capexTree];
+
+                // Visual feedback
+                const nodeEl = document.querySelector(`.canvas-node[data-id="${capexTree.id}"]`);
+                if (nodeEl) {
+                    nodeEl.classList.add('selected');
+                    nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                }
+
+                if (window.visualFeedback) {
+                    window.visualFeedback.highlight(capexTree.id, 'found', 3000);
+                }
+
+                return `🎯 Focused on root: "${capexTree.name || 'Root'}"`;
+            },
+
+            // BUILD 538: Create new tree with custom name - enables building from scratch
+            'create_tree': (treeName) => {
+                if (!treeName || treeName.trim() === '') {
+                    return '⚠️ Please provide a name for the new tree. Example: create_tree:My Project';
+                }
+
+                // Create new tree structure
+                const newTree = {
+                    id: 'root_' + Date.now(),
+                    name: treeName.trim(),
+                    description: '',
+                    expanded: true,
+                    children: []
+                };
+
+                // Replace current tree
+                capexTree = newTree;
+                window.chatFocusedNode = capexTree;
+                window.selectedCanvasNodes = [capexTree];
+
+                // BUILD 538: Dismiss the Get Started wizard since user is building via TreeBeard
+                window.emptyStateManuallyDismissed = true;
+                const emptyStateCta = document.getElementById('empty-state-cta');
+                if (emptyStateCta) {
+                    emptyStateCta.style.display = 'none';
+                }
+
+                // Save state and render
+                if (typeof saveState === 'function') {
+                    saveState('TreeBeard: Created new tree');
+                }
+                if (typeof render === 'function') {
+                    render();
+                }
+                if (typeof renderCanvas === 'function' && viewMode === 'canvas') {
+                    renderCanvas();
+                }
+
+                return `✅ Created new tree: "${treeName.trim()}"\n🎯 Focused on root - ready to add children`;
+            },
+
+            // BUILD 538: Rename root node
+            'rename_root': (newName) => {
+                if (!capexTree) {
+                    return '❌ No tree loaded.';
+                }
+                if (!newName || newName.trim() === '') {
+                    return '⚠️ Please provide a new name for the root.';
+                }
+
+                const oldName = capexTree.name;
+                capexTree.name = newName.trim();
+
+                if (typeof saveState === 'function') {
+                    saveState('TreeBeard: Renamed root');
+                }
+                if (typeof render === 'function') {
+                    render();
+                }
+
+                return `✅ Renamed root: "${oldName}" → "${newName.trim()}"`;
+            },
+
             // Expand focused node
             'expand_node': () => {
                 const node = window.chatFocusedNode;
@@ -57885,9 +57995,19 @@ Slack data not available. To calculate slack:
             },
 
             // Add a child node - BUILD 382: Enhanced to accept rich JSON data
+            // BUILD 538: Auto-focus on root if no node focused (enables building from scratch)
             'add_child': (childData) => {
-                const node = window.chatFocusedNode;
-                if (!node) return '⚠️ No node focused. Use "find [name]" first.';
+                let node = window.chatFocusedNode;
+
+                // BUILD 538: Auto-focus on root if no node is focused
+                if (!node && capexTree) {
+                    node = capexTree;
+                    window.chatFocusedNode = capexTree;
+                    window.selectedCanvasNodes = [capexTree];
+                    console.log('🔧 add_child: Auto-focused on root node');
+                }
+
+                if (!node) return '⚠️ No node focused and no tree loaded. Create or load a tree first.';
                 if (!childData) return '⚠️ Please provide a name for the new child';
 
                 let newChild;
@@ -60466,6 +60586,9 @@ GLOBAL (work anytime):
 • project_info - Show project overview/stats
 • search - Open search modal
 • find_node:{query} - Search & focus a node
+• focus_root - Focus on root node (for building from scratch)
+• create_tree:{name} - Create a new tree with custom name
+• rename_root:{name} - Rename the root node
 • research:{query} - Web search via Gemini (requires Gemini API key)
 • add_phase - Add new phase
 • open_wizard - Start AI wizard
@@ -60912,6 +61035,23 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             const focusMatch = original.match(/focus\s+(?:on\s+)?(?:node\s+)?(\S+)/i);
             if (focusMatch && focusMatch[1].includes('_')) {
                 return { type: 'action', message: `🎯 Focusing on ${focusMatch[1]}...`, action: 'focus_node', actionParam: focusMatch[1] };
+            }
+
+            // BUILD 538: Focus on root node
+            if (lower.match(/focus\s+(?:on\s+)?root|go\s+to\s+root|select\s+root/)) {
+                return { type: 'action', message: '🎯 Focusing on root node...', action: 'focus_root' };
+            }
+
+            // BUILD 538: Create new tree - "create tree X", "new tree called X", "create a tree called X"
+            const createTreeMatch = original.match(/(?:create|new|start)\s+(?:a\s+)?(?:new\s+)?tree\s+(?:called\s+)?["']?([^"']+?)["']?$/i);
+            if (createTreeMatch) {
+                return { type: 'action', message: `🌳 Creating new tree: "${createTreeMatch[1]}"...`, action: 'create_tree', actionParam: createTreeMatch[1].trim() };
+            }
+
+            // BUILD 538: Rename root - "rename root to X"
+            const renameRootMatch = original.match(/rename\s+root\s+(?:to\s+)?["']?([^"']+?)["']?$/i);
+            if (renameRootMatch) {
+                return { type: 'action', message: `✏️ Renaming root to "${renameRootMatch[1]}"...`, action: 'rename_root', actionParam: renameRootMatch[1].trim() };
             }
 
             // Expand current node
@@ -62197,6 +62337,55 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                         const cmdResult = COMMAND_REGISTRY['open_file'](fileName);
                         const response = typeof cmdResult === 'object' ? cmdResult : { message: cmdResult, buttons: null };
                         addMessage(response.message, 'assistant', response.buttons);
+                        chatState.isProcessing = false;
+                        return;
+                    }
+                }
+
+                // BUILD 538: Direct command:parameter matching for core TreeBeard commands
+                // This bypasses AI interpretation for exact command syntax like "add_child:X"
+                const directCmdMatch = message.match(/^(add_child|find_node|find|focus_root|create_tree|rename_root|set_field|expand_node|collapse_node|delete_node|rename_node)[:\s]+(.+)$/i);
+                if (directCmdMatch) {
+                    const cmdName = directCmdMatch[1].toLowerCase().replace(/\s+/g, '_');
+                    const cmdParam = directCmdMatch[2].trim();
+                    console.log(`🎯 Direct command match: ${cmdName}(${cmdParam})`);
+
+                    // Map aliases
+                    const cmdMap = {
+                        'find': 'find_node',
+                        'add_child': 'add_child',
+                        'find_node': 'find_node',
+                        'focus_root': 'focus_root',
+                        'create_tree': 'create_tree',
+                        'rename_root': 'rename_root',
+                        'set_field': 'set_field',
+                        'expand_node': 'expand_node',
+                        'collapse_node': 'collapse_node',
+                        'delete_node': 'delete_node',
+                        'rename_node': 'rename_node'
+                    };
+
+                    const actualCmd = cmdMap[cmdName] || cmdName;
+                    if (COMMAND_REGISTRY[actualCmd]) {
+                        hideTypingIndicator();
+                        const cmdResult = COMMAND_REGISTRY[actualCmd](cmdParam);
+                        const response = typeof cmdResult === 'object' ? cmdResult : { message: cmdResult, buttons: null };
+                        addMessage(response.message || cmdResult, 'assistant', response.buttons);
+                        chatState.isProcessing = false;
+                        return;
+                    }
+                }
+
+                // BUILD 538: Handle bare commands without parameters
+                const bareCmdMatch = lowerMessage.match(/^(focus_root|expand_node|collapse_node|project_info|help|search|add_phase|node_info|undo|redo)$/);
+                if (bareCmdMatch) {
+                    const cmdName = bareCmdMatch[1];
+                    console.log(`🎯 Direct bare command: ${cmdName}`);
+                    if (COMMAND_REGISTRY[cmdName]) {
+                        hideTypingIndicator();
+                        const cmdResult = COMMAND_REGISTRY[cmdName]();
+                        const response = typeof cmdResult === 'object' ? cmdResult : { message: cmdResult, buttons: null };
+                        addMessage(response.message || cmdResult, 'assistant', response.buttons);
                         chatState.isProcessing = false;
                         return;
                     }
@@ -64120,7 +64309,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 537; // Update this with each build
+                    const KNOWN_LATEST = 538; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
