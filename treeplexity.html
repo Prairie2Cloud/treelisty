@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 533 | 2025-12-21
+    TreeListy v2.20.0 | Build 534 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 533): Local files copy path to clipboard (browsers block file:// URLs for security)
-    Previous (Build 532): Fix Open File button - proper file:// URLs, clipboard fallback, Google file handling
+    Changelog (Build 534): MCP Bridge file opening - open local files via MCP Bridge shell commands
+    Previous (Build 533): Local files copy path to clipboard (browsers block file:// URLs for security)
     Previous (Build 531): Fix Open File button - now shows for files with filePath (not just fileUrl)
     Previous (Build 530): Fix pattern restore on tree load - filesystem pattern now applied correctly
     Previous (Build 529): Fix PWA localStorage restore - re-render after loading saved tree
@@ -752,7 +752,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 533,
+            build: 534,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -24022,44 +24022,48 @@ function hidePatternDescription() {
         }
 
 
-        // BUILD 532: Open file from info panel with proper handling for local paths and Google native files
+        // BUILD 534: Open file from info panel via MCP Bridge (local files) or browser (web URLs)
         function openFileFromInfoPanel(url, isLocalPath, isGoogleNative, fileExt) {
-            // Handle Google native files (need MCP+Chrome)
-            if (isGoogleNative) {
-                // Check if MCP is connected
-                if (window.mcpBridgeState?.client?.isConnected) {
-                    // Dispatch to MCP to open via Chrome
-                    showToast(`🔗 Opening ${fileExt} via Claude Chrome...`, 'info');
-                    // The MCP bridge can handle this
-                    if (typeof dispatchMCPTask === 'function') {
-                        dispatchMCPTask({
+            // For local files and Google native files, use MCP Bridge if connected
+            if (isLocalPath || isGoogleNative) {
+                const localPath = isLocalPath ? url.replace('file:///', '').replace(/\//g, '\\') : url;
+
+                // Check if MCP WebSocket is connected
+                if (window.mcpBridgeState?.client?.ws?.readyState === WebSocket.OPEN) {
+                    try {
+                        // Send direct message to MCP Bridge to open file
+                        mcpBridgeState.client.ws.send(JSON.stringify({
                             type: 'open_file',
-                            fileUrl: url,
-                            fileType: fileExt
-                        });
-                    } else {
-                        window.open(url, '_blank');
+                            filePath: localPath
+                        }));
+
+                        if (isGoogleNative) {
+                            showToast(`🔗 Opening ${fileExt}...`, 'info');
+                        } else {
+                            showToast('📂 Opening file...', 'info');
+                        }
+                        return;
+                    } catch (e) {
+                        console.error('MCP file open request failed:', e);
+                        // Fall through to clipboard fallback
                     }
+                }
+
+                // MCP not connected - show connect prompt with clipboard fallback
+                if (isGoogleNative) {
+                    showToast(`⚠️ Connect Claude Code to open ${fileExt} files`, 'warning');
                 } else {
-                    showToast(`⚠️ Google ${fileExt.slice(1)} files need MCP+Chrome connection to open`, 'warning');
+                    // Copy path to clipboard as fallback
+                    navigator.clipboard.writeText(localPath).then(() => {
+                        showToast('📋 Path copied! Connect Claude Code for direct file opening.', 'info');
+                    }).catch(() => {
+                        prompt('Copy this path (connect Claude Code for direct opening):', localPath);
+                    });
                 }
                 return;
             }
 
-            // Handle local file paths - browsers block file:// from web pages for security
-            // So we copy the path to clipboard instead
-            if (isLocalPath) {
-                const localPath = url.replace('file:///', '').replace(/\//g, '\\');
-                navigator.clipboard.writeText(localPath).then(() => {
-                    showToast('📋 Path copied to clipboard! Paste in File Explorer to open.', 'info');
-                }).catch(() => {
-                    // Clipboard failed, show the path in a prompt
-                    prompt('Copy this path:', localPath);
-                });
-                return;
-            }
-
-            // Regular web URL - just open it
+            // Regular web URL - just open it in browser
             window.open(url, '_blank');
             showToast('🔗 Opening in new tab...', 'success');
         }
@@ -37208,6 +37212,16 @@ https://treelisty.netlify.app`;
                     const opsCount = event.result?.proposed_ops?.length || 0;
                     showToast(`📥 Task complete! ${opsCount} proposed change${opsCount !== 1 ? 's' : ''} in Inbox`, 'success');
                     updateInboxUI();
+                    break;
+
+                // BUILD 534: Handle file open result from MCP Bridge
+                case 'open_file_result':
+                    if (event.success) {
+                        showToast('📂 File opened!', 'success', 2000);
+                    } else {
+                        showToast(`❌ Failed to open: ${event.error || 'Unknown error'}`, 'error');
+                        console.error('[MCP] File open failed:', event.error, event.filePath);
+                    }
                     break;
             }
         }
@@ -64059,7 +64073,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 533; // Update this with each build
+                    const KNOWN_LATEST = 534; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);

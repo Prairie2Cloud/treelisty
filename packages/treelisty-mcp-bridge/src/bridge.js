@@ -21,6 +21,8 @@
 const WebSocket = require('ws');
 const readline = require('readline');
 const crypto = require('crypto');
+const { exec } = require('child_process');
+const path = require('path');
 
 // =============================================================================
 // Configuration
@@ -44,10 +46,12 @@ const CONFIG = {
 };
 
 // =============================================================================
-// Security: Session Token
+// Security: Session Token & Port
 // =============================================================================
 
-const SESSION_TOKEN = crypto.randomUUID();
+// Use env vars for persistent config, with sensible defaults for local use
+const SESSION_TOKEN = process.env.TREELISTY_MCP_TOKEN || 'treelisty-local';
+const FIXED_PORT = parseInt(process.env.TREELISTY_MCP_PORT, 10) || 3456;
 
 // =============================================================================
 // Connection State
@@ -63,11 +67,156 @@ const lastPongTimes = new Map();
 const pendingRequests = new Map();
 
 // =============================================================================
+// Task Queue (Build 522 - Agent Dispatch Protocol)
+// =============================================================================
+
+// Task queue for agent dispatch (browser submits, Claude Code claims)
+const taskQueue = [];
+
+// Active tasks being processed
+const activeTasks = new Map();
+
+// Task results waiting for browser to fetch
+const taskResults = new Map();
+
+/**
+ * Generate unique task ID
+ */
+function generateTaskId() {
+  return `task-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Submit a task to the queue (called from browser via WebSocket)
+ */
+function submitTask(task) {
+  const taskId = generateTaskId();
+  const fullTask = {
+    taskId,
+    status: 'pending',
+    createdAt: Date.now(),
+    ...task
+  };
+  taskQueue.push(fullTask);
+  log('info', `Task submitted: ${taskId} (${task.agentId || 'unknown agent'})`);
+
+  // Notify browser that task was queued
+  broadcastToBrowser({
+    type: 'task_queued',
+    taskId,
+    position: taskQueue.length
+  });
+
+  return { taskId, status: 'queued', position: taskQueue.length };
+}
+
+/**
+ * Claim next task matching capabilities
+ */
+function claimNextTask(capabilities = []) {
+  // Find first pending task that matches capabilities
+  const taskIndex = taskQueue.findIndex(t => {
+    if (t.status !== 'pending') return false;
+    // If task requires specific capabilities, check them
+    if (t.requestedCapabilities && t.requestedCapabilities.length > 0) {
+      return t.requestedCapabilities.every(cap => capabilities.includes(cap));
+    }
+    return true; // No specific requirements
+  });
+
+  if (taskIndex === -1) {
+    return null; // No matching tasks
+  }
+
+  const task = taskQueue.splice(taskIndex, 1)[0];
+  task.status = 'in_progress';
+  task.claimedAt = Date.now();
+  activeTasks.set(task.taskId, task);
+
+  log('info', `Task claimed: ${task.taskId}`);
+
+  // Notify browser
+  broadcastToBrowser({
+    type: 'task_claimed',
+    taskId: task.taskId
+  });
+
+  return task;
+}
+
+/**
+ * Report progress on a task
+ */
+function reportTaskProgress(taskId, message, percent) {
+  const task = activeTasks.get(taskId);
+  if (!task) {
+    return { error: 'Task not found or not active' };
+  }
+
+  task.lastProgress = { message, percent, timestamp: Date.now() };
+
+  // Forward progress to browser
+  broadcastToBrowser({
+    type: 'task_progress',
+    taskId,
+    message,
+    percent
+  });
+
+  return { success: true };
+}
+
+/**
+ * Complete a task with proposed operations
+ */
+function completeTask(taskId, proposedOps, summary, sources = []) {
+  const task = activeTasks.get(taskId);
+  if (!task) {
+    return { error: 'Task not found or not active' };
+  }
+
+  task.status = 'completed';
+  task.completedAt = Date.now();
+  task.result = {
+    proposed_ops: proposedOps,
+    summary,
+    sources,
+    rationale: summary
+  };
+
+  activeTasks.delete(taskId);
+  taskResults.set(taskId, task);
+
+  log('info', `Task completed: ${taskId} (${proposedOps.length} ops)`);
+
+  // Send result to browser for Inbox
+  broadcastToBrowser({
+    type: 'task_completed',
+    taskId,
+    result: task.result
+  });
+
+  return { success: true, opsCount: proposedOps.length };
+}
+
+/**
+ * Broadcast message to all connected browsers
+ */
+function broadcastToBrowser(message) {
+  const data = JSON.stringify(message);
+  for (const [tabId, ws] of connections) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(data);
+    }
+  }
+}
+
+// =============================================================================
 // WebSocket Server
 // =============================================================================
 
-// Dynamic port: 0 means OS assigns an available port
-const wss = new WebSocket.Server({ port: 0 });
+// Use fixed port for consistent connection (configurable via env var)
+const wss = new WebSocket.Server({ port: FIXED_PORT });
 const actualPort = wss.address().port;
 
 /**
@@ -434,6 +583,289 @@ function handleToolsList(id) {
         },
         required: ['query']
       }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // Structure Operations (Build 520)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'move_node',
+      description: 'Move a node to a new parent (reparent). The node and all its children are moved.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_id: { type: 'string', description: 'ID of node to move' },
+          new_parent_id: { type: 'string', description: 'ID of new parent node' },
+          position: { type: 'number', description: 'Position among siblings (0 = first, omit for end)' }
+        },
+        required: ['node_id', 'new_parent_id']
+      }
+    },
+    {
+      name: 'reorder_node',
+      description: 'Change a node\'s position among its siblings without changing parent.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_id: { type: 'string', description: 'ID of node to reorder' },
+          position: { type: 'number', description: 'New position (0 = first)' }
+        },
+        required: ['node_id', 'position']
+      }
+    },
+    {
+      name: 'duplicate_node',
+      description: 'Create a deep copy of a node and its descendants with new IDs.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_id: { type: 'string', description: 'ID of node to duplicate' },
+          new_parent_id: { type: 'string', description: 'Parent for the copy (omit to use same parent)' },
+          include_children: { type: 'boolean', description: 'Include children in copy (default: true)' }
+        },
+        required: ['node_id']
+      }
+    },
+    {
+      name: 'bulk_update',
+      description: 'Update multiple nodes in a single operation.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          updates: {
+            type: 'array',
+            description: 'Array of {node_id, updates} objects',
+            items: {
+              type: 'object',
+              properties: {
+                node_id: { type: 'string' },
+                updates: { type: 'object' }
+              },
+              required: ['node_id', 'updates']
+            }
+          }
+        },
+        required: ['updates']
+      }
+    },
+    {
+      name: 'bulk_create',
+      description: 'Create multiple nodes in a single operation.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          parent_id: { type: 'string', description: 'Parent for all new nodes' },
+          nodes: {
+            type: 'array',
+            description: 'Array of node data objects',
+            items: { type: 'object' }
+          }
+        },
+        required: ['parent_id', 'nodes']
+      }
+    },
+    {
+      name: 'bulk_delete',
+      description: 'Delete multiple nodes in a single operation.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_ids: {
+            type: 'array',
+            description: 'Array of node IDs to delete',
+            items: { type: 'string' }
+          }
+        },
+        required: ['node_ids']
+      }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // UI Control Operations (Build 520)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'select_node',
+      description: 'Select and focus a node in the UI. Also scrolls to make it visible.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_id: { type: 'string', description: 'ID of node to select' }
+        },
+        required: ['node_id']
+      }
+    },
+    {
+      name: 'get_selected_node',
+      description: 'Get the currently selected node.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'expand_node',
+      description: 'Expand a node to show its children in tree view.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_id: { type: 'string', description: 'ID of node to expand' },
+          recursive: { type: 'boolean', description: 'Expand all descendants (default: false)' }
+        },
+        required: ['node_id']
+      }
+    },
+    {
+      name: 'collapse_node',
+      description: 'Collapse a node to hide its children in tree view.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_id: { type: 'string', description: 'ID of node to collapse' },
+          recursive: { type: 'boolean', description: 'Collapse all descendants (default: false)' }
+        },
+        required: ['node_id']
+      }
+    },
+    {
+      name: 'set_view',
+      description: 'Switch the active view mode.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          view: {
+            type: 'string',
+            description: 'View to switch to',
+            enum: ['tree', 'canvas', '3d', 'gantt', 'calendar']
+          }
+        },
+        required: ['view']
+      }
+    },
+    {
+      name: 'get_view',
+      description: 'Get the current view mode.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'scroll_to_node',
+      description: 'Scroll the view to make a node visible (works in tree and canvas views).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          node_id: { type: 'string', description: 'ID of node to scroll to' }
+        },
+        required: ['node_id']
+      }
+    },
+    {
+      name: 'undo',
+      description: 'Undo the last operation.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'redo',
+      description: 'Redo the last undone operation.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'get_undo_stack_info',
+      description: 'Get information about undo/redo stack state.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // Task Queue Operations (Build 522 - Agent Dispatch Protocol)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'tasks_claimNext',
+      description: 'Claim the next pending task from the queue. Call this to get work dispatched from TreeListy UI. Returns null if no tasks available.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          capabilities: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'Capabilities you can provide (e.g., ["webSearch", "fileRead", "treeWrite"])'
+          }
+        }
+      }
+    },
+    {
+      name: 'tasks_progress',
+      description: 'Report progress on a task you are working on. Call this periodically to update the UI.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'ID of the task' },
+          message: { type: 'string', description: 'Progress message to display' },
+          percent: { type: 'number', description: 'Progress percentage (0-100)' }
+        },
+        required: ['taskId', 'message']
+      }
+    },
+    {
+      name: 'tasks_complete',
+      description: 'Complete a task with proposed operations. IMPORTANT: Never write directly to the tree. Return proposed_ops that the user will approve in the Inbox.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          taskId: { type: 'string', description: 'ID of the task' },
+          proposed_ops: {
+            type: 'array',
+            description: 'Array of proposed operations (create_node, update_node, delete_node, etc.)',
+            items: {
+              type: 'object',
+              properties: {
+                op: { type: 'string', enum: ['create_node', 'update_node', 'delete_node', 'move_node', 'set_field'] },
+                nodeId: { type: 'string' },
+                parentId: { type: 'string' },
+                data: { type: 'object' },
+                field: { type: 'string' },
+                value: {}
+              },
+              required: ['op']
+            }
+          },
+          summary: { type: 'string', description: 'Summary of what was accomplished' },
+          sources: {
+            type: 'array',
+            items: { type: 'string' },
+            description: 'URLs or references used'
+          }
+        },
+        required: ['taskId', 'proposed_ops', 'summary']
+      }
+    },
+    {
+      name: 'tasks_getQueue',
+      description: 'Get current task queue status (pending, active, completed counts).',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // Local File Operations (Build 534)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'open_local_file',
+      description: 'Open a local file or folder with the system default application. Works on Windows (start), Mac (open), and Linux (xdg-open).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          file_path: { type: 'string', description: 'Absolute path to the file or folder to open' }
+        },
+        required: ['file_path']
+      }
     }
   ];
 
@@ -471,10 +903,24 @@ function handleResourcesList(id) {
 }
 
 /**
- * Handle tool call by forwarding to browser
+ * Handle tool call - task tools handled locally, others forwarded to browser
  */
 function handleToolCall(id, params) {
   const { name, arguments: args } = params;
+
+  // Handle task queue tools locally (not forwarded to browser)
+  if (name.startsWith('tasks_')) {
+    handleTaskTool(id, name, args || {});
+    return;
+  }
+
+  // Handle local file operations (Build 534)
+  if (name === 'open_local_file') {
+    handleOpenLocalFile(id, args || {});
+    return;
+  }
+
+  // Forward other tools to browser
   const tabId = args?.tabId || 'default';
   const ws = connections.get(tabId) || connections.values().next().value;
 
@@ -498,11 +944,220 @@ function handleToolCall(id, params) {
 }
 
 /**
- * Handle response from browser
+ * Handle open_local_file tool (Build 534)
+ * Opens a file or folder with the system default application
+ */
+function handleOpenLocalFile(id, args) {
+  const filePath = args.file_path;
+
+  if (!filePath) {
+    sendMCPError(id, -32602, 'Missing required parameter: file_path');
+    return;
+  }
+
+  // Determine the platform-specific command
+  const platform = process.platform;
+  let command;
+
+  if (platform === 'win32') {
+    // Windows: use start command with empty title
+    // Use double quotes and escape properly
+    command = `start "" "${filePath}"`;
+  } else if (platform === 'darwin') {
+    // macOS: use open command
+    command = `open "${filePath}"`;
+  } else {
+    // Linux: use xdg-open
+    command = `xdg-open "${filePath}"`;
+  }
+
+  log('info', `Opening file: ${filePath}`);
+
+  exec(command, (error, stdout, stderr) => {
+    if (error) {
+      log('error', `Failed to open file: ${error.message}`);
+      sendMCPResponse({
+        jsonrpc: '2.0',
+        id: id,
+        result: {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              success: false,
+              error: error.message,
+              filePath: filePath
+            }, null, 2)
+          }]
+        }
+      });
+    } else {
+      sendMCPResponse({
+        jsonrpc: '2.0',
+        id: id,
+        result: {
+          content: [{
+            type: 'text',
+            text: JSON.stringify({
+              success: true,
+              message: `Opened: ${filePath}`,
+              platform: platform
+            }, null, 2)
+          }]
+        }
+      });
+    }
+  });
+}
+
+/**
+ * Handle task queue tools (processed by bridge, not browser)
+ */
+function handleTaskTool(id, name, args) {
+  let result;
+
+  switch (name) {
+    case 'tasks_claimNext':
+      result = claimNextTask(args.capabilities || []);
+      break;
+
+    case 'tasks_progress':
+      if (!args.taskId) {
+        sendMCPError(id, -32602, 'Missing required parameter: taskId');
+        return;
+      }
+      result = reportTaskProgress(args.taskId, args.message || '', args.percent || 0);
+      break;
+
+    case 'tasks_complete':
+      if (!args.taskId || !args.proposed_ops || !args.summary) {
+        sendMCPError(id, -32602, 'Missing required parameters: taskId, proposed_ops, summary');
+        return;
+      }
+      result = completeTask(args.taskId, args.proposed_ops, args.summary, args.sources || []);
+      break;
+
+    case 'tasks_getQueue':
+      result = {
+        pending: taskQueue.length,
+        active: activeTasks.size,
+        completed: taskResults.size,
+        tasks: taskQueue.map(t => ({ taskId: t.taskId, agentId: t.agentId, status: t.status }))
+      };
+      break;
+
+    default:
+      sendMCPError(id, -32601, `Unknown task tool: ${name}`);
+      return;
+  }
+
+  // Send result
+  sendMCPResponse({
+    jsonrpc: '2.0',
+    id: id,
+    result: {
+      content: [
+        {
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }
+      ]
+    }
+  });
+}
+
+/**
+ * Handle message from browser (responses and task submissions)
  */
 function handleBrowserMessage(tabId, message) {
-  const { id, result, error } = message;
+  const { id, result, error, type } = message;
 
+  // Handle task submission from browser
+  if (type === 'task.submit') {
+    const taskResult = submitTask({
+      agentId: message.agentId,
+      prompt: message.prompt,
+      targetNodeId: message.targetNodeId,
+      treeContext: message.treeContext,
+      requestedCapabilities: message.requestedCapabilities || [],
+      options: message.options || {}
+    });
+
+    // Send confirmation back to browser
+    const ws = connections.get(tabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'task.submitted',
+        ...taskResult
+      }));
+    }
+    return;
+  }
+
+  // Handle file open request from browser (Build 534)
+  if (type === 'open_file') {
+    const filePath = message.filePath;
+    if (!filePath) {
+      const ws = connections.get(tabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'open_file_result',
+          success: false,
+          error: 'Missing filePath'
+        }));
+      }
+      return;
+    }
+
+    // Determine the platform-specific command
+    const platform = process.platform;
+    let command;
+
+    if (platform === 'win32') {
+      command = `start "" "${filePath}"`;
+    } else if (platform === 'darwin') {
+      command = `open "${filePath}"`;
+    } else {
+      command = `xdg-open "${filePath}"`;
+    }
+
+    log('info', `Browser requested file open: ${filePath}`);
+
+    exec(command, (error, stdout, stderr) => {
+      const ws = connections.get(tabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'open_file_result',
+          success: !error,
+          filePath: filePath,
+          error: error ? error.message : null
+        }));
+      }
+    });
+    return;
+  }
+
+  // Handle task result acknowledgment (user approved/rejected in Inbox)
+  if (type === 'task.acknowledge') {
+    const { taskId, action, selectedOps } = message;
+    const task = taskResults.get(taskId);
+
+    if (task) {
+      task.userAction = action; // 'approved', 'rejected', 'partial'
+      task.selectedOps = selectedOps;
+      task.acknowledgedAt = Date.now();
+      log('info', `Task ${taskId} acknowledged: ${action}`);
+
+      // Clean up old results (keep last 50)
+      if (taskResults.size > 50) {
+        const oldest = [...taskResults.entries()]
+          .sort((a, b) => a[1].completedAt - b[1].completedAt)[0];
+        taskResults.delete(oldest[0]);
+      }
+    }
+    return;
+  }
+
+  // Handle pending request responses (tool call results from browser)
   if (id && pendingRequests.has(id)) {
     pendingRequests.delete(id);
 
