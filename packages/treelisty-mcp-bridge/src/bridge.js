@@ -226,6 +226,10 @@ function isOriginAllowed(origin) {
   if (!origin) {
     return CONFIG.debug; // Allow no-origin only in debug mode
   }
+  // Allow any Netlify deploy (main, preview, branch deploys)
+  if (origin.endsWith('.netlify.app') || origin.includes('--treelisty.netlify.app')) {
+    return true;
+  }
   return CONFIG.allowedOrigins.some(allowed =>
     origin === allowed ||
     origin.startsWith(allowed + '/') ||
@@ -262,6 +266,8 @@ wss.on('connection', (ws, req) => {
   const origin = req.headers.origin;
   const token = extractToken(req);
   const tabId = extractTabId(req);
+
+  log('info', `Connection attempt from origin: "${origin}"`);
 
   // Security: Validate origin
   if (!isOriginAllowed(origin)) {
