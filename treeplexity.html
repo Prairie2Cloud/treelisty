@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 535 | 2025-12-21
+    TreeListy v2.20.0 | Build 537 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 535): Fix MCP file open - use client.socket (not ws), add debug logging
-    Previous (Build 533): Local files copy path to clipboard (browsers block file:// URLs for security)
+    Changelog (Build 537): 3D and Canvas views now respect expand/collapse state
+    Previous (Build 536): Incremental expand/collapse - one level at a time instead of all-at-once
+    Previous (Build 535): Fix MCP file open - use client.socket (not ws), add debug logging
     Previous (Build 531): Fix Open File button - now shows for files with filePath (not just fileUrl)
     Previous (Build 530): Fix pattern restore on tree load - filesystem pattern now applied correctly
     Previous (Build 529): Fix PWA localStorage restore - re-render after loading saved tree
@@ -752,7 +753,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 535,
+            build: 537,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -15243,26 +15244,38 @@ Focus on logical structure and content organization best practices.`;
             svg.innerHTML = '';
             canvasNodes = [];
 
-            // Render all nodes recursively
-            capexTree.children.forEach((phase, phaseIdx) => {
-                // Check if phase is visible in Canvas View (default: true)
-                if (phase.showInCanvas === false) {
-                    console.log(`Skipping phase "${phase.name}" - hidden in Canvas View`);
-                    return; // Skip this phase
-                }
-
-                // Support both 'items' (standard) and 'children' (filesystem pattern)
-                const nodeList = phase.items || phase.children || [];
-                nodeList.forEach((item, itemIdx) => {
-                    // Preserve existing positions for root items to prevent jumping
-                    // Only set initial position if not already set
-                    if (!item.canvasX || !item.canvasY) {
-                        item.canvasX = item.canvasX || 50;
-                        item.canvasY = item.canvasY || (50 + itemIdx * 180);
+            // BUILD 536: Render all nodes recursively, respecting expanded state
+            // If root is collapsed, only show root node
+            if (capexTree.expanded === false) {
+                // Root is collapsed - render only root node
+                renderCanvasNode(capexTree, null, null, 0);
+            } else {
+                capexTree.children.forEach((phase, phaseIdx) => {
+                    // Check if phase is visible in Canvas View (default: true)
+                    if (phase.showInCanvas === false) {
+                        return; // Skip this phase
                     }
-                    renderNodeAndDescendants(item, phase, null, 0);
+
+                    // BUILD 536: Check if phase is collapsed
+                    if (phase.expanded === false) {
+                        // Phase is collapsed - render phase node but not its children
+                        renderCanvasNode(phase, null, capexTree, 0);
+                        return;
+                    }
+
+                    // Support both 'items' (standard) and 'children' (filesystem pattern)
+                    const nodeList = phase.items || phase.children || [];
+                    nodeList.forEach((item, itemIdx) => {
+                        // Preserve existing positions for root items to prevent jumping
+                        // Only set initial position if not already set
+                        if (!item.canvasX || !item.canvasY) {
+                            item.canvasX = item.canvasX || 50;
+                            item.canvasY = item.canvasY || (50 + itemIdx * 180);
+                        }
+                        renderNodeAndDescendants(item, phase, null, 0);
+                    });
                 });
-            });
+            }
 
             // Draw connection lines after all nodes are positioned
             drawConnections();
@@ -20516,124 +20529,99 @@ Be specific and insightful, not generic.`;
             return maxDepth;
         }
 
-        // Collapse one level at a time (deepest first)
+        // BUILD 536: Collapse one level at a time (deepest first)
+        // Handles all node types: children (folders), items, subItems
+        // Collapses down to single root node when fully collapsed
         function collapseOneLevel() {
-            console.log('🔍 collapseOneLevel called');
-
-            // Find all items with subItems that are currently expanded
-            let deepestExpandedWithChildren = [];
-            let maxDepthFound = 0;
-
-            function findExpandedWithChildren(node, depth = 0, path = []) {
-                // For phases (node.children)
-                if (node.children) {
-                    node.children.forEach(child => {
-                        findExpandedWithChildren(child, depth + 1, [...path, node]);
-                    });
-                }
-
-                // For items
-                if (node.items) {
-                    node.items.forEach(item => {
-                        findExpandedItems(item, depth + 1, [...path, node]);
-                    });
-                }
+            // Helper: get all children of a node (handles different child key names)
+            function getNodeChildren(node) {
+                return [...(node.children || []), ...(node.items || []), ...(node.subItems || [])];
             }
 
-            function findExpandedItems(item, depth, path) {
-                // If this item has subItems and is expanded, record it
-                if (item.subItems && item.subItems.length > 0 && item.expanded !== false) {
-                    deepestExpandedWithChildren.push({ item, depth, path });
+            // Find all expanded nodes with children, tracking their depth
+            let expandedWithChildren = [];
+            let maxDepthFound = -1;
+
+            function findExpanded(node, depth = 0, parentExpanded = true) {
+                // Skip if parent is collapsed (not visible)
+                if (!parentExpanded && depth > 0) return;
+
+                const children = getNodeChildren(node);
+                const isExpanded = node.expanded !== false;
+
+                // Include ALL expanded nodes with children (including root at depth 0)
+                if (isExpanded && children.length > 0) {
+                    expandedWithChildren.push({ node, depth });
                     maxDepthFound = Math.max(maxDepthFound, depth);
+                }
 
-                    // Recurse into subItems
-                    item.subItems.forEach(subItem => {
-                        findExpandedItems(subItem, depth + 1, [...path, item]);
-                    });
-                } else if (item.subItems) {
-                    // Has children but collapsed - still check children in case some are expanded
-                    item.subItems.forEach(subItem => {
-                        findExpandedItems(subItem, depth + 1, [...path, item]);
-                    });
+                // Recurse into children if expanded
+                if (isExpanded) {
+                    children.forEach(child => findExpanded(child, depth + 1, true));
                 }
             }
 
-            findExpandedWithChildren(capexTree);
+            findExpanded(capexTree);
 
-            console.log('Found', deepestExpandedWithChildren.length, 'expanded items with children');
-            console.log('Max depth:', maxDepthFound);
-
-            if (deepestExpandedWithChildren.length === 0) {
-                console.log('✅ Already fully collapsed - no items with children are expanded');
+            if (expandedWithChildren.length === 0) {
+                showToast('📁 Fully collapsed', 'info');
                 return;
             }
 
-            // Collapse only the items at the deepest level
-            const toCollapse = deepestExpandedWithChildren.filter(x => x.depth === maxDepthFound);
-            console.log('Collapsing', toCollapse.length, 'items at depth', maxDepthFound);
+            // Collapse only the nodes at the deepest level
+            const toCollapse = expandedWithChildren.filter(x => x.depth === maxDepthFound);
 
-            toCollapse.forEach(({ item }) => {
-                console.log('  - Collapsing:', item.name);
-                item.expanded = false;
+            toCollapse.forEach(({ node }) => {
+                node.expanded = false;
             });
         }
 
-        // Expand one level at a time (shallowest first)
+        // BUILD 536: Expand one level at a time (shallowest first)
+        // Handles all node types: children (folders), items, subItems
+        // Expands from single root to fully expanded tree
         function expandOneLevel() {
-            console.log('🔍 expandOneLevel called');
+            // Helper: get all children of a node (handles different child key names)
+            function getNodeChildren(node) {
+                return [...(node.children || []), ...(node.items || []), ...(node.subItems || [])];
+            }
 
-            // Find all items with subItems that are currently collapsed
+            // Find all collapsed nodes with children at the shallowest visible level
             let collapsedWithChildren = [];
             let minDepthFound = Infinity;
 
-            function findCollapsedWithChildren(node, depth = 0, path = []) {
-                // For phases (node.children)
-                if (node.children) {
-                    node.children.forEach(child => {
-                        findCollapsedWithChildren(child, depth + 1, [...path, node]);
-                    });
-                }
+            function findCollapsed(node, depth = 0, parentExpanded = true) {
+                // Skip if parent is collapsed (not visible) - except root
+                if (!parentExpanded && depth > 0) return;
 
-                // For items
-                if (node.items) {
-                    node.items.forEach(item => {
-                        findCollapsedItems(item, depth + 1, [...path, node]);
-                    });
-                }
-            }
+                const children = getNodeChildren(node);
+                const isExpanded = node.expanded !== false;
 
-            function findCollapsedItems(item, depth, path) {
-                // If this item has subItems and is collapsed, record it
-                if (item.subItems && item.subItems.length > 0 && item.expanded === false) {
-                    collapsedWithChildren.push({ item, depth, path });
+                // If this node is collapsed and has children, record it
+                if (!isExpanded && children.length > 0) {
+                    collapsedWithChildren.push({ node, depth });
                     minDepthFound = Math.min(minDepthFound, depth);
+                    // Don't recurse into collapsed node's children (they're not visible)
+                    return;
                 }
 
-                // Still recurse into subItems even if collapsed (to find deeper collapsed items)
-                if (item.subItems) {
-                    item.subItems.forEach(subItem => {
-                        findCollapsedItems(subItem, depth + 1, [...path, item]);
-                    });
+                // Recurse into children if expanded
+                if (isExpanded) {
+                    children.forEach(child => findCollapsed(child, depth + 1, true));
                 }
             }
 
-            findCollapsedWithChildren(capexTree);
-
-            console.log('Found', collapsedWithChildren.length, 'collapsed items with children');
-            console.log('Min depth:', minDepthFound);
+            findCollapsed(capexTree);
 
             if (collapsedWithChildren.length === 0) {
-                console.log('✅ Already fully expanded - no collapsed items with children');
+                showToast('📂 Fully expanded', 'info');
                 return;
             }
 
-            // Expand only the items at the shallowest level
+            // Expand only the nodes at the shallowest level
             const toExpand = collapsedWithChildren.filter(x => x.depth === minDepthFound);
-            console.log('Expanding', toExpand.length, 'items at depth', minDepthFound);
 
-            toExpand.forEach(({ item }) => {
-                console.log('  - Expanding:', item.name);
-                item.expanded = true;
+            toExpand.forEach(({ node }) => {
+                node.expanded = true;
             });
         }
 
@@ -20654,6 +20642,12 @@ Be specific and insightful, not generic.`;
                 renderCanvas();
             }
 
+            // BUILD 537: Update 3D view if we're in 3D mode
+            if (viewMode === '3d' && typeof window.refresh3DData === 'function') {
+                console.log('Calling refresh3DData() for 3D view');
+                window.refresh3DData();
+            }
+
             console.log('✅ Expand complete');
         };
 
@@ -20671,6 +20665,12 @@ Be specific and insightful, not generic.`;
             if (viewMode === 'canvas') {
                 console.log('Calling renderCanvas() for canvas view');
                 renderCanvas();
+            }
+
+            // BUILD 537: Update 3D view if we're in 3D mode
+            if (viewMode === '3d' && typeof window.refresh3DData === 'function') {
+                console.log('Calling refresh3DData() for 3D view');
+                window.refresh3DData();
             }
 
             console.log('✅ Collapse complete');
@@ -28822,26 +28822,15 @@ Your response:`;
             document.getElementById('json-upload-input').click();
         }
 
+        // BUILD 536: Incremental expand/collapse - one level at a time
         function handleExpandAll() {
-            function expandAll(node) {
-                if (node.children) {
-                    node.expanded = true;
-                    node.children.forEach(expandAll);
-                }
-            }
-            expandAll(capexTree);
-            render();
+            // Reuse the same logic as toolbar button
+            document.getElementById('expand-btn')?.click();
         }
 
         function handleCollapseAll() {
-            function collapseAll(node) {
-                if (node.children) {
-                    node.expanded = false;
-                    node.children.forEach(collapseAll);
-                }
-            }
-            capexTree.children.forEach(collapseAll);
-            render();
+            // Reuse the same logic as toolbar button
+            document.getElementById('collapse-btn')?.click();
         }
 
         // Toggle subtasks for a specific item
@@ -29751,85 +29740,141 @@ Return ONLY the JSON array.`
             e.target.value = '';
         });
 
-        // Controls - Expand/Collapse All
+        // Controls - Expand/Collapse by Level (BUILD 536)
+        // Expand: unfold one level deeper each click
+        // Collapse: fold one level (reduce deepest visible level by 1)
         const expandBtn = document.getElementById('expand-btn');
         const collapseBtn = document.getElementById('collapse-btn');
 
-        if (expandBtn) {
-            console.log('✅ Expand button found, attaching event listener');
-            expandBtn.addEventListener('click', () => {
-                console.log('⬇️ Expand button clicked!');
-                console.log('Current tree state:', capexTree);
+        // Helper: get all children of a node (handles different child key names)
+        function getNodeChildren(node) {
+            return [...(node.children || []), ...(node.items || []), ...(node.subItems || [])];
+        }
 
-                function expandAll(node) {
-                    // Set expanded on this node
-                    node.expanded = true;
+        // Helper: check if node has expandable children
+        function hasChildren(node) {
+            return getNodeChildren(node).length > 0;
+        }
 
-                    // Recursively expand all children (phases/folders in filesystem)
-                    if (node.children) {
-                        node.children.forEach(expandAll);
-                    }
+        // Helper: collect nodes at each depth level that are visible (parent chain is expanded)
+        function getNodesByLevel(root) {
+            const levels = []; // levels[depth] = [nodes at that depth]
 
-                    // Recursively expand all items (standard patterns)
-                    if (node.items) {
-                        node.items.forEach(expandAll);
-                    }
+            function traverse(node, depth, parentExpanded) {
+                if (!levels[depth]) levels[depth] = [];
 
-                    // Recursively expand all subItems (nested tasks)
-                    if (node.subItems) {
-                        node.subItems.forEach(expandAll);
+                // Only include if visible (all ancestors expanded, or it's root)
+                if (depth === 0 || parentExpanded) {
+                    levels[depth].push(node);
+
+                    // Traverse children if this node is expanded
+                    if (node.expanded !== false) {
+                        getNodeChildren(node).forEach(child => {
+                            traverse(child, depth + 1, node.expanded !== false);
+                        });
                     }
                 }
-                expandAll(capexTree);
+            }
 
-                console.log('Tree after expand:', capexTree);
+            traverse(root, 0, true);
+            return levels;
+        }
+
+        // Helper: find deepest level with expanded nodes that have collapsed children
+        function findDeepestExpandedLevel(root) {
+            let maxDepth = -1;
+
+            function traverse(node, depth, visible) {
+                if (!visible) return;
+
+                const children = getNodeChildren(node);
+                const isExpanded = node.expanded !== false;
+
+                if (isExpanded && children.length > 0) {
+                    maxDepth = Math.max(maxDepth, depth);
+                }
+
+                if (isExpanded) {
+                    children.forEach(child => traverse(child, depth + 1, true));
+                }
+            }
+
+            traverse(root, 0, true);
+            return maxDepth;
+        }
+
+        if (expandBtn) {
+            expandBtn.addEventListener('click', () => {
+                // Find visible nodes that are collapsed but have children - expand them
+                let expandedAny = false;
+
+                function expandOneLevel(node, depth, parentExpanded) {
+                    if (!parentExpanded && depth > 0) return;
+
+                    const children = getNodeChildren(node);
+                    const isExpanded = node.expanded !== false;
+
+                    // If this node is visible, expanded, and has collapsed children with their own children
+                    if (isExpanded && children.length > 0) {
+                        children.forEach(child => {
+                            if (child.expanded === false && hasChildren(child)) {
+                                child.expanded = true;
+                                expandedAny = true;
+                            }
+                        });
+                    }
+
+                    // Continue traversing expanded nodes
+                    if (isExpanded) {
+                        children.forEach(child => expandOneLevel(child, depth + 1, true));
+                    }
+                }
+
+                expandOneLevel(capexTree, 0, true);
+
+                if (!expandedAny) {
+                    showToast('📂 Fully expanded', 'info');
+                }
+
                 render();
-                console.log('Render complete');
             });
-        } else {
-            console.error('❌ Expand button not found!');
         }
 
         if (collapseBtn) {
-            console.log('✅ Collapse button found, attaching event listener');
             collapseBtn.addEventListener('click', () => {
-                console.log('⬆️ Collapse button clicked!');
-                console.log('Current tree state:', capexTree);
+                // Find the deepest level with expanded nodes and collapse them
+                const deepestLevel = findDeepestExpandedLevel(capexTree);
 
-                function collapseAll(node) {
-                    // Set collapsed on this node
-                    node.expanded = false;
+                if (deepestLevel <= 0) {
+                    showToast('📁 Fully collapsed', 'info');
+                    render();
+                    return;
+                }
 
-                    // Recursively collapse all children (phases/folders in filesystem)
-                    if (node.children) {
-                        node.children.forEach(collapseAll);
+                let collapsedAny = false;
+
+                function collapseAtDepth(node, depth, parentExpanded) {
+                    if (!parentExpanded && depth > 0) return;
+
+                    const children = getNodeChildren(node);
+                    const isExpanded = node.expanded !== false;
+
+                    // If at target depth and expanded with children, collapse
+                    if (depth === deepestLevel && isExpanded && children.length > 0) {
+                        node.expanded = false;
+                        collapsedAny = true;
+                        return; // Don't traverse deeper
                     }
 
-                    // Recursively collapse all items (standard patterns)
-                    if (node.items) {
-                        node.items.forEach(collapseAll);
-                    }
-
-                    // Recursively collapse all subItems (nested tasks)
-                    if (node.subItems) {
-                        node.subItems.forEach(collapseAll);
+                    // Continue traversing if expanded
+                    if (isExpanded) {
+                        children.forEach(child => collapseAtDepth(child, depth + 1, true));
                     }
                 }
 
-                // Start from the root's children
-                if (capexTree.children) {
-                    capexTree.children.forEach(collapseAll);
-                }
-                if (capexTree.items) {
-                    capexTree.items.forEach(collapseAll);
-                }
-
-                console.log('Tree after collapse:', capexTree);
+                collapseAtDepth(capexTree, 0, true);
                 render();
-                console.log('Render complete');
             });
-        } else {
-            console.error('❌ Collapse button not found!');
         }
 
         // Search functionality
@@ -64075,7 +64120,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 535; // Update this with each build
+                    const KNOWN_LATEST = 537; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -68345,6 +68390,11 @@ console.log('📊 Frappe Gantt loaded');
         // --- Render Root ---
         createNode(tree, 0, 0, 0, 0xffffff, 'root');
 
+        // BUILD 537: If root is collapsed, only show root node
+        if (tree.expanded === false) {
+            return;
+        }
+
         // --- Determine Layout Mode based on Sort ---
         const sortConfig = window.currentSortConfig;
         const layoutMode = determineLayoutMode(sortConfig);
@@ -68358,6 +68408,8 @@ console.log('📊 Frappe Gantt loaded');
             if (layoutMode !== 'helix') {
                 tree.children.forEach((phase, pIdx) => {
                     const phaseColor = CONFIG.colorPalette[pIdx % CONFIG.colorPalette.length];
+                    // BUILD 537: Skip items if phase is collapsed
+                    if (phase.expanded === false) return;
                     if (phase.items) {
                         phase.items.forEach(item => {
                             allItems.push({ item, phase, pIdx, phaseColor });
@@ -68376,6 +68428,9 @@ console.log('📊 Frappe Gantt loaded');
 
                     const prevPos = pIdx === 0 ? new THREE.Vector3(0,0,0) : new THREE.Vector3(0,0, pIdx * CONFIG.phaseSpacingZ);
                     createConnection(prevPos, new THREE.Vector3(0,0, phaseZ), 0x555555, 1);
+
+                    // BUILD 537: Skip items if phase is collapsed
+                    if (phase.expanded === false) return;
 
                     if (phase.items) {
                         phase.items.forEach((item, iIdx) => {
@@ -68552,6 +68607,8 @@ console.log('📊 Frappe Gantt loaded');
 
         // Helper: Render subtasks for an item
         function renderSubtasks(item, x, y, z, phaseColor) {
+            // BUILD 537: Skip subtasks if item is collapsed
+            if (item.expanded === false) return;
             if (item.subItems) {
                 item.subItems.forEach((sub, sIdx) => {
                     const subRadius = 120;
