@@ -1070,6 +1070,7 @@ function handleTaskTool(id, name, args) {
  */
 function handleBrowserMessage(tabId, message) {
   const { id, result, error, type } = message;
+  log('info', `[handleBrowserMessage] Received type: ${type || 'response'}, id: ${id || 'none'}`);
 
   // Handle task submission from browser
   if (type === 'task.submit') {
@@ -1095,8 +1096,10 @@ function handleBrowserMessage(tabId, message) {
 
   // Handle file open request from browser (Build 534)
   if (type === 'open_file') {
+    log('info', `[open_file] Received request, filePath: ${message.filePath}`);
     const filePath = message.filePath;
     if (!filePath) {
+      log('error', '[open_file] Missing filePath');
       const ws = connections.get(tabId);
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({
@@ -1120,9 +1123,10 @@ function handleBrowserMessage(tabId, message) {
       command = `xdg-open "${filePath}"`;
     }
 
-    log('info', `Browser requested file open: ${filePath}`);
+    log('info', `[open_file] Platform: ${platform}, Command: ${command}`);
 
     exec(command, (error, stdout, stderr) => {
+      log('info', `[open_file] exec completed, error: ${error?.message || 'none'}, stderr: ${stderr || 'none'}`);
       const ws = connections.get(tabId);
       if (ws && ws.readyState === WebSocket.OPEN) {
         ws.send(JSON.stringify({

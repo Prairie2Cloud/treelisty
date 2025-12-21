@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 534 | 2025-12-21
+    TreeListy v2.20.0 | Build 535 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 534): MCP Bridge file opening - open local files via MCP Bridge shell commands
+    Changelog (Build 535): Fix MCP file open - use client.socket (not ws), add debug logging
     Previous (Build 533): Local files copy path to clipboard (browsers block file:// URLs for security)
     Previous (Build 531): Fix Open File button - now shows for files with filePath (not just fileUrl)
     Previous (Build 530): Fix pattern restore on tree load - filesystem pattern now applied correctly
@@ -752,7 +752,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 534,
+            build: 535,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -24028,14 +24028,16 @@ function hidePatternDescription() {
             if (isLocalPath || isGoogleNative) {
                 const localPath = isLocalPath ? url.replace('file:///', '').replace(/\//g, '\\') : url;
 
-                // Check if MCP WebSocket is connected
-                if (window.mcpBridgeState?.client?.ws?.readyState === WebSocket.OPEN) {
+                // Check if MCP WebSocket is connected (client uses 'socket' property)
+                const wsReady = window.mcpBridgeState?.client?.socket?.readyState === WebSocket.OPEN;
+                console.log('[MCP File Open] WebSocket ready:', wsReady, 'readyState:', window.mcpBridgeState?.client?.socket?.readyState);
+
+                if (wsReady) {
                     try {
                         // Send direct message to MCP Bridge to open file
-                        mcpBridgeState.client.ws.send(JSON.stringify({
-                            type: 'open_file',
-                            filePath: localPath
-                        }));
+                        const msg = { type: 'open_file', filePath: localPath };
+                        console.log('[MCP File Open] Sending:', msg);
+                        mcpBridgeState.client.socket.send(JSON.stringify(msg));
 
                         if (isGoogleNative) {
                             showToast(`🔗 Opening ${fileExt}...`, 'info');
@@ -24044,7 +24046,7 @@ function hidePatternDescription() {
                         }
                         return;
                     } catch (e) {
-                        console.error('MCP file open request failed:', e);
+                        console.error('[MCP File Open] Send failed:', e);
                         // Fall through to clipboard fallback
                     }
                 }
@@ -64073,7 +64075,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 534; // Update this with each build
+                    const KNOWN_LATEST = 535; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
