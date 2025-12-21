@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 525 | 2025-12-21
+    TreeListy v2.20.0 | Build 526 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 525): Fix sync command connection check - use client.isConnected not state.isConnected
+    Changelog (Build 526): Enhanced file opening - local paths, Google native format detection, helpful errors
+    Previous (Build 525): Fix sync command connection check - use client.isConnected not state.isConnected
     Previous (Build 524): Direct sync command matching - sync gmail/drive/calendar bypass AI interpretation
     Previous (Build 523): MCP Sync Commands - sync_gmail, sync_drive, sync_calendar, sync_all via Claude Chrome
     Previous (Build 522): Treebeard Research Optimization - Fix hyperedge queries, bullet parsing, research followup
@@ -744,7 +745,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 525,
+            build: 526,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -56841,48 +56842,115 @@ Slack data not available. To calculate slack:
             'refresh_drive': () => COMMAND_REGISTRY['sync_drive'](),
             'refresh_gmail': () => COMMAND_REGISTRY['sync_gmail'](),
 
-            // BUILD 522: Open file URL (for filesystem pattern)
+            // BUILD 526: Open file URL (for filesystem pattern) - enhanced for Google native formats
             'open_file': (fileName) => {
-                if (!fileName) {
-                    // Try to open focused node's URL
-                    const node = window.chatFocusedNode || activeNode;
-                    if (node?.fileUrl) {
+                // Helper: Check if file is Google native format
+                const isGoogleNative = (node) => {
+                    const ext = node.fileExtension?.toLowerCase() || '';
+                    const mime = node.mimeType || '';
+                    return ['.gdoc', '.gsheet', '.gslides', '.gform', '.gdraw'].includes(ext) ||
+                           mime.includes('vnd.google-apps.');
+                };
+
+                // Helper: Try to open a node
+                const tryOpenNode = (node) => {
+                    // 1. Check for web URL first (Google Drive API export)
+                    if (node.fileUrl && node.fileUrl.startsWith('http')) {
                         window.open(node.fileUrl, '_blank');
-                        return `📂 Opening "${node.name}" in new tab...`;
+                        return { success: true, message: `📂 Opening "${node.name}" in browser...` };
                     }
-                    return '⚠️ No file selected. Focus on a file first or specify: "open file [name]"';
+
+                    // 2. Check if it's a Google native format without webViewLink
+                    if (isGoogleNative(node)) {
+                        return {
+                            success: false,
+                            message: `⚠️ **Cannot Open Google File Directly**\n\n"${node.name}" is a Google ${node.fileExtension?.slice(1) || 'Workspace'} file.\n\nTo open these files:\n• Use Google Drive in your browser\n• Or re-import using the Google Drive API export\n\n*Local Drive sync files don't include web URLs.*`,
+                            buttons: [
+                                { label: '🔗 Open Google Drive', action: 'open_file_url:https://drive.google.com' },
+                                { label: '📋 Copy File Name', action: `copy_text:${node.name}` }
+                            ]
+                        };
+                    }
+
+                    // 3. Check for local file path
+                    if (node.filePath) {
+                        // Convert Windows path to file:// URL
+                        let fileUrl = node.filePath;
+                        if (fileUrl.match(/^[A-Za-z]:\\/)) {
+                            // Windows path: C:\path\file.txt -> file:///C:/path/file.txt
+                            fileUrl = 'file:///' + fileUrl.replace(/\\/g, '/');
+                        } else if (fileUrl.startsWith('/')) {
+                            // Unix path
+                            fileUrl = 'file://' + fileUrl;
+                        }
+                        window.open(fileUrl, '_blank');
+                        return { success: true, message: `📂 Opening "${node.name}" from local drive...` };
+                    }
+
+                    return { success: false, message: `⚠️ No URL or path available for "${node.name}".` };
+                };
+
+                if (!fileName) {
+                    // Try to open focused node
+                    const node = window.chatFocusedNode || activeNode;
+                    if (!node) {
+                        return '⚠️ No file selected. Focus on a file first or specify: "open file [name]"';
+                    }
+                    const result = tryOpenNode(node);
+                    return result.buttons ? result : result.message;
                 }
 
-                // Search for file by name
+                // Search for file by name (include nodes with fileUrl OR filePath)
                 const allNodes = getAllNodesFlat();
                 const matches = allNodes.filter(n =>
-                    n.name?.toLowerCase().includes(fileName.toLowerCase()) && n.fileUrl
+                    n.name?.toLowerCase().includes(fileName.toLowerCase()) &&
+                    (n.fileUrl || n.filePath || isGoogleNative(n))
                 );
 
                 if (matches.length === 0) {
-                    return `⚠️ No file found matching "${fileName}" with a URL.`;
+                    return `⚠️ No file found matching "${fileName}".`;
                 }
                 if (matches.length === 1) {
-                    window.open(matches[0].fileUrl, '_blank');
-                    return `📂 Opening "${matches[0].name}"...`;
+                    const result = tryOpenNode(matches[0]);
+                    return result.buttons ? result : result.message;
                 }
-                // Multiple matches
+
+                // Multiple matches - show selection
                 return {
-                    message: `📂 Found ${matches.length} files matching "${fileName}":\n\n${matches.slice(0, 5).map((m, i) => `${i+1}. ${m.name}`).join('\n')}`,
+                    message: `📂 Found ${matches.length} files matching "${fileName}":\n\n${matches.slice(0, 5).map((m, i) => `${i+1}. ${m.name}${isGoogleNative(m) ? ' ☁️' : ''}`).join('\n')}`,
                     buttons: matches.slice(0, 3).map(m => ({
-                        label: `📄 ${m.name.slice(0, 20)}`,
-                        action: `open_file_url:${m.fileUrl}`
+                        label: `📄 ${m.name.slice(0, 20)}${isGoogleNative(m) ? '☁️' : ''}`,
+                        action: `open_file_direct:${m.id}`
                     }))
                 };
+            },
+
+            // BUILD 526: Open file by node ID (handles all file types)
+            'open_file_direct': (nodeId) => {
+                const allNodes = getAllNodesFlat();
+                const node = allNodes.find(n => n.id === nodeId);
+                if (!node) return '⚠️ File not found.';
+
+                // Use the same logic as open_file
+                return COMMAND_REGISTRY['open_file'](node.name);
             },
 
             // BUILD 522: Direct URL opener
             'open_file_url': (url) => {
                 if (url) {
                     window.open(url, '_blank');
-                    return '📂 Opening file...';
+                    return '📂 Opening...';
                 }
                 return '⚠️ No URL provided.';
+            },
+
+            // BUILD 526: Copy text to clipboard
+            'copy_text': (text) => {
+                if (text) {
+                    navigator.clipboard.writeText(text);
+                    return '📋 Copied to clipboard!';
+                }
+                return '⚠️ Nothing to copy.';
             },
 
             // Search
@@ -63796,7 +63864,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 525; // Update this with each build
+                    const KNOWN_LATEST = 526; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
