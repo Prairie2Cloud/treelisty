@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 524 | 2025-12-21
+    TreeListy v2.20.0 | Build 525 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 524): Direct sync command matching - sync gmail/drive/calendar bypass AI interpretation
+    Changelog (Build 525): Fix sync command connection check - use client.isConnected not state.isConnected
+    Previous (Build 524): Direct sync command matching - sync gmail/drive/calendar bypass AI interpretation
     Previous (Build 523): MCP Sync Commands - sync_gmail, sync_drive, sync_calendar, sync_all via Claude Chrome
     Previous (Build 522): Treebeard Research Optimization - Fix hyperedge queries, bullet parsing, research followup
     Previous (Build 521): Fix MCP set_view to click view buttons for proper view switching
@@ -743,7 +744,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 524,
+            build: 525,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -56740,7 +56741,7 @@ Slack data not available. To calculate slack:
             // ═══════════════════════════════════════════════════════════════
 
             'sync_gmail': (options) => {
-                if (!mcpBridgeState?.isConnected) {
+                if (!mcpBridgeState?.client?.isConnected) {
                     return {
                         message: '🔴 **Not Connected to Claude Code**\n\nTo sync Gmail, you need Claude Code running with the TreeListy MCP bridge.\n\nClick "Connect" in the header or run `/mcp add treelisty` in Claude Code.',
                         buttons: [
@@ -56763,7 +56764,7 @@ Slack data not available. To calculate slack:
             },
 
             'sync_drive': (options) => {
-                if (!mcpBridgeState?.isConnected) {
+                if (!mcpBridgeState?.client?.isConnected) {
                     return {
                         message: '🔴 **Not Connected to Claude Code**\n\nTo sync Drive, you need Claude Code running with the TreeListy MCP bridge.',
                         buttons: [
@@ -56786,7 +56787,7 @@ Slack data not available. To calculate slack:
             },
 
             'sync_calendar': (options) => {
-                if (!mcpBridgeState?.isConnected) {
+                if (!mcpBridgeState?.client?.isConnected) {
                     return {
                         message: '🔴 **Not Connected to Claude Code**\n\nTo sync Calendar, you need Claude Code running with the TreeListy MCP bridge.',
                         buttons: [
@@ -56808,7 +56809,7 @@ Slack data not available. To calculate slack:
             },
 
             'sync_all': () => {
-                if (!mcpBridgeState?.isConnected) {
+                if (!mcpBridgeState?.client?.isConnected) {
                     return {
                         message: '🔴 **Not Connected to Claude Code**\n\nTo sync services, connect to Claude Code first.',
                         buttons: [{ label: '🔗 Connect', action: 'show_mcp_connect' }]
@@ -63795,7 +63796,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 524; // Update this with each build
+                    const KNOWN_LATEST = 525; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
