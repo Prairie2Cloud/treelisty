@@ -56843,8 +56843,26 @@ Slack data not available. To calculate slack:
             'refresh_drive': () => COMMAND_REGISTRY['sync_drive'](),
             'refresh_gmail': () => COMMAND_REGISTRY['sync_gmail'](),
 
+            // BUILD 527: Helper to get all nodes as flat array
+            '_getAllNodesFlat': () => {
+                const nodes = [];
+                const traverse = (node) => {
+                    if (!node) return;
+                    nodes.push(node);
+                    (node.children || []).forEach(traverse);
+                    (node.items || []).forEach(traverse);
+                    (node.subtasks || []).forEach(traverse);
+                    (node.subItems || []).forEach(traverse);
+                };
+                traverse(capexTree);
+                return nodes;
+            },
+
             // BUILD 526: Open file URL (for filesystem pattern) - enhanced for Google native formats
             'open_file': (fileName) => {
+                // Use internal helper
+                const getAllNodesFlat = COMMAND_REGISTRY['_getAllNodesFlat'];
+
                 // Helper: Check if file is Google native format
                 const isGoogleNative = (node) => {
                     const ext = node.fileExtension?.toLowerCase() || '';
@@ -56928,7 +56946,7 @@ Slack data not available. To calculate slack:
 
             // BUILD 526: Open file by node ID (handles all file types)
             'open_file_direct': (nodeId) => {
-                const allNodes = getAllNodesFlat();
+                const allNodes = COMMAND_REGISTRY['_getAllNodesFlat']();
                 const node = allNodes.find(n => n.id === nodeId);
                 if (!node) return '⚠️ File not found.';
 
