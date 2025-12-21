@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 530 | 2025-12-21
+    TreeListy v2.20.0 | Build 531 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 530): Fix pattern restore on tree load - filesystem pattern now applied correctly
+    Changelog (Build 531): Fix Open File button - now shows for files with filePath (not just fileUrl)
+    Previous (Build 530): Fix pattern restore on tree load - filesystem pattern now applied correctly
     Previous (Build 529): Fix PWA localStorage restore - re-render after loading saved tree
     Previous (Build 528): MCP Chrome file opening - open Google Drive files via Claude Chrome when connected
     Previous (Build 527): Direct "open file" command matching - bypasses AI interpretation for instant response
@@ -749,7 +750,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 530,
+            build: 531,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -25272,7 +25273,8 @@ function hidePatternDescription() {
             }
 
             // FILE SYSTEM - File preview/open button with thumbnail
-            else if (currentPattern === 'filesystem' && !node.isFolder && (node.fileUrl || node.filePath)) {
+            // BUILD 531: Show file details for ANY file with fileUrl/filePath, not just filesystem pattern
+            else if (!node.isFolder && (node.fileUrl || node.filePath || node.fileExtension)) {
                 // Format file size
                 const formatFileSize = (bytes) => {
                     if (!bytes) return 'Unknown size';
@@ -25302,9 +25304,9 @@ function hidePatternDescription() {
                                 ${node.name}
                             </div>
 
-                            <!-- Open File Button -->
-                            ${node.fileUrl ? `
-                                <button onclick="window.open('${node.fileUrl}', '_blank')"
+                            <!-- Open File Button - BUILD 531: Support both fileUrl and filePath -->
+                            ${(node.fileUrl || node.filePath) ? `
+                                <button onclick="window.open('${node.fileUrl || node.filePath}', '_blank')"
                                         style="padding: 14px 32px;
                                                background: linear-gradient(135deg, #6366f1, #8b5cf6);
                                                border: none;
@@ -25317,7 +25319,7 @@ function hidePatternDescription() {
                                                box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);"
                                         onmouseover="this.style.transform='translateY(-2px)'; this.style.boxShadow='0 6px 16px rgba(99, 102, 241, 0.4)'"
                                         onmouseout="this.style.transform='translateY(0)'; this.style.boxShadow='0 4px 12px rgba(99, 102, 241, 0.3)'">
-                                    🔗 Open File
+                                    ${node.isFolder ? '📂 Open Folder' : '🔗 Open File'}
                                 </button>
                             ` : ''}
                         </div>
@@ -25394,8 +25396,9 @@ function hidePatternDescription() {
             }
 
             // FILESYSTEM - File/Folder info card with Open button
+            // BUILD 531: Show for ANY node with file/folder properties, not just filesystem pattern
             let filesystemInfoHtml = '';
-            if (currentPattern === 'filesystem' && node.type === 'item') {
+            if (node.type === 'item' && (node.isFolder || node.filePath || node.fileUrl)) {
                 const formatFileSize = (bytes) => {
                     if (!bytes || bytes === 0) return 'N/A';
                     const units = ['B', 'KB', 'MB', 'GB', 'TB'];
@@ -25539,7 +25542,7 @@ function hidePatternDescription() {
                         <span style="font-size: 10px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">ID:</span>
                         <span style="font-size: 10px; font-family: monospace; color: var(--text-secondary);">${(node.id || 'N/A').substring(0, 20)}${(node.id || '').length > 20 ? '...' : ''}</span>
                     </div>
-                    ${PATTERNS[currentPattern].fields?.cost && node.cost > 0 ? `
+                    ${PATTERNS[currentPattern]?.fields?.cost && node.cost > 0 ? `
                     <span style="color: var(--border);">•</span>
                     <div style="display: flex; align-items: center; gap: 6px;">
                         <span style="font-size: 10px; font-weight: 600; color: #10B981; text-transform: uppercase;">Cost:</span>
@@ -25548,7 +25551,7 @@ function hidePatternDescription() {
                     ` : ''}
                 </div>
 
-                ${node.type === 'root' && PATTERNS[currentPattern].fields?.cost && calculateTotal(node) > 0 ? `
+                ${node.type === 'root' && PATTERNS[currentPattern]?.fields?.cost && calculateTotal(node) > 0 ? `
                 <div style="padding: 16px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(5, 150, 105, 0.08)); border-radius: 10px; border: 2px solid rgba(16, 185, 129, 0.4); margin-bottom: 20px; text-align: center;">
                     <div style="font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; margin-bottom: 6px;">Total Project Cost</div>
                     <div style="font-size: 28px; font-weight: 700; color: #10B981;">${formatCost(calculateTotal(node))}</div>
@@ -63983,7 +63986,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 530; // Update this with each build
+                    const KNOWN_LATEST = 531; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
