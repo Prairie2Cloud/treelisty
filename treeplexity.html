@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 520 | 2025-12-20
+    TreeListy v2.20.0 | Build 521 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 521): Fix MCP set_view to click view buttons for proper view switching
     Changelog (Build 520): Fix modal close buttons - add .modal-close CSS for proper dismiss
-    Changelog (Build 519): RAG Phase 1 - Enhanced Document Import with PDF extraction (pdf.js), URL fetching, source type tabs, knowledge-base pattern
-    Previous (Build 517): Mobile Canvas UX - scrollable toolbar, compact minimap, bottom-sheet context menu
+    Previous (Build 519): RAG Phase 1 - Enhanced Document Import with PDF extraction
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
     Previous (Build 506): Fix undefined icon in tree view - add fallback for items without icons
@@ -740,8 +740,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 520,
-            date: '2025-12-20',
+            build: 521,
+            date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -38091,22 +38091,36 @@ https://treelisty.netlify.app`;
                     throw new Error(`Invalid view: ${view}. Must be one of: ${validViews.join(', ')}`);
                 }
 
-                // Use TreeListy's view switching functions
-                if (view === 'tree' && typeof switchToTreeView === 'function') {
-                    switchToTreeView();
-                } else if (view === 'canvas' && typeof switchToCanvasView === 'function') {
-                    switchToCanvasView();
-                } else if (view === '3d' && typeof switchTo3DView === 'function') {
-                    switchTo3DView();
-                } else if (view === 'gantt' && typeof switchToGanttView === 'function') {
-                    switchToGanttView();
-                } else if (view === 'calendar' && typeof switchToCalendarView === 'function') {
-                    switchToCalendarView();
-                } else {
-                    // Fallback: set viewMode directly
-                    if (typeof viewMode !== 'undefined') {
-                        viewMode = view;
-                    }
+                // Build 521: Click the view buttons to properly switch views
+                const viewButtonMap = {
+                    'tree': 'view-tree-btn',
+                    'canvas': 'view-canvas-btn',
+                    '3d': 'view-3d-btn',
+                    'gantt': 'view-gantt-btn',
+                    'calendar': 'view-calendar-btn'
+                };
+
+                const btnId = viewButtonMap[view];
+                const btn = document.getElementById(btnId);
+                if (btn) {
+                    btn.click();
+                    showToast(`🤖 Claude switched to ${view} view`, 'info');
+                    return { success: true, view };
+                }
+
+                // Fallback: try toggle functions directly
+                if (view === '3d' && typeof toggle3DView === 'function') {
+                    toggle3DView();
+                } else if (view === 'gantt' && typeof toggleGanttView === 'function') {
+                    toggleGanttView();
+                } else if (view === 'canvas' && typeof toggleCanvasView === 'function') {
+                    toggleCanvasView();
+                } else if (view === 'calendar' && typeof toggleCalendarView === 'function') {
+                    toggleCalendarView();
+                } else if (view === 'tree') {
+                    // For tree view, hide other views
+                    if (typeof viewMode !== 'undefined') viewMode = 'tree';
+                    if (typeof render === 'function') render();
                 }
 
                 showToast(`🤖 Claude switched to ${view} view`, 'info');
@@ -63070,7 +63084,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 520; // Update this with each build
+                    const KNOWN_LATEST = 521; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
