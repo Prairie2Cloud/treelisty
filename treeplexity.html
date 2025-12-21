@@ -56733,8 +56733,73 @@ Slack data not available. To calculate slack:
                 return '🔄 Firebase Live Sync modal opened!';
             },
             'refresh_drive': () => {
-                document.getElementById('refresh-drive-btn')?.click();
-                return '☁️ Refreshing from Google Drive...';
+                return {
+                    message: '☁️ **Google Drive Refresh**\n\nTo refresh from Google Drive, run the Python script:\n\n```\npython export_google_drive_to_treelisty.py\n```\n\nThis creates a JSON file you can import.\n\n**First time?** You need:\n1. Google Cloud OAuth credentials (credentials.json)\n2. Install: `pip install google-auth google-auth-oauthlib google-api-python-client`',
+                    buttons: [
+                        { label: '📂 Import JSON', action: 'load_json' },
+                        { label: '🔑 Setup Guide', action: 'show_drive_setup' }
+                    ]
+                };
+            },
+
+            // BUILD 522: Show Google Drive setup guide
+            'show_drive_setup': () => {
+                return '📋 **Google Drive Setup**\n\n1. Go to: console.cloud.google.com/apis/credentials\n2. Create OAuth 2.0 Client ID (Desktop app)\n3. Download as credentials.json\n4. Place in treeplexity folder\n5. Run: `python export_google_drive_to_treelisty.py`\n\nFirst run opens browser for auth. Token saved for future runs.';
+            },
+
+            // BUILD 522: Gmail refresh
+            'refresh_gmail': () => {
+                return {
+                    message: '📧 **Gmail Refresh**\n\nTo refresh from Gmail, run the Python script:\n\n```\npython export_gmail_to_treelisty.py\n```\n\nThis creates a JSON file with your email threads.\n\n**Setup:** Same as Google Drive - you need credentials.json with Gmail API enabled.',
+                    buttons: [
+                        { label: '📂 Import JSON', action: 'load_json' },
+                        { label: '🔑 Setup Guide', action: 'show_drive_setup' }
+                    ]
+                };
+            },
+
+            // BUILD 522: Open file URL (for filesystem pattern)
+            'open_file': (fileName) => {
+                if (!fileName) {
+                    // Try to open focused node's URL
+                    const node = window.chatFocusedNode || activeNode;
+                    if (node?.fileUrl) {
+                        window.open(node.fileUrl, '_blank');
+                        return `📂 Opening "${node.name}" in new tab...`;
+                    }
+                    return '⚠️ No file selected. Focus on a file first or specify: "open file [name]"';
+                }
+
+                // Search for file by name
+                const allNodes = getAllNodesFlat();
+                const matches = allNodes.filter(n =>
+                    n.name?.toLowerCase().includes(fileName.toLowerCase()) && n.fileUrl
+                );
+
+                if (matches.length === 0) {
+                    return `⚠️ No file found matching "${fileName}" with a URL.`;
+                }
+                if (matches.length === 1) {
+                    window.open(matches[0].fileUrl, '_blank');
+                    return `📂 Opening "${matches[0].name}"...`;
+                }
+                // Multiple matches
+                return {
+                    message: `📂 Found ${matches.length} files matching "${fileName}":\n\n${matches.slice(0, 5).map((m, i) => `${i+1}. ${m.name}`).join('\n')}`,
+                    buttons: matches.slice(0, 3).map(m => ({
+                        label: `📄 ${m.name.slice(0, 20)}`,
+                        action: `open_file_url:${m.fileUrl}`
+                    }))
+                };
+            },
+
+            // BUILD 522: Direct URL opener
+            'open_file_url': (url) => {
+                if (url) {
+                    window.open(url, '_blank');
+                    return '📂 Opening file...';
+                }
+                return '⚠️ No URL provided.';
             },
 
             // Search
@@ -60024,6 +60089,9 @@ GLOBAL (work anytime):
 • find_hyperedges - Analyze tree for hyperedge suggestions (groups of related nodes)
 • suggest_hyperedges - Same as find_hyperedges
 • toggle_hyperedge_panel - Open/close hyperedge visibility panel
+• open_file:{name} - Open a file by name (for filesystem/Drive trees with URLs)
+• refresh_drive - Show Google Drive refresh instructions
+• refresh_gmail - Show Gmail refresh instructions
 
 GANTT/SCHEDULE (for tasks with dates):
 • view_gantt - Switch to Gantt chart view
