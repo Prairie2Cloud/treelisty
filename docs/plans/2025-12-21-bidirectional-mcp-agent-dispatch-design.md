@@ -3,6 +3,7 @@
 **Date:** 2025-12-21
 **Status:** Draft
 **Author:** geej + Claude Code
+**Reviewed by:** Gemini (architectural feedback incorporated)
 
 ## Problem Statement
 
@@ -38,6 +39,70 @@ Current MCP architecture is backwards for the 90% use case:
 ```
 
 The MCP bridge becomes bidirectional: accepts commands AND sends task requests.
+
+## Technical Protocol: MCP Sampling
+
+**Key Insight (from Gemini review):** We don't need a custom protocol. The MCP specification already defines **Sampling** (`sampling/createMessage`) for exactly this use case.
+
+### How MCP Sampling Works
+
+- **Normal MCP:** Client (Claude Code) calls Tools on Server (TreeListy)
+- **Sampling (inverted):** Server (TreeListy) sends a Prompt to Client (Claude Code) and asks it to run its full agent loop
+
+```
+┌─────────────────┐     sampling/createMessage      ┌─────────────────┐
+│    TreeListy    │ ──────────────────────────────► │   Claude Code   │
+│    (Server)     │                                 │    (Client)     │
+│                 │   System: "You are a Research   │                 │
+│                 │   Agent. Use WebSearch..."      │  Runs full      │
+│                 │                                 │  agent loop:    │
+│                 │   User: "Research Nixon"        │  - WebSearch    │
+│                 │                                 │  - Read files   │
+│                 │ ◄────────────────────────────── │  - Synthesize   │
+│  Receives       │     Completed generation        │                 │
+│  structured     │     (JSON tree structure)       │                 │
+│  result         │                                 │                 │
+└─────────────────┘                                 └─────────────────┘
+```
+
+### The "Ghost Agent" Pattern
+
+Treebeard doesn't need to know *how* to search. It just knows how to *ask* for search.
+
+1. **User:** "Research Nixon" (in Browser)
+2. **Treebeard:** Formats `sampling/createMessage` with system prompt: *"You are a Research Agent. Use your WebSearch tools..."*
+3. **Bridge:** Forwards to Claude Code
+4. **Claude Code:** Enters its own loop (Search → Read → Search → Synthesize)
+5. **Return:** Claude Code sends final result back through Bridge
+6. **Treebeard:** Parses result and updates tree
+
+**Benefits:**
+- Standard MCP protocol (no custom invention)
+- Claude Code uses its internal capabilities (Chain of Thought, Tool Use)
+- TreeListy stays lightweight - just formats requests
+
+### Streaming Progress
+
+Use standard JSON-RPC `notifications/progress` to stream status updates:
+
+```json
+{"jsonrpc": "2.0", "method": "notifications/progress", "params": {
+  "token": "task-123",
+  "progress": 3,
+  "total": 5,
+  "message": "Found 3 sources, researching presidency..."
+}}
+```
+
+### Concurrency
+
+Claude Code is single-threaded (one interactive session). The Bridge implements a simple queue:
+
+```
+Task 1: "Research Nixon" → Processing
+Task 2: "Analyze document" → Queued
+Task 3: "Generate image" → Queued (routes to Gemini instead)
+```
 
 ## Use Cases
 
@@ -185,10 +250,66 @@ Memory persists across sessions but isolated per tree.
   "icon": "🔬",
   "scope": "global",  // or "tree-specific"
   "interactionStyle": "conversational",  // or "autonomous"
-  "requiredCapabilities": ["webSearch", "treeWrite"],
+  "resultHandling": "preview",  // or "auto-apply"
   "promptTemplate": "Research {subject} and create a LifeTree structure...",
-  "resultHandling": "preview"  // or "auto-apply"
+
+  // Capabilities Manifest (security - must declare what it uses)
+  "requiredCapabilities": ["webSearch", "treeWrite"],
+  "requiresLocalBridge": true,  // Desktop only, or false for API-only agents
+
+  // Platform availability
+  "platforms": {
+    "desktop": true,   // Uses Claude Code via MCP
+    "mobile": false    // Cannot run without local bridge
+  }
 }
+```
+
+### Agent Capability Types
+
+| Capability | Description | Requires Local Bridge |
+|------------|-------------|----------------------|
+| `webSearch` | Search the web for information | Yes (Claude Code) |
+| `webFetch` | Fetch and parse URLs | Yes (Claude Code) |
+| `fileRead` | Read local files | Yes (Claude Code) |
+| `fileWrite` | Write/create files | Yes (Claude Code) |
+| `shellExec` | Run shell commands | Yes (Claude Code) |
+| `treeWrite` | Modify the tree | No (browser can do) |
+| `treeRead` | Read tree data | No (browser can do) |
+| `imageGen` | Generate images | No (Gemini API) |
+| `analysis` | Analyze/summarize | No (any AI API) |
+
+## Platform Modes: Desktop vs Mobile
+
+### Desktop Mode (Full Power)
+```
+Browser ↔ Localhost Bridge ↔ Claude Code CLI
+         (WebSocket)         (Full toolkit)
+```
+
+### Mobile Mode (API Fallback)
+```
+Mobile Browser ↔ Netlify Function ↔ Anthropic API
+                 (or Firebase)      (Limited - no WebSearch)
+```
+
+**Key insight:** Claude Code CLI cannot run on iOS/Android. Mobile must fall back to raw API calls.
+
+**Agent availability by platform:**
+
+| Agent Type | Desktop | Mobile |
+|------------|---------|--------|
+| Deep Research (WebSearch) | ✅ | ❌ Desktop only |
+| Summarization | ✅ | ✅ |
+| Tree structuring | ✅ | ✅ |
+| Image generation | ✅ | ✅ (Gemini API) |
+| File operations | ✅ | ❌ Desktop only |
+
+**UI indication:**
+```
+[🔬 Deep Research]     ← Shows "Requires Desktop" badge on mobile
+[✨ Summarize Branch]  ← Works everywhere
+[🖼️ Generate Image]   ← Works everywhere
 ```
 
 ## Disconnected Behavior
@@ -196,8 +317,9 @@ Memory persists across sessions but isolated per tree.
 When Claude Code isn't running:
 
 1. **Notify gracefully:** "Claude Code not connected. Start it to use this feature."
-2. **Fallback to Treebeard:** TB does what it can with its own capabilities
+2. **Fallback to Treebeard:** TB does what it can with its own capabilities (API-only agents)
 3. **Note limitations:** "I can help structure your ideas, but can't search the web without Claude Code connected."
+4. **Show available agents:** Only display agents that work without local bridge
 
 ## Error Handling & Recovery
 
@@ -229,14 +351,60 @@ TB: "Resume Nixon research? We completed 2/5 phases"
 
 ## Security & Permissions
 
+### The "Word Macro" Problem
+
+**Risk (identified by Gemini):** Tree JSON with embedded agents is like a Word doc with macros. A malicious tree could contain an agent that exfiltrates data or runs destructive commands.
+
+```
+Attacker sends: nixon_research.json
+Victim opens tree
+Malicious agent auto-runs: cat /etc/passwd > exfil_url
+```
+
 ### Threat Model
 
 | Threat | Example | Mitigation |
 |--------|---------|------------|
-| Malicious shared tree | Tree has agent that runs `rm -rf /` | Agent definitions require approval |
+| Malicious shared tree | Tree has agent that runs `rm -rf /` | Safe Mode + Trust dialog |
+| Undeclared capabilities | Agent uses `shellExec` without declaring it | Capabilities Manifest enforcement |
 | Prompt injection | Node name contains hidden instructions | Sanitize inputs, sandbox prompts |
 | Data exfiltration | Agent sends tree data to external URL | Allowlist for network destinations |
 | Runaway costs | Agent loops infinitely, burns API credits | Budget limits per task |
+
+### Safe Mode (Like Protected View in Office)
+
+When opening a foreign tree (shared/imported):
+
+```
+┌─────────────────────────────────────────────────────────┐
+│  ⚠️ SAFE MODE                                           │
+│                                                          │
+│  This tree was shared by someone else.                  │
+│  Agents are disabled until you enable them.             │
+│                                                          │
+│  Tree contains 2 custom agents:                         │
+│  • "Deep Research" - webSearch, fileWrite               │
+│  • "Export to Cloud" - network, fileSystem              │
+│                                                          │
+│  [View Agent Code]  [Enable Agents]  [Keep Disabled]    │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Capabilities Manifest Enforcement
+
+Agents must declare their capabilities upfront. If an agent tries to use undeclared capabilities, the Bridge blocks it:
+
+```javascript
+// Agent definition
+{
+  "id": "research-agent",
+  "requiredCapabilities": ["webSearch", "treeWrite"]  // Declared
+}
+
+// At runtime:
+Agent tries: shellExec("rm -rf /")
+Bridge: "BLOCKED - shellExec not in capabilities manifest"
+```
 
 ### Permission Tiers
 
@@ -304,12 +472,20 @@ Trust agents from "geej@prairie2cloud.com"?
 - Build audit logging
 - Error handling and edge cases
 
-## Open Questions
+## Resolved Questions (from Gemini Review)
 
-1. **Message format:** JSON-RPC extension or custom protocol?
-2. **Streaming:** How to stream partial results for long tasks?
-3. **Concurrency:** Multiple tasks simultaneously?
-4. **Mobile:** How does this work on mobile where Claude Code can't run?
+| Question | Resolution |
+|----------|------------|
+| **Message format?** | Use MCP Sampling (`sampling/createMessage`). Standard protocol, supports system prompts, handles server-driving-client flow. |
+| **Streaming?** | Use JSON-RPC `notifications/progress` for status updates during long tasks. |
+| **Concurrency?** | Queue in Bridge. Claude Code is single-threaded; non-CC agents (Gemini) can run in parallel. |
+| **Mobile?** | Two-tier: Desktop uses local bridge + Claude Code; Mobile falls back to API-only agents. Mark agents with `requiresLocalBridge`. |
+
+## Remaining Open Questions
+
+1. **Bridge state management:** How does Bridge handle Claude Code restarts mid-task?
+2. **Agent versioning:** How to handle built-in agent updates without breaking user customizations?
+3. **Cost tracking:** How to show users estimated/actual API costs per agent run?
 
 ## Success Criteria
 
