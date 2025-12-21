@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 519 | 2025-12-20
+    TreeListy v2.20.0 | Build 520 | 2025-12-20
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 520): Fix modal close buttons - add .modal-close CSS for proper dismiss
     Changelog (Build 519): RAG Phase 1 - Enhanced Document Import with PDF extraction (pdf.js), URL fetching, source type tabs, knowledge-base pattern
-    Changelog (Build 517): Mobile Canvas UX - scrollable toolbar, compact minimap, bottom-sheet context menu
-    Previous (Build 516): Fix Canvas/3D View not displaying on mobile - add .active class override
+    Previous (Build 517): Mobile Canvas UX - scrollable toolbar, compact minimap, bottom-sheet context menu
     Changelog (Build 508): Desktop reader nav + group iteration (hyperedge/dependency chain)
     Changelog (Build 507): Mobile reading mode - prev/next navigation, collapsed initial tree
     Previous (Build 506): Fix undefined icon in tree view - add fallback for items without icons
@@ -740,7 +740,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 519,
+            build: 520,
             date: '2025-12-20',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3180,6 +3180,34 @@
             border-top: 1px solid var(--border);
             display: flex;
             justify-content: flex-end;
+        }
+
+        /* Modal close button - positioned in header */
+        .modal-close {
+            position: absolute;
+            top: 12px;
+            right: 12px;
+            width: 32px;
+            height: 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border: none;
+            border-radius: 8px;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background 0.2s;
+            z-index: 1;
+        }
+        .modal-close:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Make modal-header position relative for absolute close button */
+        .modal-header {
+            position: relative;
         }
 
         .spinner {
@@ -8699,7 +8727,7 @@ The AI will analyze the structure and convert it to a tree."
                     </div>
 
                     <div style="margin-top: 16px; padding: 12px; background: rgba(99, 102, 241, 0.1); border-radius: 8px; font-size: 12px; color: var(--text-secondary); line-height: 1.5;">
-                        <strong style="color: var(--text-primary);">💡 Tip:</strong> When you start Claude Code with the MCP bridge configured, look for the port and token in the server output.
+                        <strong style="color: var(--text-primary);">💡 Auto-Connect:</strong> TreeListy auto-connects on page load using defaults (port 3456, token "treelisty-local"). If Claude Code is running with the bridge, you're already connected!
                     </div>
                 </div>
 
@@ -36934,8 +36962,13 @@ https://treelisty.netlify.app`;
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
-        // MCP BRIDGE - CLAUDE CODE INTEGRATION (Build 518)
+        // MCP BRIDGE - CLAUDE CODE INTEGRATION (Build 518, Auto-Connect Build 520)
         // ═══════════════════════════════════════════════════════════════════════════
+
+        // MCP Auto-Connect defaults (Build 520)
+        const MCP_STORAGE_KEY = 'treelisty_mcp_config';
+        const MCP_DEFAULT_PORT = 3456;
+        const MCP_DEFAULT_TOKEN = 'treelisty-local';
 
         // MCP Bridge state
         const mcpBridgeState = {
@@ -36946,6 +36979,35 @@ https://treelisty.netlify.app`;
             token: null,
             activityLog: []
         };
+
+        // Helper functions for MCP config persistence (Build 520)
+        function saveMCPConfig(port, token) {
+            try {
+                localStorage.setItem(MCP_STORAGE_KEY, JSON.stringify({ port, token, savedAt: Date.now() }));
+            } catch (e) {
+                console.warn('[MCP] Failed to save config:', e);
+            }
+        }
+
+        function loadMCPConfig() {
+            try {
+                const saved = localStorage.getItem(MCP_STORAGE_KEY);
+                if (saved) {
+                    return JSON.parse(saved);
+                }
+            } catch (e) {
+                console.warn('[MCP] Failed to load config:', e);
+            }
+            return null;
+        }
+
+        function clearMCPConfig() {
+            try {
+                localStorage.removeItem(MCP_STORAGE_KEY);
+            } catch (e) {
+                console.warn('[MCP] Failed to clear config:', e);
+            }
+        }
 
         /**
          * TreeListy MCP Bridge Client
@@ -37166,6 +37228,40 @@ https://treelisty.netlify.app`;
                         return this.getPatternSchema(params);
                     case 'get_activity_log':
                         return this.getActivityLog(params);
+                    // Structure Operations (Build 520)
+                    case 'move_node':
+                        return this.moveNode(params);
+                    case 'reorder_node':
+                        return this.reorderNode(params);
+                    case 'duplicate_node':
+                        return this.duplicateNode(params);
+                    case 'bulk_update':
+                        return this.bulkUpdate(params);
+                    case 'bulk_create':
+                        return this.bulkCreate(params);
+                    case 'bulk_delete':
+                        return this.bulkDelete(params);
+                    // UI Control Operations (Build 520)
+                    case 'select_node':
+                        return this.selectNode(params);
+                    case 'get_selected_node':
+                        return this.getSelectedNode(params);
+                    case 'expand_node':
+                        return this.expandNode(params);
+                    case 'collapse_node':
+                        return this.collapseNode(params);
+                    case 'set_view':
+                        return this.setView(params);
+                    case 'get_view':
+                        return this.getView(params);
+                    case 'scroll_to_node':
+                        return this.scrollToNode(params);
+                    case 'undo':
+                        return this.undoAction(params);
+                    case 'redo':
+                        return this.redoAction(params);
+                    case 'get_undo_stack_info':
+                        return this.getUndoStackInfo(params);
                     default:
                         throw new Error(`Unknown method: ${method}`);
                 }
@@ -37601,6 +37697,506 @@ https://treelisty.netlify.app`;
 
                 return log.slice(-limit);
             }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Structure Operations (Build 520)
+            // ═══════════════════════════════════════════════════════════════
+
+            moveNode(params) {
+                const { node_id, new_parent_id, position } = params;
+
+                if (node_id === 'root' || node_id === capexTree.id) {
+                    throw new Error('Cannot move root node');
+                }
+
+                const node = this.findNodeById(node_id);
+                if (!node) throw new Error(`Node not found: ${node_id}`);
+
+                const oldParent = this.findParentOf(node_id);
+                if (!oldParent) throw new Error(`Cannot find parent of node: ${node_id}`);
+
+                const newParent = this.findNodeById(new_parent_id);
+                if (!newParent) throw new Error(`New parent not found: ${new_parent_id}`);
+
+                // Prevent moving a node into its own descendants
+                const isDescendant = (ancestorId, nodeToCheck) => {
+                    const children = nodeToCheck.children || nodeToCheck.items || nodeToCheck.subItems || nodeToCheck.subtasks || [];
+                    for (const child of children) {
+                        if (child.id === ancestorId || isDescendant(ancestorId, child)) return true;
+                    }
+                    return false;
+                };
+                if (isDescendant(new_parent_id, node)) {
+                    throw new Error('Cannot move node into its own descendant');
+                }
+
+                // Remove from old parent
+                const childKeys = ['children', 'items', 'subItems', 'subtasks'];
+                for (const key of childKeys) {
+                    if (oldParent[key]) {
+                        const idx = oldParent[key].findIndex(c => c.id === node_id);
+                        if (idx >= 0) {
+                            oldParent[key].splice(idx, 1);
+                            break;
+                        }
+                    }
+                }
+
+                // Add to new parent (pattern-aware child key)
+                const pattern = (capexTree.pattern && capexTree.pattern.key) || 'generic';
+                const useUniformChildren = pattern === 'filesystem';
+                const newChildKey = useUniformChildren ? 'children' :
+                                    (newParent.type === 'root' ? 'children' :
+                                     newParent.type === 'phase' ? 'items' : 'subtasks');
+
+                if (!newParent[newChildKey]) newParent[newChildKey] = [];
+
+                // Update node type based on new depth (unless filesystem pattern)
+                if (!useUniformChildren) {
+                    node.type = newParent.type === 'root' ? 'phase' :
+                                newParent.type === 'phase' ? 'item' : 'subtask';
+                }
+
+                if (typeof position === 'number' && position >= 0) {
+                    newParent[newChildKey].splice(position, 0, node);
+                } else {
+                    newParent[newChildKey].push(node);
+                }
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'move', nodeId: node_id });
+                } else {
+                    saveState('MCP: Moved node');
+                    render();
+                }
+
+                showToast(`🤖 Claude moved: ${node.name}`, 'info');
+                return { success: true, newParentId: new_parent_id };
+            }
+
+            reorderNode(params) {
+                const { node_id, position } = params;
+
+                const parent = this.findParentOf(node_id);
+                if (!parent) throw new Error(`Node not found or is root: ${node_id}`);
+
+                const childKeys = ['children', 'items', 'subItems', 'subtasks'];
+                let moved = false;
+
+                for (const key of childKeys) {
+                    if (parent[key]) {
+                        const idx = parent[key].findIndex(c => c.id === node_id);
+                        if (idx >= 0) {
+                            const [node] = parent[key].splice(idx, 1);
+                            const newPos = Math.min(position, parent[key].length);
+                            parent[key].splice(newPos, 0, node);
+                            moved = true;
+                            break;
+                        }
+                    }
+                }
+
+                if (!moved) throw new Error(`Failed to reorder node: ${node_id}`);
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'reorder', nodeId: node_id });
+                } else {
+                    saveState('MCP: Reordered node');
+                    render();
+                }
+
+                showToast(`🤖 Claude reordered node`, 'info');
+                return { success: true, newPosition: position };
+            }
+
+            duplicateNode(params) {
+                const { node_id, new_parent_id, include_children = true } = params;
+
+                const sourceNode = this.findNodeById(node_id);
+                if (!sourceNode) throw new Error(`Node not found: ${node_id}`);
+
+                const targetParent = new_parent_id
+                    ? this.findNodeById(new_parent_id)
+                    : this.findParentOf(node_id);
+                if (!targetParent) throw new Error(`Target parent not found`);
+
+                // Deep clone with new IDs
+                const cloneWithNewIds = (node, depth = 0) => {
+                    const clone = { ...node };
+                    clone.id = this.generateId();
+                    clone.name = depth === 0 ? `${node.name} (copy)` : node.name;
+
+                    if (include_children) {
+                        const childKeys = ['children', 'items', 'subItems', 'subtasks'];
+                        for (const key of childKeys) {
+                            if (clone[key] && Array.isArray(clone[key])) {
+                                clone[key] = clone[key].map(child => cloneWithNewIds(child, depth + 1));
+                            }
+                        }
+                    } else {
+                        // Remove children if not including
+                        delete clone.children;
+                        delete clone.items;
+                        delete clone.subItems;
+                        delete clone.subtasks;
+                    }
+
+                    return clone;
+                };
+
+                const clonedNode = cloneWithNewIds(sourceNode);
+
+                // Add to target parent
+                const pattern = (capexTree.pattern && capexTree.pattern.key) || 'generic';
+                const useUniformChildren = pattern === 'filesystem';
+                const childKey = useUniformChildren ? 'children' :
+                                 (targetParent.type === 'root' ? 'children' :
+                                  targetParent.type === 'phase' ? 'items' : 'subtasks');
+
+                if (!targetParent[childKey]) targetParent[childKey] = [];
+                targetParent[childKey].push(clonedNode);
+
+                // Count duplicated nodes
+                const countDuplicates = (node) => {
+                    let count = 1;
+                    const childKeys = ['children', 'items', 'subItems', 'subtasks'];
+                    for (const key of childKeys) {
+                        if (node[key]) count += node[key].reduce((sum, c) => sum + countDuplicates(c), 0);
+                    }
+                    return count;
+                };
+                const duplicatedCount = countDuplicates(clonedNode);
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'duplicate', nodeId: clonedNode.id });
+                } else {
+                    saveState('MCP: Duplicated node');
+                    render();
+                }
+
+                showToast(`🤖 Claude duplicated ${duplicatedCount} nodes`, 'info');
+                return { newNodeId: clonedNode.id, duplicatedCount };
+            }
+
+            bulkUpdate(params) {
+                const { updates } = params;
+                const results = [];
+                const protectedFields = ['id', 'type', 'children', 'items', 'subItems', 'subtasks'];
+
+                for (const { node_id, updates: nodeUpdates } of updates) {
+                    const node = this.findNodeById(node_id);
+                    if (node) {
+                        for (const [key, value] of Object.entries(nodeUpdates)) {
+                            if (!protectedFields.includes(key)) {
+                                node[key] = value;
+                            }
+                        }
+                        results.push({ nodeId: node_id, success: true });
+                    } else {
+                        results.push({ nodeId: node_id, success: false, error: 'Not found' });
+                    }
+                }
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'bulkUpdate', count: results.length });
+                } else {
+                    saveState(`MCP: Bulk updated ${results.filter(r => r.success).length} nodes`);
+                    render();
+                }
+
+                showToast(`🤖 Claude bulk updated ${results.filter(r => r.success).length} nodes`, 'info');
+                return { results, successCount: results.filter(r => r.success).length };
+            }
+
+            bulkCreate(params) {
+                const { parent_id, nodes } = params;
+
+                const parent = this.findNodeById(parent_id);
+                if (!parent) throw new Error(`Parent not found: ${parent_id}`);
+
+                const pattern = (capexTree.pattern && capexTree.pattern.key) || 'generic';
+                const useUniformChildren = pattern === 'filesystem';
+                const childKey = useUniformChildren ? 'children' :
+                                 (parent.type === 'root' ? 'children' :
+                                  parent.type === 'phase' ? 'items' : 'subtasks');
+
+                if (!parent[childKey]) parent[childKey] = [];
+
+                const createdIds = [];
+                const defaultType = useUniformChildren ? 'folder' :
+                                    (parent.type === 'root' ? 'phase' :
+                                     parent.type === 'phase' ? 'item' : 'subtask');
+
+                for (const nodeData of nodes) {
+                    const newNode = {
+                        id: nodeData.id || this.generateId(),
+                        name: nodeData.name || 'New Node',
+                        type: nodeData.type || defaultType,
+                        description: nodeData.description || '',
+                        ...nodeData
+                    };
+                    parent[childKey].push(newNode);
+                    createdIds.push(newNode.id);
+                }
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'bulkCreate', count: createdIds.length });
+                } else {
+                    saveState(`MCP: Bulk created ${createdIds.length} nodes`);
+                    render();
+                }
+
+                showToast(`🤖 Claude created ${createdIds.length} nodes`, 'success');
+                return { nodeIds: createdIds, count: createdIds.length };
+            }
+
+            bulkDelete(params) {
+                const { node_ids } = params;
+                const results = [];
+
+                for (const nodeId of node_ids) {
+                    if (nodeId === 'root' || nodeId === capexTree.id) {
+                        results.push({ nodeId, success: false, error: 'Cannot delete root' });
+                        continue;
+                    }
+
+                    const parent = this.findParentOf(nodeId);
+                    if (!parent) {
+                        results.push({ nodeId, success: false, error: 'Not found' });
+                        continue;
+                    }
+
+                    const childKeys = ['children', 'items', 'subItems', 'subtasks'];
+                    let deleted = false;
+                    for (const key of childKeys) {
+                        if (parent[key]) {
+                            const idx = parent[key].findIndex(c => c.id === nodeId);
+                            if (idx >= 0) {
+                                parent[key].splice(idx, 1);
+                                deleted = true;
+                                break;
+                            }
+                        }
+                    }
+
+                    results.push({ nodeId, success: deleted, error: deleted ? null : 'Delete failed' });
+                }
+
+                if (this.activeTransaction) {
+                    this.transactionChanges.push({ type: 'bulkDelete', count: results.filter(r => r.success).length });
+                } else {
+                    saveState(`MCP: Bulk deleted ${results.filter(r => r.success).length} nodes`);
+                    render();
+                }
+
+                showToast(`🤖 Claude deleted ${results.filter(r => r.success).length} nodes`, 'info');
+                return { results, successCount: results.filter(r => r.success).length };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // UI Control Operations (Build 520)
+            // ═══════════════════════════════════════════════════════════════
+
+            selectNode(params) {
+                const { node_id } = params;
+
+                const node = this.findNodeById(node_id);
+                if (!node) throw new Error(`Node not found: ${node_id}`);
+
+                // Use TreeListy's existing selection mechanism
+                if (typeof selectNodeById === 'function') {
+                    selectNodeById(node_id);
+                } else if (typeof window.selectNodeById === 'function') {
+                    window.selectNodeById(node_id);
+                } else {
+                    // Fallback: set selected state manually
+                    if (typeof selectedItem !== 'undefined') {
+                        selectedItem = node;
+                    }
+                    if (typeof window.selectedItem !== 'undefined') {
+                        window.selectedItem = node;
+                    }
+                }
+
+                // Scroll to make visible
+                this.scrollToNode({ node_id });
+
+                showToast(`🤖 Claude selected: ${node.name}`, 'info');
+                return { success: true, nodeName: node.name };
+            }
+
+            getSelectedNode(params) {
+                let selected = null;
+
+                if (typeof selectedItem !== 'undefined' && selectedItem) {
+                    selected = selectedItem;
+                } else if (typeof window.selectedItem !== 'undefined' && window.selectedItem) {
+                    selected = window.selectedItem;
+                }
+
+                if (!selected) {
+                    return { selected: false, node: null };
+                }
+
+                return { selected: true, node: this.toAgentFormat(selected, 0, 1) };
+            }
+
+            expandNode(params) {
+                const { node_id, recursive = false } = params;
+
+                const node = this.findNodeById(node_id);
+                if (!node) throw new Error(`Node not found: ${node_id}`);
+
+                const expandNodeRecursive = (n) => {
+                    n.collapsed = false;
+                    if (recursive) {
+                        const children = n.children || n.items || n.subItems || n.subtasks || [];
+                        children.forEach(expandNodeRecursive);
+                    }
+                };
+
+                expandNodeRecursive(node);
+                render();
+
+                showToast(`🤖 Claude expanded: ${node.name}${recursive ? ' (recursive)' : ''}`, 'info');
+                return { success: true };
+            }
+
+            collapseNode(params) {
+                const { node_id, recursive = false } = params;
+
+                const node = this.findNodeById(node_id);
+                if (!node) throw new Error(`Node not found: ${node_id}`);
+
+                const collapseNodeRecursive = (n) => {
+                    n.collapsed = true;
+                    if (recursive) {
+                        const children = n.children || n.items || n.subItems || n.subtasks || [];
+                        children.forEach(collapseNodeRecursive);
+                    }
+                };
+
+                collapseNodeRecursive(node);
+                render();
+
+                showToast(`🤖 Claude collapsed: ${node.name}${recursive ? ' (recursive)' : ''}`, 'info');
+                return { success: true };
+            }
+
+            setView(params) {
+                const { view } = params;
+                const validViews = ['tree', 'canvas', '3d', 'gantt', 'calendar'];
+
+                if (!validViews.includes(view)) {
+                    throw new Error(`Invalid view: ${view}. Must be one of: ${validViews.join(', ')}`);
+                }
+
+                // Use TreeListy's view switching functions
+                if (view === 'tree' && typeof switchToTreeView === 'function') {
+                    switchToTreeView();
+                } else if (view === 'canvas' && typeof switchToCanvasView === 'function') {
+                    switchToCanvasView();
+                } else if (view === '3d' && typeof switchTo3DView === 'function') {
+                    switchTo3DView();
+                } else if (view === 'gantt' && typeof switchToGanttView === 'function') {
+                    switchToGanttView();
+                } else if (view === 'calendar' && typeof switchToCalendarView === 'function') {
+                    switchToCalendarView();
+                } else {
+                    // Fallback: set viewMode directly
+                    if (typeof viewMode !== 'undefined') {
+                        viewMode = view;
+                    }
+                }
+
+                showToast(`🤖 Claude switched to ${view} view`, 'info');
+                return { success: true, view };
+            }
+
+            getView(params) {
+                let currentView = 'tree';
+
+                if (typeof viewMode !== 'undefined') {
+                    currentView = viewMode;
+                } else if (typeof window.viewMode !== 'undefined') {
+                    currentView = window.viewMode;
+                }
+
+                return { view: currentView };
+            }
+
+            scrollToNode(params) {
+                const { node_id } = params;
+
+                const node = this.findNodeById(node_id);
+                if (!node) throw new Error(`Node not found: ${node_id}`);
+
+                // Try TreeListy's scroll function
+                if (typeof scrollToNode === 'function') {
+                    scrollToNode(node_id);
+                } else if (typeof window.scrollToNode === 'function') {
+                    window.scrollToNode(node_id);
+                } else {
+                    // Fallback: find DOM element and scroll
+                    const el = document.querySelector(`[data-node-id="${node_id}"]`) ||
+                               document.getElementById(`node-${node_id}`);
+                    if (el) {
+                        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }
+
+                return { success: true };
+            }
+
+            undoAction(params) {
+                if (typeof undo === 'function') {
+                    undo();
+                } else if (typeof window.undo === 'function') {
+                    window.undo();
+                } else {
+                    throw new Error('Undo function not available');
+                }
+
+                showToast(`🤖 Claude triggered undo`, 'info');
+                return { success: true };
+            }
+
+            redoAction(params) {
+                if (typeof redo === 'function') {
+                    redo();
+                } else if (typeof window.redo === 'function') {
+                    window.redo();
+                } else {
+                    throw new Error('Redo function not available');
+                }
+
+                showToast(`🤖 Claude triggered redo`, 'info');
+                return { success: true };
+            }
+
+            getUndoStackInfo(params) {
+                let undoCount = 0;
+                let redoCount = 0;
+
+                if (typeof undoStack !== 'undefined' && Array.isArray(undoStack)) {
+                    undoCount = undoStack.length;
+                } else if (typeof window.undoStack !== 'undefined' && Array.isArray(window.undoStack)) {
+                    undoCount = window.undoStack.length;
+                }
+
+                if (typeof redoStack !== 'undefined' && Array.isArray(redoStack)) {
+                    redoCount = redoStack.length;
+                } else if (typeof window.redoStack !== 'undefined' && Array.isArray(window.redoStack)) {
+                    redoCount = window.redoStack.length;
+                }
+
+                return {
+                    canUndo: undoCount > 0,
+                    canRedo: redoCount > 0,
+                    undoCount,
+                    redoCount
+                };
+            }
         }
 
         // ═══════════════════════════════════════════════════════════════
@@ -37731,10 +38327,16 @@ https://treelisty.netlify.app`;
                 modal.style.display = 'flex';
                 updateMCPStatusUI();
 
-                // Pre-fill port if we have it
+                // Pre-fill with saved config, current state, or defaults
                 const portInput = document.getElementById('mcp-port-input');
-                if (portInput && mcpBridgeState.port) {
-                    portInput.value = mcpBridgeState.port;
+                const tokenInput = document.getElementById('mcp-token-input');
+                const saved = loadMCPConfig();
+
+                if (portInput) {
+                    portInput.value = mcpBridgeState.port || saved?.port || MCP_DEFAULT_PORT;
+                }
+                if (tokenInput) {
+                    tokenInput.value = mcpBridgeState.token || saved?.token || MCP_DEFAULT_TOKEN;
                 }
             }
         }
@@ -37743,23 +38345,21 @@ https://treelisty.netlify.app`;
             const portInput = document.getElementById('mcp-port-input');
             const tokenInput = document.getElementById('mcp-token-input');
 
-            const port = parseInt(portInput?.value);
-            const token = tokenInput?.value?.trim();
+            const port = parseInt(portInput?.value) || MCP_DEFAULT_PORT;
+            const token = tokenInput?.value?.trim() || MCP_DEFAULT_TOKEN;
 
-            if (!port || isNaN(port)) {
-                showToast('Please enter a valid port number', 'error');
-                portInput?.focus();
-                return;
+            // Use defaults if empty
+            if (!portInput?.value) {
+                portInput.value = MCP_DEFAULT_PORT;
             }
-
-            if (!token) {
-                showToast('Please enter the session token', 'error');
-                tokenInput?.focus();
-                return;
+            if (!tokenInput?.value) {
+                tokenInput.value = MCP_DEFAULT_TOKEN;
             }
 
             initMCPBridge(port, token).then(() => {
                 console.log('[MCP] Connected successfully');
+                // Save config for auto-reconnect
+                saveMCPConfig(port, token);
                 // Clear token input for security
                 if (tokenInput) tokenInput.value = '';
             }).catch(err => {
@@ -37783,9 +38383,120 @@ https://treelisty.netlify.app`;
         window.disconnectMCPFromModal = disconnectMCPFromModal;
         window.updateMCPActivityLog = updateMCPActivityLog;
 
-        // Initialize MCP button after DOM ready
+        // ═══════════════════════════════════════════════════════════════
+        // MCP Auto-Connect (Build 520)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Silent auto-connect attempt
+        async function attemptMCPAutoConnect() {
+            // Don't auto-connect if already connected
+            if (mcpBridgeState.status === 'connected') {
+                return;
+            }
+
+            // Check URL params first: ?mcp=auto or ?mcp=port:token
+            const urlParams = new URLSearchParams(window.location.search);
+            const mcpParam = urlParams.get('mcp');
+
+            let port = MCP_DEFAULT_PORT;
+            let token = MCP_DEFAULT_TOKEN;
+
+            if (mcpParam) {
+                if (mcpParam === 'auto') {
+                    // Use defaults
+                    console.log('[MCP] Auto-connect triggered via URL param');
+                } else if (mcpParam.includes(':')) {
+                    // Parse port:token format
+                    const [p, t] = mcpParam.split(':');
+                    port = parseInt(p, 10) || MCP_DEFAULT_PORT;
+                    token = t || MCP_DEFAULT_TOKEN;
+                    console.log('[MCP] Custom config from URL:', port);
+                }
+            } else {
+                // Try saved config, fall back to defaults
+                const saved = loadMCPConfig();
+                if (saved) {
+                    port = saved.port || MCP_DEFAULT_PORT;
+                    token = saved.token || MCP_DEFAULT_TOKEN;
+                    console.log('[MCP] Using saved config, port:', port);
+                } else {
+                    console.log('[MCP] Trying default config, port:', port);
+                }
+            }
+
+            // Attempt silent connection
+            mcpBridgeState.status = 'connecting';
+            updateMCPStatusUI();
+
+            try {
+                mcpBridgeState.client = new TreeListyMCPClient({
+                    reconnectOnClose: true,
+                    maxReconnectAttempts: 2  // Limited retries for auto-connect
+                });
+                mcpBridgeState.handler = new TreeListyMCPHandler();
+
+                mcpBridgeState.client.onRequest = async (method, params) => {
+                    return await mcpBridgeState.handler.handleRequest(method, params);
+                };
+
+                mcpBridgeState.client.onConnect = () => {
+                    mcpBridgeState.status = 'connected';
+                    mcpBridgeState.port = port;
+                    mcpBridgeState.token = token;
+                    updateMCPStatusUI();
+                    saveMCPConfig(port, token);
+                    console.log('[MCP] Auto-connected successfully');
+                    // Subtle success indicator - no intrusive toast
+                    showToast('🤖 Claude Code connected', 'success', 2000);
+                };
+
+                mcpBridgeState.client.onDisconnect = (code, reason) => {
+                    mcpBridgeState.status = 'disconnected';
+                    updateMCPStatusUI();
+                    // Silent on auto-disconnect, no toast
+                };
+
+                mcpBridgeState.client.onError = (err) => {
+                    // Silent error for auto-connect
+                    console.log('[MCP] Auto-connect failed (bridge not running?)');
+                };
+
+                // Short timeout for auto-connect
+                await Promise.race([
+                    mcpBridgeState.client.connect(port, token),
+                    new Promise((_, reject) => setTimeout(() => reject(new Error('timeout')), 3000))
+                ]);
+
+            } catch (err) {
+                // Silent failure - bridge probably not running
+                console.log('[MCP] Auto-connect skipped:', err.message);
+                mcpBridgeState.status = 'disconnected';
+                mcpBridgeState.client = null;
+                updateMCPStatusUI();
+                // No toast, no error - just show disconnected status
+            }
+        }
+
+        // Override disconnect to clear saved config
+        const originalDisconnect = disconnectMCPBridge;
+        function disconnectMCPBridgeWithClear() {
+            clearMCPConfig();
+            originalDisconnect();
+        }
+        window.disconnectMCPBridge = disconnectMCPBridgeWithClear;
+
+        // Expose auto-connect
+        window.attemptMCPAutoConnect = attemptMCPAutoConnect;
+
+        // Initialize MCP button and attempt auto-connect after DOM ready
         document.addEventListener('DOMContentLoaded', () => {
             updateMCPStatusUI();
+
+            // Delay auto-connect slightly to let page settle
+            // Works in both browser and PWA mode - PWA can still connect to localhost
+            setTimeout(() => {
+                attemptMCPAutoConnect();
+            }, 1000);
         });
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -62359,7 +63070,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 519; // Update this with each build
+                    const KNOWN_LATEST = 520; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
