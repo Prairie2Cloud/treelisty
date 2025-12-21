@@ -5,7 +5,7 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.19.0 (Build 517)
+**Version**: 2.20.0 (Build 528)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -25,7 +25,31 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 ---
 
-## What's New (Builds 494-517)
+## What's New (Builds 518-528)
+
+### Builds 523-528: MCP Bridge & Claude Chrome Integration
+- **MCP Task Dispatch** - Bidirectional communication with Claude Code CLI
+- **Sync commands** - `sync gmail`, `sync drive`, `sync calendar` via TreeBeard
+- **Claude Chrome file opening** - Open Google Drive files via Claude Chrome extension
+- **Direct command matching** - Bypasses AI for instant response on sync/file commands
+- **Inbox UI** - Review and approve/reject proposed operations from Claude Code
+- Key functions: `submitMcpTask()`, `mcpBridgeState`, `COMMAND_REGISTRY['open_gdrive_via_mcp']`
+- Architecture: TreeListy dispatches intent → Claude Code executes via Chrome → Results return via MCP Inbox
+
+### Builds 519-522: RAG & Research Enhancements
+- **RAG Phase 1** - Enhanced document import with PDF text extraction
+- **Hyperedge query fix** - Proper routing to tree analysis vs web research
+- **Research bullet parsing** - Better formatting of research results
+- **MCP set_view fix** - Proper view switching via button clicks
+
+### Build 518: MCP Bridge Foundation
+- **MCP Bridge package** - Node.js server for TreeListy ↔ Claude Code communication
+- **Auto-connect** - Optional auto-reconnect on page load
+- **Task queue** - Claim, progress, complete pattern for async tasks
+
+---
+
+## Previous Features (Builds 494-517)
 
 ### Builds 516-517: Mobile Canvas View UX
 - **Canvas View works on mobile** - was previously broken (display:none override)
@@ -160,6 +184,13 @@ GANTT (Build 485+):
 • gantt_set_dates:{task}, {start}, {end} - Update dates
 • gantt_set_progress:{task}, {0-100} - Update progress
 • gantt_mark_done:{task} - Complete a task
+
+MCP SYNC (Build 523+):
+• sync gmail - Sync Gmail inbox via Claude Chrome
+• sync drive - Sync Google Drive files
+• sync calendar - Sync Google Calendar events
+• sync all - Sync all connected services
+• open file {name} - Open file by name (local or cloud)
 ```
 
 ### Chat Builder / Tree Agent
@@ -197,6 +228,49 @@ window.startVoiceChat()          // Open Jitsi Meet
 ### Voice Chat (Build 322)
 - Jitsi Meet integration
 - Uses session ID for room: `treelisty-{roomId}`
+
+---
+
+## MCP Bridge (Build 518+)
+
+### Overview
+Bidirectional communication between TreeListy and Claude Code CLI, enabling:
+- **Task dispatch** - TreeListy sends intent, Claude Code executes
+- **Chrome automation** - Access Gmail, Drive, Calendar via browser session
+- **Inbox review** - Approve/reject proposed changes before applying
+
+### Architecture
+```
+┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
+│    TreeListy    │   MCP   │   Claude Code   │  Chrome │   Web Services  │
+│    (Browser)    │ ──────► │     (CLI)       │ ──────► │                 │
+│                 │         │                 │         │  Gmail.com      │
+│  Dashboard UI   │         │  Task executor  │         │  Drive.google   │
+│  Inbox review   │ ◄────── │  Data structurer│ ◄────── │  Calendar.google│
+└─────────────────┘ results └─────────────────┘  data   └─────────────────┘
+```
+
+### Key Functions
+```javascript
+// MCP Bridge State
+mcpBridgeState.client.isConnected       // Check connection
+mcpBridgeState.client.submitTask({...}) // Dispatch task
+
+// Sync Commands (via COMMAND_REGISTRY)
+COMMAND_REGISTRY['sync_gmail']()        // Sync Gmail
+COMMAND_REGISTRY['sync_drive']()        // Sync Drive
+COMMAND_REGISTRY['open_gdrive_via_mcp'](fileName) // Open via Chrome
+```
+
+### MCP Design Pattern
+When solving problems in TreeListy, consider the MCP + Chrome lens:
+1. **Instead of** trying to read/parse cloud files locally
+2. **Dispatch task** to Claude Code with intent
+3. **Claude Code** uses Chrome extension to interact with web services
+4. **Results return** via MCP Inbox for user approval
+5. **TreeListy applies** approved operations to tree
+
+This pattern enables TreeListy to integrate with any web service the user is logged into.
 
 ---
 
@@ -340,4 +414,4 @@ Use the `treelisty-release` skill to automate this.
 
 ---
 
-**End of TreeListy Skill v2.19.0 (Build 517)**
+**End of TreeListy Skill v2.20.0 (Build 528)**

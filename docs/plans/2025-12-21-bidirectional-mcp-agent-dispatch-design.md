@@ -1,7 +1,7 @@
 # Bidirectional MCP Agent Dispatch Design
 
 **Date:** 2025-12-21
-**Status:** Draft
+**Status:** Phase 1.5 Complete (Build 528)
 **Author:** geej + Claude Code
 **Reviewed by:** Gemini, OpenAI (architectural feedback incorporated)
 
@@ -670,14 +670,37 @@ Every task produces an audit trail:
 
 ## Implementation Phases
 
-### Phase 1: Task Queue + Proposed Ops
-- Add `tasks.claimNext`, `tasks.progress`, `tasks.complete` tools to Bridge
-- Implement task queue in Bridge
-- Build Inbox UI for proposed operations
-- Return proposed_ops from Claude Code (never direct writes)
-- Single agent: research-lifetree
+### Phase 1: Task Queue + Proposed Ops ✅ COMPLETE (Build 522)
+- ✅ Add `tasks.claimNext`, `tasks.progress`, `tasks.complete` tools to Bridge
+- ✅ Implement task queue in Bridge (taskQueue, activeTasks, taskResults)
+- ✅ Add `task.submit` WebSocket handler for browser → bridge
+- ✅ Add `task.acknowledge` for approve/reject feedback
+- ✅ Build Inbox UI for proposed operations (modal, badge, progress display)
+- ✅ `submitAgentTask()` global function for dispatching from TB
 
 **Exit criteria:** User submits task in TB → CC claims → returns ops → Inbox shows → User approves → Tree updates
+
+### Phase 1.5: Chrome Integration ✅ COMPLETE (Builds 523-528)
+- ✅ Sync commands: `sync_gmail`, `sync_drive`, `sync_calendar` in COMMAND_REGISTRY
+- ✅ Direct command matching: Bypass AI interpretation for instant response
+- ✅ Google native format detection: Recognize .gdoc, .gsheet, etc.
+- ✅ MCP Chrome file opening: `open_gdrive_via_mcp` dispatches to Claude Code
+- ✅ Connection state checking: `mcpBridgeState?.client?.isConnected`
+
+**Key Pattern Discovered:** Instead of trying to solve problems locally (e.g., reading Google Docs files), dispatch intent to Claude Code which uses Chrome extension to interact with web services the user is already logged into.
+
+```javascript
+// Example: Opening a Google Drive file
+COMMAND_REGISTRY['open_gdrive_via_mcp'] = (fileName) => {
+    mcpBridgeState.client.submitTask({
+        type: 'open_gdrive_file',
+        fileName: fileName,
+        instructions: `Open Google Drive in Chrome, search for "${fileName}"...`
+    });
+};
+```
+
+This pattern enables TreeListy to integrate with ANY web service without OAuth/API complexity.
 
 ### Phase 2: Task Envelope + Streaming
 - Implement full Task Envelope schema

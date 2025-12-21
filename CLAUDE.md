@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.20.0 (Build 518)
+Current Version: v2.20.0 (Build 528)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
@@ -73,7 +73,17 @@ Key Functions
 - saveState(description) - save undo state
 - showToast(message, type) - show notification
 
-Recent Features (Builds 494-517)
+Recent Features (Builds 518-528)
+
+MCP Bridge & Chrome Integration (523-528): Bidirectional communication with Claude Code CLI. Sync commands (sync gmail/drive/calendar) dispatch tasks to Claude Code, which uses Chrome extension to access web services. Open Google Drive files via Chrome. Inbox UI for reviewing proposed operations.
+
+RAG & Research (519-522): Enhanced document import with PDF extraction. Hyperedge query routing fix. Research bullet parsing improvements.
+
+MCP Bridge Foundation (518): Node.js MCP server for TreeListy ↔ Claude Code communication. Task queue with claim/progress/complete pattern.
+
+Key Architecture: TreeListy dispatches intent → Claude Code executes via Chrome → Results return via MCP Inbox
+
+Previous Features (Builds 494-517)
 
 Mobile Canvas UX (516-517): Canvas View now works on mobile with scrollable compact toolbar, minimap (bottom-left), bottom-sheet context menu, and touch gestures.
 
@@ -107,3 +117,13 @@ Firebase Live Sync:
 - window.leaveFirebaseSyncRoom() - leave session
 
 Cloud Share (Build 425): Large trees use Firebase short URLs with ?s=shortcode format.
+
+MCP Bridge (Build 518+)
+
+Bidirectional communication between TreeListy and Claude Code CLI:
+- packages/treelisty-mcp-bridge/ - MCP server package
+- mcpBridgeState.client - Connection state and methods
+- COMMAND_REGISTRY - Sync commands (sync_gmail, sync_drive, open_gdrive_via_mcp)
+- Inbox UI - Review proposed operations before applying
+
+Design Pattern: When facing limitations (e.g., can't read cloud files locally), dispatch task to Claude Code which uses Chrome extension to interact with web services.
