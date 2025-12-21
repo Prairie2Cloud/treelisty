@@ -236,6 +236,9 @@ class TreeListyMCPHandler {
       case 'get_pattern_schema':
         return this.getPatternSchema(params);
 
+      case 'retrieve_context':
+        return this.retrieveContext(params);
+
       default:
         throw new Error(`Unknown method: ${method}`);
     }
@@ -390,6 +393,186 @@ class TreeListyMCPHandler {
     });
 
     return { nodes: results };
+  }
+
+  // ---------------------------------------------------------------------------
+  // RAG Retrieval Operations
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Retrieve relevant context from the tree for RAG
+   * Searches nodes and returns matches with hierarchical context
+   */
+  retrieveContext(params) {
+    const {
+      query,
+      max_results = 10,
+      include_context = true,
+      pattern_filter,
+      source_filter
+    } = params;
+
+    const queryLower = query.toLowerCase();
+    const queryTerms = queryLower.split(/\s+/).filter(t => t.length > 2);
+    const results = [];
+
+    // Build parent map for context retrieval
+    const parentMap = new Map();
+    this.buildParentMap(this.capexTree, null, parentMap);
+
+    // Search all nodes
+    this.walkTree(this.capexTree, (node) => {
+      // Skip root node
+      if (node.type === 'root') return;
+
+      // Apply pattern filter
+      if (pattern_filter) {
+        const nodePattern = node.pattern?.key || this.capexTree.pattern?.key;
+        if (nodePattern !== pattern_filter) return;
+      }
+
+      // Apply source filter (check _rag metadata)
+      if (source_filter && node._rag) {
+        const sourceId = node._rag.sourceId || '';
+        if (!sourceId.toLowerCase().includes(source_filter.toLowerCase())) return;
+      }
+
+      // Build searchable text from node
+      const searchText = [
+        node.name || '',
+        node.description || '',
+        node.notes || '',
+        // Include custom fields that might have content
+        ...(node.tags ? [node.tags] : []),
+        ...(node.emailBody ? [node.emailBody] : []),
+        ...(node.subjectLine ? [node.subjectLine] : [])
+      ].join(' ').toLowerCase();
+
+      // Calculate relevance score
+      let score = 0;
+      let matchedTerms = [];
+
+      // Exact phrase match (highest score)
+      if (searchText.includes(queryLower)) {
+        score += 10;
+        matchedTerms.push(query);
+      }
+
+      // Individual term matches
+      for (const term of queryTerms) {
+        if (searchText.includes(term)) {
+          score += 2;
+          matchedTerms.push(term);
+        }
+        // Bonus for name match
+        if ((node.name || '').toLowerCase().includes(term)) {
+          score += 3;
+        }
+      }
+
+      // Skip if no matches
+      if (score === 0) return;
+
+      // Build result object
+      const result = {
+        id: node.id,
+        type: node.type,
+        name: node.name,
+        description: node.description || '',
+        score: score,
+        matchedTerms: [...new Set(matchedTerms)],
+        // Include RAG metadata if present
+        _rag: node._rag || null
+      };
+
+      // Add hierarchical context if requested
+      if (include_context) {
+        result.context = this.getNodeContext(node.id, parentMap);
+      }
+
+      // Add content snippet with highlight
+      result.snippet = this.createSnippet(searchText, queryTerms, 200);
+
+      results.push(result);
+    });
+
+    // Sort by relevance score (descending)
+    results.sort((a, b) => b.score - a.score);
+
+    // Limit results
+    const limitedResults = results.slice(0, max_results);
+
+    return {
+      query: query,
+      total_matches: results.length,
+      results: limitedResults
+    };
+  }
+
+  /**
+   * Build a map of node ID -> parent node for context retrieval
+   */
+  buildParentMap(node, parent, map) {
+    if (node.id) {
+      map.set(node.id, parent);
+    }
+    const children = node.children || node.items || node.subItems || [];
+    for (const child of children) {
+      this.buildParentMap(child, node, map);
+    }
+  }
+
+  /**
+   * Get hierarchical context (breadcrumb) for a node
+   */
+  getNodeContext(nodeId, parentMap) {
+    const context = [];
+    let current = parentMap.get(nodeId);
+
+    while (current && current.type !== 'root') {
+      context.unshift({
+        id: current.id,
+        name: current.name,
+        type: current.type
+      });
+      current = parentMap.get(current.id);
+    }
+
+    return context;
+  }
+
+  /**
+   * Create a text snippet with matched terms highlighted
+   */
+  createSnippet(text, terms, maxLength) {
+    // Find the first occurrence of any term
+    let bestPos = -1;
+    for (const term of terms) {
+      const pos = text.indexOf(term);
+      if (pos !== -1 && (bestPos === -1 || pos < bestPos)) {
+        bestPos = pos;
+      }
+    }
+
+    // Extract snippet around the match
+    let start = Math.max(0, bestPos - 50);
+    let end = Math.min(text.length, start + maxLength);
+
+    // Adjust to word boundaries
+    if (start > 0) {
+      const spacePos = text.indexOf(' ', start);
+      if (spacePos !== -1 && spacePos < start + 20) {
+        start = spacePos + 1;
+      }
+    }
+
+    let snippet = text.substring(start, end).trim();
+
+    // Add ellipsis if truncated
+    if (start > 0) snippet = '...' + snippet;
+    if (end < text.length) snippet = snippet + '...';
+
+    return snippet;
   }
 
   // ---------------------------------------------------------------------------
