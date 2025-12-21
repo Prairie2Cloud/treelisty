@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 527 | 2025-12-21
+    TreeListy v2.20.0 | Build 528 | 2025-12-21
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 527): Direct "open file" command matching - bypasses AI interpretation for instant response
+    Changelog (Build 528): MCP Chrome file opening - open Google Drive files via Claude Chrome when connected
+    Previous (Build 527): Direct "open file" command matching - bypasses AI interpretation for instant response
     Previous (Build 526): Enhanced file opening - local paths, Google native format detection, helpful errors
     Previous (Build 525): Fix sync command connection check - use client.isConnected not state.isConnected
     Previous (Build 524): Direct sync command matching - sync gmail/drive/calendar bypass AI interpretation
@@ -746,7 +747,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 527,
+            build: 528,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -56881,12 +56882,29 @@ Slack data not available. To calculate slack:
 
                     // 2. Check if it's a Google native format without webViewLink
                     if (isGoogleNative(node)) {
+                        // BUILD 528: If MCP connected, offer to open via Claude Chrome
+                        const mcpConnected = mcpBridgeState?.client?.isConnected;
+                        const cleanName = node.name.replace(/\.(gdoc|gsheet|gslides|gform|gdraw)$/i, '');
+
+                        if (mcpConnected) {
+                            return {
+                                success: false,
+                                message: `📄 **"${node.name}"** is a Google ${node.fileExtension?.slice(1) || 'Workspace'} file.\n\nClaude Code can open this via Chrome:`,
+                                buttons: [
+                                    { label: '🚀 Open via Claude Chrome', action: `open_gdrive_via_mcp:${cleanName}` },
+                                    { label: '🔗 Open Google Drive', action: 'open_file_url:https://drive.google.com' },
+                                    { label: '📋 Copy File Name', action: `copy_text:${cleanName}` }
+                                ]
+                            };
+                        }
+
                         return {
                             success: false,
-                            message: `⚠️ **Cannot Open Google File Directly**\n\n"${node.name}" is a Google ${node.fileExtension?.slice(1) || 'Workspace'} file.\n\nTo open these files:\n• Use Google Drive in your browser\n• Or re-import using the Google Drive API export\n\n*Local Drive sync files don't include web URLs.*`,
+                            message: `⚠️ **Cannot Open Google File Directly**\n\n"${node.name}" is a Google ${node.fileExtension?.slice(1) || 'Workspace'} file.\n\nTo open these files:\n• Connect to Claude Code (MCP) for Chrome-based opening\n• Or use Google Drive in your browser\n\n*Local Drive sync files don't include web URLs.*`,
                             buttons: [
+                                { label: '🔌 Connect Claude Code', action: 'show_mcp_connect' },
                                 { label: '🔗 Open Google Drive', action: 'open_file_url:https://drive.google.com' },
-                                { label: '📋 Copy File Name', action: `copy_text:${node.name}` }
+                                { label: '📋 Copy File Name', action: `copy_text:${cleanName}` }
                             ]
                         };
                     }
@@ -56970,6 +56988,37 @@ Slack data not available. To calculate slack:
                     return '📋 Copied to clipboard!';
                 }
                 return '⚠️ Nothing to copy.';
+            },
+
+            // BUILD 528: Open Google Drive file via MCP/Claude Chrome
+            'open_gdrive_via_mcp': (fileName) => {
+                if (!mcpBridgeState?.client?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected to Claude Code**\n\nConnect first to use Chrome-based file opening.',
+                        buttons: [
+                            { label: '🔌 Connect', action: 'show_mcp_connect' }
+                        ]
+                    };
+                }
+
+                // Dispatch task to Claude Code to open the file via Chrome
+                mcpBridgeState.client.submitTask({
+                    type: 'open_gdrive_file',
+                    fileName: fileName,
+                    instructions: `Open Google Drive in Chrome, search for "${fileName}", and open the first matching result. Leave the browser window open for the user.`
+                });
+
+                return `🚀 **Opening via Claude Chrome...**\n\nClaude Code is searching Google Drive for "${fileName}" and will open it in your browser.`;
+            },
+
+            // BUILD 528: Show MCP connection instructions
+            'show_mcp_connect': () => {
+                return {
+                    message: `🔌 **Connect to Claude Code**\n\nTo enable Chrome-based file opening:\n\n1. Open Claude Code CLI\n2. Run: \`/mcp add treelisty\`\n3. Click "Connect" in TreeListy header\n\nThis lets TreeListy dispatch tasks to Claude Code, which can then use the Chrome extension to interact with Google Drive, Gmail, and other web services.`,
+                    buttons: [
+                        { label: '📖 MCP Setup Guide', action: 'open_file_url:https://docs.anthropic.com/en/docs/claude-code/mcp' }
+                    ]
+                };
             },
 
             // Search
@@ -63898,7 +63947,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 527; // Update this with each build
+                    const KNOWN_LATEST = 528; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
