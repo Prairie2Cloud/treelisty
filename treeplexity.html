@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.22.0 | Build 548 | 2025-12-22
+    TreeListy v2.22.0 | Build 549 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 549): Clickable URLs in email body, Reply/Forward in Info Panel, attachment display
     Changelog (Build 548): Reply/Forward buttons in email reader (opens Gmail compose)
     Changelog (Build 547): Email reader modal, center-focused canvas zoom, Gmail export v2.0
     Changelog (Build 546): Add retrieve_context RAG handler for MCP-based knowledge retrieval
@@ -762,7 +763,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.22.0',
-            build: 548,
+            build: 549,
             date: '2025-12-22',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -23840,6 +23841,19 @@ function hidePatternDescription() {
             return '$' + numCost.toLocaleString();
         }
 
+        // BUILD 549: Convert URLs in text to clickable links
+        function linkifyText(text) {
+            if (!text) return text;
+            // Match URLs (http, https, or www)
+            const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)|(www\.[^\s<>"{}|\\^`\[\]]+)/gi;
+            return text.replace(urlRegex, (match) => {
+                const url = match.startsWith('www.') ? 'https://' + match : match;
+                // Truncate display for very long URLs
+                const displayUrl = match.length > 50 ? match.substring(0, 47) + '...' : match;
+                return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #8b5cf6; text-decoration: underline; word-break: break-all;">${displayUrl}</a>`;
+            });
+        }
+
         // BUILD 387: Safe node name helper - prevents "undefined" from displaying
         function safeNodeName(node) {
             if (!node) return '⚠️ Unnamed';
@@ -26623,14 +26637,65 @@ function hidePatternDescription() {
                 <!-- BUILD 422: Key Node Infographic (Root/Phase Dashboard) -->
                 ${keyNodeInfoHtml}
 
-                <!-- BUILD 515: Improved Description Section -->
+                <!-- BUILD 515: Improved Description Section (BUILD 549: linkified URLs) -->
                 <div style="margin-bottom: 24px; padding: 24px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03)); border-radius: 16px; border: 1px solid rgba(99, 102, 241, 0.15);">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(99, 102, 241, 0.1);">
                         <span style="font-size: 20px;">📝</span>
                         <span style="font-size: 12px; font-weight: 700; color: var(--treeplex-primary); text-transform: uppercase; letter-spacing: 1px;">Description</span>
                     </div>
-                    <div style="font-size: 16px; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap; font-weight: 400;">${node.description || node.subtitle || '<span style="color: var(--text-secondary); font-style: italic;">No description yet. Double-click to edit.</span>'}</div>
+                    <div style="font-size: 16px; line-height: 1.8; color: var(--text-primary); white-space: pre-wrap; font-weight: 400;">${linkifyText(node.description || node.subtitle) || '<span style="color: var(--text-secondary); font-style: italic;">No description yet. Double-click to edit.</span>'}</div>
                 </div>
+
+                <!-- BUILD 549: Email Actions (for email nodes) -->
+                ${(node.emailBody || node.fullBody || node.threadId) ? `
+                <div style="margin-bottom: 24px; padding: 16px 20px; background: linear-gradient(135deg, rgba(16, 185, 129, 0.08), rgba(59, 130, 246, 0.05)); border-radius: 12px; border: 1px solid rgba(16, 185, 129, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 18px;">📧</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #10b981; text-transform: uppercase; letter-spacing: 1px;">Email Actions</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="emailReaderReplyFromNode(window.currentInfoPanelNode)" style="padding: 8px 16px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 8px; color: #10b981; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            ↩️ Reply
+                        </button>
+                        <button onclick="emailReaderForwardFromNode(window.currentInfoPanelNode)" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; border-radius: 8px; color: #3b82f6; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            ➡️ Forward
+                        </button>
+                        <button onclick="openEmailReaderModal(window.currentInfoPanelNode)" style="padding: 8px 16px; background: rgba(139, 92, 246, 0.15); border: 1px solid #8b5cf6; border-radius: 8px; color: #8b5cf6; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            📖 Read Full
+                        </button>
+                        ${node.threadId ? `
+                        <button onclick="window.open('https://mail.google.com/mail/u/0/#inbox/${node.threadId}', '_blank')" style="padding: 8px 16px; background: rgba(234, 67, 53, 0.15); border: 1px solid #ea4335; border-radius: 8px; color: #ea4335; cursor: pointer; font-size: 13px; font-weight: 500;">
+                            🔗 Open in Gmail
+                        </button>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- BUILD 549: Attachments (for email nodes with attachments) -->
+                ${(node.attachments && node.attachments.length > 0) ? `
+                <div style="margin-bottom: 24px; padding: 16px 20px; background: linear-gradient(135deg, rgba(251, 146, 60, 0.08), rgba(234, 88, 12, 0.05)); border-radius: 12px; border: 1px solid rgba(251, 146, 60, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 18px;">📎</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #fb923c; text-transform: uppercase; letter-spacing: 1px;">Attachments (${node.attachments.length})</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 8px;">
+                        ${node.attachments.map(att => `
+                            <div style="display: flex; align-items: center; gap: 10px; padding: 10px 12px; background: rgba(0,0,0,0.2); border-radius: 8px;">
+                                <span style="font-size: 16px;">${att.mimeType?.startsWith('image/') ? '🖼️' : att.mimeType?.includes('pdf') ? '📄' : att.mimeType?.includes('spreadsheet') || att.mimeType?.includes('excel') ? '📊' : '📁'}</span>
+                                <div style="flex: 1; min-width: 0;">
+                                    <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${att.filename}</div>
+                                    <div style="font-size: 11px; color: var(--text-secondary);">${att.size ? (att.size > 1024*1024 ? (att.size/1024/1024).toFixed(1) + ' MB' : (att.size/1024).toFixed(0) + ' KB') : 'Unknown size'}</div>
+                                </div>
+                                ${att.attachmentId ? `<span style="font-size: 11px; color: var(--text-secondary); opacity: 0.5;">ID: ${att.attachmentId.substring(0, 8)}...</span>` : ''}
+                            </div>
+                        `).join('')}
+                    </div>
+                    <div style="margin-top: 12px; font-size: 11px; color: var(--text-secondary); font-style: italic;">
+                        💡 Tip: Click "Open in Gmail" above to download attachments
+                    </div>
+                </div>
+                ` : ''}
 
                 <!-- BUILD 515: Compact Metadata Footer -->
                 <div style="display: flex; gap: 8px; margin-bottom: 20px; padding: 12px 16px; background: rgba(0,0,0,0.2); border-radius: 10px; align-items: center; flex-wrap: wrap;">
@@ -26715,6 +26780,7 @@ function hidePatternDescription() {
 
             panel.classList.add('open');
             currentOpenItemId = node.id;
+            window.currentInfoPanelNode = node; // BUILD 549: Store for email actions
 
             // BUILD 489: Highlight selected node in tree view
             document.querySelectorAll('.tree-node.selected').forEach(n => n.classList.remove('selected'));
@@ -38626,6 +38692,7 @@ https://treelisty.netlify.app`;
             }
 
             // Body - prefer HTML if available, fall back to plain text
+            // BUILD 549: Apply linkifyText to make URLs clickable
             const bodyEl = document.getElementById('email-reader-body');
             const htmlBody = msg.htmlBody || thread.htmlBody;
             const plainBody = msg.fullBody || msg.description || thread.emailBody || '';
@@ -38638,7 +38705,9 @@ https://treelisty.netlify.app`;
                 bodyEl.innerHTML = sanitized;
                 bodyEl.style.whiteSpace = 'normal';
             } else {
-                bodyEl.textContent = plainBody;
+                // Plain text - escape HTML then linkify URLs
+                const escaped = escapeHtml(plainBody);
+                bodyEl.innerHTML = linkifyText(escaped);
                 bodyEl.style.whiteSpace = 'pre-wrap';
             }
 
@@ -38774,6 +38843,59 @@ https://treelisty.netlify.app`;
             showToast('Opening Gmail forward...', 'success');
         }
         window.emailReaderForward = emailReaderForward;
+
+        // BUILD 549: Reply from Info Panel (node passed directly)
+        function emailReaderReplyFromNode(node) {
+            if (!node) {
+                showToast('No email to reply to', 'warning');
+                return;
+            }
+
+            const replyTo = node.senderEmail || '';
+            const subject = node.subjectLine || node.name || 'Re: ';
+            const replySubject = subject.toLowerCase().startsWith('re:') ? subject : `Re: ${subject}`;
+
+            const params = new URLSearchParams({
+                view: 'cm',
+                fs: '1',
+                tf: '1',
+                to: replyTo,
+                su: replySubject
+            });
+
+            const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
+            window.open(gmailUrl, '_blank');
+            showToast('Opening Gmail compose...', 'success');
+        }
+        window.emailReaderReplyFromNode = emailReaderReplyFromNode;
+
+        // BUILD 549: Forward from Info Panel (node passed directly)
+        function emailReaderForwardFromNode(node) {
+            if (!node) {
+                showToast('No email to forward', 'warning');
+                return;
+            }
+
+            const subject = node.subjectLine || node.name || 'Fwd: ';
+            const fwdSubject = subject.toLowerCase().startsWith('fwd:') ? subject : `Fwd: ${subject}`;
+
+            const body = node.emailBody || node.description || '';
+            const truncatedBody = body.length > 1000 ? body.substring(0, 1000) + '...' : body;
+            const forwardBody = `\n\n---------- Forwarded message ----------\nFrom: ${node.senderEmail || ''}\nDate: ${node.sendDate || ''}\nSubject: ${node.subjectLine || ''}\nTo: ${node.recipientEmail || ''}\n\n${truncatedBody}`;
+
+            const params = new URLSearchParams({
+                view: 'cm',
+                fs: '1',
+                tf: '1',
+                su: fwdSubject,
+                body: forwardBody
+            });
+
+            const gmailUrl = `https://mail.google.com/mail/?${params.toString()}`;
+            window.open(gmailUrl, '_blank');
+            showToast('Opening Gmail forward...', 'success');
+        }
+        window.emailReaderForwardFromNode = emailReaderForwardFromNode;
 
         // Helper functions for MCP config persistence (Build 520)
         function saveMCPConfig(port, token) {
@@ -66572,7 +66694,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 548; // Update this with each build
+                    const KNOWN_LATEST = 549; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
