@@ -36,6 +36,20 @@ Same structure. Compare to v1.0 explicitly. Track which v1.0 improvements were i
 - [ ] Competitive comparison for 3 features
 - [ ] Track record of v1.0 improvements implemented
 
+## Process Learnings from v1.0
+
+**What building the self-tree revealed:**
+- `add_child:X` command parsing was broken → Fixed in Build 538
+- JSON export format requirements undocumented → I got it wrong even with codebase access
+- Import modal flow unclear for automation/testing
+- MCP Bridge works but setup complexity limits adoption
+
+**Reframing the benchmark:**
+- AI variability prevents strict run-to-run comparison
+- Value is in later reflection on the artifact, not metrics
+- Ask: Is it accurate? Did it surface real issues? Are improvements actionable?
+- The self-tree is a qualitative snapshot, not a quantitative benchmark
+
 ## Focus Areas for v1.1
 
 **Areas Needing Deeper Coverage:**
