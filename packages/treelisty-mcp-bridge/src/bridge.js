@@ -872,6 +872,74 @@ function handleToolsList(id) {
         },
         required: ['file_path']
       }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // Capability Operations (Build 544 - Chrome Capability Nodes)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'list_capabilities',
+      description: 'List all capability nodes in the tree. Capabilities define what actions sub-agents can perform on websites.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          site_filter: { type: 'string', description: 'Filter by site domain (e.g., "chase.com")' },
+          status_filter: { type: 'string', description: 'Filter by status (healthy, degraded, broken, untested)' }
+        }
+      }
+    },
+    {
+      name: 'get_capability',
+      description: 'Get a specific capability node by ID.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          capability_id: { type: 'string', description: 'ID of the capability node' }
+        },
+        required: ['capability_id']
+      }
+    },
+    {
+      name: 'create_capability',
+      description: 'Create a new capability node. Capabilities define scoped autonomy for sub-agents on websites.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          parent_id: { type: 'string', description: 'Parent node ID (where to place the capability)' },
+          name: { type: 'string', description: 'Capability name (e.g., "Chase Balance")' },
+          site: { type: 'string', description: 'Target site domain (e.g., "chase.com")' },
+          goal: { type: 'string', description: 'What the capability accomplishes' },
+          allow: { type: 'array', items: { type: 'string' }, description: 'Allowed permissions (read, navigate, download, fill_form, submit, send)' },
+          examples: { type: 'array', items: { type: 'string' }, description: 'Example intents that match this capability' },
+          aliases: { type: 'array', items: { type: 'string' }, description: 'Alternative names for intent matching' },
+          profileHint: { type: 'string', description: 'Chrome profile name to use' },
+          selectors: { type: 'object', description: 'Resilient selectors for DOM elements' }
+        },
+        required: ['parent_id', 'name', 'site', 'goal']
+      }
+    },
+    {
+      name: 'match_capability',
+      description: 'Find a capability that matches a given intent. Returns the best matching capability or null.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          intent: { type: 'string', description: 'The intent to match (e.g., "check my bank balance")' }
+        },
+        required: ['intent']
+      }
+    },
+    {
+      name: 'update_capability_status',
+      description: 'Update the health status of a capability after testing.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          capability_id: { type: 'string', description: 'ID of the capability node' },
+          status: { type: 'string', description: 'New status (healthy, degraded, broken)', enum: ['healthy', 'degraded', 'broken'] },
+          failureStreak: { type: 'number', description: 'Number of consecutive failures' }
+        },
+        required: ['capability_id', 'status']
+      }
     }
   ];
 

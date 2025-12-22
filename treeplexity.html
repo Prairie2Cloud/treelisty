@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 541 | 2025-12-22
+    TreeListy v2.21.0 | Build 545 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,11 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 541): Add keyboard shortcut reference panel - press ? to view all shortcuts
+    Changelog (Build 545): Add refresh_tree command, fix TreeBeard command hallucination validation
+    Changelog (Build 544): Capability nodes for Chrome integration - schema, CSS, rendering, MCP tools
+    Changelog (Build 543): AI streaming for TreeBeard - progressive token display with "Interpreting..." indicator
+    Changelog (Build 542): Add opt-in telemetry system for usage analytics (local-first, privacy-safe)
+    Previous (Build 541): Add keyboard shortcut reference panel - press ? to view all shortcuts
     Previous (Build 540): Lazy-load third-party libraries for faster page load (Lighthouse fix)
     Previous (Build 539): Fix MCP node operations - use snake_case params (node_id, parent_id, node_data)
     Previous (Build 538): TreeBeard can now build trees from scratch - focus_root, create_tree, auto-focus on add_child
@@ -755,8 +759,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.20.0',
-            build: 541,
+            major: '2.21.0',
+            build: 545,
             date: '2025-12-22',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -1383,6 +1387,129 @@
         .tree-node.subtask[data-depth="5"] { opacity: 0.70; }
         .tree-node.subtask[data-depth="6"] { opacity: 0.55; }
         .tree-node.subtask[data-depth="7"] { opacity: 0.45; }
+
+        /* BUILD 544: Capability Node Card */
+        .tree-node.capability {
+            background: linear-gradient(135deg, #2d3748 0%, #1a202c 100%);
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            border-radius: 12px;
+            padding: 16px 20px;
+            box-shadow: 0 4px 16px rgba(139, 92, 246, 0.15);
+        }
+
+        .tree-node.capability:hover {
+            border-color: rgba(139, 92, 246, 0.5);
+            box-shadow: 0 6px 24px rgba(139, 92, 246, 0.25);
+            transform: translateY(-2px);
+        }
+
+        .tree-node.capability .node-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .tree-node.capability .capability-icon {
+            font-size: 24px;
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(139, 92, 246, 0.15);
+            border-radius: 10px;
+        }
+
+        .tree-node.capability .capability-info {
+            flex: 1;
+        }
+
+        .tree-node.capability .capability-name {
+            font-weight: 600;
+            font-size: 15px;
+            color: #e2e8f0;
+            margin-bottom: 4px;
+        }
+
+        .tree-node.capability .capability-site {
+            font-size: 12px;
+            color: #a0aec0;
+        }
+
+        .tree-node.capability .capability-goal {
+            font-size: 13px;
+            color: #cbd5e0;
+            margin-top: 10px;
+            padding-top: 10px;
+            border-top: 1px solid rgba(255, 255, 255, 0.08);
+        }
+
+        .tree-node.capability .capability-permissions {
+            display: flex;
+            gap: 6px;
+            margin-top: 12px;
+            flex-wrap: wrap;
+        }
+
+        .tree-node.capability .permission-badge {
+            font-size: 11px;
+            padding: 3px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        .tree-node.capability .permission-badge.allowed {
+            background: rgba(72, 187, 120, 0.2);
+            color: #68d391;
+            border: 1px solid rgba(72, 187, 120, 0.3);
+        }
+
+        .tree-node.capability .permission-badge.forbidden {
+            background: rgba(245, 101, 101, 0.2);
+            color: #fc8181;
+            border: 1px solid rgba(245, 101, 101, 0.3);
+        }
+
+        .tree-node.capability .capability-status {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-top: 10px;
+            font-size: 11px;
+        }
+
+        .tree-node.capability .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .tree-node.capability .status-dot.healthy { background: #48bb78; }
+        .tree-node.capability .status-dot.degraded { background: #ecc94b; }
+        .tree-node.capability .status-dot.broken { background: #f56565; }
+        .tree-node.capability .status-dot.untested { background: #a0aec0; }
+
+        .tree-node.capability .capability-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 12px;
+        }
+
+        .tree-node.capability .cap-action-btn {
+            font-size: 11px;
+            padding: 4px 10px;
+            border-radius: 4px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            background: rgba(139, 92, 246, 0.1);
+            color: #a78bfa;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .tree-node.capability .cap-action-btn:hover {
+            background: rgba(139, 92, 246, 0.2);
+            border-color: rgba(139, 92, 246, 0.5);
+        }
 
         /* FILESYSTEM PATTERN: Vertical Tree Layout */
         .tree.filesystem-tree {
@@ -4356,6 +4483,28 @@
         border-radius: 20px;
     }
 
+    /* BUILD 543: Streaming message styles */
+    .chat-message.streaming {
+        border-left: 2px solid var(--treeplex-primary, #8b5cf6);
+    }
+
+    .streaming-indicator {
+        color: var(--text-muted, #9ca3af);
+        font-style: italic;
+    }
+
+    .streaming-cursor {
+        display: inline-block;
+        color: var(--treeplex-primary, #8b5cf6);
+        animation: blink-cursor 0.8s infinite;
+        margin-left: 2px;
+    }
+
+    @keyframes blink-cursor {
+        0%, 50% { opacity: 1; }
+        51%, 100% { opacity: 0; }
+    }
+
     .chat-typing {
         display: flex;
         gap: 4px;
@@ -6639,29 +6788,34 @@
                 <button class="btn" id="search-btn" style="background: linear-gradient(135deg, #3b82f6, #2563eb); padding: 6px 10px; font-size: 13px;" title="Search all fields">🔍</button>
             </div>
 
+            <!-- BUILD 543: Simplified pattern selector with recommended patterns first -->
             <div class="control-section pattern-selector" style="margin-right: 4px;">
                 <select class="pattern-select" id="pattern-select" title="Choose naming pattern" style="padding: 6px 10px; font-size: 13px; min-width: 140px;">
-                    <option value="generic" data-desc="Universal: Project → Phase → Item → Task">📋 Generic Project</option>
-                    <option value="sales" data-desc="Sales: Pipeline → Quarter → Deal → Action">💼 Sales Pipeline</option>
-                    <option value="thesis" data-desc="Academic: Thesis → Chapter → Section → Point">🎓 Academic Writing</option>
-                    <option value="roadmap" data-desc="Product: Product → Quarter → Feature → Story">🚀 Product Roadmap</option>
-                    <option value="book" data-desc="Writing: Book → Part → Chapter → Scene">📚 Book Writing</option>
-                    <option value="event" data-desc="Events: Event → Stage → Activity → Task">🎉 Event Planning</option>
-                    <option value="fitness" data-desc="Fitness: Program → Phase → Workout → Exercise">💪 Fitness Program</option>
-                    <option value="strategy" data-desc="Business: Strategy → Pillar → Initiative → Action">📊 Strategic Plan</option>
-                    <option value="course" data-desc="Education: Course → Unit → Lesson → Exercise">📖 Course Design</option>
-                    <option value="film" data-desc="Production: Film → Phase → Scene → Shot">🎬 Film Production</option>
-                    <option value="veo3" data-desc="Veo3: Project → Sequence → Scene → Shot/Frame">🎥 Veo3 (Google)</option>
-                    <option value="sora2" data-desc="Sora2: Project → Sequence → Beat → Shot/Remix">🎬 Sora2 (OpenAI)</option>
-                    <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>
-                    <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>
-                    <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
-                    <option value="lifetree" data-desc="Biography: Life → Decade → Event → Detail">🌳 LifeTree (Biography)</option>
-                    <option value="dialogue" data-desc="Rhetoric: Conversation → Speaker → Statement → Point">💬 Dialogue & Rhetoric</option>
-                    <option value="gmail" data-desc="Email: Inbox/Campaign → Label/Stage → Thread → Message">📧 Email Workflow</option>
-                    <option value="filesystem" data-desc="File System: Drive → Folder → File/Folder (Unlimited Depth)">💾 File System</option>
-                    <option value="capex" data-desc="Investor: Project → Funding Phase → Investment → Deliverable">💰 CAPEX / Angel Pitch</option>
-                    <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
+                    <optgroup label="⭐ Recommended">
+                        <option value="generic" data-desc="Universal: Project → Phase → Item → Task">📋 Generic Project</option>
+                        <option value="roadmap" data-desc="Product: Product → Quarter → Feature → Story">🚀 Product Roadmap</option>
+                        <option value="thesis" data-desc="Academic: Thesis → Chapter → Section → Point">🎓 Academic Writing</option>
+                    </optgroup>
+                    <optgroup label="📂 All Patterns">
+                        <option value="sales" data-desc="Sales: Pipeline → Quarter → Deal → Action">💼 Sales Pipeline</option>
+                        <option value="book" data-desc="Writing: Book → Part → Chapter → Scene">📚 Book Writing</option>
+                        <option value="event" data-desc="Events: Event → Stage → Activity → Task">🎉 Event Planning</option>
+                        <option value="fitness" data-desc="Fitness: Program → Phase → Workout → Exercise">💪 Fitness Program</option>
+                        <option value="strategy" data-desc="Business: Strategy → Pillar → Initiative → Action">📊 Strategic Plan</option>
+                        <option value="course" data-desc="Education: Course → Unit → Lesson → Exercise">📖 Course Design</option>
+                        <option value="film" data-desc="Production: Film → Phase → Scene → Shot">🎬 Film Production</option>
+                        <option value="veo3" data-desc="Veo3: Project → Sequence → Scene → Shot/Frame">🎥 Veo3 (Google)</option>
+                        <option value="sora2" data-desc="Sora2: Project → Sequence → Beat → Shot/Remix">🎬 Sora2 (OpenAI)</option>
+                        <option value="philosophy" data-desc="Philosophy: Treatise → Book → Argument → Premise">🤔 Philosophy</option>
+                        <option value="prompting" data-desc="AI Prompting: Workbook → Stage → Module → Step">🧠 AI Prompt Design</option>
+                        <option value="familytree" data-desc="Genealogy: Family → Generation → Person → Event">👨‍👩‍👧‍👦 Family Tree</option>
+                        <option value="lifetree" data-desc="Biography: Life → Decade → Event → Detail">🌳 LifeTree (Biography)</option>
+                        <option value="dialogue" data-desc="Rhetoric: Conversation → Speaker → Statement → Point">💬 Dialogue & Rhetoric</option>
+                        <option value="gmail" data-desc="Email: Inbox/Campaign → Label/Stage → Thread → Message">📧 Email Workflow</option>
+                        <option value="filesystem" data-desc="File System: Drive → Folder → File/Folder (Unlimited Depth)">💾 File System</option>
+                        <option value="capex" data-desc="Investor: Project → Funding Phase → Investment → Deliverable">💰 CAPEX / Angel Pitch</option>
+                        <option value="custom" data-desc="Custom: Define your own level names">✏️ Custom Names</option>
+                    </optgroup>
                 </select>
             </div>
 
@@ -7445,6 +7599,34 @@ The AI will analyze the structure and convert it to a tree."
                 <div id="preview-after" style="padding: 10px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; font-family: 'SF Mono', Monaco, monospace; font-size: 11px; color: rgba(255,255,255,0.8); white-space: pre-wrap;">You are an expert project manager specializing in breaking down complex tasks...</div>
             </div>
 
+            <!-- BUILD 542: Telemetry Settings -->
+            <div style="margin-bottom: 25px; padding: 15px; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px;">
+                <label style="display: block; margin-bottom: 10px; font-weight: 600; font-size: 14px; color: rgba(255,255,255,0.9);">
+                    📊 Usage Analytics
+                </label>
+                <div style="display: flex; align-items: flex-start; gap: 12px; margin-bottom: 12px;">
+                    <input type="checkbox" id="telemetry-enabled" onchange="TELEMETRY.setConsent(this.checked); updateTelemetryStatus();" style="width: 18px; height: 18px; accent-color: #6366f1; margin-top: 2px;">
+                    <div>
+                        <strong style="color: #a5b4fc;">Help improve TreeListy</strong>
+                        <div style="font-size: 12px; color: rgba(255,255,255,0.7); margin-top: 4px;">
+                            Share anonymous usage data (commands, views, errors) to help us improve.
+                            <br><span style="color: rgba(255,255,255,0.5);">No personal data. Stored locally in your browser.</span>
+                        </div>
+                    </div>
+                </div>
+                <div id="telemetry-status" style="font-size: 12px; color: rgba(255,255,255,0.5); padding: 8px; background: rgba(0,0,0,0.2); border-radius: 6px; margin-bottom: 10px;">
+                    <!-- Populated by updateTelemetryStatus() -->
+                </div>
+                <div style="display: flex; gap: 8px;">
+                    <button onclick="exportTelemetryData()" class="btn" style="padding: 6px 12px; font-size: 12px; background: rgba(255,255,255,0.05);">
+                        📥 Export My Data
+                    </button>
+                    <button onclick="deleteTelemetryData()" class="btn" style="padding: 6px 12px; font-size: 12px; background: rgba(239, 68, 68, 0.2); color: #fca5a5;">
+                        🗑️ Delete All Data
+                    </button>
+                </div>
+            </div>
+
             <!-- Action Buttons -->
             <div style="display: flex; gap: 10px; justify-content: flex-end; padding-top: 15px; border-top: 2px solid rgba(255,255,255,0.1);">
                 <button onclick="resetAISettings()" class="btn" style="padding: 10px 20px; background: rgba(255,255,255,0.05);">
@@ -7586,6 +7768,49 @@ The AI will analyze the structure and convert it to a tree."
                     <div class="shortcut-category-title">General</div>
                     <div class="shortcut-row"><span class="shortcut-desc">Close modal/menu</span><span class="shortcut-key">Esc</span></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 542: Telemetry Consent Modal -->
+    <div class="modal" id="telemetry-consent-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                <span>📊 Help Improve TreeListy</span>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <p style="font-size: 15px; line-height: 1.6; margin-bottom: 20px;">
+                    Would you like to share anonymous usage data to help us improve TreeListy?
+                </p>
+                <div style="background: rgba(99, 102, 241, 0.1); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <p style="font-weight: 600; margin: 0 0 12px 0; font-size: 14px;">What we collect:</p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: rgba(255,255,255,0.8);">
+                        <li>Commands used (e.g., "add_child", "view_gantt")</li>
+                        <li>Views visited (Tree, Canvas, Gantt, etc.)</li>
+                        <li>Keyboard shortcuts used</li>
+                        <li>Error types encountered</li>
+                    </ul>
+                </div>
+                <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 16px; margin-bottom: 20px;">
+                    <p style="font-weight: 600; margin: 0 0 12px 0; font-size: 14px;">What we DON'T collect:</p>
+                    <ul style="margin: 0; padding-left: 20px; font-size: 13px; color: rgba(255,255,255,0.8);">
+                        <li>Your tree content or names</li>
+                        <li>Personal information</li>
+                        <li>API keys or credentials</li>
+                        <li>Anything sent to external servers</li>
+                    </ul>
+                </div>
+                <p style="font-size: 13px; color: rgba(255,255,255,0.6); margin-bottom: 0;">
+                    Data stays in your browser. You can delete it anytime from Settings.
+                </p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn" onclick="TELEMETRY.setConsent(false); document.getElementById('telemetry-consent-modal').style.display='none';" style="background: rgba(255,255,255,0.1);">
+                    No Thanks
+                </button>
+                <button class="btn btn-primary" onclick="TELEMETRY.setConsent(true); document.getElementById('telemetry-consent-modal').style.display='none'; showToast('📊 Telemetry enabled. Thank you!', 'success');" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                    Yes, Help Improve
+                </button>
             </div>
         </div>
     </div>
@@ -11165,6 +11390,9 @@ Do not ask permission—just provide the critique, then help.
             // Update preview
             updateAIPreview();
 
+            // BUILD 542: Update telemetry status
+            updateTelemetryStatus();
+
             modal.style.display = 'flex';
         }
 
@@ -11265,6 +11493,51 @@ Do not ask permission—just provide the critique, then help.
             document.getElementById('ai-dialectic-mode').checked = false;
 
             updateAIPreview();
+        }
+
+        // BUILD 542: Telemetry UI Functions
+        function updateTelemetryStatus() {
+            const statusEl = document.getElementById('telemetry-status');
+            const checkbox = document.getElementById('telemetry-enabled');
+            if (!statusEl) return;
+
+            checkbox.checked = TELEMETRY.hasConsent();
+
+            if (TELEMETRY.hasConsent()) {
+                const summary = TELEMETRY.getSummary();
+                const shortcutRate = TELEMETRY.getShortcutDiscoveryRate();
+                statusEl.innerHTML = `
+                    <div style="color: #6ee7b7;">✅ Telemetry enabled</div>
+                    <div style="margin-top: 6px;">
+                        📊 ${summary.totalEvents} events tracked across ${summary.sessionCount} sessions
+                        <br>⌨️ Shortcut usage: ${shortcutRate}% of interactions
+                    </div>
+                `;
+            } else {
+                statusEl.innerHTML = `
+                    <div style="color: rgba(255,255,255,0.5);">📊 Telemetry disabled - no data being collected</div>
+                `;
+            }
+        }
+
+        function exportTelemetryData() {
+            const data = TELEMETRY.exportData();
+            const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `treelisty-telemetry-${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            showToast('📥 Telemetry data exported', 'success');
+        }
+
+        function deleteTelemetryData() {
+            if (confirm('Are you sure you want to delete all telemetry data? This cannot be undone.')) {
+                TELEMETRY.deleteAllData();
+                updateTelemetryStatus();
+                showToast('🗑️ All telemetry data deleted', 'success');
+            }
         }
 
         // Event Listeners for AI Settings Modal
@@ -11558,6 +11831,234 @@ Do not ask permission—just provide the critique, then help.
 
         function setAIProvider(provider) {
             localStorage.setItem('ai_provider', provider);
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
+        // BUILD 542: TELEMETRY SYSTEM (Opt-in, Privacy-Safe, Local-First)
+        // ═══════════════════════════════════════════════════════════════════════════
+        // Part of v1.4 "Truth Engine" initiative. Enables validation of hypotheses
+        // like "shortcut discovery <20%" and "intent accuracy ~70%".
+        //
+        // Privacy contract:
+        // - Opt-in only (explicit consent required)
+        // - No PII collected
+        // - Local-first (localStorage)
+        // - Clear "delete all data" option
+        // - Anonymous session IDs only
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        const TELEMETRY = {
+            VERSION: '1.0',
+            STORAGE_KEY: 'treelisty_telemetry',
+            CONSENT_KEY: 'treelisty_telemetry_consent',
+            SESSION_KEY: 'treelisty_session_id',
+            MAX_EVENTS: 1000, // Keep last 1000 events to prevent storage bloat
+
+            // Event types we track
+            EVENTS: {
+                COMMAND_INVOKED: 'command_invoked',
+                VIEW_SWITCHED: 'view_switched',
+                ERROR_OCCURRED: 'error_occurred',
+                SHORTCUT_USED: 'shortcut_used',
+                PATTERN_SELECTED: 'pattern_selected',
+                SESSION_START: 'session_start',
+                FIRST_TREE_CREATED: 'first_tree_created',
+                AI_RESPONSE: 'ai_response',
+                FEATURE_DISCOVERED: 'feature_discovered'
+            },
+
+            // Check if user has consented to telemetry
+            hasConsent() {
+                return localStorage.getItem(this.CONSENT_KEY) === 'true';
+            },
+
+            // Set consent status
+            setConsent(consented) {
+                localStorage.setItem(this.CONSENT_KEY, consented ? 'true' : 'false');
+                if (consented) {
+                    this.track(this.EVENTS.SESSION_START, { consent_given: true });
+                }
+            },
+
+            // Get or create anonymous session ID
+            getSessionId() {
+                let sessionId = sessionStorage.getItem(this.SESSION_KEY);
+                if (!sessionId) {
+                    sessionId = 'sess_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 9);
+                    sessionStorage.setItem(this.SESSION_KEY, sessionId);
+                }
+                return sessionId;
+            },
+
+            // Core tracking function
+            track(eventType, data = {}) {
+                if (!this.hasConsent()) return;
+
+                const event = {
+                    type: eventType,
+                    timestamp: new Date().toISOString(),
+                    session: this.getSessionId(),
+                    build: TREELISTY_VERSION?.build || 0,
+                    view: typeof viewMode !== 'undefined' ? viewMode : 'unknown',
+                    pattern: capexTree?.pattern?.key || 'unknown',
+                    ...data
+                };
+
+                // Get existing events
+                const events = this.getEvents();
+                events.push(event);
+
+                // Trim to max events
+                if (events.length > this.MAX_EVENTS) {
+                    events.splice(0, events.length - this.MAX_EVENTS);
+                }
+
+                // Save back
+                localStorage.setItem(this.STORAGE_KEY, JSON.stringify(events));
+
+                // Debug logging (can be disabled)
+                if (localStorage.getItem('telemetry_debug') === 'true') {
+                    console.log('📊 Telemetry:', eventType, data);
+                }
+            },
+
+            // Get all stored events
+            getEvents() {
+                try {
+                    return JSON.parse(localStorage.getItem(this.STORAGE_KEY) || '[]');
+                } catch {
+                    return [];
+                }
+            },
+
+            // Get summary statistics
+            getSummary() {
+                const events = this.getEvents();
+                const summary = {
+                    totalEvents: events.length,
+                    byType: {},
+                    commandUsage: {},
+                    shortcutUsage: {},
+                    viewUsage: {},
+                    errorTypes: {},
+                    sessions: new Set(),
+                    firstEvent: events[0]?.timestamp,
+                    lastEvent: events[events.length - 1]?.timestamp
+                };
+
+                events.forEach(e => {
+                    // Count by type
+                    summary.byType[e.type] = (summary.byType[e.type] || 0) + 1;
+
+                    // Track sessions
+                    if (e.session) summary.sessions.add(e.session);
+
+                    // Command usage
+                    if (e.type === this.EVENTS.COMMAND_INVOKED && e.command) {
+                        summary.commandUsage[e.command] = (summary.commandUsage[e.command] || 0) + 1;
+                    }
+
+                    // Shortcut usage
+                    if (e.type === this.EVENTS.SHORTCUT_USED && e.key) {
+                        summary.shortcutUsage[e.key] = (summary.shortcutUsage[e.key] || 0) + 1;
+                    }
+
+                    // View usage
+                    if (e.type === this.EVENTS.VIEW_SWITCHED && e.to) {
+                        summary.viewUsage[e.to] = (summary.viewUsage[e.to] || 0) + 1;
+                    }
+
+                    // Error types
+                    if (e.type === this.EVENTS.ERROR_OCCURRED && e.errorType) {
+                        summary.errorTypes[e.errorType] = (summary.errorTypes[e.errorType] || 0) + 1;
+                    }
+                });
+
+                summary.sessionCount = summary.sessions.size;
+                delete summary.sessions; // Don't expose set
+
+                return summary;
+            },
+
+            // Get top N commands
+            getTopCommands(n = 10) {
+                const summary = this.getSummary();
+                return Object.entries(summary.commandUsage)
+                    .sort((a, b) => b[1] - a[1])
+                    .slice(0, n);
+            },
+
+            // Get shortcut discovery rate
+            getShortcutDiscoveryRate() {
+                const events = this.getEvents();
+                const shortcutEvents = events.filter(e => e.type === this.EVENTS.SHORTCUT_USED).length;
+                const commandEvents = events.filter(e => e.type === this.EVENTS.COMMAND_INVOKED).length;
+                const total = shortcutEvents + commandEvents;
+                return total > 0 ? (shortcutEvents / total * 100).toFixed(1) : 0;
+            },
+
+            // Delete all telemetry data
+            deleteAllData() {
+                localStorage.removeItem(this.STORAGE_KEY);
+                localStorage.removeItem(this.CONSENT_KEY);
+                sessionStorage.removeItem(this.SESSION_KEY);
+                console.log('🗑️ All telemetry data deleted');
+            },
+
+            // Export data as JSON (for user transparency)
+            exportData() {
+                return {
+                    version: this.VERSION,
+                    exportedAt: new Date().toISOString(),
+                    consent: this.hasConsent(),
+                    events: this.getEvents(),
+                    summary: this.getSummary()
+                };
+            },
+
+            // Show consent modal
+            showConsentModal() {
+                const modal = document.getElementById('telemetry-consent-modal');
+                if (modal) modal.style.display = 'flex';
+            },
+
+            // Check if should prompt for consent (first time user)
+            shouldPromptConsent() {
+                return localStorage.getItem(this.CONSENT_KEY) === null;
+            }
+        };
+
+        // Convenience tracking functions
+        function trackCommand(command, success = true, context = {}) {
+            TELEMETRY.track(TELEMETRY.EVENTS.COMMAND_INVOKED, {
+                command,
+                success,
+                ...context
+            });
+        }
+
+        function trackShortcut(key, action) {
+            TELEMETRY.track(TELEMETRY.EVENTS.SHORTCUT_USED, { key, action });
+        }
+
+        function trackViewSwitch(from, to) {
+            TELEMETRY.track(TELEMETRY.EVENTS.VIEW_SWITCHED, { from, to });
+        }
+
+        function trackError(errorType, message, context = {}) {
+            TELEMETRY.track(TELEMETRY.EVENTS.ERROR_OCCURRED, {
+                errorType,
+                message: message?.substring(0, 200), // Truncate for privacy
+                ...context
+            });
+        }
+
+        function trackAIResponse(success, duration, mode = 'quick') {
+            TELEMETRY.track(TELEMETRY.EVENTS.AI_RESPONSE, {
+                success,
+                duration,
+                mode
+            });
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
@@ -21200,6 +21701,116 @@ Be specific and insightful, not generic.`;
 // Insert this code into treelisty.html
 
 // ============================================================================
+// BUILD 544: CAPABILITY NODE SCHEMA
+// ============================================================================
+// Capability nodes enable sub-agents to perform authenticated actions on websites
+// using Chrome, with user-defined permission scopes. Part of Chrome Capability Nodes design.
+
+const CAPABILITY_PERMISSIONS = ['read', 'navigate', 'download', 'fill_form', 'submit', 'send'];
+const CAPABILITY_PERMISSIONS_MVP = ['read', 'navigate']; // Phase 1 only
+
+const CAPABILITY_SCHEMA = {
+    type: 'capability',
+    required: ['name', 'site', 'goal'],
+    defaults: {
+        allow: ['read', 'navigate'],
+        examples: [],
+        aliases: [],
+        selectors: {},
+        profileHint: null,
+        pathPattern: null,
+        status: 'untested',  // untested | healthy | degraded | broken
+        lastSuccessAt: null,
+        failureStreak: 0
+    },
+    // Validate a capability node
+    validate(node) {
+        const errors = [];
+        if (!node.name) errors.push('name is required');
+        if (!node.site) errors.push('site is required');
+        if (!node.goal) errors.push('goal is required');
+        if (node.allow) {
+            const invalid = node.allow.filter(p => !CAPABILITY_PERMISSIONS.includes(p));
+            if (invalid.length) errors.push(`invalid permissions: ${invalid.join(', ')}`);
+        }
+        return { valid: errors.length === 0, errors };
+    },
+    // Create a new capability node with defaults
+    create(data) {
+        return {
+            id: data.id || 'cap-' + Date.now(),
+            type: 'capability',
+            name: data.name,
+            site: data.site,
+            goal: data.goal,
+            allow: data.allow || this.defaults.allow,
+            examples: data.examples || this.defaults.examples,
+            aliases: data.aliases || this.defaults.aliases,
+            selectors: data.selectors || this.defaults.selectors,
+            profileHint: data.profileHint || this.defaults.profileHint,
+            pathPattern: data.pathPattern || this.defaults.pathPattern,
+            status: this.defaults.status,
+            lastSuccessAt: this.defaults.lastSuccessAt,
+            failureStreak: this.defaults.failureStreak
+        };
+    }
+};
+
+// Helper to check if a node is a capability
+function isCapabilityNode(node) {
+    return node && node.type === 'capability';
+}
+
+// Helper to find all capability nodes in tree
+function findCapabilityNodes(node, results = []) {
+    if (!node) return results;
+    if (isCapabilityNode(node)) results.push(node);
+    const children = node.children || node.items || node.subItems || [];
+    children.forEach(child => findCapabilityNodes(child, results));
+    return results;
+}
+
+// Helper to match intent to capability
+function matchIntentToCapability(intent, capabilities) {
+    const intentLower = intent.toLowerCase().trim();
+
+    // 1. Exact example match
+    for (const cap of capabilities) {
+        if (cap.examples && cap.examples.some(ex => intentLower.includes(ex.toLowerCase()))) {
+            return { capability: cap, matchType: 'example' };
+        }
+    }
+
+    // 2. Alias match
+    for (const cap of capabilities) {
+        if (cap.aliases && cap.aliases.some(alias => intentLower.includes(alias.toLowerCase()))) {
+            return { capability: cap, matchType: 'alias' };
+        }
+    }
+
+    // 3. Site match
+    for (const cap of capabilities) {
+        if (cap.site && intentLower.includes(cap.site.toLowerCase().replace('.com', '').replace('.', ''))) {
+            return { capability: cap, matchType: 'site' };
+        }
+    }
+
+    // 4. Goal semantic match (simple keyword overlap)
+    for (const cap of capabilities) {
+        if (cap.goal) {
+            const goalWords = cap.goal.toLowerCase().split(/\s+/);
+            const intentWords = intentLower.split(/\s+/);
+            const overlap = goalWords.filter(w => intentWords.includes(w) && w.length > 3);
+            if (overlap.length >= 2) {
+                return { capability: cap, matchType: 'goal' };
+            }
+        }
+    }
+
+    return null;
+}
+
+// ============================================================================
 // PATTERN DEFINITIONS
 // ============================================================================
 
@@ -23201,6 +23812,63 @@ function hidePatternDescription() {
             return null;
         }
 
+        // BUILD 544: Render capability node card HTML
+        function renderCapabilityCard(node) {
+            const status = node.status || 'untested';
+            const statusLabels = {
+                healthy: 'Healthy',
+                degraded: 'Needs attention',
+                broken: 'Broken',
+                untested: 'Not tested'
+            };
+
+            const allowBadges = (node.allow || ['read', 'navigate'])
+                .map(p => `<span class="permission-badge allowed">✓ ${p}</span>`)
+                .join('');
+
+            const profileHint = node.profileHint
+                ? `<span style="color: #a0aec0; font-size: 11px;"> • ${node.profileHint}</span>`
+                : '';
+
+            return `
+                <div class="node-header">
+                    <div class="capability-icon">🔐</div>
+                    <div class="capability-info">
+                        <div class="capability-name">${node.name || 'Unnamed Capability'}</div>
+                        <div class="capability-site">${node.site || 'No site'}${profileHint}</div>
+                    </div>
+                </div>
+                <div class="capability-goal">${node.goal || 'No goal defined'}</div>
+                <div class="capability-permissions">${allowBadges}</div>
+                <div class="capability-status">
+                    <span class="status-dot ${status}"></span>
+                    <span style="color: #a0aec0;">${statusLabels[status]}</span>
+                </div>
+                <div class="capability-actions">
+                    <button class="cap-action-btn" onclick="testCapability('${node.id}')">Test</button>
+                    <button class="cap-action-btn" onclick="editCapability('${node.id}')">Edit</button>
+                </div>
+            `;
+        }
+
+        // BUILD 544: Test capability (placeholder)
+        function testCapability(nodeId) {
+            const node = findNodeById(nodeId);
+            if (!node) return;
+            showToast(`Testing capability: ${node.name}...`, 'info');
+            // TODO: Implement actual capability test via MCP
+        }
+
+        // BUILD 544: Edit capability (placeholder)
+        function editCapability(nodeId) {
+            const node = findNodeById(nodeId);
+            if (!node) return;
+            // For now, just show info panel
+            if (typeof showInfo === 'function') {
+                showInfo(node);
+            }
+        }
+
         // Render tree - phases flow left to right
         function render() {
             const container = document.getElementById('tree-root');
@@ -23251,7 +23919,10 @@ function hidePatternDescription() {
                     }
 
                     // Build node content
-                    if (node.type === 'root') {
+                    // BUILD 544: Handle capability nodes specially
+                    if (node.type === 'capability') {
+                        nodeDiv.innerHTML = renderCapabilityCard(node);
+                    } else if (node.type === 'root') {
                         const hasChildren = (node.items && node.items.length > 0) || (node.subItems && node.subItems.length > 0) || (node.children && node.children.length > 0);
                         nodeDiv.innerHTML = `
                             <div class="node-header">
@@ -23430,7 +24101,10 @@ function hidePatternDescription() {
                     }
                 }
 
-                if (node.type === 'root') {
+                // BUILD 544: Handle capability nodes specially
+                if (node.type === 'capability') {
+                    nodeDiv.innerHTML = renderCapabilityCard(node);
+                } else if (node.type === 'root') {
                     nodeDiv.innerHTML = `
                         <div class="node-header">
                             <span class="node-icon">${node.icon || '🌳'}</span>
@@ -38035,6 +38709,17 @@ https://treelisty.netlify.app`;
                         return this.redoAction(params);
                     case 'get_undo_stack_info':
                         return this.getUndoStackInfo(params);
+                    // Capability Operations (Build 544)
+                    case 'list_capabilities':
+                        return this.listCapabilities(params);
+                    case 'get_capability':
+                        return this.getCapability(params);
+                    case 'create_capability':
+                        return this.createCapability(params);
+                    case 'match_capability':
+                        return this.matchCapability(params);
+                    case 'update_capability_status':
+                        return this.updateCapabilityStatus(params);
                     default:
                         throw new Error(`Unknown method: ${method}`);
                 }
@@ -38983,6 +39668,150 @@ https://treelisty.netlify.app`;
                     undoCount,
                     redoCount
                 };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // Capability Operations (Build 544)
+            // ═══════════════════════════════════════════════════════════════
+
+            listCapabilities(params) {
+                const { site_filter, status_filter } = params || {};
+                const capabilities = findCapabilityNodes(capexTree);
+
+                let filtered = capabilities;
+
+                if (site_filter) {
+                    filtered = filtered.filter(c => c.site && c.site.includes(site_filter));
+                }
+
+                if (status_filter) {
+                    filtered = filtered.filter(c => c.status === status_filter);
+                }
+
+                return {
+                    capabilities: filtered.map(c => ({
+                        id: c.id,
+                        name: c.name,
+                        site: c.site,
+                        goal: c.goal,
+                        allow: c.allow || ['read', 'navigate'],
+                        status: c.status || 'untested',
+                        lastSuccessAt: c.lastSuccessAt,
+                        failureStreak: c.failureStreak || 0
+                    })),
+                    count: filtered.length
+                };
+            }
+
+            getCapability(params) {
+                const { capability_id } = params;
+                if (!capability_id) {
+                    throw new Error('capability_id is required');
+                }
+
+                const node = this.findNodeById(capability_id);
+                if (!node || node.type !== 'capability') {
+                    throw new Error(`Capability not found: ${capability_id}`);
+                }
+
+                return node;
+            }
+
+            createCapability(params) {
+                const { parent_id, name, site, goal, allow, examples, aliases, profileHint, selectors } = params;
+
+                if (!parent_id) throw new Error('parent_id is required');
+                if (!name) throw new Error('name is required');
+                if (!site) throw new Error('site is required');
+                if (!goal) throw new Error('goal is required');
+
+                const parent = this.findNodeById(parent_id);
+                if (!parent) throw new Error(`Parent not found: ${parent_id}`);
+
+                // Create capability node using schema
+                const capabilityData = {
+                    name,
+                    site,
+                    goal,
+                    allow: allow || CAPABILITY_PERMISSIONS_MVP,
+                    examples: examples || [],
+                    aliases: aliases || [],
+                    profileHint: profileHint || null,
+                    selectors: selectors || {}
+                };
+
+                const validationResult = CAPABILITY_SCHEMA.validate(capabilityData);
+                if (!validationResult.valid) {
+                    throw new Error(`Invalid capability: ${validationResult.errors.join(', ')}`);
+                }
+
+                const newNode = CAPABILITY_SCHEMA.create(capabilityData);
+
+                // Add to parent
+                const childKey = parent.children ? 'children' :
+                                 parent.items ? 'items' :
+                                 parent.subtasks ? 'subtasks' : 'children';
+
+                if (!parent[childKey]) parent[childKey] = [];
+                parent[childKey].push(newNode);
+
+                saveState('Create capability: ' + name);
+                render();
+
+                return { success: true, node: newNode };
+            }
+
+            matchCapability(params) {
+                const { intent } = params;
+                if (!intent) throw new Error('intent is required');
+
+                const capabilities = findCapabilityNodes(capexTree);
+                const match = matchIntentToCapability(intent, capabilities);
+
+                if (!match) {
+                    return { found: false, message: 'No matching capability found' };
+                }
+
+                return {
+                    found: true,
+                    capability: {
+                        id: match.id,
+                        name: match.name,
+                        site: match.site,
+                        goal: match.goal,
+                        allow: match.allow || ['read', 'navigate'],
+                        examples: match.examples || [],
+                        selectors: match.selectors || {}
+                    }
+                };
+            }
+
+            updateCapabilityStatus(params) {
+                const { capability_id, status, failureStreak } = params;
+
+                if (!capability_id) throw new Error('capability_id is required');
+
+                const node = this.findNodeById(capability_id);
+                if (!node || node.type !== 'capability') {
+                    throw new Error(`Capability not found: ${capability_id}`);
+                }
+
+                const validStatuses = ['healthy', 'degraded', 'broken', 'untested'];
+                if (status && !validStatuses.includes(status)) {
+                    throw new Error(`Invalid status: ${status}. Must be one of: ${validStatuses.join(', ')}`);
+                }
+
+                if (status) node.status = status;
+                if (typeof failureStreak === 'number') node.failureStreak = failureStreak;
+                if (status === 'healthy') {
+                    node.lastSuccessAt = new Date().toISOString();
+                    node.failureStreak = 0;
+                }
+
+                saveState('Update capability status: ' + node.name);
+                render();
+
+                return { success: true, node };
             }
         }
 
@@ -55960,7 +56789,13 @@ ${fullTranscript}`;
             conversationMode: false, // When true, uses full AI conversation instead of command mode
             lastConversationContext: null, // Stores context for action extraction
             // BUILD 393: New Command Frame UI
-            commandFrameMinimized: false
+            commandFrameMinimized: false,
+            // BUILD 543: Preview-Then-Apply pending actions
+            pendingDestructiveActions: null,
+            // BUILD 543: Pattern Mismatch Routing
+            pendingPatternSwitchMessage: null,
+            pendingPatternSwitchTarget: null,
+            skipPatternMismatchCheck: false
         };
 
         // BUILD 393: Feature flag for new Command Frame UI
@@ -56030,6 +56865,141 @@ ${fullTranscript}`;
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 543: CAPABILITY SYSTEM - Collapse 105 commands to 10 capabilities
+        // Maps natural language to canonical commands
+        // ═══════════════════════════════════════════════════════════════
+
+        const CAPABILITIES = {
+            navigate: {
+                canonical: 'find_node',
+                description: 'Find and focus on nodes in the tree',
+                aliases: ['go to', 'find', 'show me', 'navigate to', 'locate', 'where is', 'jump to', 'select'],
+                commands: ['find_node', 'focus_node', 'focus_root', 'parent_node', 'first_child', 'search'],
+                examples: ['find marketing', 'go to phase 2', 'show me the budget items']
+            },
+            edit: {
+                canonical: 'add_child',
+                description: 'Add, modify, or remove nodes',
+                aliases: ['add', 'create', 'new', 'insert', 'edit', 'change', 'update', 'modify', 'remove', 'delete'],
+                commands: ['add_child', 'add_phase', 'delete_node', 'rename_root', 'rename_node', 'set_field'],
+                examples: ['add a new phase', 'create marketing item', 'delete this node']
+            },
+            view: {
+                canonical: 'toggle_view',
+                description: 'Change how the tree is displayed',
+                aliases: ['switch to', 'show', 'view', 'display', 'open'],
+                commands: ['switch_to_canvas', 'switch_to_tree', 'switch_to_3d', 'view_gantt', 'view_calendar', 'toggle_view'],
+                examples: ['switch to canvas', 'show gantt chart', 'view calendar']
+            },
+            transform: {
+                canonical: 'enhance_selected',
+                description: 'AI-powered expansion and improvement',
+                aliases: ['enhance', 'improve', 'expand', 'break down', 'elaborate', 'deep dive', 'research'],
+                commands: ['enhance_selected', 'deep_dive', 'research', 'open_wizard', 'decompose'],
+                examples: ['enhance this node', 'break down into subtasks', 'research this topic']
+            },
+            plan: {
+                canonical: 'gantt_summary',
+                description: 'Schedule and project management',
+                aliases: ['schedule', 'timeline', 'project', 'gantt', 'critical path', 'deadline'],
+                commands: ['gantt_summary', 'gantt_critical_path', 'gantt_today', 'gantt_overdue', 'gantt_next_week'],
+                examples: ['show critical path', 'what\'s overdue', 'project summary']
+            },
+            sync: {
+                canonical: 'sync_all',
+                description: 'Fetch data from external sources',
+                aliases: ['sync', 'fetch', 'pull', 'refresh', 'import', 'load'],
+                commands: ['sync_gmail', 'sync_drive', 'sync_calendar', 'refresh_drive', 'refresh_gmail'],
+                examples: ['sync gmail', 'refresh drive', 'pull calendar']
+            },
+            analyze: {
+                canonical: 'tree_analysis',
+                description: 'Examine and compare tree content',
+                aliases: ['analyze', 'compare', 'evaluate', 'summarize', 'statistics', 'report'],
+                commands: ['tree_analysis', 'compare_nodes', 'project_info', 'find_redundancies', 'find_hyperedges'],
+                examples: ['analyze tree', 'find duplicates', 'project statistics']
+            },
+            organize: {
+                canonical: 'expand_node',
+                description: 'Structure and arrange nodes',
+                aliases: ['expand', 'collapse', 'sort', 'reorder', 'move', 'organize'],
+                commands: ['expand_node', 'collapse_node', 'expand_all', 'collapse_all', 'sort_children'],
+                examples: ['expand all', 'collapse this', 'sort by name']
+            },
+            undo: {
+                canonical: 'undo',
+                description: 'Undo and redo changes',
+                aliases: ['undo', 'redo', 'revert', 'go back', 'restore'],
+                commands: ['undo', 'redo'],
+                examples: ['undo', 'redo last action']
+            },
+            help: {
+                canonical: 'help',
+                description: 'Get help and information',
+                aliases: ['help', 'what can you', 'how do I', 'show commands', 'list'],
+                commands: ['help', 'list_all_commands', 'project_info', 'node_info'],
+                examples: ['help', 'what can you do', 'list commands']
+            }
+        };
+
+        /**
+         * Route natural language to a capability
+         * Returns { capability: string, canonical: string, confidence: number } or null
+         */
+        function routeToCapability(message) {
+            const msg = message.toLowerCase();
+
+            for (const [capName, cap] of Object.entries(CAPABILITIES)) {
+                // Check aliases
+                for (const alias of cap.aliases) {
+                    if (msg.includes(alias)) {
+                        return {
+                            capability: capName,
+                            canonical: cap.canonical,
+                            description: cap.description,
+                            confidence: 0.8
+                        };
+                    }
+                }
+
+                // Check command names directly
+                for (const cmd of cap.commands) {
+                    if (msg.includes(cmd.replace(/_/g, ' '))) {
+                        return {
+                            capability: capName,
+                            canonical: cmd,
+                            description: cap.description,
+                            confidence: 1.0
+                        };
+                    }
+                }
+            }
+
+            return null;
+        }
+
+        /**
+         * Get suggested commands for a capability
+         */
+        function getCapabilityCommands(capabilityName) {
+            const cap = CAPABILITIES[capabilityName];
+            if (!cap) return [];
+            return cap.commands;
+        }
+
+        /**
+         * Get all capabilities summary for help display
+         */
+        function getCapabilitiesSummary() {
+            return Object.entries(CAPABILITIES).map(([name, cap]) => ({
+                name,
+                description: cap.description,
+                example: cap.examples[0],
+                canonical: cap.canonical
+            }));
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // COMMAND REGISTRY - Maps intents to TreeListy functions
         // ═══════════════════════════════════════════════════════════════
 
@@ -56053,6 +57023,82 @@ ${fullTranscript}`;
                 document.getElementById('toggle-view-mode')?.click();
                 return '🔄 View toggled!';
             },
+
+            // BUILD 545: Refresh tree command
+            'refresh_tree': () => {
+                render();
+                return '🔄 Tree refreshed!';
+            },
+            'refresh_view': () => {
+                render();
+                return '🔄 View refreshed!';
+            },
+            'refresh_root': () => {
+                render();
+                return '🔄 Root view refreshed!';
+            },
+
+            // BUILD 543: Preview-Then-Apply confirmation commands
+            'confirm_destructive_action': async () => {
+                await executePendingDestructiveActions();
+                return null; // Message handled by function
+            },
+            'cancel_destructive_action': () => {
+                cancelPendingDestructiveActions();
+                return null; // Message handled by function
+            },
+
+            // BUILD 543: Pattern Mismatch Routing commands
+            'switch_pattern_and_retry': async (targetPattern) => {
+                if (!targetPattern || !PATTERNS[targetPattern]) {
+                    return `❌ Unknown pattern: ${targetPattern}`;
+                }
+
+                // Switch pattern
+                currentPattern = targetPattern;
+                localStorage.setItem('currentPattern', targetPattern);
+                updatePatternUI();
+
+                const patternName = PATTERNS[targetPattern]?.name || targetPattern;
+                addMessage(`✅ Switched to **${patternName}** pattern.`, 'system');
+
+                // Re-process the pending message
+                if (chatState.pendingPatternSwitchMessage) {
+                    const pendingMessage = chatState.pendingPatternSwitchMessage;
+                    chatState.pendingPatternSwitchMessage = null;
+                    chatState.pendingPatternSwitchTarget = null;
+
+                    // Simulate re-sending the message
+                    setTimeout(() => {
+                        const input = document.getElementById('chat-assistant-input');
+                        if (input) {
+                            input.value = pendingMessage;
+                            handleSendMessage();
+                        }
+                    }, 500);
+                }
+                return null;
+            },
+            'continue_without_switch': async () => {
+                // Process the pending message without switching patterns
+                if (chatState.pendingPatternSwitchMessage) {
+                    const pendingMessage = chatState.pendingPatternSwitchMessage;
+                    chatState.pendingPatternSwitchMessage = null;
+                    chatState.pendingPatternSwitchTarget = null;
+                    chatState.skipPatternMismatchCheck = true; // Flag to skip re-check
+
+                    // Re-process
+                    setTimeout(() => {
+                        const input = document.getElementById('chat-assistant-input');
+                        if (input) {
+                            input.value = pendingMessage;
+                            handleSendMessage();
+                        }
+                    }, 300);
+                }
+                return null;
+            },
+
             'switch_to_3d': () => {
                 if (typeof toggle3DView === 'function') {
                     const view3d = document.getElementById('view-3d');
@@ -57092,6 +58138,24 @@ Slack data not available. To calculate slack:
             },
 
             // BUILD 437: List all available commands for Treebeard self-discovery
+            // BUILD 543: List capabilities (simpler than 100+ commands)
+            'list_capabilities': () => {
+                let output = '🌳 **What I Can Do** (10 Capabilities):\n\n';
+
+                for (const [name, cap] of Object.entries(CAPABILITIES)) {
+                    const icon = {
+                        navigate: '🔍', edit: '✏️', view: '👁️', transform: '✨',
+                        plan: '📊', sync: '🔄', analyze: '📈', organize: '📂',
+                        undo: '↩️', help: '❓'
+                    }[name] || '•';
+                    output += `${icon} **${name.charAt(0).toUpperCase() + name.slice(1)}** - ${cap.description}\n`;
+                    output += `   _Try: "${cap.examples[0]}"_\n\n`;
+                }
+
+                output += `💡 Just describe what you want in natural language!`;
+                return output;
+            },
+
             'list_all_commands': () => {
                 const commands = Object.keys(COMMAND_REGISTRY).sort();
                 const grouped = {
@@ -57109,13 +58173,13 @@ Slack data not available. To calculate slack:
                     'Project': commands.filter(c => c.includes('project') || c.includes('undo') || c.includes('redo')),
                 };
 
-                let output = '📋 **All Available Commands** (90+):\n\n';
+                let output = '📋 **All Available Commands** (100+):\n\n';
                 for (const [category, cmds] of Object.entries(grouped)) {
                     if (cmds.length > 0) {
                         output += `**${category}:** ${cmds.slice(0, 8).join(', ')}${cmds.length > 8 ? ` (+${cmds.length - 8} more)` : ''}\n`;
                     }
                 }
-                output += `\n**Total:** ${commands.length} commands\n\nUse any command name as an action!`;
+                output += `\n**Total:** ${commands.length} commands\n\n💡 **Simpler:** Try \`list_capabilities\` for a friendlier overview!`;
                 return output;
             },
 
@@ -60387,6 +61451,143 @@ NATURAL LANGUAGE: "the 60s" = 1960s, "build out" = add_child, navigate FIRST the
         }
 
         /**
+         * BUILD 543: Streaming version of handleConversation
+         * Shows "Interpreting..." then progressively displays tokens as they arrive
+         */
+        async function handleConversationWithStreaming(userMessage) {
+            const phases = typeof capexTree !== 'undefined' ? (capexTree.children || capexTree.phases || []) : [];
+            const pattern = typeof currentPattern !== 'undefined' ? currentPattern : 'generic';
+            const patternDef = PATTERNS[pattern] || PATTERNS.generic;
+
+            // Build context (same as non-streaming version)
+            const treeContext = pattern === 'lifetree'
+                ? buildLifeTreeRichContext(phases)
+                : buildTreeContext(phases, pattern);
+
+            // Pattern-specific persona
+            const personas = {
+                lifetree: `You are a warm, curious biographer helping document a life story. You use the Birthday Method - walking through life year by year. You're proactive: you ASK questions, you LEAD the conversation, you jog memories with what you already know.`,
+                philosophy: `You are a scholarly companion well-versed in philosophy. You engage deeply with arguments, identify logical structures, and help build rigorous dialectical analyses.`,
+                capex: `You are a sharp financial analyst helping with capital expenditure planning. You understand NPV, IRR, payback periods, risk assessment, and vendor evaluation.`,
+                sales: `You are a seasoned sales strategist. You understand pipeline management, deal qualification, stakeholder mapping, and closing techniques.`,
+                thesis: `You are an academic writing coach. You help structure arguments, identify gaps in reasoning, suggest relevant citations, and ensure scholarly rigor.`,
+                film: `You are a film production expert. You understand shot composition, scene structure, narrative pacing, and the technical aspects of video production.`,
+                generic: `You are TreeBeard, a wise and helpful assistant. You're knowledgeable about project management, hierarchical thinking, and breaking down complex work into manageable pieces.`
+            };
+
+            const persona = personas[pattern] || personas.generic;
+            const intent = detectTreeBeardIntent(userMessage);
+
+            let systemPrompt = `${persona}
+
+You are embedded in TreeListy. Respond naturally (NOT JSON). Project: "${capexTree?.name || 'Unknown'}" | Pattern: ${pattern}
+
+${treeContext}`;
+
+            // Add commands if user wants to DO something
+            if (intent.needsNavigation || intent.needsEditing) {
+                systemPrompt += `
+
+ACTIONS (end response with [ACTION: cmd:param] or [ACTION: none]):
+• find_node:{query} - Search & focus node
+• add_child:{name} - Add child to focused node
+• set_field:{field}:{value} - Set field value
+• expand_node / collapse_node - Toggle node
+• switch_to_canvas / switch_to_tree - Change view
+
+NATURAL LANGUAGE: "the 60s" = 1960s, "build out" = add_child, navigate FIRST then act`;
+            }
+
+            if (pattern === 'lifetree') {
+                systemPrompt += getLifeTreeBiographerPrompt(phases, { projectName: capexTree?.name, pattern, phaseCount: phases.length, itemCount: phases.reduce((s,p) => s + (p.items||p.children||[]).length, 0) }, chatState);
+            }
+
+            if (intent.needsFeatureHelp) {
+                systemPrompt += getFeatureGuide();
+            }
+
+            systemPrompt += `
+
+Be warm, insightful, concise. Ask at most one follow-up question only if needed. End with [ACTION: x] if taking action.`;
+
+            try {
+                // Create streaming message placeholder
+                createStreamingMessage();
+
+                const messages = [
+                    ...chatState.conversationHistory.slice(-8).map(m => ({
+                        role: m.role === 'user' ? 'user' : 'assistant',
+                        content: m.content
+                    })),
+                    { role: 'user', content: userMessage }
+                ];
+
+                // Use streaming API
+                const aiResponse = await callClaudeStreamingAPI(
+                    {
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1500,
+                        system: systemPrompt,
+                        messages: messages
+                    },
+                    null, // userApiKey (use server)
+                    (delta, fullText) => {
+                        // Progressive update callback
+                        updateStreamingMessage(fullText);
+                    }
+                );
+
+                // Parse actions from completed response
+                const actionMatches = [...aiResponse.matchAll(/\[ACTION:\s*([^\]]+)\]/gi)];
+                let actions = [];
+                let cleanResponse = aiResponse.replace(/\[ACTION:[^\]]+\]/gi, '').trim();
+
+                actionMatches.forEach(match => {
+                    const actionParts = match[1].split(':');
+                    const action = actionParts[0].trim();
+                    const actionParam = actionParts.slice(1).join(':').trim() || null;
+                    if (action.toLowerCase() !== 'none') {
+                        actions.push({ action, actionParam });
+                    }
+                });
+
+                const primaryAction = actions.length > 0 ? actions[0] : { action: null, actionParam: null };
+
+                // Finalize the streaming message
+                finalizeStreamingMessage(cleanResponse, null);
+
+                return {
+                    message: cleanResponse,
+                    action: primaryAction.action,
+                    actionParam: primaryAction.actionParam,
+                    actions: actions,
+                    buttons: null,
+                    streamed: true  // Flag to indicate message already displayed
+                };
+
+            } catch (error) {
+                console.error('Streaming conversation error:', error);
+
+                // Clean up streaming message on error
+                const streamingMsg = document.getElementById('streaming-message');
+                if (streamingMsg) {
+                    streamingMsg.remove();
+                }
+
+                // Fall back to non-streaming
+                if (error.message === 'STREAMING_NOT_AVAILABLE_LOCAL') {
+                    console.log('📦 Falling back to non-streaming mode (local file)');
+                    return await handleConversation(userMessage);
+                }
+
+                return {
+                    message: `I had trouble processing that: ${error.message}. Let me try a simpler approach.`,
+                    action: null
+                };
+            }
+        }
+
+        /**
          * Build context about current tree state for AI
          */
         function buildTreeContext(phases, pattern) {
@@ -60783,6 +61984,106 @@ WHAT WE'VE CAPTURED (${allMemories.length} memories)
             };
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 543: PATTERN MISMATCH ROUTING
+        // Detects when user's request matches a different pattern than active
+        // ═══════════════════════════════════════════════════════════════
+
+        const PATTERN_KEYWORDS = {
+            sales: {
+                keywords: /deal\s*value|pipeline|quarter|close\s*date|lead\s*source|prospect|win\s*rate|quota|commission|account\s*executive/i,
+                name: 'Sales Pipeline',
+                icon: '💼'
+            },
+            thesis: {
+                keywords: /thesis|dissertation|bibliography|citation|chapter|literature\s*review|methodology|abstract|hypothesis|research\s*question/i,
+                name: 'Thesis',
+                icon: '📚'
+            },
+            philosophy: {
+                keywords: /dialectic|synthesis|antithesis|phenomenology|ontology|epistemology|hermeneutic|categorical\s*imperative|transcendental|metaphysic/i,
+                name: 'Philosophy',
+                icon: '🏛️'
+            },
+            lifetree: {
+                keywords: /birth\s*year|biography|memoir|life\s*story|childhood|decade|age\s*\d+|born\s*in|grew\s*up/i,
+                name: 'LifeTree',
+                icon: '🌳'
+            },
+            capex: {
+                keywords: /capital\s*expenditure|npv|irr|payback\s*period|vendor\s*evaluation|procurement|budget\s*allocation|capex/i,
+                name: 'CAPEX',
+                icon: '💰'
+            },
+            film: {
+                keywords: /shot\s*list|scene|storyboard|cinematography|b-roll|veo|sora|director|screenplay|production/i,
+                name: 'Film',
+                icon: '🎬'
+            },
+            debate: {
+                keywords: /proposition|opposition|rebuttal|cross-examination|motion|debate|argument\s*map|counterargument/i,
+                name: 'Debate',
+                icon: '⚖️'
+            }
+        };
+
+        /**
+         * Check if user's message suggests a different pattern than currently active
+         * Returns { mismatch: boolean, suggestedPattern: string, currentPattern: string } or null
+         */
+        function detectPatternMismatch(message, currentPattern) {
+            const msg = message.toLowerCase();
+
+            for (const [patternKey, patternInfo] of Object.entries(PATTERN_KEYWORDS)) {
+                if (patternKey !== currentPattern && patternInfo.keywords.test(msg)) {
+                    return {
+                        mismatch: true,
+                        suggestedPattern: patternKey,
+                        suggestedName: patternInfo.name,
+                        suggestedIcon: patternInfo.icon,
+                        currentPattern: currentPattern,
+                        currentName: PATTERNS[currentPattern]?.name || currentPattern
+                    };
+                }
+            }
+            return null;
+        }
+
+        /**
+         * Show pattern mismatch warning with option to switch
+         */
+        function showPatternMismatchWarning(mismatchInfo, originalMessage) {
+            const warning = `🔀 **Pattern Mismatch Detected**
+
+You mentioned "${extractMatchingKeyword(originalMessage, mismatchInfo.suggestedPattern)}" which is typically used with the **${mismatchInfo.suggestedIcon} ${mismatchInfo.suggestedName}** pattern.
+
+Currently active: **${PATTERNS[mismatchInfo.currentPattern]?.icon || '📋'} ${mismatchInfo.currentName}**
+
+Would you like to switch patterns, or continue with the current one?`;
+
+            // Store original message for retry after switch
+            chatState.pendingPatternSwitchMessage = originalMessage;
+            chatState.pendingPatternSwitchTarget = mismatchInfo.suggestedPattern;
+
+            addMessage(warning, 'assistant', [
+                { label: `Switch to ${mismatchInfo.suggestedName}`, action: `switch_pattern_and_retry:${mismatchInfo.suggestedPattern}` },
+                { label: 'Continue Anyway', action: 'continue_without_switch' }
+            ]);
+
+            return true; // Indicates mismatch was handled
+        }
+
+        /**
+         * Extract the keyword that triggered the mismatch (for display)
+         */
+        function extractMatchingKeyword(message, patternKey) {
+            const patternInfo = PATTERN_KEYWORDS[patternKey];
+            if (!patternInfo) return 'specialized terms';
+
+            const match = message.match(patternInfo.keywords);
+            return match ? match[0] : 'specialized terms';
+        }
+
         /**
          * BUILD 378: Core persona - always included (~150 tokens)
          */
@@ -60816,6 +62117,7 @@ GLOBAL (work anytime):
 • view_gantt - Switch to Gantt chart view
 • view_calendar - Switch to Calendar view
 • toggle_view - Cycle through all 5 views
+• refresh_tree / refresh_view / refresh_root - Re-render the tree view
 • undo / redo - Undo/redo changes
 • list_all_commands - Show all 90+ commands
 • tree_analysis - Analyze which items have most content/children
@@ -61124,6 +62426,9 @@ RESPONSE:
 
 RESPONSE FORMAT (JSON only):
 {"type": "action"|"answer"|"clarify", "message": "response", "action": "cmd"|null, "actionParam": "param"|null, "buttons": [{"label":"X","action":"y"}]|null}
+
+CRITICAL: The "action" field must be EXACTLY one of the listed commands (e.g., "refresh_tree", "find_node", "add_child") or null.
+NEVER use natural language descriptions as action values. If unsure, use null.
 Return ONLY valid JSON.`;
 
             // Tier 2: Add commands if navigation/editing detected (~200 tokens)
@@ -62314,7 +63619,207 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             document.getElementById('typing-indicator')?.remove();
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 543: AI STREAMING UI - Progressive response display
+        // ═══════════════════════════════════════════════════════════════
+
+        // Create a streaming message placeholder that shows "Interpreting..." initially
+        function createStreamingMessage() {
+            const messagesContainer = document.getElementById('chat-assistant-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'chat-message assistant streaming';
+            messageDiv.id = 'streaming-message';
+            messageDiv.innerHTML = '<span class="streaming-indicator">🌳 Interpreting...</span>';
+            messagesContainer.appendChild(messageDiv);
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            return messageDiv;
+        }
+
+        // Update streaming message with new content (progressive tokens)
+        function updateStreamingMessage(fullText) {
+            const messageDiv = document.getElementById('streaming-message');
+            if (!messageDiv) return;
+
+            // Format the text with markdown-like styling
+            let formattedContent = fullText
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+
+            // Show content + cursor indicator
+            messageDiv.innerHTML = formattedContent + '<span class="streaming-cursor">▌</span>';
+            messageDiv.parentElement.scrollTop = messageDiv.parentElement.scrollHeight;
+        }
+
+        // Finalize streaming message - remove cursor, add to history
+        function finalizeStreamingMessage(finalContent, buttons = null) {
+            const messageDiv = document.getElementById('streaming-message');
+            if (!messageDiv) return;
+
+            messageDiv.classList.remove('streaming');
+            messageDiv.removeAttribute('id');
+
+            // Format final content
+            let formattedContent = finalContent
+                .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\n/g, '<br>');
+
+            messageDiv.innerHTML = formattedContent;
+
+            // Add action buttons if provided
+            if (buttons && buttons.length > 0) {
+                const btnContainer = document.createElement('div');
+                btnContainer.className = 'action-buttons';
+                buttons.forEach(btn => {
+                    const button = document.createElement('button');
+                    button.className = 'action-btn';
+                    button.textContent = btn.label;
+                    button.onclick = () => executeAction(btn.action, btn.param);
+                    btnContainer.appendChild(button);
+                });
+                messageDiv.appendChild(btnContainer);
+            }
+
+            // Store in history
+            chatState.conversationHistory.push({ role: 'assistant', content: finalContent });
+            saveConversationMemory();
+        }
+
+        // Cancel streaming request
+        function cancelStreaming() {
+            if (chatState.streamingAbortController) {
+                chatState.streamingAbortController.abort();
+                chatState.streamingAbortController = null;
+
+                // Clean up streaming message
+                const streamingMsg = document.getElementById('streaming-message');
+                if (streamingMsg) {
+                    streamingMsg.classList.remove('streaming');
+                    streamingMsg.removeAttribute('id');
+                    streamingMsg.innerHTML += '<br><em style="color: var(--text-muted);">[cancelled]</em>';
+                }
+            }
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 543: PREVIEW-THEN-APPLY for destructive commands
+        // ═══════════════════════════════════════════════════════════════
+
+        // Commands that require user confirmation before execution
+        const DESTRUCTIVE_COMMANDS = {
+            'delete_node': {
+                description: (param) => `Delete node "${param || 'selected'}"`,
+                icon: '🗑️',
+                severity: 'high'
+            },
+            'create_tree': {
+                description: (param) => `Replace current tree with new tree "${param || 'Untitled'}"`,
+                icon: '🌳',
+                severity: 'high'
+            },
+            'bulk_update': {
+                description: (param) => `Update multiple nodes`,
+                icon: '📝',
+                severity: 'medium'
+            },
+            'bulk_delete': {
+                description: (param) => `Delete multiple nodes`,
+                icon: '🗑️',
+                severity: 'high'
+            },
+            'clear_tree': {
+                description: (param) => `Clear all nodes from the tree`,
+                icon: '⚠️',
+                severity: 'high'
+            }
+        };
+
+        // Check if an action requires preview confirmation
+        function isDestructiveAction(actionName) {
+            return DESTRUCTIVE_COMMANDS.hasOwnProperty(actionName);
+        }
+
+        // Get human-readable description of what the action will do
+        function getActionDescription(actionName, param) {
+            const cmd = DESTRUCTIVE_COMMANDS[actionName];
+            if (cmd) {
+                return `${cmd.icon} ${cmd.description(param)}`;
+            }
+            return `Execute: ${actionName}${param ? ` with "${param}"` : ''}`;
+        }
+
+        // Show preview for destructive action with confirm/cancel buttons
+        function showDestructiveActionPreview(actions) {
+            const descriptions = actions.map(act =>
+                getActionDescription(act.action, act.actionParam)
+            ).join('\n');
+
+            const hasSevereAction = actions.some(act =>
+                DESTRUCTIVE_COMMANDS[act.action]?.severity === 'high'
+            );
+
+            const warningPrefix = hasSevereAction
+                ? '⚠️ **This action cannot be undone easily.**\n\n'
+                : '';
+
+            const previewMessage = `${warningPrefix}**I'm about to:**\n${descriptions}\n\nConfirm to proceed or cancel to abort.`;
+
+            // Store pending actions for execution on confirm
+            chatState.pendingDestructiveActions = actions;
+
+            addMessage(previewMessage, 'assistant', [
+                { label: '✓ Confirm', action: 'confirm_destructive_action' },
+                { label: '✗ Cancel', action: 'cancel_destructive_action' }
+            ]);
+        }
+
+        // Execute pending destructive actions (called when user confirms)
+        async function executePendingDestructiveActions() {
+            const actions = chatState.pendingDestructiveActions;
+            if (!actions || actions.length === 0) {
+                addMessage('No pending actions to execute.', 'assistant');
+                return;
+            }
+
+            chatState.pendingDestructiveActions = null;
+
+            for (const act of actions) {
+                await executeAction(act.action, act.actionParam);
+            }
+
+            addMessage('✅ Actions completed.', 'system');
+        }
+
+        // Cancel pending destructive actions
+        function cancelPendingDestructiveActions() {
+            chatState.pendingDestructiveActions = null;
+            addMessage('❌ Actions cancelled.', 'system');
+        }
+
+        // BUILD 545: Validate that action name looks like a valid command
+        // Rejects natural language sentences that AI sometimes hallucinates
+        function isValidActionName(actionName) {
+            if (!actionName || typeof actionName !== 'string') return false;
+
+            // Commands should be short (under 50 chars) and use underscores/colons
+            if (actionName.length > 50) return false;
+
+            // Commands shouldn't have multiple spaces (indicates natural language)
+            if ((actionName.match(/ /g) || []).length > 2) return false;
+
+            // Commands should match command_name or command_name:param pattern
+            // Also allow single words
+            if (!/^[\w_]+(?::.*)?$/.test(actionName)) return false;
+
+            return true;
+        }
+
         async function executeAction(actionName, param = null) {
+            // BUILD 545: Skip invalid action names (AI hallucinations)
+            if (!isValidActionName(actionName)) {
+                console.warn(`[TreeBeard] Skipping invalid action name: "${actionName}"`);
+                return; // Silently skip - the message was already shown
+            }
+
             // BUILD 255: Handle compound actions like "enter_playground:claude-sonnet"
             let commandName = actionName;
             let commandParam = param;
@@ -62391,6 +63896,19 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             showTypingIndicator();
 
             try {
+                // BUILD 543: Pattern Mismatch Routing
+                // Check if message uses terminology from a different pattern
+                if (!chatState.skipPatternMismatchCheck && typeof currentPattern !== 'undefined') {
+                    const mismatch = detectPatternMismatch(message, currentPattern);
+                    if (mismatch) {
+                        hideTypingIndicator();
+                        showPatternMismatchWarning(mismatch, message);
+                        chatState.isProcessing = false;
+                        return;
+                    }
+                }
+                chatState.skipPatternMismatchCheck = false; // Reset flag
+
                 // BUILD 255: Check for Playground Mode
                 if (chatState.playgroundMode) {
                     // Check for exit command
@@ -62615,34 +64133,52 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
                 let result;
                 if (interactionMode === 'conversation') {
-                    // Use full AI conversation mode
-                    result = await handleConversation(message);
+                    // BUILD 543: Use streaming for conversation mode
+                    // Hide typing indicator - streaming creates its own message UI
+                    hideTypingIndicator();
+                    result = await handleConversationWithStreaming(message);
                 } else {
-                    // Use quick command interpretation
+                    // Use quick command interpretation (non-streaming - needs JSON parse)
                     result = await interpretCommand(message);
+                    hideTypingIndicator();
                 }
 
-                hideTypingIndicator();
+                // BUILD 543: Skip addMessage if result was already streamed to UI
+                if (!result.streamed) {
+                    // BUILD 490: Inject proactive nudges (Deep Mode only, once per session per issue)
+                    let finalMessage = result.message;
+                    const nudges = getProactiveNudges();
+                    if (nudges.length > 0) {
+                        finalMessage += '\n\n---\n' + nudges[0];
+                    }
 
-                // BUILD 490: Inject proactive nudges (Deep Mode only, once per session per issue)
-                let finalMessage = result.message;
-                const nudges = getProactiveNudges();
-                if (nudges.length > 0) {
-                    finalMessage += '\n\n---\n' + nudges[0];
+                    // Add assistant response
+                    addMessage(finalMessage, 'assistant', result.buttons);
                 }
-
-                // Add assistant response
-                addMessage(finalMessage, 'assistant', result.buttons);
 
                 // BUILD 383: Execute ALL actions for real-time saves (navigate + add in one go)
+                // BUILD 543: Preview-Then-Apply for destructive commands
                 if (result.actions && result.actions.length > 0) {
-                    // Execute actions sequentially for proper ordering (navigate THEN add)
-                    for (const act of result.actions) {
+                    // Check if any actions are destructive
+                    const destructiveActions = result.actions.filter(act => isDestructiveAction(act.action));
+                    const safeActions = result.actions.filter(act => !isDestructiveAction(act.action));
+
+                    // Execute safe actions immediately
+                    for (const act of safeActions) {
                         await executeAction(act.action, act.actionParam);
+                    }
+
+                    // Show preview for destructive actions
+                    if (destructiveActions.length > 0) {
+                        showDestructiveActionPreview(destructiveActions);
                     }
                 } else if (result.action) {
                     // Fallback for single action (backwards compatibility)
-                    await executeAction(result.action, result.actionParam);
+                    if (isDestructiveAction(result.action)) {
+                        showDestructiveActionPreview([{ action: result.action, actionParam: result.actionParam }]);
+                    } else {
+                        await executeAction(result.action, result.actionParam);
+                    }
                 }
             } catch (error) {
                 hideTypingIndicator();
@@ -64532,7 +66068,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 541; // Update this with each build
+                    const KNOWN_LATEST = 545; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
