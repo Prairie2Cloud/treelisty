@@ -1,141 +1,194 @@
-# TreeListy Self-Tree Prompt v1.1
+# TreeListy Self-Tree Prompt v1.2
 
 ## Mission
-Build an improved self-tree that builds on v1.0, focusing on gaps identified and deeper analysis where v1.0 was superficial.
+Build a self-tree with rigorous evidence standards, distinguishing measured facts from AI inferences.
+
+## Critical Learning from v1.1
+
+**The Performance Hallucination Incident:**
+- v1.0/v1.1 claimed "Tree view lags at 150+ nodes" based on code pattern inference
+- This was treated as P0, implementation started on virtual scrolling
+- **Actual measurement showed:** 1000 nodes renders in 9.37ms (well under 16.67ms budget)
+- **Result:** Almost wasted engineering weeks on a non-problem
+
+**Root Cause:** AI reading code and inferring "this could be slow" was treated as "this IS slow"
+
+---
+
+## Evidence Standards (NEW - MANDATORY)
+
+### Evidence Tags
+Every claim about quality, performance, or user experience MUST include one tag:
+
+| Tag | Meaning | Can Drive Priority? |
+|-----|---------|---------------------|
+| `[MEASURED]` | Actual benchmark, telemetry, or test result | ✅ Yes |
+| `[USER-REPORTED]` | From user feedback, tickets, interviews | ✅ Yes |
+| `[CODE-OBSERVED]` | Objectively visible in code (exists/doesn't) | ✅ For features |
+| `[CODE-INFERRED]` | AI deduction from code patterns | ❌ Hypothesis only |
+| `[SPECULATED]` | AI guess without supporting evidence | ❌ Never actionable |
+
+### Validation Gates
+
+```
+[CODE-INFERRED] claim → Must become [MEASURED] before implementation
+[SPECULATED] claim → Goes in "Hypotheses" section, not "Improvements"
+[USER-REPORTED] claim → Include source (ticket #, quote, channel)
+```
+
+### Examples
+
+```
+❌ WRONG: "Performance: Tree view lags with large trees"
+✅ RIGHT: "Performance: Tree view lags with large trees [CODE-INFERRED, UNMEASURED]"
+✅ BEST:  "Performance: Tree view renders 1000 nodes in 9.37ms [MEASURED via test/performance/measure-render.py]"
+
+❌ WRONG: "Usage Frequency: HIGH"
+✅ RIGHT: "Usage Frequency: HIGH [SPECULATED, NO ANALYTICS]"
+
+❌ WRONG: "PM persona needs Excel export"
+✅ RIGHT: "PM persona needs Excel export [SPECULATED, NO USER RESEARCH]"
+```
+
+---
+
+## What Self-Tree CAN Determine (Reliable)
+
+| Category | Why Reliable |
+|----------|--------------|
+| Feature inventory | Code exists or doesn't - binary |
+| Architecture structure | Objectively observable |
+| Code complexity metrics | Measurable (LOC, functions, etc.) |
+| API surface | Documented in code |
+| Test coverage | Measurable |
+
+## What Self-Tree CANNOT Determine (Unreliable)
+
+| Category | Why Unreliable |
+|----------|----------------|
+| Performance quality | Requires measurement, not code reading |
+| User satisfaction | Requires user research |
+| Priority/severity | Requires impact data |
+| Usage frequency | Requires analytics |
+| UX quality | Requires user testing |
+
+---
 
 ## Context Loading
-1. Load self-tree v1.0 as reference: `self-trees/self-tree-v1.0-build538.json`
-2. Review its Quality Assessment and Learnings sections
-3. Address gaps identified
+1. Load previous self-trees as reference
+2. Load any available measurements from `test/performance/`
+3. Check for user feedback in issues, Discord, or other channels
+4. Review actual telemetry if available
 
 ## Execution Method
 - **Primary**: Claude Code via MCP Bridge connected to TreeListy
 - **Alternative**: TreeBeard Deep mode with this prompt pasted
-- **Mode**: Use systematic tree-building commands (create_tree, add_child, set_description)
-
-## Realistic Scope
-- If no user data exists, note "No data available" rather than guessing
-- If no analytics exist, state "Analytics not implemented"
-- For benchmarks, test with 50/100/200/500 node trees in Canvas view and report actual frame rates or lag observations
-- For competitive analysis, use web search to gather current feature sets
-
-## Structure (5 phases - NEW Phase 5: Analysis)
-
-### Phase 1: Features
-Same 6 areas. NEW: Add usage frequency estimates (High/Medium/Low/Unknown) to each feature. Include competitive comparison where relevant.
-
-### Phase 2: Architecture
-Same 6 areas. NEW: Add performance benchmarks (actual measurements, not estimates). Include code complexity metrics where available.
-
-### Phase 3: User Journey
-NEW: Add user personas (Developer, PM, Researcher, Student) and map journey differences. Include actual user quotes if available from any feedback channel.
-
-### Phase 4: Meta
-Same structure. Compare to v1.0 explicitly. Track which v1.0 improvements were implemented.
-
-### Phase 5: Analysis (NEW)
-After building phases 1-4, use TreeListy's own tools to analyze the tree:
-
-1. **Cross-cutting theme detection**
-   - Search for terms appearing in 3+ nodes across different phases
-   - v1.0 finding: "Performance" appeared 9 times across all 4 phases
-   - Identify top 3 cross-cutting themes and document frequency
-
-2. **Hyperedge creation**
-   - Link related nodes instead of duplicating content
-   - v1.0 problem: "Virtual scrolling" listed as improvement in 4 separate nodes
-   - Create hyperedges for: shared improvements, related problems, connected features
-
-3. **Deduplication audit**
-   - Identify redundant content across Improvements nodes
-   - Consolidate into single nodes with hyperedge connections
-   - Report: "X improvements deduplicated into Y unique items"
-
-4. **Priority surfacing**
-   - Use cross-reference counts to identify true priorities
-   - If something is mentioned 9 times, it's more important than something mentioned once
-   - Create a "Top 5 Priorities" summary based on frequency analysis
-
-5. **Smart Expand on shallow nodes**
-   - Identify nodes with thin descriptions (<50 chars)
-   - Use AI expansion to add depth where warranted
-   - Document which nodes were expanded
-
-## New Requirements for v1.1
-1. **Benchmark performance** - Actually measure node counts where slowdown occurs
-2. **Add analytics review** - If any usage data exists, incorporate it
-3. **Track improvement implementation** - Which v1.0 suggestions were done?
-4. **Deeper competitive analysis** - Compare 3 features to Notion, Workflowy, Roam
-5. **Include accessibility audit** - WCAG compliance assessment
-
-## Success Criteria (v1.1 specific)
-- [ ] All v1.0 criteria met
-- [ ] Performance claims backed by benchmarks
-- [ ] At least 2 user personas defined
-- [ ] Competitive comparison for 3 features
-- [ ] Track record of v1.0 improvements implemented
-- [ ] Phase 5 Analysis completed:
-  - [ ] Top 3 cross-cutting themes identified with frequency counts
-  - [ ] Hyperedges created for shared improvements (no duplication)
-  - [ ] Deduplication audit reported
-  - [ ] Top 5 Priorities summary based on frequency
-  - [ ] Shallow nodes expanded
-
-## Process Learnings from v1.0
-
-**What building the self-tree revealed:**
-- `add_child:X` command parsing was broken → Fixed in Build 538
-- JSON export format requirements undocumented → I got it wrong even with codebase access
-- Import modal flow unclear for automation/testing
-- MCP Bridge works but setup complexity limits adoption
-
-**Reframing the benchmark:**
-- AI variability prevents strict run-to-run comparison
-- Value is in later reflection on the artifact, not metrics
-- Ask: Is it accurate? Did it surface real issues? Are improvements actionable?
-- The self-tree is a qualitative snapshot, not a quantitative benchmark
-
-## Meta-Assessment Improvements for v1.1
-
-**From TreeBeard's self-reflection on its own assessment approach:**
-
-1. **Add Devil's Advocate mode** - Actively hunt for failure scenarios, not just describe current state
-2. **Include emotional/intuitive evaluation** - Structural analysis misses user experience quality
-3. **Build in "break the framework" checkpoints** - Escape pattern-lock by periodically questioning the structure itself
-4. **User value validation gates** - Don't celebrate structural elegance without validating actual user benefit
-5. **Skeptical questioning balance** - Counter optimism bias with explicit pessimistic scenarios
-
-**The recursive trap to avoid:**
-Creating systematic assessments of systematic thinking without ever escaping the system. v1.1 should include moments of deliberately unstructured reflection.
-
-## Focus Areas for v1.1
-
-**Areas Needing Deeper Coverage:**
-
-1. **Performance Benchmarking**
-   - v1.0 claimed '200 nodes slows Canvas' without measurement
-   - v1.1 should run actual benchmarks and report precise thresholds
-
-2. **User Research**
-   - v1.0 User Journey is developer-assumed, not user-validated
-   - v1.1 should incorporate any available user feedback
-
-3. **Competitive Positioning**
-   - v1.0 didn't compare to alternatives
-   - v1.1 should benchmark against Notion, Workflowy, Roam
-
-4. **Accessibility**
-   - v1.0 didn't assess accessibility
-   - v1.1 should include WCAG audit
-
-5. **Pattern Usage**
-   - v1.0 listed 21 patterns without usage data
-   - v1.1 should estimate or measure pattern popularity
-
-6. **Mobile Experience**
-   - v1.0 mobile assessment was theoretical
-   - v1.1 should include actual mobile testing results
+- **Validation**: Run benchmarks before claiming performance issues
 
 ---
-*Prompt extracted from TreeListy Self-Tree v1.0 (Build 538)*
-*Created: 2025-12-21*
+
+## Structure (5 phases)
+
+### Phase 1: Features
+Document capabilities with evidence tags:
+- Feature existence: `[CODE-OBSERVED]`
+- Usage frequency: `[MEASURED]` if analytics exist, else `[SPECULATED, NO DATA]`
+- Quality assessment: Requires `[MEASURED]` or `[USER-REPORTED]`
+
+### Phase 2: Architecture
+Document structure with metrics:
+- Code organization: `[CODE-OBSERVED]`
+- Performance claims: MUST be `[MEASURED]` with benchmark reference
+- Complexity: `[MEASURED]` via static analysis if available
+
+### Phase 3: User Journey
+Document with source attribution:
+- Persona definitions: `[SPECULATED]` unless based on user research
+- Pain points: `[USER-REPORTED]` with source, or `[CODE-INFERRED]` as hypothesis
+- Journey mapping: Tag each claim with evidence source
+
+### Phase 4: Meta
+Self-assessment with honesty:
+- What we know vs. what we're guessing
+- Evidence gaps to fill
+- Validation needed before action
+
+### Phase 5: Analysis
+Cross-cutting analysis with evidence awareness:
+- Theme frequency: Count mentions, but note if themes are `[MEASURED]` vs `[INFERRED]`
+- Priority surfacing: Weight `[MEASURED]` themes higher than `[INFERRED]`
+- Hypotheses section: Collect all `[CODE-INFERRED]` and `[SPECULATED]` items for validation
+
+---
+
+## Hypotheses Section (NEW)
+
+All `[CODE-INFERRED]` and `[SPECULATED]` claims go here with validation plan:
+
+```
+### Hypothesis: Canvas view lags at 200+ nodes
+- Evidence: [CODE-INFERRED] from GoJS usage patterns
+- Validation needed: Run test/performance/measure-canvas.py with 50/200/500 nodes
+- Status: UNVALIDATED
+
+### Hypothesis: PM persona needs Excel export
+- Evidence: [SPECULATED] based on assumed workflow
+- Validation needed: User interview or survey
+- Status: UNVALIDATED
+```
+
+---
+
+## Success Criteria (v1.2 specific)
+
+- [ ] Every quality/performance claim has evidence tag
+- [ ] No `[CODE-INFERRED]` claims in "Top Priorities" without `[MEASURED]` validation
+- [ ] Performance section includes actual benchmark results
+- [ ] Hypotheses section lists all unvalidated assumptions
+- [ ] Clear separation between "what we know" and "what we're guessing"
+
+---
+
+## Anti-Patterns to Avoid
+
+1. **Echo Chamber**: AI mentions "performance" 9 times ≠ 9 independent signals
+2. **Hallucinated Severity**: Code pattern → "could be slow" ≠ "IS slow"
+3. **Feature Factory**: Don't prioritize new features over fixing measured problems
+4. **Infinite Meta**: Building trees about trees without shipping code
+5. **Speculated Personas**: "PM needs X" without talking to PMs
+
+---
+
+## Process Learnings
+
+### From v1.0
+- MCP `add_child:X` parsing broken → Fixed Build 538
+- JSON export format undocumented
+
+### From v1.1
+- MCP node operations used wrong param names → Fixed Build 539
+- Cross-cutting theme analysis worked well
+
+### From v1.1→v1.2 (Performance Incident)
+- **Claimed**: "Tree view lags at 150+ nodes" `[CODE-INFERRED]`
+- **Measured**: 1000 nodes renders in 9.37ms `[MEASURED]`
+- **Lesson**: ALWAYS measure before implementing performance fixes
+- **Added**: `test/performance/measure-render.py` for future validation
+
+---
+
+## Measurement Tools Available
+
+| Tool | What It Measures | Location |
+|------|------------------|----------|
+| `measure-render.py` | Tree view render time | `test/performance/` |
+| Unit tests | Function correctness | `test/treelisty-test/` |
+| Playwright | E2E user flows | `test/treelisty-test/` |
+
+Before claiming performance issues, RUN THE BENCHMARKS.
+
+---
+
+*Prompt version: v1.2*
+*Created: 2025-12-22*
+*Key change: Evidence standards to prevent hallucinated priorities*
