@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 540 | 2025-12-22
+    TreeListy v2.20.0 | Build 541 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 540): Lazy-load third-party libraries for faster page load (Lighthouse fix)
+    Changelog (Build 541): Add keyboard shortcut reference panel - press ? to view all shortcuts
+    Previous (Build 540): Lazy-load third-party libraries for faster page load (Lighthouse fix)
     Previous (Build 539): Fix MCP node operations - use snake_case params (node_id, parent_id, node_data)
     Previous (Build 538): TreeBeard can now build trees from scratch - focus_root, create_tree, auto-focus on add_child
     Previous (Build 537): 3D and Canvas views now respect expand/collapse state
@@ -755,7 +756,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 540,
+            build: 541,
             date: '2025-12-22',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -3223,6 +3224,44 @@
         /* Make modal-header position relative for absolute close button */
         .modal-header {
             position: relative;
+        }
+
+        /* BUILD 541: Keyboard Shortcut Reference Panel */
+        .shortcut-category {
+            margin-bottom: 24px;
+        }
+
+        .shortcut-category-title {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--treeplex-primary);
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .shortcut-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 8px 0;
+            border-bottom: 1px solid rgba(255,255,255,0.05);
+        }
+
+        .shortcut-key {
+            font-family: 'SF Mono', Monaco, 'Cascadia Code', monospace;
+            background: rgba(139, 92, 246, 0.15);
+            padding: 4px 10px;
+            border-radius: 6px;
+            border: 1px solid rgba(139, 92, 246, 0.3);
+            color: var(--treeplex-primary);
+            font-size: 13px;
+            font-weight: 500;
+        }
+
+        .shortcut-desc {
+            color: var(--text-primary);
+            font-size: 14px;
         }
 
         .spinner {
@@ -7500,6 +7539,53 @@ The AI will analyze the structure and convert it to a tree."
                 <button class="btn" id="open-share-url" style="display: none;">
                     🔗 Open URL in Tab
                 </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 541: Keyboard Shortcut Reference Modal -->
+    <div class="modal" id="keyboard-shortcut-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 650px;">
+            <div class="modal-header">
+                <span>Keyboard Shortcuts</span>
+                <button class="modal-close" onclick="document.getElementById('keyboard-shortcut-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px 24px;">
+                <!-- Global -->
+                <div class="shortcut-category">
+                    <div class="shortcut-category-title">Global</div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Undo</span><span class="shortcut-key">Ctrl+Z</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Save to file</span><span class="shortcut-key">Ctrl+S</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Toggle TreeBeard chat</span><span class="shortcut-key">Ctrl+/</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Toggle Gantt view</span><span class="shortcut-key">G</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Show this help</span><span class="shortcut-key">?</span></div>
+                </div>
+                <!-- Tree View -->
+                <div class="shortcut-category">
+                    <div class="shortcut-category-title">Tree View</div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Navigate up/down</span><span class="shortcut-key">j / k</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Collapse/Expand</span><span class="shortcut-key">h / l</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Edit node</span><span class="shortcut-key">Enter</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Indent node</span><span class="shortcut-key">Tab</span></div>
+                </div>
+                <!-- Canvas View -->
+                <div class="shortcut-category">
+                    <div class="shortcut-category-title">Canvas View</div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Search nodes</span><span class="shortcut-key">Ctrl+F</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Select all</span><span class="shortcut-key">Ctrl+A</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Pan canvas</span><span class="shortcut-key">Space + drag</span></div>
+                </div>
+                <!-- Reader Navigation -->
+                <div class="shortcut-category">
+                    <div class="shortcut-category-title">Reader Navigation</div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Previous node</span><span class="shortcut-key">&larr;</span></div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Next node</span><span class="shortcut-key">&rarr;</span></div>
+                </div>
+                <!-- General -->
+                <div class="shortcut-category" style="margin-bottom: 0;">
+                    <div class="shortcut-category-title">General</div>
+                    <div class="shortcut-row"><span class="shortcut-desc">Close modal/menu</span><span class="shortcut-key">Esc</span></div>
+                </div>
             </div>
         </div>
     </div>
@@ -21051,8 +21137,14 @@ Be specific and insightful, not generic.`;
                 }
             }
 
-            // Check for Escape - Clear selection in Canvas View
+            // Check for Escape - Clear selection in Canvas View + close modals
             if (e.key === 'Escape') {
+                // BUILD 541: Close keyboard shortcut modal if open
+                const kbModal = document.getElementById('keyboard-shortcut-modal');
+                if (kbModal && kbModal.style.display === 'flex') {
+                    kbModal.style.display = 'none';
+                    return;
+                }
                 // Only work in Canvas View
                 if (viewMode === 'canvas' && selectedNodes.length > 0) {
                     console.log('⌨️ Escape pressed - clearing selection');
@@ -21076,6 +21168,27 @@ Be specific and insightful, not generic.`;
                 if (typeof toggleGanttView === 'function') {
                     toggleGanttView();
                 }
+            }
+
+            // BUILD 541: ? key - Open keyboard shortcuts reference
+            if (e.key === '?') {
+                const activeElement = document.activeElement;
+                if (activeElement &&
+                    (activeElement.tagName === 'INPUT' ||
+                     activeElement.tagName === 'TEXTAREA' ||
+                     activeElement.isContentEditable)) {
+                    return;
+                }
+                e.preventDefault();
+                console.log('⌨️ ? pressed - opening keyboard shortcuts');
+                document.getElementById('keyboard-shortcut-modal').style.display = 'flex';
+            }
+        });
+
+        // BUILD 541: Close keyboard shortcut modal on click outside
+        document.getElementById('keyboard-shortcut-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'keyboard-shortcut-modal') {
+                e.target.style.display = 'none';
             }
         });
 
@@ -64419,7 +64532,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 540; // Update this with each build
+                    const KNOWN_LATEST = 541; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
