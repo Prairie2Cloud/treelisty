@@ -5,7 +5,7 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.20.0 (Build 528)
+**Version**: 2.20.0 (Build 540)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -25,7 +25,28 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 ---
 
-## What's New (Builds 518-528)
+## What's New (Builds 529-540)
+
+### Build 540: Performance & Lazy Loading
+- **Lazy-load third-party libraries** - Three.js, FullCalendar, SheetJS, html2canvas, JSZip, LZ-String load on demand
+- **FCP improved** - 10.8s → 8.1s (25% faster initial render)
+- **TBT eliminated** - 90ms → 0ms (no main thread blocking)
+- Key function: `loadLibrary(name)` in lazy loader utility
+
+### Builds 536-539: MCP & View Improvements
+- **MCP node operations** - Use snake_case params (node_id, parent_id, node_data)
+- **TreeBeard tree building** - `focus_root`, `create_tree`, auto-focus on `add_child`
+- **3D/Canvas view state** - Respect expand/collapse state from tree view
+- **Incremental collapse** - One level at a time instead of all-at-once
+
+### Builds 529-535: PWA & Pattern Fixes
+- **PWA localStorage restore** - Re-render after loading saved tree
+- **Pattern restore** - Filesystem pattern now applied correctly on tree load
+- **MCP file open** - Use client.socket, add debug logging
+
+---
+
+## Previous Features (Builds 518-528)
 
 ### Builds 523-528: MCP Bridge & Claude Chrome Integration
 - **MCP Task Dispatch** - Bidirectional communication with Claude Code CLI
@@ -414,4 +435,4 @@ Use the `treelisty-release` skill to automate this.
 
 ---
 
-**End of TreeListy Skill v2.20.0 (Build 528)**
+**End of TreeListy Skill v2.20.0 (Build 540)**

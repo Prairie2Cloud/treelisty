@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.20.0 (Build 528)
+Current Version: v2.20.0 (Build 540)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
@@ -42,7 +42,7 @@ Run unit tests before committing:
 cd test/treelisty-test
 npm run test:unit
 
-All 385+ tests should pass.
+All 404+ tests should pass.
 
 Architecture
 
@@ -73,7 +73,19 @@ Key Functions
 - saveState(description) - save undo state
 - showToast(message, type) - show notification
 
-Recent Features (Builds 518-528)
+Recent Features (Builds 529-540)
+
+Performance & Lazy Loading (540): Third-party libraries (Three.js, FullCalendar, SheetJS, html2canvas, JSZip, LZ-String) now lazy-load on demand. FCP improved from 10.8s to 8.1s. Lighthouse score improved.
+
+MCP Node Operations Fix (539): Use snake_case params (node_id, parent_id, node_data) for MCP bridge operations.
+
+TreeBeard Tree Building (538): TreeBeard can now build trees from scratch with focus_root, create_tree, and auto-focus on add_child.
+
+View State Improvements (536-537): 3D and Canvas views respect expand/collapse state. Incremental expand/collapse (one level at a time).
+
+PWA & Pattern Fixes (529-530): Fix PWA localStorage restore, fix pattern restore on tree load.
+
+Previous Features (Builds 518-528)
 
 MCP Bridge & Chrome Integration (523-528): Bidirectional communication with Claude Code CLI. Sync commands (sync gmail/drive/calendar) dispatch tasks to Claude Code, which uses Chrome extension to access web services. Open Google Drive files via Chrome. Inbox UI for reviewing proposed operations.
 
