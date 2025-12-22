@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.21.0 | Build 545 | 2025-12-22
+    TreeListy v2.21.0 | Build 546 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 546): Add retrieve_context RAG handler for MCP-based knowledge retrieval
     Changelog (Build 545): Add refresh_tree command, fix TreeBeard command hallucination validation
     Changelog (Build 544): Capability nodes for Chrome integration - schema, CSS, rendering, MCP tools
     Changelog (Build 543): AI streaming for TreeBeard - progressive token display with "Interpreting..." indicator
@@ -760,7 +761,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.21.0',
-            build: 545,
+            build: 546,
             date: '2025-12-22',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -38720,6 +38721,9 @@ https://treelisty.netlify.app`;
                         return this.matchCapability(params);
                     case 'update_capability_status':
                         return this.updateCapabilityStatus(params);
+                    // RAG Operations (Build 546)
+                    case 'retrieve_context':
+                        return this.retrieveContext(params);
                     default:
                         throw new Error(`Unknown method: ${method}`);
                 }
@@ -39812,6 +39816,127 @@ https://treelisty.netlify.app`;
                 render();
 
                 return { success: true, node };
+            }
+
+            // ═══════════════════════════════════════════════════════════════
+            // RAG Operations (Build 546)
+            // ═══════════════════════════════════════════════════════════════
+
+            retrieveContext(params) {
+                const {
+                    query,
+                    max_results = 10,
+                    include_context = true,
+                    pattern_filter = null,
+                    source_filter = null
+                } = params;
+
+                if (!query) throw new Error('query is required');
+
+                const results = [];
+                const terms = query.toLowerCase().split(/\s+/).filter(t => t.length > 1);
+
+                // Recursive search function
+                const searchNode = (node, path = [], depth = 0) => {
+                    if (!node) return;
+
+                    // Apply pattern filter
+                    if (pattern_filter && node.pattern?.key !== pattern_filter) {
+                        // Still search children, pattern might be at different levels
+                    }
+
+                    // Apply source filter
+                    if (source_filter) {
+                        const sourceUri = node._rag?.source?.uri || node.sourceUrl || '';
+                        const sourceName = node._rag?.source?.name || node.sourceName || '';
+                        if (!sourceUri.includes(source_filter) && !sourceName.includes(source_filter)) {
+                            // Still search children
+                        }
+                    }
+
+                    // Build searchable text from node
+                    const searchText = [
+                        node.name || '',
+                        node.title || '',
+                        node.description || '',
+                        node.content || '',
+                        node.summary || ''
+                    ].join(' ').toLowerCase();
+
+                    // Calculate relevance based on term matches
+                    const matchedTerms = terms.filter(t => searchText.includes(t));
+                    const relevance = terms.length > 0 ? matchedTerms.length / terms.length : 0;
+
+                    if (relevance > 0) {
+                        // Build context path
+                        const contextPath = include_context ? path.map(p => p.name || p.title || 'Untitled') : [];
+
+                        // Extract excerpt around first match
+                        let excerpt = node.description || node.content || node.summary || '';
+                        if (excerpt.length > 300) {
+                            const firstTerm = matchedTerms[0];
+                            const idx = excerpt.toLowerCase().indexOf(firstTerm);
+                            if (idx > 50) {
+                                excerpt = '...' + excerpt.substring(idx - 50, idx + 250) + '...';
+                            } else {
+                                excerpt = excerpt.substring(0, 300) + '...';
+                            }
+                        }
+
+                        results.push({
+                            nodeId: node.id,
+                            name: node.name || node.title || 'Untitled',
+                            path: contextPath,
+                            pathString: contextPath.length > 0 ? contextPath.join(' > ') : null,
+                            excerpt: excerpt,
+                            relevance: relevance,
+                            matchedTerms: matchedTerms,
+                            depth: depth,
+                            source: node._rag?.source?.uri || node.sourceUrl || null,
+                            type: node.type || null
+                        });
+                    }
+
+                    // Recurse into children
+                    const children = node.children || node.items || node.subtasks || node.subItems || [];
+                    children.forEach(child => searchNode(child, [...path, node], depth + 1));
+                };
+
+                // Start search from tree root
+                searchNode(capexTree);
+
+                // Sort by relevance (descending), then by depth (shallower first)
+                results.sort((a, b) => {
+                    if (b.relevance !== a.relevance) return b.relevance - a.relevance;
+                    return a.depth - b.depth;
+                });
+
+                // Limit results
+                const topResults = results.slice(0, max_results);
+
+                // Assemble context string for LLM consumption
+                let contextString = '';
+                topResults.forEach((r, i) => {
+                    contextString += `[${i + 1}] ${r.pathString ? r.pathString + ' > ' : ''}${r.name}\n`;
+                    if (r.excerpt) {
+                        contextString += `${r.excerpt}\n`;
+                    }
+                    contextString += '\n';
+                });
+
+                return {
+                    query: query,
+                    totalMatches: results.length,
+                    results: topResults,
+                    context: contextString.trim(),
+                    metadata: {
+                        termsSearched: terms,
+                        maxResults: max_results,
+                        includeContext: include_context,
+                        patternFilter: pattern_filter,
+                        sourceFilter: source_filter
+                    }
+                };
             }
         }
 
@@ -66068,7 +66193,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 545; // Update this with each build
+                    const KNOWN_LATEST = 546; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
