@@ -8,7 +8,7 @@ Build an improved self-tree that builds on v1.0, focusing on gaps identified and
 2. Review its Quality Assessment and Learnings sections
 3. Address gaps identified
 
-## Structure (Same 4 phases, refined focus)
+## Structure (5 phases - NEW Phase 5: Analysis)
 
 ### Phase 1: Features
 Same 6 areas. NEW: Add usage frequency estimates (High/Medium/Low/Unknown) to each feature. Include competitive comparison where relevant.
@@ -21,6 +21,34 @@ NEW: Add user personas (Developer, PM, Researcher, Student) and map journey diff
 
 ### Phase 4: Meta
 Same structure. Compare to v1.0 explicitly. Track which v1.0 improvements were implemented.
+
+### Phase 5: Analysis (NEW)
+After building phases 1-4, use TreeListy's own tools to analyze the tree:
+
+1. **Cross-cutting theme detection**
+   - Search for terms appearing in 3+ nodes across different phases
+   - v1.0 finding: "Performance" appeared 9 times across all 4 phases
+   - Identify top 3 cross-cutting themes and document frequency
+
+2. **Hyperedge creation**
+   - Link related nodes instead of duplicating content
+   - v1.0 problem: "Virtual scrolling" listed as improvement in 4 separate nodes
+   - Create hyperedges for: shared improvements, related problems, connected features
+
+3. **Deduplication audit**
+   - Identify redundant content across Improvements nodes
+   - Consolidate into single nodes with hyperedge connections
+   - Report: "X improvements deduplicated into Y unique items"
+
+4. **Priority surfacing**
+   - Use cross-reference counts to identify true priorities
+   - If something is mentioned 9 times, it's more important than something mentioned once
+   - Create a "Top 5 Priorities" summary based on frequency analysis
+
+5. **Smart Expand on shallow nodes**
+   - Identify nodes with thin descriptions (<50 chars)
+   - Use AI expansion to add depth where warranted
+   - Document which nodes were expanded
 
 ## New Requirements for v1.1
 1. **Benchmark performance** - Actually measure node counts where slowdown occurs
@@ -35,6 +63,12 @@ Same structure. Compare to v1.0 explicitly. Track which v1.0 improvements were i
 - [ ] At least 2 user personas defined
 - [ ] Competitive comparison for 3 features
 - [ ] Track record of v1.0 improvements implemented
+- [ ] Phase 5 Analysis completed:
+  - [ ] Top 3 cross-cutting themes identified with frequency counts
+  - [ ] Hyperedges created for shared improvements (no duplication)
+  - [ ] Deduplication audit reported
+  - [ ] Top 5 Priorities summary based on frequency
+  - [ ] Shallow nodes expanded
 
 ## Process Learnings from v1.0
 
