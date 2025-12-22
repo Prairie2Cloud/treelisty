@@ -4,9 +4,20 @@
 Build an improved self-tree that builds on v1.0, focusing on gaps identified and deeper analysis where v1.0 was superficial.
 
 ## Context Loading
-1. Load self-tree v1.0 as reference
+1. Load self-tree v1.0 as reference: `self-trees/self-tree-v1.0-build538.json`
 2. Review its Quality Assessment and Learnings sections
 3. Address gaps identified
+
+## Execution Method
+- **Primary**: Claude Code via MCP Bridge connected to TreeListy
+- **Alternative**: TreeBeard Deep mode with this prompt pasted
+- **Mode**: Use systematic tree-building commands (create_tree, add_child, set_description)
+
+## Realistic Scope
+- If no user data exists, note "No data available" rather than guessing
+- If no analytics exist, state "Analytics not implemented"
+- For benchmarks, test with 50/100/200/500 node trees in Canvas view and report actual frame rates or lag observations
+- For competitive analysis, use web search to gather current feature sets
 
 ## Structure (5 phases - NEW Phase 5: Analysis)
 
