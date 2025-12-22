@@ -4,12 +4,15 @@ import { defineConfig, devices } from '@playwright/test';
  * Playwright configuration for Treelisty E2E tests
  * @see https://playwright.dev/docs/test-configuration
  */
+const webServerCommand = process.env.WEB_SERVER_CMD || 'npx serve -p 3000 ../..';
+const webServerUrl = process.env.WEB_SERVER_URL || 'http://localhost:3000';
+
 export default defineConfig({
     // Test directory
     testDir: './test/e2e',
     
     // Test file pattern
-    testMatch: '**/*.spec.js',
+    testMatch: '**/*.{spec,test}.js',
     
     // Timeout for each test
     timeout: 30000,
@@ -45,7 +48,7 @@ export default defineConfig({
     // Shared settings for all projects
     use: {
         // Base URL for navigation
-        baseURL: 'http://localhost:3000',
+        baseURL: webServerUrl,
         
         // Capture screenshot on failure
         screenshot: 'only-on-failure',
@@ -110,8 +113,8 @@ export default defineConfig({
     // Local dev server configuration
     // Serves from repo root (two levels up from test/treelisty-test)
     webServer: {
-        command: 'npx serve -p 3000 ../..',
-        port: 3000,
+        command: webServerCommand,
+        url: webServerUrl,
         timeout: 120000,
         reuseExistingServer: !process.env.CI
     },
