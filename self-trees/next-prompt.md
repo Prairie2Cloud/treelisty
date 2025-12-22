@@ -50,6 +50,19 @@ Same structure. Compare to v1.0 explicitly. Track which v1.0 improvements were i
 - Ask: Is it accurate? Did it surface real issues? Are improvements actionable?
 - The self-tree is a qualitative snapshot, not a quantitative benchmark
 
+## Meta-Assessment Improvements for v1.1
+
+**From TreeBeard's self-reflection on its own assessment approach:**
+
+1. **Add Devil's Advocate mode** - Actively hunt for failure scenarios, not just describe current state
+2. **Include emotional/intuitive evaluation** - Structural analysis misses user experience quality
+3. **Build in "break the framework" checkpoints** - Escape pattern-lock by periodically questioning the structure itself
+4. **User value validation gates** - Don't celebrate structural elegance without validating actual user benefit
+5. **Skeptical questioning balance** - Counter optimism bias with explicit pessimistic scenarios
+
+**The recursive trap to avoid:**
+Creating systematic assessments of systematic thinking without ever escaping the system. v1.1 should include moments of deliberately unstructured reflection.
+
 ## Focus Areas for v1.1
 
 **Areas Needing Deeper Coverage:**
