@@ -1,351 +1,220 @@
-# TreeListy Self-Tree Improvement Plan
+# TreeListy Validation-First Improvement Plan
 
-**Based on:** Self-Tree v1.0/v1.1 findings, cross-cutting theme analysis, and AI peer review
+**Based on:** Self-Tree v1.0/v1.1 findings, corrected with evidence standards
 **Created:** 2025-12-22
-**Goal:** Address top 5 priorities surfaced by recursive self-analysis
+**Updated:** 2025-12-22 (converted from Implementation Plan to Validation Plan)
 
 ---
 
-## Executive Summary
+## Critical Warning: The Hallucination Incident
 
-The self-tree exercise revealed that **Performance** appears 9 times across all phases - more than any other theme. This, combined with Export limitations and Discoverability issues, blocks adoption by 3 of 4 user personas (PM, Researcher, Student).
+The original version of this plan was based on `[CODE-INFERRED]` claims treated as facts.
 
-### Top 5 Priorities (by cross-reference frequency)
+| Original Claim | Evidence Type | Actual Measurement |
+|----------------|---------------|-------------------|
+| "Tree view lags at 150+ nodes" | `[CODE-INFERRED]` | **1000 nodes: 9.37ms** (5.6x under budget) |
+| "Performance is P0 (9 mentions)" | AI echo chamber | 9 AI mentions ≠ 9 user complaints |
+| "PM persona needs Excel" | `[SPECULATED]` | No PM users interviewed |
+| "5% feature discovery rate" | `[SPECULATED]` | Made-up number, no analytics |
 
-| Priority | Theme | Frequency | Personas Blocked |
-|----------|-------|-----------|------------------|
-| 1 | Performance | 9 mentions | All |
-| 2 | Export Limitations | 4 mentions | PM, Student |
-| 3 | Discoverability | 3 mentions | All new users |
-| 4 | Storage Limits | 3 mentions | Power users |
-| 5 | MCP Reliability | 2 mentions | Developer |
+**Lesson:** We almost spent weeks implementing virtual scrolling for a non-problem.
 
 ---
 
-## Phase 1: Performance Foundation (Builds 540-545)
-
-### 1.1 Virtual Scrolling for Tree View
-**Problem:** Tree view lags significantly with >150 nodes
-**Solution:** Implement windowed rendering - only render visible nodes + buffer
+## New Approach: Validate Before Building
 
 ```
-Approach:
-- Calculate viewport height / row height = visible count
-- Maintain scroll position -> start index mapping
-- Render only [startIndex - buffer, startIndex + visibleCount + buffer]
-- Use CSS transform for smooth scrolling illusion
-```
-
-**Files to modify:**
-- `treeplexity.html` - `render()` function (~line 8500)
-- Add new `VirtualTreeRenderer` class
-
-**Acceptance:** 500 nodes renders at 60fps, <100ms initial paint
-
-### 1.2 Canvas View Optimization
-**Problem:** Canvas becomes unusable >200 nodes (GoJS overhead)
-**Solution:** Implement viewport culling and batched updates
-
-```
-Approach:
-- Only render nodes within viewport bounds + margin
-- Batch node property updates (collect changes, apply once)
-- Use GoJS virtualization mode if available
-- Implement level-of-detail (collapse distant subtrees to icons)
-```
-
-**Files to modify:**
-- `treeplexity.html` - `renderCanvas()` function (~line 12000)
-- GoJS diagram configuration
-
-**Acceptance:** 500 nodes smooth pan/zoom, <200ms re-render
-
-### 1.3 Performance Benchmarking Suite
-**Problem:** v1.0 claimed "200 nodes slows Canvas" without measurement
-**Solution:** Add automated performance tests
-
-```javascript
-// New test file: test/performance/render-benchmarks.test.js
-describe('Render Performance', () => {
-  it('Tree view renders 500 nodes in <100ms', async () => {
-    const tree = generateTestTree(500);
-    const start = performance.now();
-    await renderTree(tree);
-    expect(performance.now() - start).toBeLessThan(100);
-  });
-});
+OLD: Self-tree → Priority list → Implement
+NEW: Self-tree → Hypothesis list → Validate → Implement only if confirmed
 ```
 
 ---
 
-## Phase 2: Data Infrastructure (Builds 546-550)
+## Phase 0: Gather External Signals (Before Anything Else)
 
-### 2.1 IndexedDB Migration
-**Problem:** localStorage 5MB limit blocks large trees and multi-tree workflows
-**Solution:** Migrate to IndexedDB with localStorage fallback
+Before validating hypotheses, gather real data:
+
+| Signal | How to Get | Status |
+|--------|-----------|--------|
+| GitHub issues (last 90 days) | `gh issue list` | ❓ Not checked |
+| User feedback (any channel) | Check Discord, email, Twitter | ❓ Not checked |
+| Largest tree in production | Ask users or check cloud shares | ❓ Unknown |
+| Lighthouse score | Run Lighthouse audit | ❓ Not measured |
+| Error logs | Check Netlify function logs | ❓ Not checked |
+| Any analytics | Check if any tracking exists | ❓ Likely none |
+
+**If all signals are empty:** We have no external validation. All "user need" claims are speculative.
+
+---
+
+## Phase 1: Validate Performance Hypotheses
+
+### Hypothesis 1.1: Canvas view lags with large trees
+- **Evidence:** `[CODE-INFERRED]` from GoJS usage patterns
+- **Validation cost:** 10 minutes
+- **Validation method:** Create `test/performance/measure-canvas.py`, run with 50/200/500 nodes
+- **Status:** ❓ UNVALIDATED
+- **If validated:** Implement viewport culling
+- **If disproven:** Remove from plan
+
+### Hypothesis 1.2: 3D view lags with large trees
+- **Evidence:** `[CODE-INFERRED]` from Three.js patterns
+- **Validation cost:** 10 minutes
+- **Validation method:** Create `test/performance/measure-3d.py`
+- **Status:** ❓ UNVALIDATED
+
+### Hypothesis 1.3: Initial page load is slow (1.3MB file)
+- **Evidence:** `[CODE-OBSERVED]` - file size is factual
+- **Validation cost:** 5 minutes
+- **Validation method:** Lighthouse performance score
+- **Status:** ❓ UNVALIDATED
+- **Note:** Even if slow, may not matter if users tolerate it
+
+### ~~Hypothesis 1.4: Tree view lags with large trees~~
+- **Evidence:** `[CODE-INFERRED]`
+- **Status:** ✅ DISPROVEN
+- **Measurement:** 1000 nodes renders in 9.37ms
+- **Action:** REMOVED from plan
+
+---
+
+## Phase 2: Validate Storage Hypotheses
+
+### Hypothesis 2.1: Users hit 5MB localStorage limit
+- **Evidence:** `[CODE-INFERRED]` from localStorage usage
+- **Validation cost:** 30 minutes
+- **Validation method:**
+  - Check: What's the largest tree anyone has made?
+  - Calculate: How many nodes fit in 5MB?
+  - Ask: Has anyone complained about storage limits?
+- **Status:** ❓ UNVALIDATED
+- **If validated:** Implement IndexedDB migration
+- **If disproven:** Remove from plan
+
+### Hypothesis 2.2: Users want multi-tree management
+- **Evidence:** `[SPECULATED]`
+- **Validation cost:** 1 hour
+- **Validation method:** Find 2-3 users, ask if they juggle multiple trees
+- **Status:** ❓ UNVALIDATED
+
+---
+
+## Phase 3: Validate User Need Hypotheses
+
+### Hypothesis 3.1: PM persona needs Excel export
+- **Evidence:** `[SPECULATED]` - no PM users interviewed
+- **Validation cost:** 1 hour
+- **Validation method:** Find 1 PM user, ask what export formats they need
+- **Status:** ❓ UNVALIDATED
+- **Risk:** Building for imaginary users
+
+### Hypothesis 3.2: Users can't find features (discoverability)
+- **Evidence:** `[SPECULATED]` - "5%" is made up
+- **Validation cost:** 30 minutes (add basic analytics)
+- **Validation method:**
+  - Add `console.log` tracking for feature usage
+  - Deploy, wait 1 week, check logs
+- **Status:** ❓ UNVALIDATED
+
+### Hypothesis 3.3: Users want keyboard shortcut reference
+- **Evidence:** `[SPECULATED]`
+- **Validation cost:** 10 minutes
+- **Validation method:** Check GitHub issues for shortcut requests
+- **Status:** ❓ UNVALIDATED
+
+### Hypothesis 3.4: New users need onboarding tour
+- **Evidence:** `[SPECULATED]`
+- **Validation cost:** 1 hour
+- **Validation method:** Watch 1-2 new users try the app (screen share)
+- **Status:** ❓ UNVALIDATED
+
+---
+
+## Phase 4: Already-Validated Items (Safe to Implement)
+
+These are `[CODE-OBSERVED]` or `[MEASURED]` - no validation needed:
+
+| Item | Evidence | Action |
+|------|----------|--------|
+| MCP param naming bug | `[MEASURED]` - we hit it | ✅ Fixed (Build 539) |
+| MCP root node not mutable | `[CODE-OBSERVED]` - tested | Implement fix |
+| Unit test suite exists | `[CODE-OBSERVED]` - 404 tests | Maintain |
+| No CI/CD pipeline | `[CODE-OBSERVED]` | Implement if team grows |
+
+---
+
+## Validation Cost Matrix
+
+Prioritize cheap validations first:
+
+| Validation Type | Time | Examples |
+|-----------------|------|----------|
+| Run existing test | 1 min | `npm run test:unit` |
+| Run benchmark script | 5 min | `python measure-render.py` |
+| Run Lighthouse | 5 min | Performance audit |
+| Check GitHub issues | 10 min | `gh issue list --search "excel"` |
+| Add console.log analytics | 30 min | Track feature clicks |
+| User interview | 1 hour | Find and talk to 1 user |
+| Usability test | 2 hours | Watch user try the app |
+| A/B test | 1 week+ | Requires traffic |
+
+**Rule:** Do all <30 min validations before any implementation.
+
+---
+
+## Revised Implementation Sequence
 
 ```
-Schema:
-- trees: { id, name, pattern, data, lastModified, size }
-- settings: { key, value }
-- history: { treeId, snapshot, timestamp } // for undo
+Week 1: VALIDATE (no code changes)
+├── Run all benchmark scripts
+├── Run Lighthouse audit
+├── Check GitHub issues for patterns
+├── Add minimal analytics (console.log)
+├── Find 1-2 real users to interview
+└── Document findings with [MEASURED] tags
 
-Migration path:
-1. Check for existing localStorage data
-2. Migrate to IndexedDB on first load
-3. Clear localStorage after successful migration
-4. Fall back to localStorage if IndexedDB unavailable
-```
-
-**Files to modify:**
-- New: `treeplexity.html` - `IndexedDBStorage` class
-- Update: `saveToLocalStorage()`, `loadFromLocalStorage()`
-
-**Acceptance:** 50MB tree saves/loads successfully, multi-tree picker works
-
-### 2.2 Multi-Tree Management
-**Problem:** Single-tree limitation forces manual file juggling
-**Solution:** Tree picker/manager using IndexedDB storage
-
-```
-UI:
-- "My Trees" panel in sidebar
-- Create/Open/Rename/Delete operations
-- Recent trees list
-- Import from file into library
+Week 2+: IMPLEMENT (only validated items)
+├── Fix items that failed validation (actual problems)
+├── Skip items that passed (not actually problems)
+└── Re-prioritize based on real data
 ```
 
 ---
 
-## Phase 3: Export & Interoperability (Builds 551-555)
+## Success Metrics (Revised)
 
-### 3.1 Excel Export (.xlsx)
-**Problem:** PM persona can't share trees with stakeholders who expect spreadsheets
-**Solution:** Client-side Excel generation using SheetJS
-
-```
-Format:
-- Sheet 1: Hierarchical outline (indented rows)
-- Sheet 2: Flat list with parent references
-- Sheet 3: Metadata (pattern, dates, stats)
-
-Columns: ID, Name, Description, Type, Parent, Status, Due Date, etc.
-```
-
-**Library:** SheetJS (xlsx) - already has CDN build
-**Files:** Add export handler in treeplexity.html
-
-### 3.2 PDF Export
-**Problem:** No way to create printable documentation from trees
-**Solution:** Client-side PDF generation using jsPDF
-
-```
-Options:
-- Outline format (indented text)
-- Visual snapshot (canvas/tree screenshot)
-- Report format (title, TOC, sections per phase)
-```
-
-### 3.3 Global Find/Replace
-**Problem:** No way to bulk-edit node content
-**Solution:** Search modal with find/replace functionality
-
-```
-Features:
-- Search across name, description, all fields
-- Regex support
-- Replace single / Replace all
-- Preview changes before applying
-- Keyboard shortcut: Ctrl+Shift+F
-```
+| Metric | Old Plan | New Plan |
+|--------|----------|----------|
+| Tree view FPS | "~15 → 60" | Already 60fps, no action needed |
+| Validation coverage | 0% | 100% of hypotheses tested |
+| User interviews | 0 | At least 2 before major features |
+| Speculated features built | Many | Zero (validate first) |
 
 ---
 
-## Phase 4: Discoverability & Onboarding (Builds 556-560)
+## Anti-Patterns to Avoid
 
-### 4.1 Keyboard Shortcut Panel
-**Problem:** 50+ shortcuts exist but only power users know them
-**Solution:** Visual shortcut reference accessible via `?` key
-
-```
-Design:
-- Modal overlay grouped by category
-- Search/filter shortcuts
-- Click to execute shortcut
-- "Tip of the day" on load (opt-out)
-```
-
-### 4.2 Interactive Feature Tour
-**Problem:** New users don't discover patterns, views, AI features
-**Solution:** Guided walkthrough on first load (or via Help menu)
-
-```
-Stops:
-1. Create your first node
-2. Try different views (Tree → Canvas → 3D)
-3. Use a pattern (CAPEX, Philosophy, etc.)
-4. Meet TreeBeard (AI assistant)
-5. Keyboard shortcuts
-```
-
-### 4.3 Persona-Based Quick Starts
-**Problem:** Generic welcome tree doesn't resonate with specific use cases
-**Solution:** "What are you building?" prompt with tailored templates
-
-```
-Options:
-- "Project Plan" → CAPEX pattern, Gantt-ready structure
-- "Research Notes" → Knowledge Base pattern, hyperedge-ready
-- "Life Goals" → LifeTree pattern, bio structure
-- "Just exploring" → Generic with tips
-```
+1. **Building for imaginary users** - "PM persona" doesn't exist until you find a PM
+2. **Fixing non-problems** - Tree view is fast, we almost "fixed" it
+3. **AI echo chamber** - 9 AI mentions ≠ 9 real signals
+4. **Week estimates** - We don't know scope until validation
+5. **Feature factory** - Shipping features nobody asked for
 
 ---
 
-## Phase 5: MCP & Developer Experience (Builds 561-565)
+## What This Plan Does NOT Include
 
-### 5.1 MCP Bridge Hardening
-**Problem:** Node operations fragile, discovered bugs during self-tree
-**Solution:** Comprehensive test coverage and error handling
+Removed from original plan (pending validation):
 
-```
-Already fixed (Build 539):
-- update_node, create_node, get_node, delete_node param naming
+- ~~Virtual scrolling~~ - Tree view is already fast
+- ~~IndexedDB migration~~ - Unknown if anyone hits limits
+- ~~Excel/PDF export~~ - Unknown if anyone needs it
+- ~~Onboarding tour~~ - Unknown if discoverability is actually low
+- ~~Persona quick starts~~ - Personas are speculated
 
-Still needed:
-- Root node mutability (currently can't update root via MCP)
-- Transaction rollback on partial failure
-- Connection recovery after disconnect
-- Rate limiting to prevent UI lag
-```
-
-### 5.2 MCP Integration Tests
-**Problem:** No automated tests for MCP operations
-**Solution:** Playwright tests with actual MCP bridge
-
-```javascript
-// test/integration/mcp-operations.test.js
-describe('MCP Bridge', () => {
-  it('update_node modifies node and persists', async () => {
-    await mcpCall('update_node', { node_id: 'test-1', updates: { name: 'New' } });
-    const node = await mcpCall('get_node', { node_id: 'test-1' });
-    expect(node.name).toBe('New');
-  });
-});
-```
-
-### 5.3 CI/CD Pipeline
-**Problem:** Manual version bumping, no automated testing on PR
-**Solution:** GitHub Actions workflow
-
-```yaml
-# .github/workflows/ci.yml
-name: CI
-on: [push, pull_request]
-jobs:
-  test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - run: npm ci
-      - run: npm run test:unit
-      - run: npm run test:integration
-
-  version:
-    if: github.ref == 'refs/heads/main'
-    needs: test
-    steps:
-      - run: ./scripts/bump-version.sh
-```
+These may return IF validation shows they're needed.
 
 ---
 
-## Implementation Sequence
-
-```
-Week 1-2: Performance Foundation
-├── Build 540: Virtual scrolling prototype for Tree view
-├── Build 541: Virtual scrolling polish + tests
-├── Build 542: Canvas viewport culling
-├── Build 543: Canvas batch updates
-├── Build 544: Performance benchmark suite
-└── Build 545: Performance regression tests in CI
-
-Week 3-4: Data Infrastructure
-├── Build 546: IndexedDB storage class
-├── Build 547: Migration from localStorage
-├── Build 548: Multi-tree picker UI
-├── Build 549: Tree management operations
-└── Build 550: Storage stress tests
-
-Week 5-6: Export & Search
-├── Build 551: Excel export (SheetJS)
-├── Build 552: PDF export (jsPDF)
-├── Build 553: Global find
-├── Build 554: Global replace
-└── Build 555: Export format options
-
-Week 7-8: Discoverability
-├── Build 556: Keyboard shortcut panel
-├── Build 557: Interactive tour framework
-├── Build 558: Tour content for core features
-├── Build 559: Persona quick starts
-└── Build 560: Help system integration
-
-Week 9-10: MCP & CI/CD
-├── Build 561: MCP root node fix
-├── Build 562: MCP transaction improvements
-├── Build 563: MCP integration tests
-├── Build 564: GitHub Actions CI
-└── Build 565: Automated version bumping
-```
-
----
-
-## Success Metrics
-
-| Metric | Current | Target | Measurement |
-|--------|---------|--------|-------------|
-| Tree view FPS (500 nodes) | ~15 | 60 | Performance benchmark |
-| Canvas view FPS (500 nodes) | ~5 | 30 | Performance benchmark |
-| Max tree size (localStorage) | 5MB | 50MB | IndexedDB migration |
-| Export formats | 3 | 5 | JSON, MD, XML + Excel, PDF |
-| Feature discovery rate | ~5% | 30% | Tour completion analytics |
-| MCP test coverage | 0% | 80% | Jest coverage report |
-| CI pipeline | None | Full | GitHub Actions green |
-
----
-
-## Self-Tree Feedback Loop
-
-After implementing each phase, re-run the self-tree benchmark:
-
-```
-1. Load TreeListy with new build
-2. Open TreeBeard in Deep mode
-3. Run v1.1 prompt from self-trees/next-prompt.md
-4. Export resulting tree
-5. Compare to previous self-tree:
-   - Did performance mentions decrease?
-   - Are export limitations resolved?
-   - Did discoverability improve?
-6. Update prompt for v1.2 based on findings
-```
-
-The self-tree serves as a living quality metric: **a healthy TreeListy should generate increasingly positive self-assessments**.
-
----
-
-## Risk Mitigation
-
-| Risk | Mitigation |
-|------|------------|
-| Virtual scrolling breaks accessibility | Test with screen readers before shipping |
-| IndexedDB not available in all browsers | Keep localStorage fallback, show warning |
-| SheetJS/jsPDF add significant bundle size | Lazy-load on first export |
-| Tour annoys returning users | "Don't show again" + restart from Help menu |
-| CI adds friction to quick fixes | Fast path for hotfixes, full CI for features |
-
----
-
-*Plan derived from TreeListy Self-Tree v1.1 (Build 538) cross-cutting theme analysis*
+*Plan revised after discovering hallucinated priorities in self-tree v1.1*
+*Key principle: Validate before implementing*

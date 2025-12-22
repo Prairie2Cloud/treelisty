@@ -1,7 +1,26 @@
 # TreeListy Self-Tree Prompt v1.2
 
 ## Mission
-Build a self-tree with rigorous evidence standards, distinguishing measured facts from AI inferences.
+Build a self-tree with rigorous evidence standards, distinguishing measured facts from AI inferences. Output a **Validation Queue** of hypotheses to test, not a list of things to build.
+
+---
+
+## BEFORE BUILDING: Gather External Signals
+
+**Required inputs** (mark N/A if unavailable, but TRY to get them first):
+
+| Signal | How to Get | Value |
+|--------|-----------|-------|
+| GitHub issues (last 90 days) | `gh issue list` | ___ |
+| User feedback (any channel) | Check Discord, email, Twitter | ___ |
+| Largest tree in production | Ask users or check cloud shares | ___ nodes |
+| Lighthouse performance score | Run `lighthouse https://treelisty.netlify.app` | ___ |
+| Error logs | Check Netlify function logs | ___ |
+| Any analytics data | Check if tracking exists | ___ |
+
+**If all are N/A:** The self-tree can only produce `[CODE-OBSERVED]` and `[CODE-INFERRED]` claims. No severity ranking is valid without external signals.
+
+---
 
 ## Critical Learning from v1.1
 
@@ -156,6 +175,63 @@ All `[CODE-INFERRED]` and `[SPECULATED]` claims go here with validation plan:
 3. **Feature Factory**: Don't prioritize new features over fixing measured problems
 4. **Infinite Meta**: Building trees about trees without shipping code
 5. **Speculated Personas**: "PM needs X" without talking to PMs
+
+---
+
+## Anti-Echo-Chamber Rule
+
+**Frequency ≠ Importance**
+
+If a theme appears N times in the self-tree, that means the AI mentioned it N times - NOT that N users complained or N bugs exist.
+
+| What Frequency Means | What It Doesn't Mean |
+|---------------------|---------------------|
+| AI thinks it's related | Users care about it |
+| Good candidate for hyperedge | High priority |
+| Appears in multiple phases | Multiple independent signals |
+
+**Cross-reference frequency is useful for:**
+- Finding RELATED items (hyperedge candidates)
+- Identifying themes to INVESTIGATE
+
+**Cross-reference frequency is NOT useful for:**
+- Priority ranking
+- Severity assessment
+- Deciding what to build
+
+**Priority requires external signal:**
+- `[USER-REPORTED]` pain → Consider high priority
+- `[MEASURED]` regression → Consider high priority
+- `[CODE-INFERRED]` × 9 mentions → Still just a hypothesis
+
+---
+
+## Validation Cost Matrix
+
+Before suggesting "Implement X", estimate validation cost:
+
+| Validation Type | Time | Example |
+|-----------------|------|---------|
+| Run existing test | 1 min | `npm run test:unit` |
+| Run benchmark script | 5 min | `python measure-render.py` |
+| Run Lighthouse | 5 min | Performance audit |
+| Check GitHub issues | 10 min | `gh issue list --search "excel"` |
+| Add console.log analytics | 30 min | Track feature clicks |
+| User interview | 1 hour | Find and talk to 1 user |
+| Usability test | 2 hours | Watch user try the app |
+| A/B test | 1 week+ | Requires traffic |
+
+**Rule:** Suggest cheapest validation first. If a 5-minute benchmark disproves the hypothesis, we saved weeks of implementation.
+
+**Output format for hypotheses:**
+```
+Hypothesis: [description]
+- Evidence: [TAG]
+- Validation cost: [time estimate]
+- Validation method: [how to test]
+- If validated: [what to build]
+- If disproven: [remove from plan]
+```
 
 ---
 
