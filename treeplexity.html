@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 538 | 2025-12-21
+    TreeListy v2.20.0 | Build 539 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 538): TreeBeard can now build trees from scratch - focus_root, create_tree, auto-focus on add_child
+    Changelog (Build 539): Fix MCP node operations - use snake_case params (node_id, parent_id, node_data)
+    Previous (Build 538): TreeBeard can now build trees from scratch - focus_root, create_tree, auto-focus on add_child
     Previous (Build 537): 3D and Canvas views now respect expand/collapse state
     Previous (Build 536): Incremental expand/collapse - one level at a time instead of all-at-once
     Previous (Build 535): Fix MCP file open - use client.socket (not ws), add debug logging
@@ -754,7 +755,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 538,
+            build: 539,
             date: '2025-12-21',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -37974,17 +37975,17 @@ https://treelisty.netlify.app`;
             }
 
             getNode(params) {
-                const { nodeId } = params;
-                const node = this.findNodeById(nodeId);
-                if (!node) throw new Error(`Node not found: ${nodeId}`);
+                const { node_id } = params;
+                const node = this.findNodeById(node_id);
+                if (!node) throw new Error(`Node not found: ${node_id}`);
                 return this.toAgentFormat(node, 0, 1);
             }
 
             createNode(params) {
-                const { parentId, node: nodeData, position } = params;
+                const { parent_id, node_data, position } = params;
 
-                const parent = this.findNodeById(parentId);
-                if (!parent) throw new Error(`Parent not found: ${parentId}`);
+                const parent = this.findNodeById(parent_id);
+                if (!parent) throw new Error(`Parent not found: ${parent_id}`);
 
                 // Pattern-aware child key and type determination
                 const pattern = (capexTree.pattern && capexTree.pattern.key) || 'generic';
@@ -37997,15 +37998,15 @@ https://treelisty.netlify.app`;
                 if (!parent[childKey]) parent[childKey] = [];
 
                 // Create the new node (filesystem uses type from data, others infer from parent)
-                const defaultType = useUniformChildren ? (nodeData.type || 'folder') :
+                const defaultType = useUniformChildren ? (node_data.type || 'folder') :
                                     (parent.type === 'root' ? 'phase' :
                                      parent.type === 'phase' ? 'item' : 'subtask');
                 const newNode = {
-                    id: nodeData.id || this.generateId(),
-                    name: nodeData.name || 'New Node',
+                    id: node_data.id || this.generateId(),
+                    name: node_data.name || 'New Node',
                     type: defaultType,
-                    description: nodeData.description || '',
-                    ...nodeData
+                    description: node_data.description || '',
+                    ...node_data
                 };
 
                 // Insert at position or end
@@ -38028,10 +38029,10 @@ https://treelisty.netlify.app`;
             }
 
             updateNode(params) {
-                const { nodeId, updates } = params;
+                const { node_id, updates } = params;
 
-                const node = this.findNodeById(nodeId);
-                if (!node) throw new Error(`Node not found: ${nodeId}`);
+                const node = this.findNodeById(node_id);
+                if (!node) throw new Error(`Node not found: ${node_id}`);
 
                 // Apply updates (but protect system fields)
                 const protectedFields = ['id', 'type', 'children', 'items', 'subItems', 'subtasks'];
@@ -38053,21 +38054,21 @@ https://treelisty.netlify.app`;
             }
 
             deleteNode(params) {
-                const { nodeId } = params;
+                const { node_id } = params;
 
-                if (nodeId === 'root' || nodeId === capexTree.id) {
+                if (node_id === 'root' || node_id === capexTree.id) {
                     throw new Error('Cannot delete root node');
                 }
 
-                const parent = this.findParentOf(nodeId);
-                if (!parent) throw new Error(`Node not found: ${nodeId}`);
+                const parent = this.findParentOf(node_id);
+                if (!parent) throw new Error(`Node not found: ${node_id}`);
 
                 // Find and remove from correct array
                 const childKeys = ['children', 'items', 'subItems', 'subtasks'];
                 let deleted = false;
                 for (const key of childKeys) {
                     if (parent[key]) {
-                        const idx = parent[key].findIndex(c => c.id === nodeId);
+                        const idx = parent[key].findIndex(c => c.id === node_id);
                         if (idx >= 0) {
                             parent[key].splice(idx, 1);
                             deleted = true;
@@ -64309,7 +64310,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 538; // Update this with each build
+                    const KNOWN_LATEST = 539; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
