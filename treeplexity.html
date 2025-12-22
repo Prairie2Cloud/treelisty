@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.20.0 | Build 539 | 2025-12-22
+    TreeListy v2.20.0 | Build 540 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 539): Fix MCP node operations - use snake_case params (node_id, parent_id, node_data)
+    Changelog (Build 540): Lazy-load third-party libraries for faster page load (Lighthouse fix)
+    Previous (Build 539): Fix MCP node operations - use snake_case params (node_id, parent_id, node_data)
     Previous (Build 538): TreeBeard can now build trees from scratch - focus_root, create_tree, auto-focus on add_child
     Previous (Build 537): 3D and Canvas views now respect expand/collapse state
     Previous (Build 536): Incremental expand/collapse - one level at a time instead of all-at-once
@@ -32,7 +33,6 @@
     Previous (Build 526): Enhanced file opening - local paths, Google native format detection, helpful errors
     Previous (Build 525): Fix sync command connection check - use client.isConnected not state.isConnected
     Previous (Build 524): Direct sync command matching - sync gmail/drive/calendar bypass AI interpretation
-    Previous (Build 523): MCP Sync Commands - sync_gmail, sync_drive, sync_calendar, sync_all via Claude Chrome
     Previous (Build 522): Treebeard Research Optimization - Fix hyperedge queries, bullet parsing, research followup
     Previous (Build 521): Fix MCP set_view to click view buttons for proper view switching
     Previous (Build 520): Fix modal close buttons - add .modal-close CSS for proper dismiss
@@ -755,8 +755,8 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.20.0',
-            build: 539,
-            date: '2025-12-21',
+            build: 540,
+            date: '2025-12-22',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -6358,16 +6358,17 @@
     }
 
     </style>
-    <!-- SheetJS library for Excel export -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
-    <!-- LZ-String library for URL compression -->
-    <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script>
-    <!-- html2canvas for Canvas export as image -->
-    <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-    <!-- JSZip for .treelisty bundle export/import -->
-    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-    <!-- BUILD 494: FullCalendar for Calendar View -->
-    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <!-- BUILD 540: Third-party libraries now lazy-loaded for faster page load -->
+    <!-- SheetJS library for Excel export - LAZY LOADED -->
+    <!-- <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script> -->
+    <!-- LZ-String library for URL compression - LAZY LOADED -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js"></script> -->
+    <!-- html2canvas for Canvas export as image - LAZY LOADED -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script> -->
+    <!-- JSZip for .treelisty bundle export/import - LAZY LOADED -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script> -->
+    <!-- BUILD 494: FullCalendar for Calendar View - LAZY LOADED -->
+    <!-- <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script> -->
     <!-- Google API Client Library for OAuth and Drive API -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <script src="https://apis.google.com/js/api.js" async defer></script>
@@ -9022,6 +9023,83 @@ The AI will analyze the structure and convert it to a tree."
 
     <script>
         console.log('TreeListy - Universal Project Decomposition - Horizontal Layout with Pan/Zoom');
+
+        // =============================================================================
+        // LAZY LIBRARY LOADER - Load third-party libraries on-demand (Build 540)
+        // =============================================================================
+        const lazyLibraries = {
+            xlsx: {
+                url: 'https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js',
+                loaded: false,
+                check: () => typeof XLSX !== 'undefined'
+            },
+            lzstring: {
+                url: 'https://cdn.jsdelivr.net/npm/lz-string@1.5.0/libs/lz-string.min.js',
+                loaded: false,
+                check: () => typeof LZString !== 'undefined'
+            },
+            html2canvas: {
+                url: 'https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js',
+                loaded: false,
+                check: () => typeof html2canvas !== 'undefined'
+            },
+            jszip: {
+                url: 'https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js',
+                loaded: false,
+                check: () => typeof JSZip !== 'undefined'
+            },
+            fullcalendar: {
+                url: 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js',
+                loaded: false,
+                check: () => typeof FullCalendar !== 'undefined'
+            },
+            threejs: {
+                url: 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js',
+                loaded: false,
+                check: () => typeof THREE !== 'undefined'
+            },
+            orbitcontrols: {
+                url: 'https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js',
+                loaded: false,
+                check: () => typeof THREE !== 'undefined' && typeof THREE.OrbitControls !== 'undefined'
+            }
+        };
+
+        async function loadLibrary(name) {
+            const lib = lazyLibraries[name];
+            if (!lib) {
+                console.error(`Unknown library: ${name}`);
+                return Promise.reject(new Error(`Unknown library: ${name}`));
+            }
+
+            // Already loaded check
+            if (lib.loaded || lib.check()) {
+                lib.loaded = true;
+                return Promise.resolve();
+            }
+
+            console.log(`[LazyLoad] Loading ${name}...`);
+
+            return new Promise((resolve, reject) => {
+                const script = document.createElement('script');
+                script.src = lib.url;
+                script.onload = () => {
+                    lib.loaded = true;
+                    console.log(`[LazyLoad] ${name} loaded successfully`);
+                    resolve();
+                };
+                script.onerror = (e) => {
+                    console.error(`[LazyLoad] Failed to load ${name}:`, e);
+                    reject(new Error(`Failed to load ${name}`));
+                };
+                document.head.appendChild(script);
+            });
+        }
+
+        // Helper to show loading indicator
+        function showLibraryLoading(message) {
+            showToast(message || 'Loading required library...', 'info');
+        }
 
         // =============================================================================
         // SEMANTIC CHUNKING ENGINE (NLP + Vector Search)
@@ -14940,6 +15018,15 @@ Focus on logical structure and content organization best practices.`;
         // =============================================================================
 
         async function exportCanvasAsImage() {
+            // Lazy load html2canvas library
+            try {
+                await loadLibrary('html2canvas');
+            } catch (e) {
+                showToast('Failed to load image export library. Please try again.', 'error');
+                console.error('html2canvas load error:', e);
+                return;
+            }
+
             const canvasContainer = document.getElementById('canvas-container');
             const canvas = document.getElementById('canvas');
 
@@ -30482,8 +30569,8 @@ Return ONLY the JSON array.`
         document.getElementById('load-json-btn').addEventListener('click', handleUpload);
 
         // Share button - Generate shareable URL
-        document.getElementById('share-btn').addEventListener('click', () => {
-            const shareableURL = generateShareableURL();
+        document.getElementById('share-btn').addEventListener('click', async () => {
+            const shareableURL = await generateShareableURL();
             updateShareModal(shareableURL);
         });
 
@@ -30523,7 +30610,10 @@ Return ONLY the JSON array.`
         }
 
         // Generate lite shareable URL (strips non-essential data)
-        function generateLiteShareableURL() {
+        async function generateLiteShareableURL() {
+            // Lazy load LZ-String library
+            await loadLibrary('lzstring');
+
             // Create stripped copy of tree
             function stripNode(node) {
                 const stripped = {
@@ -30559,8 +30649,8 @@ Return ONLY the JSON array.`
         }
 
         // Lite share button handler (shared logic for both buttons)
-        function handleLiteShare() {
-            const liteURL = generateLiteShareableURL();
+        async function handleLiteShare() {
+            const liteURL = await generateLiteShareableURL();
             const urlInput = document.getElementById('share-url-input');
             urlInput.value = liteURL;
             document.getElementById('share-url-length').textContent = liteURL.length.toLocaleString();
@@ -30807,7 +30897,10 @@ Return ONLY the JSON array.`
         window.checkForSharedTree = checkForSharedTree;
 
         // Generate shareable URL with compressed data
-        function generateShareableURL() {
+        async function generateShareableURL() {
+            // Lazy load LZ-String library
+            await loadLibrary('lzstring');
+
             // DEBUG: Check cost values before serialization
             if (capexTree.children && capexTree.children[0] && capexTree.children[0].items && capexTree.children[0].items[0]) {
                 console.log('First item cost before stringify:', capexTree.children[0].items[0].cost);
@@ -33670,9 +33763,12 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
         /**
          * Generate a shareable URL for a branch
          * @param {object} branch - Branch token from extractSubtree
-         * @returns {string} Shareable URL with ?branch= parameter
+         * @returns {Promise<string>} Shareable URL with ?branch= parameter
          */
-        function generateBranchURL(branch) {
+        async function generateBranchURL(branch) {
+            // Lazy load LZ-String library
+            await loadLibrary('lzstring');
+
             // Remove internal meta before encoding
             const branchToEncode = { ...branch };
             delete branchToEncode._meta;
@@ -33699,7 +33795,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
          * @param {string[]} nodeIds - Array of node IDs to share
          * @param {string|null} hyperedgeId - Optional hyperedge ID
          */
-        function showShareBranchModal(nodeIds, hyperedgeId = null) {
+        async function showShareBranchModal(nodeIds, hyperedgeId = null) {
             const modal = document.getElementById('share-branch-modal');
             const body = document.getElementById('share-branch-body');
 
@@ -33724,7 +33820,7 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
             pendingShareBranch = branch;
 
             // Generate URL
-            const shareURL = generateBranchURL(branch);
+            const shareURL = await generateBranchURL(branch);
             const meta = branch._meta || {};
 
             // Build ancestry breadcrumb
@@ -37086,7 +37182,7 @@ https://treelisty.netlify.app`;
         /**
          * Share back the edited branch to the original creator
          */
-        function shareBackBranch() {
+        async function shareBackBranch() {
             if (!currentBranch) {
                 console.error('❌ No branch to share back');
                 return;
@@ -37119,7 +37215,7 @@ https://treelisty.netlify.app`;
             };
 
             // Generate URL
-            const shareURL = generateBranchURL(responseBranch);
+            const shareURL = await generateBranchURL(responseBranch);
 
             // Show the share modal with response context
             showShareBackModal(responseBranch, shareURL);
@@ -48128,7 +48224,16 @@ ${jsonText}`;
         // EXCEL EXPORT - Professional Multi-Sheet Workbook for Investors
         // =============================================================================
 
-        function exportToExcel() {
+        async function exportToExcel() {
+            // Lazy load XLSX library
+            try {
+                await loadLibrary('xlsx');
+            } catch (e) {
+                showToast('Failed to load Excel library. Please try again.', 'error');
+                console.error('XLSX load error:', e);
+                return;
+            }
+
             // Create a new workbook
             const wb = XLSX.utils.book_new();
 
@@ -63903,8 +64008,12 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
          * Contains: tree.json + artifacts/ folder with all attachments
          */
         window.exportTreelistyBundle = async function() {
-            if (!window.JSZip) {
-                showToast('JSZip library not loaded', 'error');
+            // Lazy load JSZip library
+            try {
+                await loadLibrary('jszip');
+            } catch (e) {
+                showToast('Failed to load bundle export library. Please try again.', 'error');
+                console.error('JSZip load error:', e);
                 return;
             }
 
@@ -64310,7 +64419,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 539; // Update this with each build
+                    const KNOWN_LATEST = 540; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -66868,7 +66977,18 @@ console.log('📊 Frappe Gantt loaded');
     /**
      * Render the calendar view
      */
-    function renderCalendar() {
+    async function renderCalendar() {
+        // Lazy load FullCalendar library
+        if (typeof FullCalendar === 'undefined') {
+            try {
+                await loadLibrary('fullcalendar');
+            } catch (e) {
+                showToast('Failed to load calendar library. Please try again.', 'error');
+                console.error('FullCalendar load error:', e);
+                return;
+            }
+        }
+
         const calendarEl = document.getElementById('calendar-wrapper');
         const emptyState = document.getElementById('calendar-empty-state');
         const events = getCalendarEvents();
@@ -67714,7 +67834,7 @@ console.log('📊 Frappe Gantt loaded');
     });
 
     // --- 2. Toggle View ---
-    function toggle3DView() {
+    async function toggle3DView() {
         const view3D = document.getElementById('view-3d');
         const treeView = document.querySelector('.tree-view-container');
         const canvasView = document.getElementById('canvas-container');
@@ -67745,7 +67865,7 @@ console.log('📊 Frappe Gantt loaded');
             // BUILD 352: Update viewMode variable so view switching works correctly
             viewMode = '3d';
 
-            if (!isInitialized) initThreeJS();
+            if (!isInitialized) await initThreeJS();
             // Restore state before refresh
             restore3DViewState();
             // Always refresh data on open
@@ -67778,7 +67898,20 @@ console.log('📊 Frappe Gantt loaded');
     }
 
     // --- 3. Initialize Three.js ---
-    function initThreeJS() {
+    async function initThreeJS() {
+        // Lazy load Three.js and OrbitControls
+        if (typeof THREE === 'undefined') {
+            console.log('🧊 Loading Three.js library...');
+            try {
+                await loadLibrary('threejs');
+                await loadLibrary('orbitcontrols');
+            } catch (e) {
+                showToast('Failed to load 3D view library. Please try again.', 'error');
+                console.error('Three.js load error:', e);
+                return;
+            }
+        }
+
         console.log('🧊 Initializing Three.js...');
         const container = document.getElementById('view-3d');
 
