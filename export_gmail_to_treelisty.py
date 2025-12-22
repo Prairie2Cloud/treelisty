@@ -1,5 +1,5 @@
 """
-TreeListy Gmail Exporter - Email Workflow Pattern
+TreeListy Gmail Exporter - Email Workflow Pattern (v2.0)
 Fetches Gmail threads and creates a TreeListy-compatible JSON file using the gmail pattern.
 
 Setup:
@@ -9,14 +9,27 @@ Setup:
 4. Run: python export_gmail_to_treelisty.py
 
 First run opens browser for authentication. Token saved for future runs.
+
+v2.0 Changes (2025-12-22):
+- Fixed emoji encoding (UTF-8 with replacement)
+- Increased body length to 5000 chars
+- Added attachment metadata extraction
+- Added HTML body capture
+- Improved error handling
 """
 
 import os
 import sys
 import json
 import base64
+import re
 from datetime import datetime
 from email.utils import parsedate_to_datetime
+
+# Configuration
+MAX_BODY_LENGTH = 5000       # Main email body
+MAX_PREVIEW_LENGTH = 300     # Preview in tree view
+MAX_FULL_BODY_LENGTH = 10000 # Full body storage per message
 
 # Fix Windows console encoding for emojis
 if sys.platform == 'win32':
@@ -44,12 +57,12 @@ def authenticate():
             creds.refresh(Request())
         else:
             if not os.path.exists('credentials.json'):
-                print("❌ ERROR: credentials.json not found!")
-                print("\n📋 Setup Instructions:")
+                print("ERROR: credentials.json not found!")
+                print("\nSetup Instructions:")
                 print("1. Go to: https://console.cloud.google.com/apis/library/gmail.googleapis.com")
                 print("2. Click 'Enable'")
                 print("3. Go to: https://console.cloud.google.com/apis/credentials")
-                print("4. Click 'Create Credentials' → 'OAuth 2.0 Client ID'")
+                print("4. Click 'Create Credentials' -> 'OAuth 2.0 Client ID'")
                 print("5. Application type: 'Desktop app'")
                 print("6. Download JSON and save as 'credentials.json' in this folder")
                 exit(1)
@@ -86,19 +99,87 @@ def get_thread_icon(labels):
 
     return '📧'
 
-def decode_body(payload):
-    """Decode email body from base64"""
+def safe_decode_base64(data):
+    """Safely decode base64 with proper UTF-8 handling"""
+    try:
+        decoded = base64.urlsafe_b64decode(data)
+        # Try UTF-8 first, fall back to latin-1
+        try:
+            return decoded.decode('utf-8')
+        except UnicodeDecodeError:
+            return decoded.decode('latin-1', errors='replace')
+    except Exception as e:
+        return f"[Decode error: {e}]"
+
+def decode_body(payload, prefer_html=False):
+    """Decode email body from base64, optionally preferring HTML"""
+    plain_text = ""
+    html_text = ""
+
+    def extract_from_parts(parts):
+        nonlocal plain_text, html_text
+        for part in parts:
+            mime_type = part.get('mimeType', '')
+
+            # Recurse into nested multipart
+            if 'parts' in part:
+                extract_from_parts(part['parts'])
+
+            # Extract text content
+            if 'data' in part.get('body', {}):
+                content = safe_decode_base64(part['body']['data'])
+                if mime_type == 'text/plain' and not plain_text:
+                    plain_text = content
+                elif mime_type == 'text/html' and not html_text:
+                    html_text = content
+
     if 'parts' in payload:
-        # Multipart message - find text/plain part
-        for part in payload['parts']:
-            if part['mimeType'] == 'text/plain' and 'data' in part['body']:
-                return base64.urlsafe_b64decode(part['body']['data']).decode('utf-8', errors='ignore')
+        extract_from_parts(payload['parts'])
+    elif 'data' in payload.get('body', {}):
+        content = safe_decode_base64(payload['body']['data'])
+        mime_type = payload.get('mimeType', 'text/plain')
+        if mime_type == 'text/html':
+            html_text = content
+        else:
+            plain_text = content
 
-    # Simple message
-    if 'data' in payload.get('body', {}):
-        return base64.urlsafe_b64decode(payload['body']['data']).decode('utf-8', errors='ignore')
+    if prefer_html and html_text:
+        return html_text, 'html'
+    elif plain_text:
+        return plain_text, 'plain'
+    elif html_text:
+        # Strip HTML tags for plain text fallback
+        clean = re.sub(r'<[^>]+>', ' ', html_text)
+        clean = re.sub(r'\s+', ' ', clean).strip()
+        return clean, 'plain'
 
-    return ""
+    return "", 'plain'
+
+def extract_attachments(payload):
+    """Extract attachment metadata from email payload"""
+    attachments = []
+
+    def scan_parts(parts):
+        for part in parts:
+            # Check for nested parts
+            if 'parts' in part:
+                scan_parts(part['parts'])
+
+            # Check if this part is an attachment
+            filename = part.get('filename', '')
+            if filename:
+                body = part.get('body', {})
+                attachments.append({
+                    'filename': filename,
+                    'mimeType': part.get('mimeType', 'application/octet-stream'),
+                    'size': body.get('size', 0),
+                    'attachmentId': body.get('attachmentId', '')
+                })
+
+    if 'parts' in payload:
+        scan_parts(payload['parts'])
+
+    return attachments
 
 def get_header(headers, name):
     """Extract specific header from email headers"""
@@ -118,7 +199,7 @@ def fetch_thread_details(service, thread_id):
 
         return thread
     except Exception as e:
-        print(f"  ❌ Error fetching thread {thread_id}: {e}")
+        print(f"  Error fetching thread {thread_id}: {e}")
         return None
 
 def parse_thread(thread):
@@ -157,6 +238,16 @@ def parse_thread(thread):
     elif 'IMPORTANT' in labels or 'STARRED' in labels:
         thread_type = 'follow-up'
 
+    # Get first message body and attachments
+    first_body, body_type = decode_body(first_message['payload'])
+    first_html, _ = decode_body(first_message['payload'], prefer_html=True)
+    first_attachments = extract_attachments(first_message['payload'])
+
+    # Collect all attachments from all messages
+    all_attachments = list(first_attachments)
+    for msg in messages[1:]:
+        all_attachments.extend(extract_attachments(msg['payload']))
+
     # Build thread node
     thread_node = {
         'id': thread['id'],
@@ -165,14 +256,20 @@ def parse_thread(thread):
         'icon': icon,
         'itemType': thread_type,
         'recipientEmail': to_email,
+        'senderEmail': from_email,
         'ccEmail': get_header(headers, 'Cc') or '',
         'subjectLine': subject,
-        'emailBody': '',  # Will populate with first message body
+        'emailBody': first_body[:MAX_BODY_LENGTH],
+        'htmlBody': first_html[:MAX_BODY_LENGTH] if first_html != first_body else '',
         'sendDate': date_obj.strftime('%Y-%m-%d') if date_obj else '',
+        'sendDateTime': date_obj.isoformat() if date_obj else '',
         'status': 'Sent' if 'SENT' in labels else 'Replied' if len(messages) > 1 else 'Draft',
         'threadId': thread['id'],
         'messageCount': len(messages),
         'labels': labels,
+        'hasAttachments': len(all_attachments) > 0,
+        'attachmentCount': len(all_attachments),
+        'attachments': all_attachments,
         'subItems': []
     }
 
@@ -180,15 +277,22 @@ def parse_thread(thread):
     for idx, message in enumerate(messages):
         msg_headers = message['payload']['headers']
         msg_from = get_header(msg_headers, 'From')
+        msg_to = get_header(msg_headers, 'To')
         msg_date = get_header(msg_headers, 'Date')
-        msg_body = decode_body(message['payload'])
+        msg_body, msg_body_type = decode_body(message['payload'])
+        msg_html, _ = decode_body(message['payload'], prefer_html=True)
+        msg_attachments = extract_attachments(message['payload'])
+
+        # Parse message date
+        msg_date_obj = None
+        try:
+            if msg_date:
+                msg_date_obj = parsedate_to_datetime(msg_date)
+        except:
+            pass
 
         # Truncate body for preview
-        body_preview = msg_body[:200].replace('\n', ' ').strip() if msg_body else '(No content)'
-
-        # Use first message body as main emailBody
-        if idx == 0:
-            thread_node['emailBody'] = msg_body[:1000]  # Truncate to 1000 chars
+        body_preview = msg_body[:MAX_PREVIEW_LENGTH].replace('\n', ' ').strip() if msg_body else '(No content)'
 
         message_node = {
             'id': message['id'],
@@ -196,8 +300,14 @@ def parse_thread(thread):
             'description': body_preview,
             'type': 'subtask',
             'sender': msg_from,
+            'recipient': msg_to,
             'timestamp': msg_date,
-            'fullBody': msg_body[:500]  # Store more for analysis
+            'dateTime': msg_date_obj.isoformat() if msg_date_obj else '',
+            'fullBody': msg_body[:MAX_FULL_BODY_LENGTH],
+            'htmlBody': msg_html[:MAX_FULL_BODY_LENGTH] if msg_html != msg_body else '',
+            'hasAttachments': len(msg_attachments) > 0,
+            'attachments': msg_attachments,
+            'labels': message.get('labelIds', [])
         }
 
         thread_node['subItems'].append(message_node)
@@ -206,18 +316,19 @@ def parse_thread(thread):
 
 def export_gmail(max_threads=100, days_back=30):
     """Main export function"""
-    print("\n📧 TreeListy Gmail Exporter")
+    print("\n" + "=" * 60)
+    print("TreeListy Gmail Exporter v2.0")
     print("=" * 60)
     print(f"Max threads: {max_threads}")
     print(f"Time range: Last {days_back} days\n")
 
     # Authenticate
-    print("🔐 Authenticating with garnet@prairie2cloud.com...")
+    print("Authenticating with Gmail...")
     service = authenticate()
-    print("✅ Authenticated\n")
+    print("Authenticated successfully\n")
 
     # Fetch thread list
-    print(f"📥 Fetching last {max_threads} threads...\n")
+    print(f"Fetching last {max_threads} threads...\n")
 
     try:
         # Calculate date filter (Gmail query format)
@@ -235,7 +346,7 @@ def export_gmail(max_threads=100, days_back=30):
         print(f"Found {len(thread_list)} threads\n")
 
     except Exception as e:
-        print(f"❌ Error fetching threads: {e}")
+        print(f"Error fetching threads: {e}")
         return
 
     # Organize threads by label (Inbox, Sent, Important, etc.)
@@ -245,6 +356,9 @@ def export_gmail(max_threads=100, days_back=30):
         'important': {'name': '⭐ Important', 'items': []},
         'other': {'name': '📧 Other', 'items': []}
     }
+
+    # Track statistics
+    total_attachments = 0
 
     # Process each thread
     for idx, thread_info in enumerate(thread_list, 1):
@@ -260,6 +374,9 @@ def export_gmail(max_threads=100, days_back=30):
         if not thread_node:
             continue
 
+        # Track attachments
+        total_attachments += thread_node.get('attachmentCount', 0)
+
         # Categorize by labels
         labels = thread_node.get('labels', [])
         if 'SENT' in labels:
@@ -271,7 +388,7 @@ def export_gmail(max_threads=100, days_back=30):
         else:
             phases['other']['items'].append(thread_node)
 
-    print(f"\n✅ Processed {len(thread_list)} threads\n")
+    print(f"\nProcessed {len(thread_list)} threads\n")
 
     # Build TreeListy structure
     children = []
@@ -298,7 +415,8 @@ def export_gmail(max_threads=100, days_back=30):
             'email': 'garnet@prairie2cloud.com',
             'lastSync': datetime.now().isoformat(),
             'threadCount': len(thread_list),
-            'daysBack': days_back
+            'daysBack': days_back,
+            'exporterVersion': '2.0'
         },
         'children': children,
         'pattern': {
@@ -318,27 +436,26 @@ def export_gmail(max_threads=100, days_back=30):
     total_messages = sum(item['messageCount'] for phase in children for item in phase['items'])
 
     print("=" * 60)
-    print(f"✅ SUCCESS! Exported to: {output_file}")
-    print(f"\n📊 Statistics:")
+    print(f"SUCCESS! Exported to: {output_file}")
+    print(f"\nStatistics:")
     print(f"   Total threads: {len(thread_list)}")
     print(f"   Total messages: {total_messages}")
+    print(f"   Total attachments: {total_attachments}")
     print(f"   Inbox: {len(phases['inbox']['items'])}")
     print(f"   Sent: {len(phases['sent']['items'])}")
     print(f"   Important: {len(phases['important']['items'])}")
     print(f"   Other: {len(phases['other']['items'])}")
-    print(f"\n📋 Next Steps:")
+    print(f"\nNext Steps:")
     print(f"   1. Open TreeListy in browser")
-    print(f"   2. Click '📂 Import' → Select '{output_file}'")
-    print(f"   3. Select pattern: '📧 Email Workflow'")
+    print(f"   2. Click 'Import' -> Select '{output_file}'")
+    print(f"   3. Select pattern: 'Email Workflow'")
     print(f"   4. Your Gmail threads appear as a tree!")
-    print(f"\n💡 Features you can now use:")
-    print(f"   - Right-click any thread → '✨ AI Suggest' for rhetoric analysis")
-    print(f"   - Select thread → Generate context-aware response")
-    print(f"   - View conversation flow in tree structure")
     print("=" * 60)
 
+    return output_file
+
 if __name__ == '__main__':
-    print("🚀 Starting Gmail export...")
+    print("Starting Gmail export...")
 
     # Get parameters from command line or use defaults
     max_threads = 100

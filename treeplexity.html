@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.21.0 | Build 546 | 2025-12-22
+    TreeListy v2.22.0 | Build 547 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 547): Email reader modal, center-focused canvas zoom, Gmail export v2.0
     Changelog (Build 546): Add retrieve_context RAG handler for MCP-based knowledge retrieval
     Changelog (Build 545): Add refresh_tree command, fix TreeBeard command hallucination validation
-    Changelog (Build 544): Capability nodes for Chrome integration - schema, CSS, rendering, MCP tools
     Changelog (Build 543): AI streaming for TreeBeard - progressive token display with "Interpreting..." indicator
     Changelog (Build 542): Add opt-in telemetry system for usage analytics (local-first, privacy-safe)
     Previous (Build 541): Add keyboard shortcut reference panel - press ? to view all shortcuts
@@ -760,8 +760,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.21.0',
-            build: 546,
+            major: '2.22.0',
+            build: 547,
             date: '2025-12-22',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -7769,6 +7769,58 @@ The AI will analyze the structure and convert it to a tree."
                     <div class="shortcut-category-title">General</div>
                     <div class="shortcut-row"><span class="shortcut-desc">Close modal/menu</span><span class="shortcut-key">Esc</span></div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 547: Email Reader Modal -->
+    <div class="modal" id="email-reader-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 800px; max-height: 90vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #6366f1, #8b5cf6);">
+                <span id="email-reader-title">📧 Email</span>
+                <button class="modal-close" onclick="closeEmailReaderModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 0; flex: 1; overflow: hidden; display: flex; flex-direction: column;">
+                <!-- Email Header -->
+                <div id="email-reader-header" style="padding: 16px 20px; border-bottom: 1px solid var(--border); background: var(--bg-secondary);">
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 8px;">
+                        <div style="font-size: 18px; font-weight: 600; color: var(--text-primary); line-height: 1.3;" id="email-reader-subject">Subject Line</div>
+                        <div style="font-size: 12px; color: var(--text-secondary); white-space: nowrap; margin-left: 16px;" id="email-reader-date">Dec 22, 2025</div>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary); margin-bottom: 4px;">
+                        <strong>From:</strong> <span id="email-reader-from">sender@example.com</span>
+                    </div>
+                    <div style="font-size: 13px; color: var(--text-secondary);">
+                        <strong>To:</strong> <span id="email-reader-to">recipient@example.com</span>
+                    </div>
+                    <div id="email-reader-cc-row" style="font-size: 13px; color: var(--text-secondary); display: none;">
+                        <strong>CC:</strong> <span id="email-reader-cc"></span>
+                    </div>
+                </div>
+                <!-- Email Body -->
+                <div id="email-reader-body" style="flex: 1; overflow-y: auto; padding: 20px; font-size: 14px; line-height: 1.7; color: var(--text-primary); white-space: pre-wrap;">
+                    Email content will appear here...
+                </div>
+                <!-- Attachments (if any) -->
+                <div id="email-reader-attachments" style="padding: 12px 20px; border-top: 1px solid var(--border); background: var(--bg-secondary); display: none;">
+                    <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px;">📎 Attachments</div>
+                    <div id="email-reader-attachment-list" style="display: flex; flex-wrap: wrap; gap: 8px;"></div>
+                </div>
+                <!-- Thread Navigation (if multiple messages) -->
+                <div id="email-reader-thread-nav" style="padding: 12px 20px; border-top: 1px solid var(--border); display: none;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <button class="btn" id="email-reader-prev" onclick="emailReaderPrev()" style="padding: 6px 12px;">← Previous</button>
+                        <span id="email-reader-thread-info" style="font-size: 13px; color: var(--text-secondary);">Message 1 of 3</span>
+                        <button class="btn" id="email-reader-next" onclick="emailReaderNext()" style="padding: 6px 12px;">Next →</button>
+                    </div>
+                </div>
+            </div>
+            <!-- Action Buttons -->
+            <div style="padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; background: var(--bg-secondary);">
+                <button class="btn" onclick="emailReaderOpenInGmail()" style="background: rgba(139, 92, 246, 0.1); border-color: var(--treeplex-primary);">
+                    🔗 Open in Gmail
+                </button>
+                <button class="btn" onclick="closeEmailReaderModal()">Close</button>
             </div>
         </div>
     </div>
@@ -19705,6 +19757,41 @@ Be specific and insightful, not generic.`;
             if (typeof updateMinimapViewport === 'function') updateMinimapViewport();
         }
 
+        // BUILD 547: Center-focused zoom - keeps the center/cursor point stable during zoom
+        function zoomCanvasAt(newZoom, focusX, focusY) {
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+
+            // Clamp zoom
+            newZoom = Math.max(0.1, Math.min(5, newZoom));
+
+            // Convert screen focus point to world coordinates at old zoom
+            const worldX = (focusX - canvasPan.x) / canvasZoom;
+            const worldY = (focusY - canvasPan.y) / canvasZoom;
+
+            // Update zoom
+            canvasZoom = newZoom;
+
+            // Adjust pan so the world point stays at the same screen position
+            canvasPan.x = focusX - worldX * canvasZoom;
+            canvasPan.y = focusY - worldY * canvasZoom;
+
+            updateCanvasTransform();
+        }
+
+        // BUILD 547: Zoom toward viewport center (for +/- buttons and default)
+        function zoomCanvasCenter(delta) {
+            const container = document.getElementById('canvas-container');
+            if (!container) return;
+
+            const rect = container.getBoundingClientRect();
+            const centerX = rect.width / 2;
+            const centerY = rect.height / 2;
+
+            const newZoom = canvasZoom * delta;
+            zoomCanvasAt(newZoom, centerX, centerY);
+        }
+
         function updateZoomDisplay() {
             const zoomLevel = document.getElementById('zoom-level');
             if (zoomLevel) {
@@ -21105,24 +21192,34 @@ Be specific and insightful, not generic.`;
                 }
             });
 
+            // BUILD 547: Wheel zoom toward cursor position
             container.addEventListener('wheel', (e) => {
                 e.preventDefault();
+                const rect = container.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
                 const delta = e.deltaY > 0 ? 0.9 : 1.1;
-                canvasZoom = Math.max(0.1, Math.min(5, canvasZoom * delta));
-                updateCanvasTransform();
+                const newZoom = canvasZoom * delta;
+                zoomCanvasAt(newZoom, mouseX, mouseY);
             }, { passive: false });
 
-            // BUILD 491: Pinch-to-zoom for mobile Canvas View
-            let canvasTouchState = { initialDistance: 0, initialZoom: 1, isPinching: false, lastTouchX: 0, lastTouchY: 0 };
+            // BUILD 491/547: Pinch-to-zoom for mobile Canvas View (with center focus)
+            let canvasTouchState = { initialDistance: 0, initialZoom: 1, isPinching: false, lastTouchX: 0, lastTouchY: 0, pinchCenterX: 0, pinchCenterY: 0, initialPanX: 0, initialPanY: 0 };
 
             container.addEventListener('touchstart', (e) => {
                 if (e.touches.length === 2) {
                     // Two-finger pinch start
                     e.preventDefault();
+                    const rect = container.getBoundingClientRect();
                     const dx = e.touches[0].clientX - e.touches[1].clientX;
                     const dy = e.touches[0].clientY - e.touches[1].clientY;
                     canvasTouchState.initialDistance = Math.hypot(dx, dy);
                     canvasTouchState.initialZoom = canvasZoom;
+                    canvasTouchState.initialPanX = canvasPan.x;
+                    canvasTouchState.initialPanY = canvasPan.y;
+                    // Calculate pinch center in container coordinates
+                    canvasTouchState.pinchCenterX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
+                    canvasTouchState.pinchCenterY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
                     canvasTouchState.isPinching = true;
                 } else if (e.touches.length === 1) {
                     // Single finger - start pan
@@ -21135,18 +21232,29 @@ Be specific and insightful, not generic.`;
             container.addEventListener('touchmove', (e) => {
                 if (canvasTouchState.isPinching && e.touches.length === 2) {
                     e.preventDefault();
+                    const rect = container.getBoundingClientRect();
                     const dx = e.touches[0].clientX - e.touches[1].clientX;
                     const dy = e.touches[0].clientY - e.touches[1].clientY;
                     const currentDistance = Math.hypot(dx, dy);
                     const scale = currentDistance / canvasTouchState.initialDistance;
+                    // Calculate new pinch center
+                    const newCenterX = ((e.touches[0].clientX + e.touches[1].clientX) / 2) - rect.left;
+                    const newCenterY = ((e.touches[0].clientY + e.touches[1].clientY) / 2) - rect.top;
+                    // Calculate world point at initial pinch center
+                    const worldX = (canvasTouchState.pinchCenterX - canvasTouchState.initialPanX) / canvasTouchState.initialZoom;
+                    const worldY = (canvasTouchState.pinchCenterY - canvasTouchState.initialPanY) / canvasTouchState.initialZoom;
+                    // Apply new zoom
                     canvasZoom = Math.max(0.1, Math.min(5, canvasTouchState.initialZoom * scale));
+                    // Adjust pan so world point stays at new center (allows pan+zoom simultaneously)
+                    canvasPan.x = newCenterX - worldX * canvasZoom;
+                    canvasPan.y = newCenterY - worldY * canvasZoom;
                     updateCanvasTransform();
                 } else if (e.touches.length === 1 && !canvasTouchState.isPinching) {
                     // Single finger pan
                     const deltaX = e.touches[0].clientX - canvasTouchState.lastTouchX;
                     const deltaY = e.touches[0].clientY - canvasTouchState.lastTouchY;
-                    canvasPan.x += deltaX / canvasZoom;
-                    canvasPan.y += deltaY / canvasZoom;
+                    canvasPan.x += deltaX;
+                    canvasPan.y += deltaY;
                     canvasTouchState.lastTouchX = e.touches[0].clientX;
                     canvasTouchState.lastTouchY = e.touches[0].clientY;
                     updateCanvasTransform();
@@ -21639,8 +21747,28 @@ Be specific and insightful, not generic.`;
                 }
             }
 
+            // BUILD 547: Email reader modal keyboard navigation
+            const emailModal = document.getElementById('email-reader-modal');
+            if (emailModal && emailModal.style.display === 'flex') {
+                if (e.key === 'j' || e.key === 'ArrowDown' || e.key === 'ArrowRight') {
+                    e.preventDefault();
+                    emailReaderNext();
+                    return;
+                }
+                if (e.key === 'k' || e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+                    e.preventDefault();
+                    emailReaderPrev();
+                    return;
+                }
+            }
+
             // Check for Escape - Clear selection in Canvas View + close modals
             if (e.key === 'Escape') {
+                // BUILD 547: Close email reader modal if open
+                if (emailModal && emailModal.style.display === 'flex') {
+                    closeEmailReaderModal();
+                    return;
+                }
                 // BUILD 541: Close keyboard shortcut modal if open
                 const kbModal = document.getElementById('keyboard-shortcut-modal');
                 if (kbModal && kbModal.style.display === 'flex') {
@@ -21691,6 +21819,13 @@ Be specific and insightful, not generic.`;
         document.getElementById('keyboard-shortcut-modal')?.addEventListener('click', (e) => {
             if (e.target.id === 'keyboard-shortcut-modal') {
                 e.target.style.display = 'none';
+            }
+        });
+
+        // BUILD 547: Close email reader modal on click outside
+        document.getElementById('email-reader-modal')?.addEventListener('click', (e) => {
+            if (e.target.id === 'email-reader-modal') {
+                closeEmailReaderModal();
             }
         });
 
@@ -27171,8 +27306,12 @@ function hidePatternDescription() {
 
             if (activeNode.type === 'item') {
                 // Item context menu
+                // BUILD 547: Add email reader option for email nodes
+                const hasEmailData = activeNode.emailBody || activeNode.fullBody || activeNode.subItems?.some(s => s.fullBody);
+                const emailOption = hasEmailData ? `<div class="context-item" id="ctx-open-email">📧 Open Email</div>` : '';
                 menuHtml = `
                     <div class="context-item" id="ctx-view">📋 View Details</div>
+                    ${emailOption}
                     <div class="context-item" id="ctx-edit">✏️ Edit ${labels.item}</div>
                     <div class="context-item" id="ctx-add-subtask">➕ Add ${labels.subtask}</div>
                     <div class="context-item" id="ctx-attach">📎 Attachments</div>
@@ -27184,8 +27323,12 @@ function hidePatternDescription() {
                 `;
             } else if (activeNode.type === 'subtask') {
                 // Subtask context menu (can now have nested subtasks)
+                // BUILD 547: Add email reader option for email messages
+                const hasEmailData = activeNode.fullBody || activeNode.emailBody;
+                const emailOption = hasEmailData ? `<div class="context-item" id="ctx-open-email">📧 Open Email</div>` : '';
                 menuHtml = `
                     <div class="context-item" id="ctx-view">📋 View Details</div>
+                    ${emailOption}
                     <div class="context-item" id="ctx-edit">✏️ Edit ${labels.subtask}</div>
                     <div class="context-item" id="ctx-add-subtask">➕ Add Nested ${labels.subtask}</div>
                     <div class="context-item" id="ctx-attach">📎 Attachments</div>
@@ -27285,6 +27428,7 @@ function hidePatternDescription() {
             const uploadBtn = document.getElementById('ctx-upload');
             const expandBtn = document.getElementById('ctx-expand');
             const collapseBtn = document.getElementById('ctx-collapse');
+            const openEmailBtn = document.getElementById('ctx-open-email'); // BUILD 547
 
             if (viewBtn) viewBtn.onclick = handleViewDetails;
             if (editBtn) editBtn.onclick = handleEdit;
@@ -27296,6 +27440,11 @@ function hidePatternDescription() {
             if (aiBtn) aiBtn.onclick = handleAI;
             if (deepDiveBtn) deepDiveBtn.onclick = () => handleAnalyzeSelection([activeNode]);
             if (debateBtn) debateBtn.onclick = handleDebate;
+            // BUILD 547: Open email reader
+            if (openEmailBtn) openEmailBtn.onclick = () => {
+                document.getElementById('context-menu').style.display = 'none';
+                openEmailReaderModal(activeNode);
+            };
             // Fix: ctx-debate appears in 4 menus - attach handler to ALL of them
             document.querySelectorAll('#ctx-debate').forEach(btn => btn.onclick = handleDebate);
             if (downloadBtn) downloadBtn.onclick = handleDownload;
@@ -38395,6 +38544,160 @@ https://treelisty.netlify.app`;
         }
         window.submitAgentTask = submitAgentTask;
 
+        // BUILD 547: Email Reader Modal Functions
+        let emailReaderState = {
+            currentThread: null,
+            currentMessageIndex: 0,
+            messages: []
+        };
+
+        function openEmailReaderModal(node) {
+            if (!node) return;
+
+            // Check if this is an email node (has emailBody or subItems with fullBody)
+            const hasEmailData = node.emailBody || node.fullBody || node.subItems?.length > 0;
+            if (!hasEmailData) {
+                showToast('No email content to display', 'warning');
+                return;
+            }
+
+            emailReaderState.currentThread = node;
+            emailReaderState.messages = node.subItems || [node];
+            emailReaderState.currentMessageIndex = 0;
+
+            updateEmailReaderContent();
+            document.getElementById('email-reader-modal').style.display = 'flex';
+        }
+        window.openEmailReaderModal = openEmailReaderModal;
+
+        function closeEmailReaderModal() {
+            document.getElementById('email-reader-modal').style.display = 'none';
+            emailReaderState.currentThread = null;
+        }
+        window.closeEmailReaderModal = closeEmailReaderModal;
+
+        function updateEmailReaderContent() {
+            const thread = emailReaderState.currentThread;
+            const messages = emailReaderState.messages;
+            const idx = emailReaderState.currentMessageIndex;
+            const msg = messages[idx];
+
+            if (!thread || !msg) return;
+
+            // Update header
+            document.getElementById('email-reader-title').textContent = '📧 ' + (thread.subjectLine || thread.name || 'Email');
+            document.getElementById('email-reader-subject').textContent = thread.subjectLine || thread.name || '(No Subject)';
+
+            // Date formatting
+            const dateStr = msg.timestamp || msg.dateTime || thread.sendDateTime || thread.sendDate || '';
+            let formattedDate = dateStr;
+            try {
+                if (dateStr) {
+                    const d = new Date(dateStr);
+                    if (!isNaN(d)) {
+                        formattedDate = d.toLocaleDateString('en-US', {
+                            month: 'short', day: 'numeric', year: 'numeric',
+                            hour: 'numeric', minute: '2-digit'
+                        });
+                    }
+                }
+            } catch (e) {}
+            document.getElementById('email-reader-date').textContent = formattedDate;
+
+            // Sender/recipient
+            document.getElementById('email-reader-from').textContent = msg.sender || thread.senderEmail || 'Unknown';
+            document.getElementById('email-reader-to').textContent = msg.recipient || thread.recipientEmail || 'Unknown';
+
+            // CC
+            const cc = thread.ccEmail || '';
+            const ccRow = document.getElementById('email-reader-cc-row');
+            if (cc) {
+                document.getElementById('email-reader-cc').textContent = cc;
+                ccRow.style.display = 'block';
+            } else {
+                ccRow.style.display = 'none';
+            }
+
+            // Body - prefer HTML if available, fall back to plain text
+            const bodyEl = document.getElementById('email-reader-body');
+            const htmlBody = msg.htmlBody || thread.htmlBody;
+            const plainBody = msg.fullBody || msg.description || thread.emailBody || '';
+
+            if (htmlBody && htmlBody !== plainBody) {
+                // Render HTML safely (basic sanitization - remove script tags)
+                const sanitized = htmlBody
+                    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
+                    .replace(/on\w+\s*=/gi, 'data-disabled-');
+                bodyEl.innerHTML = sanitized;
+                bodyEl.style.whiteSpace = 'normal';
+            } else {
+                bodyEl.textContent = plainBody;
+                bodyEl.style.whiteSpace = 'pre-wrap';
+            }
+
+            // Attachments
+            const attachments = msg.attachments || thread.attachments || [];
+            const attachmentsDiv = document.getElementById('email-reader-attachments');
+            const attachmentList = document.getElementById('email-reader-attachment-list');
+
+            if (attachments.length > 0) {
+                attachmentsDiv.style.display = 'block';
+                attachmentList.innerHTML = attachments.map(att => {
+                    const sizeStr = att.size > 1024*1024
+                        ? (att.size / (1024*1024)).toFixed(1) + ' MB'
+                        : att.size > 1024
+                            ? Math.round(att.size / 1024) + ' KB'
+                            : att.size + ' B';
+                    return `<div style="background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 8px 12px; font-size: 12px; display: flex; align-items: center; gap: 6px;">
+                        <span>📎</span>
+                        <span>${escapeHtml(att.filename)}</span>
+                        <span style="color: var(--text-secondary);">(${sizeStr})</span>
+                    </div>`;
+                }).join('');
+            } else {
+                attachmentsDiv.style.display = 'none';
+            }
+
+            // Thread navigation
+            const threadNav = document.getElementById('email-reader-thread-nav');
+            if (messages.length > 1) {
+                threadNav.style.display = 'block';
+                document.getElementById('email-reader-thread-info').textContent = `Message ${idx + 1} of ${messages.length}`;
+                document.getElementById('email-reader-prev').disabled = idx === 0;
+                document.getElementById('email-reader-next').disabled = idx === messages.length - 1;
+            } else {
+                threadNav.style.display = 'none';
+            }
+        }
+
+        function emailReaderPrev() {
+            if (emailReaderState.currentMessageIndex > 0) {
+                emailReaderState.currentMessageIndex--;
+                updateEmailReaderContent();
+            }
+        }
+        window.emailReaderPrev = emailReaderPrev;
+
+        function emailReaderNext() {
+            if (emailReaderState.currentMessageIndex < emailReaderState.messages.length - 1) {
+                emailReaderState.currentMessageIndex++;
+                updateEmailReaderContent();
+            }
+        }
+        window.emailReaderNext = emailReaderNext;
+
+        function emailReaderOpenInGmail() {
+            const thread = emailReaderState.currentThread;
+            if (thread?.threadId) {
+                // Gmail URL format: https://mail.google.com/mail/u/0/#inbox/threadId
+                const gmailUrl = `https://mail.google.com/mail/u/0/#inbox/${thread.threadId}`;
+                window.open(gmailUrl, '_blank');
+            } else {
+                showToast('No thread ID available', 'warning');
+            }
+        }
+        window.emailReaderOpenInGmail = emailReaderOpenInGmail;
+
         // Helper functions for MCP config persistence (Build 520)
         function saveMCPConfig(port, token) {
             try {
@@ -44558,17 +44861,16 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
                 fitViewBtn.addEventListener('click', fitToView);
             }
 
+            // BUILD 547: +/- buttons zoom toward viewport center
             if (zoomInBtn) {
                 zoomInBtn.addEventListener('click', () => {
-                    canvasZoom = Math.min(5, canvasZoom * 1.2);
-                    updateCanvasTransform();
+                    zoomCanvasCenter(1.2);
                 });
             }
 
             if (zoomOutBtn) {
                 zoomOutBtn.addEventListener('click', () => {
-                    canvasZoom = Math.max(0.1, canvasZoom / 1.2);
-                    updateCanvasTransform();
+                    zoomCanvasCenter(1 / 1.2);
                 });
             }
 
@@ -59237,18 +59539,18 @@ Slack data not available. To calculate slack:
             // ═══════════════════════════════════════════════════════════════
 
             'zoom_in': () => {
-                if (typeof canvasZoom !== 'undefined') {
-                    canvasZoom = Math.min(3, canvasZoom * 1.2);
-                    if (typeof updateCanvasTransform === 'function') updateCanvasTransform();
+                // BUILD 547: Use center-focused zoom
+                if (typeof zoomCanvasCenter === 'function') {
+                    zoomCanvasCenter(1.2);
                     return `🔍 Zoomed in to ${Math.round(canvasZoom * 100)}%`;
                 }
                 return '❌ Switch to Canvas view first';
             },
 
             'zoom_out': () => {
-                if (typeof canvasZoom !== 'undefined') {
-                    canvasZoom = Math.max(0.2, canvasZoom / 1.2);
-                    if (typeof updateCanvasTransform === 'function') updateCanvasTransform();
+                // BUILD 547: Use center-focused zoom
+                if (typeof zoomCanvasCenter === 'function') {
+                    zoomCanvasCenter(1 / 1.2);
                     return `🔍 Zoomed out to ${Math.round(canvasZoom * 100)}%`;
                 }
                 return '❌ Switch to Canvas view first';
@@ -66193,7 +66495,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 546; // Update this with each build
+                    const KNOWN_LATEST = 547; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
