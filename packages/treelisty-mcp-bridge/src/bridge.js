@@ -1734,8 +1734,12 @@ async function handleGmailFromBrowser(tabId, requestId, method, params) {
         return;
     }
 
-    // Log the action
-    log('info', `Gmail ${method} from browser: ${result.success ? 'success' : 'failed'}`);
+    // Log the action with details
+    if (result.success) {
+      log('info', `Gmail ${method} from browser: success`);
+    } else {
+      log('info', `Gmail ${method} from browser: failed - ${result.message || result.error || 'unknown'}`);
+    }
 
     // Send result back to browser
     sendResponse(result);

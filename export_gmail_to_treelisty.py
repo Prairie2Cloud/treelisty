@@ -58,7 +58,11 @@ def check_token_scopes(token_path='token.json'):
     try:
         with open(token_path, 'r') as f:
             token_data = json.load(f)
-        token_scopes = token_data.get('scope', '').split()
+        # Handle both 'scopes' (array) and 'scope' (space-separated string) formats
+        if 'scopes' in token_data and isinstance(token_data['scopes'], list):
+            token_scopes = token_data['scopes']
+        else:
+            token_scopes = token_data.get('scope', '').split()
         return token_data, token_scopes
     except:
         return None, []
