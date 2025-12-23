@@ -4478,6 +4478,25 @@
         border-color: rgba(99, 102, 241, 0.6);
     }
 
+    /* BUILD 564: Chat action links */
+    .chat-action-link {
+        color: var(--treeplex-primary, #8b5cf6);
+        text-decoration: none;
+        padding: 4px 10px;
+        background: rgba(139, 92, 246, 0.15);
+        border-radius: 6px;
+        font-size: 13px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: inline-block;
+        margin-top: 8px;
+    }
+
+    .chat-action-link:hover {
+        background: rgba(139, 92, 246, 0.3);
+        text-decoration: none;
+    }
+
     .chat-message.system {
         align-self: center;
         background: rgba(16, 185, 129, 0.2);
@@ -39671,6 +39690,94 @@ https://treelisty.netlify.app`;
         }
 
         /**
+         * Analyze screenshot with vision AI (Build 564)
+         * Sends the captured screenshot to the AI for analysis
+         */
+        async function analyzeScreenshotWithVision(captureResult) {
+            if (!captureResult?.screenshot) {
+                addMessage('❌ No screenshot available to analyze', 'system');
+                return;
+            }
+
+            addMessage('🔍 Analyzing screenshot with vision...', 'system');
+
+            try {
+                // Get current AI provider
+                const provider = document.getElementById('ai-provider-select')?.value || 'claude';
+
+                // Build the vision prompt
+                const prompt = "Please analyze this screenshot and describe what you see. Focus on the main content, layout, and any notable elements.";
+
+                // For Claude, use the image in the message
+                if (provider === 'claude') {
+                    const response = await callClaudeWithVision(prompt, captureResult.screenshot);
+                    addMessage(response, 'assistant');
+                } else {
+                    // For other providers, describe what we captured
+                    addMessage(`📷 Screenshot captured from **${captureResult.provenance?.domain}**\n\n` +
+                        `Title: ${captureResult.provenance?.tabTitle || 'Unknown'}\n` +
+                        `Size: ${captureResult.provenance?.dimensions?.width}×${captureResult.provenance?.dimensions?.height}px\n\n` +
+                        `_Vision analysis requires Claude as the AI provider._`, 'assistant');
+                }
+            } catch (err) {
+                console.error('[Vision] Analysis error:', err);
+                addMessage(`❌ Vision analysis failed: ${err.message}`, 'system');
+            }
+        }
+
+        /**
+         * Call Claude API with vision (image analysis)
+         */
+        async function callClaudeWithVision(prompt, imageDataUrl) {
+            const apiKey = window.CLAUDE_API_KEY || localStorage.getItem('claude_api_key');
+            if (!apiKey) {
+                throw new Error('Claude API key not configured');
+            }
+
+            // Extract base64 and media type from data URL
+            const matches = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (!matches) {
+                throw new Error('Invalid image data format');
+            }
+            const mediaType = matches[1];
+            const base64Data = matches[2];
+
+            const response = await fetch('/.netlify/functions/claude-proxy', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: 'claude-sonnet-4-20250514',
+                    max_tokens: 1024,
+                    messages: [{
+                        role: 'user',
+                        content: [
+                            {
+                                type: 'image',
+                                source: {
+                                    type: 'base64',
+                                    media_type: mediaType,
+                                    data: base64Data
+                                }
+                            },
+                            {
+                                type: 'text',
+                                text: prompt
+                            }
+                        ]
+                    }]
+                })
+            });
+
+            if (!response.ok) {
+                const error = await response.text();
+                throw new Error(`API error: ${error}`);
+            }
+
+            const data = await response.json();
+            return data.content?.[0]?.text || 'No response from vision analysis';
+        }
+
+        /**
          * Show undo toast with countdown
          */
         function showUndoToast(action, threadId, nodeId, undoCallback, duration = 10000) {
@@ -66742,9 +66849,21 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             // Handle markdown-like formatting
             let formattedContent = content
                 .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                .replace(/\[([^\]]+)\]\(#([^)]+)\)/g, '<a href="#" class="chat-action-link" data-action="$2">$1</a>')
                 .replace(/\n/g, '<br>');
 
             messageDiv.innerHTML = formattedContent;
+
+            // BUILD 564: Handle action links (like analyze-screenshot)
+            messageDiv.querySelectorAll('.chat-action-link').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const action = link.dataset.action;
+                    if (action === 'analyze-screenshot' && window._lastScreenCapture) {
+                        analyzeScreenshotWithVision(window._lastScreenCapture);
+                    }
+                });
+            });
 
             // Add action buttons if provided
             if (buttons && buttons.length > 0) {

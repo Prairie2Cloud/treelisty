@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.20.0 (Build 540)
+Current Version: v2.21.0 (Build 564)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
@@ -73,7 +73,19 @@ Key Functions
 - saveState(description) - save undo state
 - showToast(message, type) - show notification
 
-Recent Features (Builds 529-540)
+Recent Features (Builds 541-564)
+
+Chrome Extension Screen Awareness (564): Claude Code can now see your browser tab!
+- Extension: `packages/treelisty-chrome-extension/` - Load in Chrome via chrome://extensions
+- MCP tools: `ext_capture_screen`, `ext_extract_dom`, `ext_list_tabs`, `ext_get_status`
+- TreeBeard commands: `capture_screen`, `extract_page`, `list_tabs`, `extension_status`
+- Flow: Claude Code → MCP → Bridge → Extension → Chrome Tab capture
+- To use: Ensure MCP Bridge running (`node packages/treelisty-mcp-bridge/src/bridge.js`)
+- Settings: `.claude/settings.local.json` has ext_* tools allowed
+
+Analyze with Vision (564): After capture_screen, click "Analyze with Vision" link to send screenshot to Claude for analysis.
+
+Previous Features (Builds 529-540)
 
 Performance & Lazy Loading (540): Third-party libraries (Three.js, FullCalendar, SheetJS, html2canvas, JSZip, LZ-String) now lazy-load on demand. FCP improved from 10.8s to 8.1s. Lighthouse score improved.
 
