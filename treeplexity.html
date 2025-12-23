@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 561 | 2025-12-23
+    TreeListy v2.25.0 | Build 562 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,14 +19,13 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 562): Gmail refresh via MCP Bridge - export script spawned by bridge.js, status feedback in UI
     Changelog (Build 561): Refresh button for Gmail/GDrive trees - appears in header when viewing synced content
     Changelog (Build 560): TreeBeard Gmail commands - archive, trash, star, mark read, reply, forward, triage summary via natural language
     Changelog (Build 559): Email info panel improvements - clear header display (From/To/CC/Subject/Date), thread conversation view with expandable messages
     Changelog (Build 557): Add Gmail debug logging to diagnose timeout issues
     Changelog (Build 556): Direct browser→bridge Gmail sync - handleGmailFromBrowser in bridge.js
     Changelog (Build 555): Fix sendGmailAction to use client.socket.send (client is TreeListyMCPClient)
-    Changelog (Build 554): Fix findNodeById scope errors in Gmail sync and Inbox UI operations
-    Changelog (Build 553): Fix Gantt/Calendar regression, Read Full button, email navigation, Gmail sync feedback
     Changelog (Build 552): TreeBeard Gmail commands + Send button - batch archive/trash/star, mandatory preview, rate-limited queue
     Changelog (Build 551): Draft Composition - Quick Reply box, Compose modal, IndexedDB draft storage, conflict resolution
     Changelog (Build 550): Gmail Bidirectional Sync - Archive/Trash/Star/Mark Read buttons with 10s undo toast
@@ -772,7 +771,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.25.0',
-            build: 561,
+            build: 562,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -39393,21 +39392,83 @@ https://treelisty.netlify.app`;
 
         /**
          * Refresh the current tree (dispatches to appropriate sync command)
+         * BUILD 561: Enhanced with status feedback and auto-import
          */
-        function refreshCurrentTree() {
+        async function refreshCurrentTree() {
             const treeType = window.currentTreeType || detectTreeType();
+            const btn = document.getElementById('tree-refresh-btn');
+            const labelEl = document.getElementById('tree-refresh-label');
+            const originalLabel = labelEl?.textContent || 'Refresh';
+
+            // Store current thread IDs for diff
+            const beforeThreadIds = new Set();
+            if (capexTree?.children) {
+                const collectThreadIds = (node) => {
+                    if (node.threadId) beforeThreadIds.add(node.threadId);
+                    (node.items || node.children || node.subItems || []).forEach(collectThreadIds);
+                };
+                capexTree.children.forEach(collectThreadIds);
+            }
 
             if (treeType === 'gmail') {
-                // Execute sync_gmail command
-                if (typeof COMMAND_REGISTRY !== 'undefined' && COMMAND_REGISTRY['sync_gmail']) {
-                    COMMAND_REGISTRY['sync_gmail']().then(result => {
-                        if (result?.message) {
-                            showToast(result.message.replace(/\*\*/g, '').substring(0, 100), 'info');
-                        }
-                    });
-                } else {
-                    showToast('Run: python export_gmail_to_treelisty.py', 'info');
+                // Check MCP Bridge connection
+                if (!isMCPBridgeConnected()) {
+                    showToast('MCP Bridge not connected. Run: python export_gmail_to_treelisty.py', 'info');
+                    return;
                 }
+
+                // Update button to show refreshing status
+                if (btn) {
+                    btn.disabled = true;
+                    btn.style.opacity = '0.7';
+                }
+                if (labelEl) labelEl.textContent = 'Refreshing...';
+                showToast('Refreshing Gmail...', 'info');
+
+                try {
+                    // Call gmail_refresh via MCP Bridge
+                    const result = await sendGmailAction('gmail_refresh', {
+                        max_threads: 100,
+                        days_back: 7
+                    });
+
+                    if (result?.success && result?.filename) {
+                        showToast(`Exported ${result.threadCount} threads. Loading...`, 'success');
+
+                        // Fetch and import the new JSON
+                        // Note: For security, the browser can't directly read local files
+                        // Show instructions to import the new file
+                        const filename = result.filename;
+                        showToast(`Import: ${filename}`, 'info');
+
+                        // Create a notification with import instructions
+                        const notification = document.createElement('div');
+                        notification.style.cssText = 'position: fixed; top: 80px; right: 20px; padding: 16px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 12px; z-index: 10000; max-width: 350px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
+                        notification.innerHTML = `
+                            <div style="font-weight: 600; margin-bottom: 8px;">Gmail Refresh Complete</div>
+                            <div style="font-size: 13px; margin-bottom: 12px;">Exported ${result.threadCount} threads to:<br><code style="background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">${filename}</code></div>
+                            <div style="display: flex; gap: 8px;">
+                                <button onclick="document.getElementById('load-json-input')?.click(); this.parentElement.parentElement.remove();" style="padding: 8px 14px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; cursor: pointer; font-size: 12px; font-weight: 500;">Import File</button>
+                                <button onclick="this.parentElement.parentElement.remove();" style="padding: 8px 14px; background: transparent; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; color: rgba(255,255,255,0.8); cursor: pointer; font-size: 12px;">Dismiss</button>
+                            </div>
+                        `;
+                        document.body.appendChild(notification);
+                        setTimeout(() => notification.remove(), 30000);
+
+                    } else {
+                        showToast(result?.message || 'Refresh failed', 'error');
+                    }
+                } catch (err) {
+                    showToast(`Refresh error: ${err.message}`, 'error');
+                } finally {
+                    // Reset button
+                    if (btn) {
+                        btn.disabled = false;
+                        btn.style.opacity = '1';
+                    }
+                    if (labelEl) labelEl.textContent = originalLabel;
+                }
+
             } else if (treeType === 'gdrive') {
                 // Execute sync_drive command
                 if (typeof COMMAND_REGISTRY !== 'undefined' && COMMAND_REGISTRY['sync_drive']) {
@@ -68869,7 +68930,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 561; // Update this with each build
+                    const KNOWN_LATEST = 562; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);

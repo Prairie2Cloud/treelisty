@@ -1654,6 +1654,81 @@ async function handleGmailFromBrowser(tabId, requestId, method, params) {
         result = await gmailHandler.sendDraft(params.draft_id);
         break;
 
+      case 'gmail_refresh':
+        // BUILD 561: Run export script and return new JSON
+        log('info', '[Gmail] Running export script...');
+        try {
+          const { spawn } = require('child_process');
+          const path = require('path');
+
+          // Find treeplexity root
+          const treeplexityRoot = path.resolve(__dirname, '..', '..', '..');
+          const scriptPath = path.join(treeplexityRoot, 'export_gmail_to_treelisty.py');
+
+          const maxThreads = params.max_threads || 100;
+          const daysBack = params.days_back || 7;
+
+          result = await new Promise((resolve) => {
+            const proc = spawn('python', [scriptPath, String(maxThreads), String(daysBack)], {
+              cwd: treeplexityRoot,
+              timeout: 120000
+            });
+
+            let stdout = '';
+            let stderr = '';
+
+            proc.stdout.on('data', (data) => {
+              stdout += data.toString();
+              // Look for progress updates
+              const match = data.toString().match(/Processing thread (\d+)\/(\d+)/);
+              if (match) {
+                log('info', `[Gmail] Progress: ${match[1]}/${match[2]}`);
+              }
+            });
+
+            proc.stderr.on('data', (data) => {
+              stderr += data.toString();
+            });
+
+            proc.on('close', (code) => {
+              if (code === 0) {
+                // Extract filename from output
+                const fileMatch = stdout.match(/Exported to: (gmail-threads-[\d_]+\.json)/);
+                const filename = fileMatch ? fileMatch[1] : null;
+                const statsMatch = stdout.match(/Total threads: (\d+)/);
+                const threadCount = statsMatch ? parseInt(statsMatch[1]) : 0;
+
+                resolve({
+                  success: true,
+                  action: 'refresh',
+                  filename,
+                  filePath: filename ? path.join(treeplexityRoot, filename) : null,
+                  threadCount,
+                  message: `Exported ${threadCount} threads to ${filename}`
+                });
+              } else {
+                resolve({
+                  success: false,
+                  error: 'export_failed',
+                  message: stderr || 'Export script failed',
+                  code
+                });
+              }
+            });
+
+            proc.on('error', (err) => {
+              resolve({
+                success: false,
+                error: 'spawn_error',
+                message: err.message
+              });
+            });
+          });
+        } catch (err) {
+          result = { success: false, error: 'exception', message: err.message };
+        }
+        break;
+
       default:
         sendError(`Unknown Gmail method: ${method}`);
         return;
