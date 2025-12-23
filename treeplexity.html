@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.22.0 | Build 549 | 2025-12-22
+    TreeListy v2.23.0 | Build 550 | 2025-12-22
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 549): Clickable URLs in email body, Reply/Forward in Info Panel, attachment display
+    Changelog (Build 550): Gmail Bidirectional Sync - Archive/Trash/Star/Mark Read buttons with 10s undo toast, MCP Bridge Gmail tools, OAuth scope upgrade
     Changelog (Build 548): Reply/Forward buttons in email reader (opens Gmail compose)
     Changelog (Build 547): Email reader modal, center-focused canvas zoom, Gmail export v2.0
     Changelog (Build 546): Add retrieve_context RAG handler for MCP-based knowledge retrieval
@@ -762,8 +762,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.22.0',
-            build: 549,
+            major: '2.23.0',
+            build: 550,
             date: '2025-12-22',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -26672,6 +26672,34 @@ function hidePatternDescription() {
                 </div>
                 ` : ''}
 
+                <!-- BUILD 550: Gmail Sync Actions (requires MCP Bridge) -->
+                ${node.threadId ? `
+                <div style="margin-bottom: 24px; padding: 16px 20px; background: linear-gradient(135deg, rgba(139, 92, 246, 0.08), rgba(79, 70, 229, 0.05)); border-radius: 12px; border: 1px solid rgba(139, 92, 246, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 12px;">
+                        <span style="font-size: 18px;">🔄</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #8b5cf6; text-transform: uppercase; letter-spacing: 1px;">Gmail Sync</span>
+                        <span id="gmail-sync-status-${node.id}" style="font-size: 10px; padding: 2px 6px; border-radius: 4px; background: rgba(100,100,100,0.3); color: var(--text-secondary);">checking...</span>
+                    </div>
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+                        <button onclick="gmailSyncArchive('${node.threadId}', '${node.id}')" style="padding: 8px 16px; background: rgba(59, 130, 246, 0.15); border: 1px solid #3b82f6; border-radius: 8px; color: #3b82f6; cursor: pointer; font-size: 13px; font-weight: 500;" title="Remove from Gmail inbox">
+                            📥 Archive
+                        </button>
+                        <button onclick="gmailSyncTrash('${node.threadId}', '${node.id}')" style="padding: 8px 16px; background: rgba(239, 68, 68, 0.15); border: 1px solid #ef4444; border-radius: 8px; color: #ef4444; cursor: pointer; font-size: 13px; font-weight: 500;" title="Move to Gmail trash (30-day recovery)">
+                            🗑️ Trash
+                        </button>
+                        <button onclick="gmailSyncStar('${node.threadId}', '${node.id}')" style="padding: 8px 16px; background: rgba(245, 158, 11, 0.15); border: 1px solid #f59e0b; border-radius: 8px; color: #f59e0b; cursor: pointer; font-size: 13px; font-weight: 500;" title="Star in Gmail">
+                            ⭐ Star
+                        </button>
+                        <button onclick="gmailSyncMarkRead('${node.threadId}', '${node.id}')" style="padding: 8px 16px; background: rgba(16, 185, 129, 0.15); border: 1px solid #10b981; border-radius: 8px; color: #10b981; cursor: pointer; font-size: 13px; font-weight: 500;" title="Mark as read in Gmail">
+                            ✓ Mark Read
+                        </button>
+                    </div>
+                    <div style="margin-top: 10px; font-size: 11px; color: var(--text-secondary);">
+                        💡 Requires MCP Bridge running. Changes sync to Gmail with 10s undo window.
+                    </div>
+                </div>
+                ` : ''}
+
                 <!-- BUILD 549: Attachments (for email nodes with attachments) -->
                 ${(node.attachments && node.attachments.length > 0) ? `
                 <div style="margin-bottom: 24px; padding: 16px 20px; background: linear-gradient(135deg, rgba(251, 146, 60, 0.08), rgba(234, 88, 12, 0.05)); border-radius: 12px; border: 1px solid rgba(251, 146, 60, 0.2);">
@@ -38896,6 +38924,356 @@ https://treelisty.netlify.app`;
             showToast('Opening Gmail forward...', 'success');
         }
         window.emailReaderForwardFromNode = emailReaderForwardFromNode;
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 550: Gmail Sync Functions (Bidirectional Sync Phase 1)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Pending Gmail actions (for undo functionality)
+        const pendingGmailActions = new Map();
+
+        // Action ledger for idempotency (prevent duplicate actions)
+        const gmailActionLedger = new Map();
+
+        /**
+         * Check if MCP Bridge is connected
+         */
+        function isMCPBridgeConnected() {
+            return mcpBridgeState?.connected && mcpBridgeState?.client?.readyState === WebSocket.OPEN;
+        }
+
+        /**
+         * Send Gmail action to MCP Bridge
+         */
+        async function sendGmailAction(toolName, params) {
+            if (!isMCPBridgeConnected()) {
+                showToast('MCP Bridge not connected. Start bridge and reconnect.', 'error');
+                return { success: false, error: 'not_connected' };
+            }
+
+            return new Promise((resolve) => {
+                const requestId = `gmail-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+                // Store resolver for this request
+                if (!window.pendingMCPRequests) window.pendingMCPRequests = new Map();
+                window.pendingMCPRequests.set(requestId, resolve);
+
+                // Send request
+                mcpBridgeState.client.send(JSON.stringify({
+                    jsonrpc: '2.0',
+                    id: requestId,
+                    method: toolName,
+                    params: params
+                }));
+
+                // Timeout after 30 seconds
+                setTimeout(() => {
+                    if (window.pendingMCPRequests.has(requestId)) {
+                        window.pendingMCPRequests.delete(requestId);
+                        resolve({ success: false, error: 'timeout' });
+                    }
+                }, 30000);
+            });
+        }
+
+        /**
+         * Show undo toast with countdown
+         */
+        function showUndoToast(action, threadId, nodeId, undoCallback, duration = 10000) {
+            const toastId = `undo-${threadId}`;
+
+            // Create toast element
+            const toast = document.createElement('div');
+            toast.id = toastId;
+            toast.style.cssText = `
+                position: fixed;
+                bottom: 80px;
+                left: 50%;
+                transform: translateX(-50%);
+                background: linear-gradient(135deg, #1e1e2e, #2d2d3d);
+                border: 1px solid rgba(139, 92, 246, 0.3);
+                border-radius: 12px;
+                padding: 12px 20px;
+                display: flex;
+                align-items: center;
+                gap: 16px;
+                box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+                z-index: 10000;
+                font-family: inherit;
+            `;
+
+            const startTime = Date.now();
+
+            toast.innerHTML = `
+                <span style="color: white; font-size: 14px;">${action}</span>
+                <div style="width: 80px; height: 4px; background: rgba(255,255,255,0.2); border-radius: 2px; overflow: hidden;">
+                    <div id="${toastId}-progress" style="width: 100%; height: 100%; background: #8b5cf6; transition: width 0.1s linear;"></div>
+                </div>
+                <span id="${toastId}-countdown" style="color: var(--text-secondary); font-size: 12px; min-width: 20px;">10s</span>
+                <button onclick="cancelGmailAction('${threadId}')" style="padding: 6px 12px; background: rgba(239, 68, 68, 0.2); border: 1px solid #ef4444; border-radius: 6px; color: #ef4444; cursor: pointer; font-size: 12px; font-weight: 500;">
+                    Undo
+                </button>
+                <button onclick="document.getElementById('${toastId}')?.remove()" style="background: none; border: none; color: var(--text-secondary); cursor: pointer; font-size: 16px; padding: 4px;">×</button>
+            `;
+
+            document.body.appendChild(toast);
+
+            // Update countdown
+            const progressBar = document.getElementById(`${toastId}-progress`);
+            const countdown = document.getElementById(`${toastId}-countdown`);
+
+            const updateInterval = setInterval(() => {
+                const elapsed = Date.now() - startTime;
+                const remaining = Math.max(0, duration - elapsed);
+                const percent = (remaining / duration) * 100;
+
+                if (progressBar) progressBar.style.width = `${percent}%`;
+                if (countdown) countdown.textContent = `${Math.ceil(remaining / 1000)}s`;
+
+                if (remaining <= 0) {
+                    clearInterval(updateInterval);
+                    toast.remove();
+                }
+            }, 100);
+
+            // Store for cancellation
+            pendingGmailActions.set(threadId, {
+                toastId,
+                updateInterval,
+                undoCallback,
+                toast
+            });
+        }
+
+        /**
+         * Cancel a pending Gmail action (undo)
+         */
+        function cancelGmailAction(threadId) {
+            const pending = pendingGmailActions.get(threadId);
+            if (pending) {
+                clearInterval(pending.updateInterval);
+                pending.toast?.remove();
+                pending.undoCallback?.();
+                pendingGmailActions.delete(threadId);
+                showToast('Action cancelled', 'info');
+            }
+        }
+        window.cancelGmailAction = cancelGmailAction;
+
+        /**
+         * Execute Gmail action after undo window expires
+         */
+        async function executeGmailAction(toolName, params, threadId) {
+            // Check idempotency - don't repeat same action within 60 seconds
+            const dedupeKey = `${toolName}-${threadId}-${Math.floor(Date.now() / 60000)}`;
+            if (gmailActionLedger.has(dedupeKey)) {
+                console.log('[Gmail] Skipping duplicate action:', dedupeKey);
+                return { success: true, message: 'Already executed' };
+            }
+
+            const result = await sendGmailAction(toolName, params);
+
+            if (result.success) {
+                // Record in ledger
+                gmailActionLedger.set(dedupeKey, {
+                    timestamp: Date.now(),
+                    result: 'success'
+                });
+
+                // Clean old ledger entries (keep last 100)
+                if (gmailActionLedger.size > 100) {
+                    const oldest = [...gmailActionLedger.keys()][0];
+                    gmailActionLedger.delete(oldest);
+                }
+            }
+
+            return result;
+        }
+
+        /**
+         * Gmail Sync: Archive thread
+         */
+        function gmailSyncArchive(threadId, nodeId) {
+            if (!threadId) {
+                showToast('No thread ID', 'warning');
+                return;
+            }
+
+            // Optimistic UI - ghost the node
+            const node = findNodeById(nodeId);
+            if (node) {
+                node._gmailSyncPending = 'archive';
+                render();
+            }
+
+            // Show undo toast
+            showUndoToast('Archived email', threadId, nodeId, () => {
+                // Undo callback - restore node
+                if (node) {
+                    delete node._gmailSyncPending;
+                    render();
+                }
+            });
+
+            // Execute after delay
+            setTimeout(async () => {
+                if (!pendingGmailActions.has(threadId)) return; // Was cancelled
+
+                pendingGmailActions.delete(threadId);
+
+                const result = await executeGmailAction('gmail_archive', { thread_id: threadId }, threadId);
+
+                if (result.success) {
+                    if (node) {
+                        node._gmailSynced = 'archived';
+                        delete node._gmailSyncPending;
+                    }
+                    showToast('Archived in Gmail', 'success');
+                } else {
+                    if (node) delete node._gmailSyncPending;
+                    showToast(`Archive failed: ${result.error || result.message}`, 'error');
+                }
+                render();
+            }, 10000);
+        }
+        window.gmailSyncArchive = gmailSyncArchive;
+
+        /**
+         * Gmail Sync: Trash thread
+         */
+        function gmailSyncTrash(threadId, nodeId) {
+            if (!threadId) {
+                showToast('No thread ID', 'warning');
+                return;
+            }
+
+            const node = findNodeById(nodeId);
+            if (node) {
+                node._gmailSyncPending = 'trash';
+                render();
+            }
+
+            showUndoToast('Moved to trash', threadId, nodeId, () => {
+                if (node) {
+                    delete node._gmailSyncPending;
+                    render();
+                }
+            });
+
+            setTimeout(async () => {
+                if (!pendingGmailActions.has(threadId)) return;
+
+                pendingGmailActions.delete(threadId);
+
+                const result = await executeGmailAction('gmail_trash', { thread_id: threadId }, threadId);
+
+                if (result.success) {
+                    if (node) {
+                        node._gmailSynced = 'trashed';
+                        delete node._gmailSyncPending;
+                    }
+                    showToast('Moved to Gmail trash', 'success');
+                } else {
+                    if (node) delete node._gmailSyncPending;
+                    showToast(`Trash failed: ${result.error || result.message}`, 'error');
+                }
+                render();
+            }, 10000);
+        }
+        window.gmailSyncTrash = gmailSyncTrash;
+
+        /**
+         * Gmail Sync: Star thread
+         */
+        function gmailSyncStar(threadId, nodeId) {
+            if (!threadId) {
+                showToast('No thread ID', 'warning');
+                return;
+            }
+
+            const node = findNodeById(nodeId);
+            if (node) {
+                node._gmailSyncPending = 'star';
+                render();
+            }
+
+            showUndoToast('Starred email', threadId, nodeId, () => {
+                if (node) {
+                    delete node._gmailSyncPending;
+                    render();
+                }
+            });
+
+            setTimeout(async () => {
+                if (!pendingGmailActions.has(threadId)) return;
+
+                pendingGmailActions.delete(threadId);
+
+                const result = await executeGmailAction('gmail_star', { thread_id: threadId, starred: true }, threadId);
+
+                if (result.success) {
+                    if (node) {
+                        node._gmailSynced = 'starred';
+                        node.icon = '⭐';
+                        delete node._gmailSyncPending;
+                    }
+                    showToast('Starred in Gmail', 'success');
+                } else {
+                    if (node) delete node._gmailSyncPending;
+                    showToast(`Star failed: ${result.error || result.message}`, 'error');
+                }
+                render();
+            }, 10000);
+        }
+        window.gmailSyncStar = gmailSyncStar;
+
+        /**
+         * Gmail Sync: Mark as read
+         */
+        function gmailSyncMarkRead(threadId, nodeId) {
+            if (!threadId) {
+                showToast('No thread ID', 'warning');
+                return;
+            }
+
+            const node = findNodeById(nodeId);
+            if (node) {
+                node._gmailSyncPending = 'mark_read';
+                render();
+            }
+
+            showUndoToast('Marked as read', threadId, nodeId, () => {
+                if (node) {
+                    delete node._gmailSyncPending;
+                    render();
+                }
+            });
+
+            setTimeout(async () => {
+                if (!pendingGmailActions.has(threadId)) return;
+
+                pendingGmailActions.delete(threadId);
+
+                const result = await executeGmailAction('gmail_mark_read', { thread_id: threadId, read: true }, threadId);
+
+                if (result.success) {
+                    if (node) {
+                        node._gmailSynced = 'read';
+                        delete node._gmailSyncPending;
+                    }
+                    showToast('Marked as read in Gmail', 'success');
+                } else {
+                    if (node) delete node._gmailSyncPending;
+                    showToast(`Mark read failed: ${result.error || result.message}`, 'error');
+                }
+                render();
+            }, 10000);
+        }
+        window.gmailSyncMarkRead = gmailSyncMarkRead;
+
+        // ═══════════════════════════════════════════════════════════════
+        // End Gmail Sync Functions
+        // ═══════════════════════════════════════════════════════════════
 
         // Helper functions for MCP config persistence (Build 520)
         function saveMCPConfig(port, token) {
@@ -66694,7 +67072,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 549; // Update this with each build
+                    const KNOWN_LATEST = 550; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);

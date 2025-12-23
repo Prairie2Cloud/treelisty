@@ -40,22 +40,89 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import InstalledAppFlow
 from googleapiclient.discovery import build
 
-# Gmail API scopes (read-only)
-SCOPES = ['https://www.googleapis.com/auth/gmail.readonly']
+# Gmail API scopes
+# - readonly: Fetch and read emails (required)
+# - modify: Archive, trash, star, mark read (Build 550 - bidirectional sync)
+# - compose: Create drafts (Build 551)
+SCOPES = [
+    'https://www.googleapis.com/auth/gmail.readonly',
+    'https://www.googleapis.com/auth/gmail.modify',
+    'https://www.googleapis.com/auth/gmail.compose'
+]
 
-def authenticate():
-    """Authenticate with Gmail API"""
+def check_token_scopes(token_path='token.json'):
+    """Check if existing token has required scopes for bidirectional sync"""
+    if not os.path.exists(token_path):
+        return None, []
+
+    try:
+        with open(token_path, 'r') as f:
+            token_data = json.load(f)
+        token_scopes = token_data.get('scope', '').split()
+        return token_data, token_scopes
+    except:
+        return None, []
+
+def authenticate(force_reauth=False):
+    """Authenticate with Gmail API
+
+    Args:
+        force_reauth: If True, delete existing token and re-authenticate
+
+    Returns:
+        Gmail API service object
+    """
     creds = None
+    token_path = 'token.json'
 
-    # Check for existing token
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    # Check for existing token and its scopes
+    token_data, existing_scopes = check_token_scopes(token_path)
+
+    # Check if we need to upgrade scopes (Build 550 - explicit re-auth)
+    if token_data and not force_reauth:
+        has_modify = any('gmail.modify' in s for s in existing_scopes)
+        has_compose = any('gmail.compose' in s for s in existing_scopes)
+
+        if not has_modify or not has_compose:
+            print("\n" + "=" * 60)
+            print("SCOPE UPGRADE REQUIRED")
+            print("=" * 60)
+            print("\nYour current token only has read-only access.")
+            print("To enable Gmail sync features (archive, trash, star, drafts),")
+            print("you need to re-authorize with expanded permissions.\n")
+            print("Current scopes:")
+            for scope in existing_scopes:
+                print(f"  ✓ {scope.split('/')[-1]}")
+            print("\nRequired additional scopes:")
+            if not has_modify:
+                print("  ✗ gmail.modify (archive, trash, star, mark read)")
+            if not has_compose:
+                print("  ✗ gmail.compose (create drafts)")
+            print("\n" + "-" * 60)
+            response = input("Re-authorize now? [y/N]: ").strip().lower()
+            if response == 'y':
+                print("\nDeleting old token and starting re-authorization...")
+                os.remove(token_path)
+                token_data = None
+            else:
+                print("\nContinuing with read-only access.")
+                print("Run with --reauth flag to upgrade later.\n")
+
+    # Load existing token if available
+    if os.path.exists(token_path) and not force_reauth:
+        creds = Credentials.from_authorized_user_file(token_path, SCOPES)
 
     # Refresh or create new credentials
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
-            creds.refresh(Request())
-        else:
+            try:
+                creds.refresh(Request())
+            except Exception as e:
+                print(f"Token refresh failed: {e}")
+                print("Re-authenticating...")
+                creds = None
+
+        if not creds:
             if not os.path.exists('credentials.json'):
                 print("ERROR: credentials.json not found!")
                 print("\nSetup Instructions:")
@@ -71,7 +138,7 @@ def authenticate():
             creds = flow.run_local_server(port=0)
 
         # Save credentials for future runs
-        with open('token.json', 'w') as token:
+        with open(token_path, 'w') as token:
             token.write(creds.to_json())
 
     return build('gmail', 'v1', credentials=creds)
@@ -314,17 +381,23 @@ def parse_thread(thread):
 
     return thread_node
 
-def export_gmail(max_threads=100, days_back=30):
-    """Main export function"""
+def export_gmail(max_threads=100, days_back=30, force_reauth=False):
+    """Main export function
+
+    Args:
+        max_threads: Maximum number of threads to fetch
+        days_back: Number of days of history to fetch
+        force_reauth: Force re-authorization with new scopes
+    """
     print("\n" + "=" * 60)
-    print("TreeListy Gmail Exporter v2.0")
+    print("TreeListy Gmail Exporter v2.1")
     print("=" * 60)
     print(f"Max threads: {max_threads}")
     print(f"Time range: Last {days_back} days\n")
 
     # Authenticate
     print("Authenticating with Gmail...")
-    service = authenticate()
+    service = authenticate(force_reauth=force_reauth)
     print("Authenticated successfully\n")
 
     # Fetch thread list
@@ -455,24 +528,62 @@ def export_gmail(max_threads=100, days_back=30):
     return output_file
 
 if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(
+        description='Export Gmail threads to TreeListy JSON format',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  python export_gmail_to_treelisty.py              # Default: 100 threads, 30 days
+  python export_gmail_to_treelisty.py 50 7         # 50 threads, 7 days
+  python export_gmail_to_treelisty.py --reauth     # Force re-authorization
+  python export_gmail_to_treelisty.py --check      # Check current auth status
+"""
+    )
+    parser.add_argument('max_threads', nargs='?', type=int, default=100,
+                        help='Maximum threads to fetch (default: 100)')
+    parser.add_argument('days_back', nargs='?', type=int, default=30,
+                        help='Days of history to fetch (default: 30)')
+    parser.add_argument('--reauth', action='store_true',
+                        help='Force re-authorization with new scopes')
+    parser.add_argument('--check', action='store_true',
+                        help='Check current auth status and scopes')
+
+    args = parser.parse_args()
+
+    # Check auth status only
+    if args.check:
+        token_data, scopes = check_token_scopes()
+        print("\n" + "=" * 60)
+        print("Gmail Authentication Status")
+        print("=" * 60)
+        if token_data:
+            print("\n✓ Token exists")
+            print("\nScopes granted:")
+            for scope in scopes:
+                scope_name = scope.split('/')[-1]
+                print(f"  • {scope_name}")
+
+            has_modify = any('gmail.modify' in s for s in scopes)
+            has_compose = any('gmail.compose' in s for s in scopes)
+
+            print("\nSync capabilities:")
+            print(f"  {'✓' if has_modify else '✗'} Archive/Trash/Star/Mark Read (gmail.modify)")
+            print(f"  {'✓' if has_compose else '✗'} Create Drafts (gmail.compose)")
+
+            if not has_modify or not has_compose:
+                print("\n⚠ Run with --reauth to enable full sync")
+        else:
+            print("\n✗ Not authenticated")
+            print("  Run without --check to authenticate")
+        print("=" * 60 + "\n")
+        exit(0)
+
     print("Starting Gmail export...")
+    print(f"Max threads: {args.max_threads}")
+    print(f"Days back: {args.days_back}")
+    if args.reauth:
+        print("Force re-auth: Yes")
 
-    # Get parameters from command line or use defaults
-    max_threads = 100
-    days_back = 30
-
-    if len(sys.argv) > 1:
-        try:
-            max_threads = int(sys.argv[1])
-            print(f"Max threads from command line: {max_threads}")
-        except ValueError:
-            print(f"Invalid max_threads argument, using default: {max_threads}")
-
-    if len(sys.argv) > 2:
-        try:
-            days_back = int(sys.argv[2])
-            print(f"Days back from command line: {days_back}")
-        except ValueError:
-            print(f"Invalid days_back argument, using default: {days_back}")
-
-    export_gmail(max_threads, days_back)
+    export_gmail(args.max_threads, args.days_back, force_reauth=args.reauth)

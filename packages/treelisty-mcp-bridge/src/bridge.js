@@ -24,6 +24,15 @@ const crypto = require('crypto');
 const { exec } = require('child_process');
 const path = require('path');
 
+// Gmail handler for bidirectional sync (Build 550)
+let gmailHandler = null;
+try {
+  gmailHandler = require('./gmail-handler');
+} catch (err) {
+  // Gmail handler not available - googleapis not installed
+  // Will return helpful error when Gmail tools are called
+}
+
 // =============================================================================
 // Configuration
 // =============================================================================
@@ -940,6 +949,97 @@ function handleToolsList(id) {
         },
         required: ['capability_id', 'status']
       }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // Gmail Sync Operations (Build 550 - Bidirectional Gmail Sync)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'gmail_check_auth',
+      description: 'Check Gmail authentication status and available scopes.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'gmail_archive',
+      description: 'Archive a Gmail thread (remove from inbox). Reversible.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Gmail thread ID to archive' },
+          undo: { type: 'boolean', description: 'If true, unarchive instead (move back to inbox)' }
+        },
+        required: ['thread_id']
+      }
+    },
+    {
+      name: 'gmail_trash',
+      description: 'Move a Gmail thread to trash. Recoverable for 30 days.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Gmail thread ID to trash' },
+          undo: { type: 'boolean', description: 'If true, restore from trash instead' }
+        },
+        required: ['thread_id']
+      }
+    },
+    {
+      name: 'gmail_star',
+      description: 'Star or unstar a Gmail thread.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Gmail thread ID' },
+          starred: { type: 'boolean', description: 'True to star, false to unstar (default: true)' }
+        },
+        required: ['thread_id']
+      }
+    },
+    {
+      name: 'gmail_mark_read',
+      description: 'Mark a Gmail thread as read or unread.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Gmail thread ID' },
+          read: { type: 'boolean', description: 'True to mark read, false to mark unread (default: true)' }
+        },
+        required: ['thread_id']
+      }
+    },
+    {
+      name: 'gmail_add_label',
+      description: 'Add a label to a Gmail thread.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Gmail thread ID' },
+          label_id: { type: 'string', description: 'Label ID to add' }
+        },
+        required: ['thread_id', 'label_id']
+      }
+    },
+    {
+      name: 'gmail_remove_label',
+      description: 'Remove a label from a Gmail thread.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Gmail thread ID' },
+          label_id: { type: 'string', description: 'Label ID to remove' }
+        },
+        required: ['thread_id', 'label_id']
+      }
+    },
+    {
+      name: 'gmail_list_labels',
+      description: 'List all available Gmail labels.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
     }
   ];
 
@@ -991,6 +1091,12 @@ function handleToolCall(id, params) {
   // Handle local file operations (Build 534)
   if (name === 'open_local_file') {
     handleOpenLocalFile(id, args || {});
+    return;
+  }
+
+  // Handle Gmail operations locally (Build 550 - tokens never sent to browser)
+  if (name.startsWith('gmail_')) {
+    handleGmailTool(id, name, args || {});
     return;
   }
 
@@ -1081,6 +1187,137 @@ function handleOpenLocalFile(id, args) {
       });
     }
   });
+}
+
+/**
+ * Handle Gmail tools (Build 550 - Bidirectional Gmail Sync)
+ * All Gmail operations processed locally - tokens never sent to browser
+ */
+async function handleGmailTool(id, name, args) {
+  // Check if Gmail handler is available
+  if (!gmailHandler) {
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'gmail_not_available',
+            message: 'Gmail handler not available. Install googleapis: npm install googleapis'
+          }, null, 2)
+        }]
+      }
+    });
+    return;
+  }
+
+  let result;
+
+  try {
+    switch (name) {
+      case 'gmail_check_auth':
+        result = await gmailHandler.checkAuthStatus();
+        break;
+
+      case 'gmail_archive':
+        if (!args.thread_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: thread_id');
+          return;
+        }
+        result = args.undo
+          ? await gmailHandler.unarchiveThread(args.thread_id)
+          : await gmailHandler.archiveThread(args.thread_id);
+        break;
+
+      case 'gmail_trash':
+        if (!args.thread_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: thread_id');
+          return;
+        }
+        result = args.undo
+          ? await gmailHandler.untrashThread(args.thread_id)
+          : await gmailHandler.trashThread(args.thread_id);
+        break;
+
+      case 'gmail_star':
+        if (!args.thread_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: thread_id');
+          return;
+        }
+        result = args.starred === false
+          ? await gmailHandler.unstarThread(args.thread_id)
+          : await gmailHandler.starThread(args.thread_id);
+        break;
+
+      case 'gmail_mark_read':
+        if (!args.thread_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: thread_id');
+          return;
+        }
+        result = args.read === false
+          ? await gmailHandler.markUnread(args.thread_id)
+          : await gmailHandler.markRead(args.thread_id);
+        break;
+
+      case 'gmail_add_label':
+        if (!args.thread_id || !args.label_id) {
+          sendMCPError(id, -32602, 'Missing required parameters: thread_id, label_id');
+          return;
+        }
+        result = await gmailHandler.addLabel(args.thread_id, args.label_id);
+        break;
+
+      case 'gmail_remove_label':
+        if (!args.thread_id || !args.label_id) {
+          sendMCPError(id, -32602, 'Missing required parameters: thread_id, label_id');
+          return;
+        }
+        result = await gmailHandler.removeLabel(args.thread_id, args.label_id);
+        break;
+
+      case 'gmail_list_labels':
+        result = await gmailHandler.listLabels();
+        break;
+
+      default:
+        sendMCPError(id, -32601, `Unknown Gmail tool: ${name}`);
+        return;
+    }
+
+    // Log the action
+    log('info', `Gmail ${name}: ${result.success ? 'success' : 'failed'} - ${args.thread_id || 'N/A'}`);
+
+    // Send result
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }]
+      }
+    });
+
+  } catch (err) {
+    log('error', `Gmail tool error: ${err.message}`);
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'gmail_error',
+            message: err.message
+          }, null, 2)
+        }]
+      }
+    });
+  }
 }
 
 /**
