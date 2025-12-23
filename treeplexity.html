@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 560 | 2025-12-23
+    TreeListy v2.25.0 | Build 561 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 561): Refresh button for Gmail/GDrive trees - appears in header when viewing synced content
     Changelog (Build 560): TreeBeard Gmail commands - archive, trash, star, mark read, reply, forward, triage summary via natural language
     Changelog (Build 559): Email info panel improvements - clear header display (From/To/CC/Subject/Date), thread conversation view with expandable messages
     Changelog (Build 557): Add Gmail debug logging to diagnose timeout issues
@@ -771,7 +772,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.25.0',
-            build: 560,
+            build: 561,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6651,6 +6652,11 @@
             <div id="save-indicator" style="font-size: 12px; color: #9DA3B4; margin-left: 12px; white-space: nowrap;">
                 ● Unsaved changes
             </div>
+
+            <!-- BUILD 561: Refresh Button for Gmail/GDrive Trees -->
+            <button id="tree-refresh-btn" onclick="refreshCurrentTree()" style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; margin-left: 8px;" title="Refresh from source">
+                <span id="tree-refresh-icon">🔄</span> <span id="tree-refresh-label">Refresh</span>
+            </button>
 
             <!-- BUILD 491: Mobile Fullscreen Toggle -->
             <button id="mobile-fullscreen-btn" class="mobile-fullscreen-btn" aria-label="Toggle fullscreen" title="Toggle fullscreen">
@@ -29651,6 +29657,9 @@ Your response:`;
 
             render();
 
+            // BUILD 561: Update refresh button visibility for Gmail/GDrive trees
+            updateTreeRefreshButton();
+
             // Apply default sort for filesystem pattern
             if (currentPattern === 'filesystem') {
                 sortTree(null);
@@ -39306,6 +39315,113 @@ https://treelisty.netlify.app`;
         function isMCPBridgeConnected() {
             return mcpBridgeState?.status === 'connected' &&
                    mcpBridgeState?.client?.socket?.readyState === WebSocket.OPEN;
+        }
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 561: Tree Type Detection & Refresh Button
+        // ═══════════════════════════════════════════════════════════════
+
+        /**
+         * Detect if current tree is Gmail, GDrive, or regular
+         * @returns {string} 'gmail' | 'gdrive' | 'local' | null
+         */
+        function detectTreeType() {
+            if (!capexTree || !capexTree.children) return null;
+
+            // Check first few items for type indicators
+            let gmailCount = 0;
+            let gdriveCount = 0;
+            let totalChecked = 0;
+
+            function checkNode(node) {
+                if (totalChecked > 20) return; // Sample limit
+                totalChecked++;
+
+                // Gmail indicators
+                if (node.threadId || node.senderEmail || node.emailBody) {
+                    gmailCount++;
+                }
+                // GDrive indicators
+                if (node.fileUrl || node.mimeType || node.driveId || (node.webViewLink && node.webViewLink.includes('drive.google'))) {
+                    gdriveCount++;
+                }
+
+                // Check children
+                const children = node.items || node.children || node.subItems || [];
+                children.forEach(child => checkNode(child));
+            }
+
+            capexTree.children.forEach(phase => checkNode(phase));
+
+            // Determine tree type based on counts
+            if (gmailCount > 3) return 'gmail';
+            if (gdriveCount > 3) return 'gdrive';
+            if (capexTree.name?.toLowerCase().includes('gmail') || capexTree.name?.toLowerCase().includes('email')) return 'gmail';
+            if (capexTree.name?.toLowerCase().includes('drive') || capexTree.name?.toLowerCase().includes('google drive')) return 'gdrive';
+
+            return 'local';
+        }
+
+        /**
+         * Update the refresh button visibility based on tree type
+         */
+        function updateTreeRefreshButton() {
+            const btn = document.getElementById('tree-refresh-btn');
+            const iconEl = document.getElementById('tree-refresh-icon');
+            const labelEl = document.getElementById('tree-refresh-label');
+            if (!btn) return;
+
+            const treeType = detectTreeType();
+            window.currentTreeType = treeType; // Store for refresh action
+
+            if (treeType === 'gmail') {
+                btn.style.display = 'flex';
+                btn.style.background = 'linear-gradient(135deg, #ea4335, #c5221f)';
+                btn.title = 'Refresh Gmail - Run export script to get latest emails';
+                if (iconEl) iconEl.textContent = '📧';
+                if (labelEl) labelEl.textContent = 'Refresh Gmail';
+            } else if (treeType === 'gdrive') {
+                btn.style.display = 'flex';
+                btn.style.background = 'linear-gradient(135deg, #4285f4, #1a73e8)';
+                btn.title = 'Refresh Google Drive - Run export script to get latest files';
+                if (iconEl) iconEl.textContent = '📁';
+                if (labelEl) labelEl.textContent = 'Refresh Drive';
+            } else {
+                btn.style.display = 'none';
+            }
+        }
+
+        /**
+         * Refresh the current tree (dispatches to appropriate sync command)
+         */
+        function refreshCurrentTree() {
+            const treeType = window.currentTreeType || detectTreeType();
+
+            if (treeType === 'gmail') {
+                // Execute sync_gmail command
+                if (typeof COMMAND_REGISTRY !== 'undefined' && COMMAND_REGISTRY['sync_gmail']) {
+                    COMMAND_REGISTRY['sync_gmail']().then(result => {
+                        if (result?.message) {
+                            showToast(result.message.replace(/\*\*/g, '').substring(0, 100), 'info');
+                        }
+                    });
+                } else {
+                    showToast('Run: python export_gmail_to_treelisty.py', 'info');
+                }
+            } else if (treeType === 'gdrive') {
+                // Execute sync_drive command
+                if (typeof COMMAND_REGISTRY !== 'undefined' && COMMAND_REGISTRY['sync_drive']) {
+                    COMMAND_REGISTRY['sync_drive']().then(result => {
+                        if (result?.message) {
+                            showToast(result.message.replace(/\*\*/g, '').substring(0, 100), 'info');
+                        }
+                    });
+                } else {
+                    showToast('Run: python export_google_drive_to_treelisty.py', 'info');
+                }
+            } else {
+                showToast('This tree has no external refresh source', 'info');
+            }
         }
 
         /**
@@ -68753,7 +68869,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 560; // Update this with each build
+                    const KNOWN_LATEST = 561; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
