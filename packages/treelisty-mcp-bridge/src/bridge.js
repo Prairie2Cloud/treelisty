@@ -1458,6 +1458,192 @@ async function handleGmailTool(id, name, args) {
 }
 
 /**
+ * Handle Gmail operations from browser via WebSocket (Build 556)
+ * Sends response back to browser instead of MCP stdio
+ */
+async function handleGmailFromBrowser(tabId, requestId, method, params) {
+  const ws = connections.get(tabId);
+
+  // Helper to send response back to browser
+  const sendResponse = (result) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        jsonrpc: '2.0',
+        id: requestId,
+        result: result
+      }));
+    }
+  };
+
+  const sendError = (message) => {
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        jsonrpc: '2.0',
+        id: requestId,
+        error: { code: -32000, message }
+      }));
+    }
+  };
+
+  // Check if Gmail handler is available
+  if (!gmailHandler) {
+    sendResponse({
+      success: false,
+      error: 'gmail_not_available',
+      message: 'Gmail handler not available. Install googleapis: npm install googleapis'
+    });
+    return;
+  }
+
+  let result;
+
+  try {
+    switch (method) {
+      case 'gmail_check_auth':
+        result = await gmailHandler.checkAuthStatus();
+        break;
+
+      case 'gmail_archive':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = params.undo
+          ? await gmailHandler.unarchiveThread(params.thread_id)
+          : await gmailHandler.archiveThread(params.thread_id);
+        break;
+
+      case 'gmail_trash':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = params.undo
+          ? await gmailHandler.untrashThread(params.thread_id)
+          : await gmailHandler.trashThread(params.thread_id);
+        break;
+
+      case 'gmail_star':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = params.starred === false
+          ? await gmailHandler.unstarThread(params.thread_id)
+          : await gmailHandler.starThread(params.thread_id);
+        break;
+
+      case 'gmail_mark_read':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = params.read === false
+          ? await gmailHandler.markUnread(params.thread_id)
+          : await gmailHandler.markRead(params.thread_id);
+        break;
+
+      case 'gmail_add_label':
+        if (!params.thread_id || !params.label_id) {
+          sendError('Missing required parameters: thread_id, label_id');
+          return;
+        }
+        result = await gmailHandler.addLabel(params.thread_id, params.label_id);
+        break;
+
+      case 'gmail_remove_label':
+        if (!params.thread_id || !params.label_id) {
+          sendError('Missing required parameters: thread_id, label_id');
+          return;
+        }
+        result = await gmailHandler.removeLabel(params.thread_id, params.label_id);
+        break;
+
+      case 'gmail_list_labels':
+        result = await gmailHandler.listLabels();
+        break;
+
+      case 'gmail_create_draft':
+        if (!params.to || !params.subject || !params.body) {
+          sendError('Missing required parameters: to, subject, body');
+          return;
+        }
+        result = await gmailHandler.createDraft({
+          threadId: params.thread_id,
+          to: params.to,
+          subject: params.subject,
+          body: params.body,
+          cc: params.cc,
+          bcc: params.bcc,
+          inReplyTo: params.in_reply_to
+        });
+        break;
+
+      case 'gmail_update_draft':
+        if (!params.draft_id || !params.to || !params.subject || !params.body) {
+          sendError('Missing required parameters: draft_id, to, subject, body');
+          return;
+        }
+        result = await gmailHandler.updateDraft({
+          draftId: params.draft_id,
+          to: params.to,
+          subject: params.subject,
+          body: params.body,
+          cc: params.cc,
+          bcc: params.bcc
+        });
+        break;
+
+      case 'gmail_get_draft':
+        if (!params.draft_id) {
+          sendError('Missing required parameter: draft_id');
+          return;
+        }
+        result = await gmailHandler.getDraft(params.draft_id);
+        break;
+
+      case 'gmail_delete_draft':
+        if (!params.draft_id) {
+          sendError('Missing required parameter: draft_id');
+          return;
+        }
+        result = await gmailHandler.deleteDraft(params.draft_id);
+        break;
+
+      case 'gmail_list_drafts':
+        result = await gmailHandler.listDrafts();
+        break;
+
+      case 'gmail_send_draft':
+        if (!params.draft_id) {
+          sendError('Missing required parameter: draft_id');
+          return;
+        }
+        result = await gmailHandler.sendDraft(params.draft_id);
+        break;
+
+      default:
+        sendError(`Unknown Gmail method: ${method}`);
+        return;
+    }
+
+    // Log the action
+    log('info', `Gmail ${method} from browser: ${result.success ? 'success' : 'failed'}`);
+
+    // Send result back to browser
+    sendResponse(result);
+
+  } catch (err) {
+    log('error', `Gmail browser request error: ${err.message}`);
+    sendResponse({
+      success: false,
+      error: 'gmail_error',
+      message: err.message
+    });
+  }
+}
+
+/**
  * Handle task queue tools (processed by bridge, not browser)
  */
 function handleTaskTool(id, name, args) {
@@ -1606,6 +1792,18 @@ function handleBrowserMessage(tabId, message) {
         taskResults.delete(oldest[0]);
       }
     }
+    return;
+  }
+
+  // Handle direct Gmail operations from browser (Build 556)
+  // This allows TreeListy to call Gmail operations directly without going through Claude Code
+  if (type === 'gmail_request' || (message.method && message.method.startsWith('gmail_'))) {
+    const requestId = message.id || id;
+    const method = message.method || type;
+    const params = message.params || {};
+
+    log('info', `[Gmail] Direct request from browser: ${method}`);
+    handleGmailFromBrowser(tabId, requestId, method, params);
     return;
   }
 
