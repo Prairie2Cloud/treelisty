@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.21.0 (Build 564)
+Current Version: v2.27.0 (Build 565)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
@@ -73,7 +73,14 @@ Key Functions
 - saveState(description) - save undo state
 - showToast(message, type) - show notification
 
-Recent Features (Builds 541-564)
+Recent Features (Builds 541-565)
+
+Image Analysis to Tree (565): Decompose any image into a manipulable node tree!
+- TreeBeard commands: `analyze_image`, `analyze`, `analyze_screenshot`, `image_to_tree`
+- Flow: Capture screenshot → Gemini Vision analyzes → Creates hierarchical tree with bounding boxes
+- Canvas view shows: Source image as background, colored bbox overlays, lines connecting boxes to nodes
+- Toolbar controls: Toggle background image, opacity slider, toggle bounding boxes
+- Object types color-coded: primary (green), secondary (blue), background (gray), text (amber), UI (purple)
 
 Chrome Extension Screen Awareness (564): Claude Code can now see your browser tab!
 - Extension: `packages/treelisty-chrome-extension/` - Load in Chrome via chrome://extensions

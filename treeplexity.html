@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.26.0 | Build 564 | 2025-12-23
+    TreeListy v2.27.0 | Build 565 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 565): Image Analysis - Gemini Vision decomposes images into manipulable node trees with bounding box overlays
     Changelog (Build 564): Chrome extension screen awareness - capture_screen, extract_page, list_tabs commands via MCP Bridge
     Changelog (Build 563): New emails hyperedge - auto-create hyperedge grouping new items after Gmail refresh
     Changelog (Build 562): Gmail refresh via MCP Bridge - export script spawned by bridge.js, status feedback in UI
@@ -772,8 +773,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.26.0',
-            build: 564,
+            major: '2.27.0',
+            build: 565,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -13011,6 +13012,316 @@ TREELISTY CONTEXT:
         }
 
         // ═══════════════════════════════════════════════════════════════════════════
+        // BUILD 565: IMAGE ANALYSIS - Gemini Vision for object decomposition
+        // ═══════════════════════════════════════════════════════════════════════════
+
+        /**
+         * Prompt for Gemini to analyze images and return hierarchical object structure
+         * with bounding boxes in 0-1000 normalized coordinates
+         */
+        const IMAGE_ANALYSIS_PROMPT = `Analyze this image and identify all distinct objects, elements, and regions.
+
+Return a hierarchical JSON structure that groups objects into logical categories.
+
+CRITICAL: Return ONLY valid JSON, no markdown code blocks or extra text.
+
+For EACH detected object include:
+1. name: Brief descriptive name
+2. description: What is this object and its context/purpose
+3. itemType: One of "primary" | "secondary" | "background" | "text" | "ui-element"
+4. _bbox: Bounding box in Gemini's format { yMin, xMin, yMax, xMax } with values 0-1000
+5. _confidence: Detection confidence 0.0 to 1.0
+6. _detectedLabel: Original detection label
+
+IMPORTANT BOUNDING BOX FORMAT:
+- Use 0-1000 normalized coordinates (not pixels)
+- yMin = top edge, yMax = bottom edge
+- xMin = left edge, xMax = right edge
+- Example: An object in top-left quadrant: { yMin: 50, xMin: 50, yMax: 300, xMax: 400 }
+
+Return this exact JSON structure:
+{
+    "projectName": "Image Analysis: [2-4 word description]",
+    "phases": [
+        {
+            "name": "Category Name",
+            "icon": "[emoji]",
+            "items": [
+                {
+                    "name": "Object Name",
+                    "description": "What this is and its role in the image",
+                    "itemType": "primary",
+                    "_bbox": { "yMin": 100, "xMin": 200, "yMax": 400, "xMax": 500 },
+                    "_confidence": 0.95,
+                    "_detectedLabel": "person",
+                    "subItems": []
+                }
+            ]
+        }
+    ]
+}
+
+GROUPING RULES:
+- Group related objects into phases (e.g., "People", "Furniture", "UI Elements", "Text", "Background")
+- Use appropriate emojis for categories
+- Create subItems for objects that are parts of larger objects
+- Order phases by visual importance (foreground first)
+
+Be thorough - detect ALL visible objects, text, UI elements, and distinct regions.`;
+
+        /**
+         * Call Gemini Vision API with an image for analysis
+         * @param {string} imageDataUrl - Base64 data URL of the image
+         * @param {string} prompt - Analysis prompt
+         * @param {string} apiKey - Gemini API key
+         * @returns {Promise<string>} - Raw text response from Gemini
+         */
+        async function callGeminiVisionAPI(imageDataUrl, prompt, apiKey) {
+            console.log('🔍 Vision API: Calling Gemini 3 Flash with image');
+
+            // Extract base64 and media type from data URL
+            const matches = imageDataUrl.match(/^data:([^;]+);base64,(.+)$/);
+            if (!matches) {
+                throw new Error('Invalid image data format - expected data URL');
+            }
+            const mediaType = matches[1];
+            const base64Data = matches[2];
+
+            const geminiRequest = {
+                contents: [{
+                    parts: [
+                        {
+                            inline_data: {
+                                mime_type: mediaType,
+                                data: base64Data
+                            }
+                        },
+                        {
+                            text: prompt
+                        }
+                    ]
+                }],
+                generationConfig: {
+                    maxOutputTokens: 8192,
+                    temperature: 0.2  // Lower for consistent structured output
+                }
+            };
+
+            const response = await fetch(
+                `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash-exp:generateContent?key=${apiKey}`,
+                {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(geminiRequest)
+                }
+            );
+
+            if (!response.ok) {
+                const error = await response.json().catch(() => ({}));
+                throw new Error(error.error?.message || `Gemini Vision API error: ${response.status}`);
+            }
+
+            const data = await response.json();
+
+            if (!data.candidates?.[0]?.content?.parts?.[0]?.text) {
+                throw new Error('Invalid Gemini Vision response structure');
+            }
+
+            return data.candidates[0].content.parts[0].text;
+        }
+
+        /**
+         * Analyze an image and import as TreeListy tree
+         * @param {string} imageDataUrl - Base64 data URL of the image
+         * @returns {Promise<object>} - Analysis result
+         */
+        async function analyzeImageForTree(imageDataUrl) {
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                throw new Error('Gemini API key required. Set it in Settings → API Keys.');
+            }
+
+            console.log('🖼️ Starting image analysis with Gemini Vision...');
+
+            const responseText = await callGeminiVisionAPI(imageDataUrl, IMAGE_ANALYSIS_PROMPT, apiKey);
+
+            // Parse JSON from response (handle potential markdown wrapping)
+            let jsonStr = responseText.trim();
+
+            // Remove markdown code blocks if present
+            const jsonMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
+            if (jsonMatch) {
+                jsonStr = jsonMatch[1].trim();
+            }
+
+            let analysisResult;
+            try {
+                analysisResult = JSON.parse(jsonStr);
+            } catch (parseErr) {
+                console.error('Failed to parse Gemini response:', jsonStr);
+                throw new Error('Failed to parse image analysis response as JSON');
+            }
+
+            // Get image dimensions
+            const img = new Image();
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+                img.src = imageDataUrl;
+            });
+
+            // Store image metadata
+            analysisResult._imageAnalysis = {
+                sourceImage: imageDataUrl,
+                imageDimensions: {
+                    width: img.naturalWidth,
+                    height: img.naturalHeight
+                },
+                analysisTimestamp: new Date().toISOString(),
+                modelUsed: 'gemini-2.0-flash-exp',
+                showOverlays: true
+            };
+
+            console.log('✅ Image analysis complete:', {
+                phases: analysisResult.phases?.length,
+                dimensions: analysisResult._imageAnalysis.imageDimensions
+            });
+
+            return analysisResult;
+        }
+
+        /**
+         * Import image analysis as a new tree, replacing current tree
+         * @param {string} imageDataUrl - Base64 data URL of the image
+         */
+        async function importImageAnalysisTree(imageDataUrl) {
+            try {
+                showToast('🔍 Analyzing image with Gemini Vision...', 'info');
+
+                // Analyze the image
+                const analysisResult = await analyzeImageForTree(imageDataUrl);
+
+                // Count objects for toast
+                let objectCount = 0;
+                analysisResult.phases?.forEach(phase => {
+                    objectCount += phase.items?.length || 0;
+                    phase.items?.forEach(item => {
+                        objectCount += item.subItems?.length || 0;
+                    });
+                });
+
+                // Save current state for undo
+                saveState('Before image analysis import');
+
+                // Create new tree structure
+                const newTree = {
+                    type: 'root',
+                    id: 'root',
+                    name: analysisResult.projectName || 'Image Analysis',
+                    icon: '🖼️',
+                    expanded: true,
+                    hyperedges: [],
+                    _imageAnalysis: analysisResult._imageAnalysis,
+                    children: (analysisResult.phases || []).map((phase, phaseIdx) => ({
+                        type: 'phase',
+                        id: `phase-${phaseIdx}`,
+                        phase: phaseIdx,
+                        name: phase.name || `Category ${phaseIdx + 1}`,
+                        icon: phase.icon || '📦',
+                        expanded: true,
+                        items: (phase.items || []).map((item, itemIdx) => ({
+                            id: `item-${phaseIdx}-${itemIdx}`,
+                            name: item.name || 'Unknown Object',
+                            description: item.description || '',
+                            itemType: item.itemType || 'secondary',
+                            _bbox: item._bbox || null,
+                            _confidence: item._confidence || 0,
+                            _detectedLabel: item._detectedLabel || '',
+                            expanded: true,
+                            subItems: (item.subItems || []).map((sub, subIdx) => ({
+                                id: `subitem-${phaseIdx}-${itemIdx}-${subIdx}`,
+                                name: sub.name || 'Detail',
+                                description: sub.description || '',
+                                _bbox: sub._bbox || null,
+                                _confidence: sub._confidence || 0
+                            }))
+                        }))
+                    }))
+                };
+
+                // Replace current tree
+                capexTree = newTree;
+
+                // Position nodes based on bounding boxes
+                positionNodesFromBboxes();
+
+                // Switch to canvas view and render
+                switchView('canvas');
+                renderCanvas();
+                render();
+
+                showToast(`🎉 Detected ${objectCount} objects! View in Canvas mode.`, 'success');
+
+                return analysisResult;
+
+            } catch (err) {
+                console.error('Image analysis failed:', err);
+                showToast(`❌ Analysis failed: ${err.message}`, 'error');
+                throw err;
+            }
+        }
+
+        /**
+         * Position canvas nodes based on their bounding box locations
+         * Nodes are placed to the right of the image, Y-aligned with their bbox centers
+         */
+        function positionNodesFromBboxes() {
+            const imageData = capexTree._imageAnalysis;
+            if (!imageData?.imageDimensions) return;
+
+            const imgDims = imageData.imageDimensions;
+            // Scale image to 1000px width in canvas
+            const imgScale = 1000 / imgDims.width;
+            const scaledImgHeight = imgDims.height * imgScale;
+
+            // Node area starts to the right of the image with a gap
+            const nodeAreaOffsetX = 1000 + 150; // 1000px image + 150px gap
+
+            let nodeIndex = 0;
+
+            capexTree.children?.forEach((phase, phaseIdx) => {
+                // Position phase header
+                phase.canvasX = nodeAreaOffsetX;
+                phase.canvasY = 50 + phaseIdx * 400;
+
+                phase.items?.forEach((item, itemIdx) => {
+                    if (item._bbox) {
+                        // Y-align with bbox center
+                        const bboxCenterY = ((item._bbox.yMin + item._bbox.yMax) / 2 / 1000) * imgDims.height * imgScale;
+                        item.canvasX = nodeAreaOffsetX + 50;
+                        item.canvasY = Math.max(50, bboxCenterY - 60); // Offset to center node on bbox
+                    } else {
+                        // Default positioning
+                        item.canvasX = nodeAreaOffsetX + 50;
+                        item.canvasY = phase.canvasY + 80 + itemIdx * 140;
+                    }
+
+                    // Position subitems
+                    item.subItems?.forEach((sub, subIdx) => {
+                        sub.canvasX = item.canvasX + 350;
+                        sub.canvasY = item.canvasY + subIdx * 100;
+                    });
+
+                    nodeIndex++;
+                });
+            });
+
+            console.log('📍 Positioned nodes from bounding boxes');
+        }
+
+        // ═══════════════════════════════════════════════════════════════════════════
         // BUILD 442: TREEBEARD RESEARCH MODE - Web search via Gemini
         // ═══════════════════════════════════════════════════════════════════════════
 
@@ -16232,6 +16543,23 @@ Focus on logical structure and content organization best practices.`;
             drawConnections();
             // BUILD 421: Draw hyperedges after connections (was missing, causing show/hide bug)
             drawHyperedges();
+
+            // BUILD 565: Render image analysis overlays if present
+            if (capexTree._imageAnalysis) {
+                renderCanvasBackgroundImage();
+                drawBoundingBoxes();
+                // Show image analysis toolbar controls
+                const imgControls = document.getElementById('image-analysis-controls');
+                if (imgControls) imgControls.style.display = 'flex';
+            } else {
+                // Hide image analysis toolbar controls
+                const imgControls = document.getElementById('image-analysis-controls');
+                if (imgControls) imgControls.style.display = 'none';
+                // Hide background image if no analysis
+                const bgContainer = document.getElementById('canvas-background-image');
+                if (bgContainer) bgContainer.style.display = 'none';
+            }
+
             updateCanvasTransform();
             // BUILD 435: Update minimap after rendering
             if (typeof updateMinimap === 'function') updateMinimap();
@@ -18454,6 +18782,268 @@ Be specific and insightful, not generic.`;
 
         // =============================================================================
         // END HYPEREDGE VISUALIZATION
+        // =============================================================================
+
+        // =============================================================================
+        // BUILD 565: IMAGE ANALYSIS - Background Image & Bounding Box Rendering
+        // =============================================================================
+
+        /**
+         * Render the source image as a semi-transparent background on the canvas
+         * Image is scaled to 1000px width and positioned at SVG_OFFSET
+         */
+        function renderCanvasBackgroundImage() {
+            const bgContainer = document.getElementById('canvas-background-image');
+            const bgImg = document.getElementById('canvas-bg-img');
+
+            if (!bgContainer || !bgImg) return;
+
+            const imageData = capexTree._imageAnalysis;
+            if (!imageData?.sourceImage) {
+                bgContainer.style.display = 'none';
+                return;
+            }
+
+            // Set image source
+            bgImg.src = imageData.sourceImage;
+            bgContainer.style.display = 'block';
+
+            // Get dimensions and scale to 1000px width
+            const imgDims = imageData.imageDimensions;
+            if (!imgDims) return;
+
+            const targetWidth = 1000;
+            const scale = targetWidth / imgDims.width;
+            const scaledHeight = imgDims.height * scale;
+
+            bgImg.style.width = `${targetWidth}px`;
+            bgImg.style.height = `${scaledHeight}px`;
+
+            // Position at SVG_OFFSET to align with canvas coordinate system
+            bgContainer.style.left = `${SVG_OFFSET}px`;
+            bgContainer.style.top = `${SVG_OFFSET}px`;
+
+            // Update opacity from stored preference or default
+            bgContainer.style.opacity = imageData.bgOpacity || 0.4;
+
+            console.log('🖼️ Rendered background image:', { width: targetWidth, height: scaledHeight });
+        }
+
+        /**
+         * Draw bounding box overlays for all nodes with _bbox data
+         * Boxes are drawn on the canvas-bboxes SVG layer
+         */
+        function drawBoundingBoxes() {
+            const bboxSvg = document.getElementById('canvas-bboxes');
+            if (!bboxSvg) return;
+
+            // Clear existing bboxes
+            bboxSvg.innerHTML = '';
+
+            const imageData = capexTree._imageAnalysis;
+            if (!imageData?.showOverlays) return;
+
+            const imgDims = imageData.imageDimensions;
+            if (!imgDims) return;
+
+            // Scale factor: image is rendered at 1000px width
+            const targetWidth = 1000;
+            const imgScale = targetWidth / imgDims.width;
+
+            // Color map for different object types
+            const typeColors = {
+                'primary': { stroke: '#22C55E', fill: 'rgba(34, 197, 94, 0.15)' },      // Green
+                'secondary': { stroke: '#3B82F6', fill: 'rgba(59, 130, 246, 0.15)' },   // Blue
+                'background': { stroke: '#6B7280', fill: 'rgba(107, 114, 128, 0.1)' },  // Gray
+                'text': { stroke: '#F59E0B', fill: 'rgba(245, 158, 11, 0.15)' },        // Amber
+                'ui-element': { stroke: '#8B5CF6', fill: 'rgba(139, 92, 246, 0.15)' }   // Purple
+            };
+            const defaultColor = { stroke: '#EF4444', fill: 'rgba(239, 68, 68, 0.15)' }; // Red
+
+            // Collect all nodes with bounding boxes
+            const nodesWithBbox = [];
+            function collectNodes(node) {
+                if (node._bbox) nodesWithBbox.push(node);
+                (node.children || []).forEach(collectNodes);
+                (node.items || []).forEach(item => {
+                    if (item._bbox) nodesWithBbox.push(item);
+                    (item.subItems || item.children || []).forEach(collectNodes);
+                });
+            }
+            collectNodes(capexTree);
+
+            // Draw each bounding box
+            nodesWithBbox.forEach((node, idx) => {
+                const bbox = node._bbox;
+                if (!bbox) return;
+
+                // Convert Gemini 0-1000 coords to canvas pixels
+                // Gemini format: { yMin, xMin, yMax, xMax }
+                const x = (bbox.xMin / 1000) * imgDims.width * imgScale + SVG_OFFSET;
+                const y = (bbox.yMin / 1000) * imgDims.height * imgScale + SVG_OFFSET;
+                const width = ((bbox.xMax - bbox.xMin) / 1000) * imgDims.width * imgScale;
+                const height = ((bbox.yMax - bbox.yMin) / 1000) * imgDims.height * imgScale;
+
+                // Get color based on itemType
+                const colors = typeColors[node.itemType] || defaultColor;
+
+                // Create group for bbox elements
+                const group = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                group.setAttribute('data-node-id', node.id);
+                group.style.cursor = 'pointer';
+
+                // Create SVG rect
+                const rect = document.createElementNS('http://www.w3.org/2000/svg', 'rect');
+                rect.setAttribute('x', x);
+                rect.setAttribute('y', y);
+                rect.setAttribute('width', Math.max(width, 10));
+                rect.setAttribute('height', Math.max(height, 10));
+                rect.setAttribute('fill', colors.fill);
+                rect.setAttribute('stroke', colors.stroke);
+                rect.setAttribute('stroke-width', '2');
+                rect.setAttribute('stroke-dasharray', '6,3');
+                rect.setAttribute('rx', '4');
+                rect.style.transition = 'stroke-width 0.2s, opacity 0.2s';
+
+                // Add label above bbox
+                const label = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                label.setAttribute('x', x + 4);
+                label.setAttribute('y', y - 6);
+                label.setAttribute('fill', colors.stroke);
+                label.setAttribute('font-size', '11');
+                label.setAttribute('font-weight', '600');
+                label.style.textShadow = '0 0 4px rgba(0,0,0,0.9), 0 0 8px rgba(0,0,0,0.7)';
+                label.style.pointerEvents = 'none';
+                label.textContent = node.name?.substring(0, 25) || 'Object';
+
+                // Confidence badge
+                if (node._confidence) {
+                    const conf = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                    conf.setAttribute('x', x + width - 4);
+                    conf.setAttribute('y', y - 6);
+                    conf.setAttribute('fill', 'rgba(255,255,255,0.7)');
+                    conf.setAttribute('font-size', '10');
+                    conf.setAttribute('text-anchor', 'end');
+                    conf.style.textShadow = '0 0 4px rgba(0,0,0,0.9)';
+                    conf.style.pointerEvents = 'none';
+                    conf.textContent = `${Math.round(node._confidence * 100)}%`;
+                    group.appendChild(conf);
+                }
+
+                // Hover effects
+                group.addEventListener('mouseenter', () => {
+                    rect.setAttribute('stroke-width', '4');
+                    rect.setAttribute('stroke-dasharray', 'none');
+                    highlightCanvasNodeById(node.id);
+                });
+                group.addEventListener('mouseleave', () => {
+                    rect.setAttribute('stroke-width', '2');
+                    rect.setAttribute('stroke-dasharray', '6,3');
+                    unhighlightCanvasNodeById(node.id);
+                });
+                group.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    selectCanvasNodeById(node.id);
+                });
+
+                group.appendChild(rect);
+                group.appendChild(label);
+                bboxSvg.appendChild(group);
+
+                // Draw connecting line from bbox center to node card (if node has canvas position)
+                if (node.canvasX !== undefined && node.canvasY !== undefined) {
+                    const bboxCenterX = x + width / 2;
+                    const bboxCenterY = y + height / 2;
+                    const nodeCenterX = node.canvasX + 160 + SVG_OFFSET;
+                    const nodeCenterY = node.canvasY + 60 + SVG_OFFSET;
+
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', bboxCenterX);
+                    line.setAttribute('y1', bboxCenterY);
+                    line.setAttribute('x2', nodeCenterX);
+                    line.setAttribute('y2', nodeCenterY);
+                    line.setAttribute('stroke', colors.stroke);
+                    line.setAttribute('stroke-width', '1');
+                    line.setAttribute('stroke-dasharray', '4,4');
+                    line.setAttribute('opacity', '0.5');
+                    line.style.pointerEvents = 'none';
+
+                    bboxSvg.appendChild(line);
+                }
+            });
+
+            console.log(`📦 Drew ${nodesWithBbox.length} bounding boxes`);
+        }
+
+        /**
+         * Helper: Highlight a canvas node by its ID
+         */
+        function highlightCanvasNodeById(nodeId) {
+            const nodeEl = document.querySelector(`.canvas-node[data-id="${nodeId}"]`);
+            if (nodeEl) {
+                nodeEl.style.boxShadow = '0 0 20px rgba(99, 102, 241, 0.8), 0 4px 12px rgba(0,0,0,0.3)';
+                nodeEl.style.transform = 'scale(1.02)';
+            }
+        }
+
+        /**
+         * Helper: Remove highlight from a canvas node
+         */
+        function unhighlightCanvasNodeById(nodeId) {
+            const nodeEl = document.querySelector(`.canvas-node[data-id="${nodeId}"]`);
+            if (nodeEl) {
+                nodeEl.style.boxShadow = '';
+                nodeEl.style.transform = '';
+            }
+        }
+
+        /**
+         * Helper: Select/focus a canvas node by its ID
+         */
+        function selectCanvasNodeById(nodeId) {
+            const nodeEl = document.querySelector(`.canvas-node[data-id="${nodeId}"]`);
+            if (nodeEl) {
+                nodeEl.click();
+            }
+        }
+
+        /**
+         * Toggle bounding box overlay visibility
+         */
+        function toggleBoundingBoxOverlays() {
+            if (!capexTree._imageAnalysis) return;
+            capexTree._imageAnalysis.showOverlays = !capexTree._imageAnalysis.showOverlays;
+            renderCanvas();
+            const status = capexTree._imageAnalysis.showOverlays ? 'shown' : 'hidden';
+            showToast(`📦 Bounding boxes ${status}`, 'info');
+        }
+
+        /**
+         * Toggle background image visibility
+         */
+        function toggleBackgroundImage() {
+            const bgContainer = document.getElementById('canvas-background-image');
+            if (!bgContainer) return;
+            const isVisible = bgContainer.style.display !== 'none';
+            bgContainer.style.display = isVisible ? 'none' : 'block';
+            showToast(`🖼️ Background image ${isVisible ? 'hidden' : 'shown'}`, 'info');
+        }
+
+        /**
+         * Set background image opacity
+         */
+        function setBackgroundOpacity(value) {
+            const bgContainer = document.getElementById('canvas-background-image');
+            if (!bgContainer) return;
+            const opacity = Math.max(0, Math.min(1, value));
+            bgContainer.style.opacity = opacity;
+            if (capexTree._imageAnalysis) {
+                capexTree._imageAnalysis.bgOpacity = opacity;
+            }
+        }
+
+        // =============================================================================
+        // END IMAGE ANALYSIS RENDERING
         // =============================================================================
 
         function drawConnections() {
@@ -61234,9 +61824,66 @@ Slack data not available. To calculate slack:
 - \`extract_page\` - Get text content from page
 - \`list_tabs\` - Show open browser tabs
 - \`extension_status\` - Check connection status
+- \`analyze_image\` - Decompose screenshot into tree with bounding boxes
 `;
                 return helpText;
             },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 565: Image Analysis - Decompose images into tree structure
+            // ═══════════════════════════════════════════════════════════════
+
+            'analyze_image': async () => {
+                // Check if we have a recent screenshot
+                if (!window._lastScreenCapture?.screenshot) {
+                    // Try to capture first
+                    if (mcpBridgeState?.client?.isConnected) {
+                        addMessage('📷 Capturing screen first...', 'system');
+                        const statusResult = await sendExtensionRequest('get_status', {});
+                        if (statusResult?.connected) {
+                            const captureResult = await sendExtensionRequest('capture_screen', {});
+                            if (captureResult?.success && captureResult?.screenshot) {
+                                window._lastScreenCapture = captureResult;
+                                displayScreenshotInChat(captureResult.screenshot, captureResult.provenance);
+                            }
+                        }
+                    }
+                }
+
+                if (!window._lastScreenCapture?.screenshot) {
+                    return {
+                        message: '📷 **No Screenshot Available**\n\nCapture a screenshot first, then analyze it.',
+                        buttons: [
+                            { label: '📷 Capture Screen', action: 'capture_screen' }
+                        ]
+                    };
+                }
+
+                // Check for Gemini API key
+                const geminiKey = localStorage.getItem('gemini_api_key');
+                if (!geminiKey) {
+                    return {
+                        message: '🔑 **Gemini API Key Required**\n\nImage analysis uses Gemini Vision. Please set your API key in Settings.',
+                        buttons: [
+                            { label: '⚙️ Open Settings', action: 'show_settings' }
+                        ]
+                    };
+                }
+
+                // Perform the analysis
+                try {
+                    await importImageAnalysisTree(window._lastScreenCapture.screenshot);
+                    return null; // Success message handled by importImageAnalysisTree
+                } catch (err) {
+                    return `❌ Analysis failed: ${err.message}`;
+                }
+            },
+
+            // Aliases for analyze_image
+            'analyze': () => COMMAND_REGISTRY['analyze_image'](),
+            'analyze_screenshot': () => COMMAND_REGISTRY['analyze_image'](),
+            'image_to_tree': () => COMMAND_REGISTRY['analyze_image'](),
+            'decompose_image': () => COMMAND_REGISTRY['analyze_image'](),
 
             // ═══════════════════════════════════════════════════════════════
             // BUILD 560: Gmail Single-Email Commands (for focused node)
@@ -67399,7 +68046,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
                 // BUILD 538: Handle bare commands without parameters
                 // BUILD 564: Added extension_status, capture_screen, extract_page, list_tabs
-                const bareCmdMatch = lowerMessage.match(/^(focus_root|expand_node|collapse_node|project_info|help|search|add_phase|node_info|undo|redo|extension_status|capture_screen|extract_page|list_tabs|show_extension_help)$/);
+                const bareCmdMatch = lowerMessage.match(/^(focus_root|expand_node|collapse_node|project_info|help|search|add_phase|node_info|undo|redo|extension_status|capture_screen|extract_page|list_tabs|show_extension_help|analyze_image|analyze|analyze_screenshot|image_to_tree|decompose_image)$/);
                 if (bareCmdMatch) {
                     const cmdName = bareCmdMatch[1];
                     console.log(`🎯 Direct bare command: ${cmdName}`);
@@ -69357,7 +70004,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 564; // Update this with each build
+                    const KNOWN_LATEST = 565; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -69585,6 +70232,19 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 <span id="zoom-level" style="font-size: 12px; font-weight: 600; color: var(--treeplex-primary); min-width: 50px; text-align: center;">100%</span>
                 <button id="zoom-in" class="btn" style="padding: 6px 10px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; color: var(--text-primary); font-weight: 600; transition: all 0.2s;">+</button>
             </div>
+            <!-- BUILD 565: Image Analysis Controls (hidden by default, shown when _imageAnalysis exists) -->
+            <div id="image-analysis-controls" style="display: none; align-items: center; gap: 6px; margin-left: 8px; padding-left: 8px; border-left: 1px solid rgba(99, 102, 241, 0.2);">
+                <button id="bg-image-toggle" onclick="toggleBackgroundImage()" class="btn" style="padding: 6px 12px; background: rgba(59, 130, 246, 0.2); border: 1px solid rgba(59, 130, 246, 0.4); border-radius: 6px; color: #60A5FA; font-size: 12px; transition: all 0.2s;" title="Toggle background image">
+                    🖼️
+                </button>
+                <input type="range" id="bg-opacity-slider" min="10" max="80" value="40"
+                       onchange="setBackgroundOpacity(this.value / 100)"
+                       style="width: 60px; height: 4px; cursor: pointer;"
+                       title="Background opacity">
+                <button id="bbox-toggle" onclick="toggleBoundingBoxOverlays()" class="btn" style="padding: 6px 12px; background: rgba(34, 197, 94, 0.2); border: 1px solid rgba(34, 197, 94, 0.4); border-radius: 6px; color: #22C55E; font-size: 12px; transition: all 0.2s;" title="Toggle bounding boxes">
+                    📦
+                </button>
+            </div>
         </div>
 
         <!-- Selection Counter -->
@@ -69620,6 +70280,32 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 </defs>
                 <rect width="100%" height="100%" fill="url(#grid-pattern)" />
             </svg>
+
+            <!-- BUILD 565: Background Image Layer for Image Analysis -->
+            <div id="canvas-background-image" style="
+                position: absolute;
+                top: 0;
+                left: 0;
+                pointer-events: none;
+                z-index: 1;
+                opacity: 0.4;
+                display: none;
+                transition: opacity 0.3s ease;
+            ">
+                <img id="canvas-bg-img" style="max-width: none; border-radius: 8px; box-shadow: 0 4px 20px rgba(0,0,0,0.5);" />
+            </div>
+
+            <!-- BUILD 565: Bounding Box Overlay Layer for Image Analysis -->
+            <svg id="canvas-bboxes" style="
+                position: absolute;
+                width: 20000px;
+                height: 20000px;
+                left: -5000px;
+                top: -5000px;
+                pointer-events: none;
+                z-index: 2;
+            "></svg>
+
             <svg class="canvas-connections" id="canvas-connections"></svg>
         </div>
     </div>
