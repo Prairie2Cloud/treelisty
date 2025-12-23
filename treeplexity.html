@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.24.0 | Build 551 | 2025-12-22
+    TreeListy v2.25.0 | Build 552 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 552): TreeBeard Gmail commands + Send button - batch archive/trash/star, mandatory preview, rate-limited queue
     Changelog (Build 551): Draft Composition - Quick Reply box, Compose modal, IndexedDB draft storage, conflict resolution
     Changelog (Build 550): Gmail Bidirectional Sync - Archive/Trash/Star/Mark Read buttons with 10s undo toast
     Changelog (Build 548): Reply/Forward buttons in email reader (opens Gmail compose)
@@ -763,9 +764,9 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.24.0',
-            build: 551,
-            date: '2025-12-22',
+            major: '2.25.0',
+            build: 552,
+            date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -7898,13 +7899,16 @@ The AI will analyze the structure and convert it to a tree."
                 </div>
             </div>
 
-            <!-- Action Buttons (NO SEND - Phase 2) -->
+            <!-- Action Buttons (BUILD 552: Added Send button with confirmation) -->
             <div style="padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: flex-end; background: var(--bg-secondary);">
                 <button class="btn" onclick="discardDraft()" style="background: rgba(239, 68, 68, 0.1); border-color: #ef4444; color: #ef4444;">
                     🗑️ Discard
                 </button>
-                <button class="btn" onclick="saveDraftToGmailFromModal()" style="background: rgba(139, 92, 246, 0.2); border-color: #8b5cf6; color: #8b5cf6; font-weight: 500;">
-                    ☁️ Save to Gmail Drafts
+                <button class="btn" onclick="saveDraftToGmailFromModal()" style="background: rgba(139, 92, 246, 0.2); border-color: #8b5cf6; color: #8b5cf6;">
+                    ☁️ Save Draft
+                </button>
+                <button class="btn" onclick="showSendConfirmModal()" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #10b981; font-weight: 500;">
+                    📤 Send
                 </button>
             </div>
         </div>
@@ -7933,6 +7937,78 @@ The AI will analyze the structure and convert it to a tree."
             <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.1);">
                 <button class="btn" onclick="resolveConflict('discard')" style="background: rgba(100,100,100,0.2);">Keep Gmail</button>
                 <button class="btn" onclick="resolveConflict('overwrite')" style="background: rgba(139, 92, 246, 0.2); border-color: #8b5cf6;">Keep Mine</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 552: Batch Gmail Preview Modal -->
+    <div class="modal" id="batch-preview-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header" id="batch-preview-header" style="background: linear-gradient(135deg, #3b82f6, #6366f1);">
+                <span id="batch-preview-title">📧 Batch Action Preview</span>
+                <button class="modal-close" onclick="closeBatchPreviewModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px; flex: 1; overflow-y: auto;">
+                <div id="batch-preview-summary" style="padding: 16px; background: rgba(59, 130, 246, 0.1); border-radius: 8px; margin-bottom: 16px;">
+                    <!-- Summary goes here -->
+                </div>
+                <div style="font-size: 12px; font-weight: 600; color: var(--text-secondary); margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.5px;">
+                    Preview (showing up to 10):
+                </div>
+                <div id="batch-preview-list" style="display: flex; flex-direction: column; gap: 8px; max-height: 300px; overflow-y: auto;">
+                    <!-- Email list goes here -->
+                </div>
+                <div id="batch-preview-more" style="margin-top: 12px; font-size: 12px; color: var(--text-secondary); font-style: italic;">
+                    <!-- "and X more..." -->
+                </div>
+            </div>
+            <div style="padding: 16px 20px; border-top: 1px solid var(--border); display: flex; gap: 12px; justify-content: space-between; background: var(--bg-secondary);">
+                <div id="batch-progress" style="display: none; align-items: center; gap: 8px;">
+                    <div style="width: 150px; height: 6px; background: rgba(255,255,255,0.1); border-radius: 3px; overflow: hidden;">
+                        <div id="batch-progress-bar" style="width: 0%; height: 100%; background: #3b82f6; transition: width 0.3s;"></div>
+                    </div>
+                    <span id="batch-progress-text" style="font-size: 11px; color: var(--text-secondary);">0/0</span>
+                </div>
+                <div style="display: flex; gap: 12px; margin-left: auto;">
+                    <button class="btn" onclick="closeBatchPreviewModal()">Cancel</button>
+                    <button id="batch-confirm-btn" class="btn" onclick="executeBatchAction()" style="background: rgba(59, 130, 246, 0.2); border-color: #3b82f6; color: #3b82f6; font-weight: 500;">
+                        Confirm
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 552: Send Confirmation Modal -->
+    <div class="modal" id="send-confirm-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 450px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #10b981, #059669);">
+                <span>📤 Confirm Send</span>
+                <button class="modal-close" onclick="closeSendConfirmModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <p style="font-size: 15px; line-height: 1.6; margin-bottom: 16px;">
+                    Ready to send this email?
+                </p>
+                <div style="background: rgba(16, 185, 129, 0.1); border-radius: 8px; padding: 16px;">
+                    <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                        <span style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">To:</span>
+                        <span id="send-confirm-to" style="font-size: 14px; color: var(--text-primary);"></span>
+                    </div>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span style="font-size: 12px; font-weight: 500; color: var(--text-secondary);">Subject:</span>
+                        <span id="send-confirm-subject" style="font-size: 14px; color: var(--text-primary);"></span>
+                    </div>
+                </div>
+                <p style="font-size: 12px; color: var(--text-secondary); margin-top: 16px; font-style: italic;">
+                    ⚠️ This will send the email immediately via Gmail.
+                </p>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.1);">
+                <button class="btn" onclick="closeSendConfirmModal()">Cancel</button>
+                <button class="btn" onclick="confirmSendDraft()" style="background: rgba(16, 185, 129, 0.2); border-color: #10b981; color: #10b981; font-weight: 500;">
+                    Send Now
+                </button>
             </div>
         </div>
     </div>
@@ -39956,6 +40032,307 @@ https://treelisty.netlify.app`;
         initDraftDB();
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 552: Batch Gmail Operations + Send (Phase 3)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Rate limiting queue for batch operations
+        const gmailRateLimitQueue = {
+            queue: [],
+            processing: false,
+            concurrency: 2,
+            baseDelay: 500,
+            maxDelay: 5000,
+            currentDelay: 500,
+            consecutiveErrors: 0
+        };
+
+        /**
+         * Show batch preview modal
+         */
+        function showBatchPreviewModal(action, emails) {
+            const actionLabels = {
+                archive: { emoji: '📥', text: 'Archive', color: '#3b82f6' },
+                trash: { emoji: '🗑️', text: 'Move to Trash', color: '#ef4444' },
+                star: { emoji: '⭐', text: 'Star', color: '#f59e0b' },
+                mark_read: { emoji: '✓', text: 'Mark as Read', color: '#10b981' }
+            };
+
+            const config = actionLabels[action] || actionLabels.archive;
+
+            // Update header
+            document.getElementById('batch-preview-title').textContent = `${config.emoji} ${config.text} Preview`;
+            document.getElementById('batch-preview-header').style.background =
+                `linear-gradient(135deg, ${config.color}, ${config.color}aa)`;
+
+            // Update summary
+            document.getElementById('batch-preview-summary').innerHTML = `
+                <div style="display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 24px;">${config.emoji}</span>
+                    <div>
+                        <div style="font-size: 16px; font-weight: 600; color: var(--text-primary);">
+                            ${config.text} ${emails.length} email${emails.length !== 1 ? 's' : ''}
+                        </div>
+                        <div style="font-size: 12px; color: var(--text-secondary); margin-top: 4px;">
+                            This action will be applied to Gmail via MCP Bridge
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Update confirm button color
+            const confirmBtn = document.getElementById('batch-confirm-btn');
+            confirmBtn.style.borderColor = config.color;
+            confirmBtn.style.color = config.color;
+            confirmBtn.style.background = `${config.color}20`;
+            confirmBtn.textContent = `${config.emoji} ${config.text} All`;
+
+            // Show email list (max 10)
+            const listEl = document.getElementById('batch-preview-list');
+            listEl.innerHTML = emails.slice(0, 10).map(email => `
+                <div style="padding: 10px 12px; background: rgba(0,0,0,0.2); border-radius: 8px; display: flex; align-items: center; gap: 12px;">
+                    <span style="font-size: 16px;">${email.unread ? '📧' : '📨'}</span>
+                    <div style="flex: 1; min-width: 0;">
+                        <div style="font-size: 13px; font-weight: 500; color: var(--text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">
+                            ${email.name || '(No subject)'}
+                        </div>
+                        <div style="font-size: 11px; color: var(--text-secondary);">
+                            ${email.senderEmail || 'Unknown sender'}
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+
+            // Show "and X more" if needed
+            const moreEl = document.getElementById('batch-preview-more');
+            if (emails.length > 10) {
+                moreEl.textContent = `... and ${emails.length - 10} more`;
+                moreEl.style.display = 'block';
+            } else {
+                moreEl.style.display = 'none';
+            }
+
+            // Reset progress
+            document.getElementById('batch-progress').style.display = 'none';
+            document.getElementById('batch-progress-bar').style.width = '0%';
+
+            // Show modal
+            document.getElementById('batch-preview-modal').style.display = 'flex';
+        }
+        window.showBatchPreviewModal = showBatchPreviewModal;
+
+        /**
+         * Close batch preview modal
+         */
+        function closeBatchPreviewModal() {
+            document.getElementById('batch-preview-modal').style.display = 'none';
+            window.pendingBatchAction = null;
+        }
+        window.closeBatchPreviewModal = closeBatchPreviewModal;
+
+        /**
+         * Execute batch action with rate limiting
+         */
+        async function executeBatchAction() {
+            const pending = window.pendingBatchAction;
+            if (!pending) return;
+
+            const { action, emails } = pending;
+            const toolMap = {
+                archive: 'gmail_archive',
+                trash: 'gmail_trash',
+                star: 'gmail_star',
+                mark_read: 'gmail_mark_read'
+            };
+
+            const toolName = toolMap[action];
+            if (!toolName) {
+                showToast('Unknown action', 'error');
+                return;
+            }
+
+            // Show progress
+            document.getElementById('batch-progress').style.display = 'flex';
+            document.getElementById('batch-confirm-btn').disabled = true;
+            document.getElementById('batch-confirm-btn').textContent = 'Processing...';
+
+            let completed = 0;
+            let failed = 0;
+            const total = emails.length;
+
+            // Process with rate limiting (concurrency 2, backoff on errors)
+            const processEmail = async (email) => {
+                try {
+                    // Add jitter to prevent thundering herd
+                    const jitter = Math.random() * 200;
+                    await new Promise(r => setTimeout(r, gmailRateLimitQueue.currentDelay + jitter));
+
+                    const result = await executeGmailAction(toolName, { thread_id: email.threadId }, email.threadId);
+
+                    if (result.success) {
+                        completed++;
+                        gmailRateLimitQueue.consecutiveErrors = 0;
+                        gmailRateLimitQueue.currentDelay = gmailRateLimitQueue.baseDelay;
+
+                        // Update node state
+                        if (action === 'archive') email._gmailSynced = 'archived';
+                        else if (action === 'trash') email._gmailSynced = 'trashed';
+                        else if (action === 'star') email.starred = true;
+                        else if (action === 'mark_read') email.unread = false;
+                    } else {
+                        failed++;
+                        gmailRateLimitQueue.consecutiveErrors++;
+                        // Exponential backoff with max
+                        gmailRateLimitQueue.currentDelay = Math.min(
+                            gmailRateLimitQueue.currentDelay * 2,
+                            gmailRateLimitQueue.maxDelay
+                        );
+                    }
+                } catch (err) {
+                    failed++;
+                    gmailRateLimitQueue.consecutiveErrors++;
+                    gmailRateLimitQueue.currentDelay = Math.min(
+                        gmailRateLimitQueue.currentDelay * 2,
+                        gmailRateLimitQueue.maxDelay
+                    );
+                }
+
+                // Update progress
+                const progress = ((completed + failed) / total) * 100;
+                document.getElementById('batch-progress-bar').style.width = `${progress}%`;
+                document.getElementById('batch-progress-text').textContent = `${completed + failed}/${total}`;
+            };
+
+            // Process in batches of 2 (concurrency limit)
+            for (let i = 0; i < emails.length; i += gmailRateLimitQueue.concurrency) {
+                const batch = emails.slice(i, i + gmailRateLimitQueue.concurrency);
+                await Promise.all(batch.map(processEmail));
+            }
+
+            // Done
+            closeBatchPreviewModal();
+            render();
+
+            if (failed === 0) {
+                showToast(`✅ ${completed} emails processed successfully`, 'success');
+            } else {
+                showToast(`⚠️ ${completed} succeeded, ${failed} failed`, 'warning');
+            }
+        }
+        window.executeBatchAction = executeBatchAction;
+
+        /**
+         * Show send confirmation modal
+         */
+        function showSendConfirmModal() {
+            const to = document.getElementById('compose-to').value;
+            const subject = document.getElementById('compose-subject').value;
+
+            if (!to || !document.getElementById('compose-body').value) {
+                showToast('Please fill in recipient and message', 'warning');
+                return;
+            }
+
+            document.getElementById('send-confirm-to').textContent = to;
+            document.getElementById('send-confirm-subject').textContent = subject || '(No subject)';
+            document.getElementById('send-confirm-modal').style.display = 'flex';
+        }
+        window.showSendConfirmModal = showSendConfirmModal;
+
+        /**
+         * Close send confirmation modal
+         */
+        function closeSendConfirmModal() {
+            document.getElementById('send-confirm-modal').style.display = 'none';
+        }
+        window.closeSendConfirmModal = closeSendConfirmModal;
+
+        /**
+         * Confirm and send draft
+         */
+        async function confirmSendDraft() {
+            if (!isMCPBridgeConnected()) {
+                showToast('MCP Bridge not connected', 'error');
+                closeSendConfirmModal();
+                return;
+            }
+
+            const nodeId = document.getElementById('compose-node-id').value;
+            const draftId = document.getElementById('compose-draft-id').value;
+
+            closeSendConfirmModal();
+            updateComposeStatus('syncing');
+
+            // If draft exists in Gmail, send it; otherwise create and send
+            if (draftId) {
+                const result = await sendGmailAction('gmail_send_draft', { draft_id: draftId });
+                if (result.success) {
+                    // Delete local draft
+                    await deleteDraftLocal(nodeId);
+
+                    // Clear compose
+                    document.getElementById('compose-body').value = '';
+                    document.getElementById('compose-draft-id').value = '';
+
+                    closeComposeModal();
+                    showToast('📤 Email sent successfully!', 'success');
+
+                    // Update node state
+                    const node = findNodeById(nodeId);
+                    if (node) {
+                        node._gmailSynced = 'replied';
+                        render();
+                    }
+                } else {
+                    updateComposeStatus('error');
+                    showToast(result.error || 'Failed to send', 'error');
+                }
+            } else {
+                // Create draft and send immediately
+                const draft = {
+                    threadId: document.getElementById('compose-thread-id').value,
+                    to: document.getElementById('compose-to').value,
+                    cc: document.getElementById('compose-cc').value,
+                    bcc: document.getElementById('compose-bcc').value,
+                    subject: document.getElementById('compose-subject').value,
+                    body: document.getElementById('compose-body').value
+                };
+
+                // Create draft first
+                const createResult = await sendGmailAction('gmail_create_draft', {
+                    thread_id: draft.threadId,
+                    to: draft.to,
+                    subject: draft.subject,
+                    body: draft.body,
+                    cc: draft.cc || undefined,
+                    bcc: draft.bcc || undefined
+                });
+
+                if (createResult.success && createResult.draftId) {
+                    // Now send it
+                    const sendResult = await sendGmailAction('gmail_send_draft', { draft_id: createResult.draftId });
+                    if (sendResult.success) {
+                        await deleteDraftLocal(nodeId);
+                        closeComposeModal();
+                        showToast('📤 Email sent successfully!', 'success');
+
+                        const node = findNodeById(nodeId);
+                        if (node) {
+                            node._gmailSynced = 'replied';
+                            render();
+                        }
+                    } else {
+                        updateComposeStatus('error');
+                        showToast(sendResult.error || 'Failed to send', 'error');
+                    }
+                } else {
+                    updateComposeStatus('error');
+                    showToast(createResult.error || 'Failed to create draft', 'error');
+                }
+            }
+        }
+        window.confirmSendDraft = confirmSendDraft;
+
+        // ═══════════════════════════════════════════════════════════════
         // End Gmail Sync Functions
         // ═══════════════════════════════════════════════════════════════
 
@@ -60012,6 +60389,164 @@ Slack data not available. To calculate slack:
             'refresh_drive': () => COMMAND_REGISTRY['sync_drive'](),
             'refresh_gmail': () => COMMAND_REGISTRY['sync_gmail'](),
 
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 552: Gmail Batch Commands (Phase 3)
+            // ═══════════════════════════════════════════════════════════════
+
+            // Helper: Find email nodes matching criteria
+            '_gmail_find_emails': (criteria) => {
+                const getAllNodesFlat = COMMAND_REGISTRY['_getAllNodesFlat'];
+                const allNodes = getAllNodesFlat();
+                const emailNodes = allNodes.filter(n => n.threadId);
+
+                if (!criteria || criteria === 'all') return emailNodes;
+
+                const lowerCriteria = criteria.toLowerCase();
+
+                // Filter by various criteria
+                return emailNodes.filter(n => {
+                    // By folder/phase
+                    if (lowerCriteria.includes('inbox') && n.parent?.name?.toLowerCase()?.includes('inbox')) return true;
+                    if (lowerCriteria.includes('done') && (n.status === 'completed' || n.parent?.name?.toLowerCase()?.includes('done'))) return true;
+                    if (lowerCriteria.includes('archived') && n._gmailSynced === 'archived') return true;
+
+                    // By sender
+                    if (n.senderEmail?.toLowerCase()?.includes(lowerCriteria)) return true;
+
+                    // By subject
+                    if (n.name?.toLowerCase()?.includes(lowerCriteria)) return true;
+
+                    // By read status
+                    if (lowerCriteria.includes('unread') && n.unread) return true;
+                    if (lowerCriteria.includes('read') && !lowerCriteria.includes('unread') && !n.unread) return true;
+
+                    // By starred status
+                    if (lowerCriteria.includes('starred') && n.starred) return true;
+
+                    return false;
+                });
+            },
+
+            // Archive batch of emails
+            'gmail_batch_archive': async (criteria) => {
+                if (!isMCPBridgeConnected()) {
+                    return {
+                        message: '🔴 **Not Connected to MCP Bridge**\n\nStart the bridge and reconnect to use Gmail batch commands.',
+                        buttons: [{ label: '🔌 Connect', action: 'show_mcp_connect' }]
+                    };
+                }
+
+                const emails = COMMAND_REGISTRY['_gmail_find_emails'](criteria);
+                if (emails.length === 0) {
+                    return `📭 No emails found matching "${criteria || 'all'}"`;
+                }
+
+                // Store for batch preview
+                window.pendingBatchAction = {
+                    action: 'archive',
+                    emails,
+                    criteria
+                };
+
+                // Show preview modal
+                showBatchPreviewModal('archive', emails);
+
+                return {
+                    message: `📧 Found **${emails.length} emails** matching "${criteria || 'all'}".\n\nReview in the preview modal before proceeding.`,
+                    buttons: null
+                };
+            },
+
+            // Trash batch of emails
+            'gmail_batch_trash': async (criteria) => {
+                if (!isMCPBridgeConnected()) {
+                    return {
+                        message: '🔴 **Not Connected to MCP Bridge**',
+                        buttons: [{ label: '🔌 Connect', action: 'show_mcp_connect' }]
+                    };
+                }
+
+                const emails = COMMAND_REGISTRY['_gmail_find_emails'](criteria);
+                if (emails.length === 0) {
+                    return `📭 No emails found matching "${criteria || 'all'}"`;
+                }
+
+                window.pendingBatchAction = {
+                    action: 'trash',
+                    emails,
+                    criteria
+                };
+
+                showBatchPreviewModal('trash', emails);
+
+                return {
+                    message: `🗑️ Found **${emails.length} emails** to trash.\n\n⚠️ This moves them to Gmail Trash (recoverable for 30 days).`,
+                    buttons: null
+                };
+            },
+
+            // Star batch of emails
+            'gmail_batch_star': async (criteria) => {
+                if (!isMCPBridgeConnected()) {
+                    return {
+                        message: '🔴 **Not Connected to MCP Bridge**',
+                        buttons: [{ label: '🔌 Connect', action: 'show_mcp_connect' }]
+                    };
+                }
+
+                const emails = COMMAND_REGISTRY['_gmail_find_emails'](criteria);
+                if (emails.length === 0) {
+                    return `📭 No emails found matching "${criteria || 'all'}"`;
+                }
+
+                window.pendingBatchAction = {
+                    action: 'star',
+                    emails,
+                    criteria
+                };
+
+                showBatchPreviewModal('star', emails);
+
+                return {
+                    message: `⭐ Found **${emails.length} emails** to star.`,
+                    buttons: null
+                };
+            },
+
+            // Mark read batch of emails
+            'gmail_batch_mark_read': async (criteria) => {
+                if (!isMCPBridgeConnected()) {
+                    return {
+                        message: '🔴 **Not Connected to MCP Bridge**',
+                        buttons: [{ label: '🔌 Connect', action: 'show_mcp_connect' }]
+                    };
+                }
+
+                const emails = COMMAND_REGISTRY['_gmail_find_emails'](criteria);
+                if (emails.length === 0) {
+                    return `📭 No emails found matching "${criteria || 'all'}"`;
+                }
+
+                window.pendingBatchAction = {
+                    action: 'mark_read',
+                    emails,
+                    criteria
+                };
+
+                showBatchPreviewModal('mark_read', emails);
+
+                return {
+                    message: `✓ Found **${emails.length} emails** to mark as read.`,
+                    buttons: null
+                };
+            },
+
+            // Natural language aliases
+            'archive_emails': (criteria) => COMMAND_REGISTRY['gmail_batch_archive'](criteria),
+            'trash_emails': (criteria) => COMMAND_REGISTRY['gmail_batch_trash'](criteria),
+            'star_emails': (criteria) => COMMAND_REGISTRY['gmail_batch_star'](criteria),
+            'mark_emails_read': (criteria) => COMMAND_REGISTRY['gmail_batch_mark_read'](criteria),
+
             // BUILD 527: Helper to get all nodes as flat array
             '_getAllNodesFlat': () => {
                 const nodes = [];
@@ -67756,7 +68291,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 551; // Update this with each build
+                    const KNOWN_LATEST = 552; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);

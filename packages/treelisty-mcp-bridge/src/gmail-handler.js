@@ -765,6 +765,39 @@ async function listDrafts() {
   }
 }
 
+/**
+ * Send a draft (Build 552 - Phase 3)
+ * @param {string} draftId - Draft ID to send
+ */
+async function sendDraft(draftId) {
+  const gmail = await getGmailClient();
+  if (gmail.error) return gmail;
+
+  try {
+    const response = await gmail.users.drafts.send({
+      userId: 'me',
+      requestBody: {
+        id: draftId
+      }
+    });
+
+    return {
+      success: true,
+      action: 'send_draft',
+      messageId: response.data.id,
+      threadId: response.data.threadId,
+      message: 'Email sent successfully'
+    };
+  } catch (err) {
+    return {
+      success: false,
+      action: 'send_draft',
+      draftId,
+      error: err.message
+    };
+  }
+}
+
 // =============================================================================
 // Exports
 // =============================================================================
@@ -787,5 +820,7 @@ module.exports = {
   updateDraft,
   getDraft,
   deleteDraft,
-  listDrafts
+  listDrafts,
+  // Send operation (Build 552)
+  sendDraft
 };

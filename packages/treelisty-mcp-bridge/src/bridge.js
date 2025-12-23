@@ -1104,6 +1104,18 @@ function handleToolsList(id) {
         type: 'object',
         properties: {}
       }
+    },
+    // Send operation (Build 552)
+    {
+      name: 'gmail_send_draft',
+      description: 'Send a draft email immediately.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          draft_id: { type: 'string', description: 'Draft ID to send' }
+        },
+        required: ['draft_id']
+      }
     }
   ];
 
@@ -1395,6 +1407,15 @@ async function handleGmailTool(id, name, args) {
 
       case 'gmail_list_drafts':
         result = await gmailHandler.listDrafts();
+        break;
+
+      // Send operation (Build 552)
+      case 'gmail_send_draft':
+        if (!args.draft_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: draft_id');
+          return;
+        }
+        result = await gmailHandler.sendDraft(args.draft_id);
         break;
 
       default:
