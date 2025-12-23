@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 563 | 2025-12-23
+    TreeListy v2.26.0 | Build 564 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 564): Chrome extension screen awareness - capture_screen, extract_page, list_tabs commands via MCP Bridge
     Changelog (Build 563): New emails hyperedge - auto-create hyperedge grouping new items after Gmail refresh
     Changelog (Build 562): Gmail refresh via MCP Bridge - export script spawned by bridge.js, status feedback in UI
     Changelog (Build 561): Refresh button for Gmail/GDrive trees - appears in header when viewing synced content
@@ -771,8 +772,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.25.0',
-            build: 563,
+            major: '2.26.0',
+            build: 564,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -39569,6 +39570,107 @@ https://treelisty.netlify.app`;
         }
 
         /**
+         * Send extension request to MCP Bridge (Build 564)
+         * Routes to Chrome extension via bridge WebSocket
+         */
+        async function sendExtensionRequest(action, params = {}) {
+            if (!isMCPBridgeConnected()) {
+                return { connected: false, error: 'not_connected' };
+            }
+
+            return new Promise((resolve) => {
+                const requestId = `ext-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+
+                // Store resolver for this request
+                if (!window.pendingExtensionRequests) window.pendingExtensionRequests = new Map();
+                window.pendingExtensionRequests.set(requestId, resolve);
+
+                const request = {
+                    type: 'extension_request',
+                    id: requestId,
+                    action: action,
+                    params: params
+                };
+                console.log('[Extension] Sending request:', action, requestId);
+
+                mcpBridgeState.client.socket.send(JSON.stringify(request));
+
+                // Timeout after 15 seconds
+                setTimeout(() => {
+                    if (window.pendingExtensionRequests.has(requestId)) {
+                        console.log('[Extension] Request timed out:', requestId);
+                        window.pendingExtensionRequests.delete(requestId);
+                        resolve({ success: false, error: 'timeout' });
+                    }
+                }, 15000);
+            });
+        }
+
+        /**
+         * Display screenshot in TreeBeard chat (Build 564)
+         * User sees image before any AI processing
+         */
+        function displayScreenshotInChat(dataUrl, provenance = {}) {
+            const chatOutput = document.getElementById('chat-assistant-output');
+            if (!chatOutput) return;
+
+            const container = document.createElement('div');
+            container.className = 'chat-message system screenshot-message';
+            container.style.cssText = `
+                margin: 12px 0;
+                padding: 12px;
+                background: rgba(139, 92, 246, 0.05);
+                border: 1px solid rgba(139, 92, 246, 0.2);
+                border-radius: 12px;
+            `;
+
+            const header = document.createElement('div');
+            header.style.cssText = `
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 8px;
+                font-size: 12px;
+                color: var(--text-secondary, #888);
+            `;
+            header.innerHTML = `
+                <span>📷 ${provenance.domain || 'Screenshot'}</span>
+                <span>${provenance.capturedAt ? new Date(provenance.capturedAt).toLocaleTimeString() : ''}</span>
+            `;
+            container.appendChild(header);
+
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.alt = `Screenshot of ${provenance.tabTitle || 'browser tab'}`;
+            img.style.cssText = `
+                max-width: 100%;
+                border-radius: 8px;
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                cursor: pointer;
+            `;
+            img.onclick = () => {
+                // Open in new tab for full view
+                const win = window.open();
+                win.document.write(`<img src="${dataUrl}" style="max-width:100%">`);
+            };
+            container.appendChild(img);
+
+            if (provenance.dimensions) {
+                const dims = document.createElement('div');
+                dims.style.cssText = `
+                    font-size: 11px;
+                    color: var(--text-secondary, #666);
+                    margin-top: 6px;
+                `;
+                dims.textContent = `${provenance.dimensions.width}×${provenance.dimensions.height}px`;
+                container.appendChild(dims);
+            }
+
+            chatOutput.appendChild(container);
+            chatOutput.scrollTop = chatOutput.scrollHeight;
+        }
+
+        /**
          * Show undo toast with countdown
          */
         function showUndoToast(action, threadId, nodeId, undoCallback, duration = 10000) {
@@ -40962,6 +41064,45 @@ https://treelisty.netlify.app`;
                             resolve({ success: false, error: message.error.message || 'Unknown error' });
                         } else {
                             resolve(message.result);
+                        }
+                        return;
+                    }
+
+                    // BUILD 564: Handle extension responses
+                    if (message.type === 'extension_result' && message.requestId) {
+                        console.log('[Extension] Received result for:', message.requestId);
+                        if (window.pendingExtensionRequests && window.pendingExtensionRequests.has(message.requestId)) {
+                            const resolve = window.pendingExtensionRequests.get(message.requestId);
+                            window.pendingExtensionRequests.delete(message.requestId);
+
+                            if (message.error) {
+                                resolve({ success: false, error: message.error });
+                            } else {
+                                resolve(message.result);
+                            }
+                        }
+                        return;
+                    }
+
+                    // BUILD 564: Handle extension connection notifications
+                    if (message.type === 'extension_connected') {
+                        console.log('[Extension] Connected:', message.clientId, message.capabilities);
+                        showToast(`📷 Screen capture extension connected`, 'success');
+                        return;
+                    }
+
+                    if (message.type === 'extension_disconnected') {
+                        console.log('[Extension] Disconnected:', message.clientId);
+                        showToast(`📷 Screen capture extension disconnected`, 'info');
+                        return;
+                    }
+
+                    // BUILD 564: Handle manual capture from extension (user clicked extension icon)
+                    if (message.type === 'extension_capture') {
+                        console.log('[Extension] Manual capture received');
+                        if (message.result?.success && message.result?.screenshot) {
+                            displayScreenshotInChat(message.result.screenshot, message.result.provenance);
+                            window._lastScreenCapture = message.result;
                         }
                         return;
                     }
@@ -60873,6 +61014,124 @@ Slack data not available. To calculate slack:
             'refresh_gmail': () => COMMAND_REGISTRY['sync_gmail'](),
 
             // ═══════════════════════════════════════════════════════════════
+            // BUILD 564: Chrome Extension Screen Awareness Commands
+            // ═══════════════════════════════════════════════════════════════
+
+            'capture_screen': async () => {
+                if (!mcpBridgeState?.client?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected**\n\nTo capture screen, connect to the MCP Bridge first.',
+                        buttons: [{ label: '🔗 Connect', action: 'show_mcp_connect' }]
+                    };
+                }
+
+                // Check extension status first
+                const statusResult = await sendExtensionRequest('get_status', {});
+                if (!statusResult?.connected) {
+                    return {
+                        message: '📷 **Chrome Extension Not Connected**\n\nInstall the TreeListy Screen Awareness extension and configure the pairing token.',
+                        buttons: [
+                            { label: '📖 Setup Guide', action: 'show_extension_help' }
+                        ]
+                    };
+                }
+
+                // Request capture
+                addMessage('📷 Capturing screen...', 'system');
+                const result = await sendExtensionRequest('capture_screen', {});
+
+                if (result?.success && result?.screenshot) {
+                    // Display screenshot in chat
+                    displayScreenshotInChat(result.screenshot, result.provenance);
+
+                    // Store for optional vision analysis
+                    window._lastScreenCapture = result;
+
+                    return `📷 **Captured:** ${result.provenance?.domain || 'Unknown'}\n\n[🔍 Analyze with Vision](#analyze-screenshot)`;
+                }
+
+                return `❌ Capture failed: ${result?.error || 'Unknown error'}`;
+            },
+
+            'extract_page': async () => {
+                if (!mcpBridgeState?.client?.isConnected) {
+                    return '🔴 Not connected. Connect to MCP Bridge first.';
+                }
+
+                addMessage('📄 Extracting page content...', 'system');
+                const result = await sendExtensionRequest('extract_dom', {});
+
+                if (result?.success && result?.domText) {
+                    // Store for context
+                    window._lastPageContent = result;
+
+                    const preview = result.domText.slice(0, 500) + (result.domText.length > 500 ? '...' : '');
+                    return `📄 **Extracted:** ${result.provenance?.domain || 'Unknown'}\n\n**Preview:**\n\`\`\`\n${preview}\n\`\`\`\n\n*${result.provenance?.charCount || 0} characters total*`;
+                }
+
+                return `❌ Extraction failed: ${result?.error || 'Unknown error'}`;
+            },
+
+            'list_tabs': async () => {
+                if (!mcpBridgeState?.client?.isConnected) {
+                    return '🔴 Not connected. Connect to MCP Bridge first.';
+                }
+
+                const result = await sendExtensionRequest('list_tabs', {});
+
+                if (result?.success && result?.tabs) {
+                    const tabList = result.tabs.map(t =>
+                        `- ${t.active ? '**' : ''}${t.title}${t.active ? '**' : ''} (${t.domain})`
+                    ).join('\n');
+                    return `🗂️ **Open Tabs (${result.count}):**\n\n${tabList}`;
+                }
+
+                return `❌ Failed to list tabs: ${result?.error || 'Unknown error'}`;
+            },
+
+            'extension_status': async () => {
+                if (!mcpBridgeState?.client?.isConnected) {
+                    return '🔴 MCP Bridge not connected.';
+                }
+
+                const result = await sendExtensionRequest('get_status', {});
+
+                if (result?.connected) {
+                    const clients = result.clients.map(c =>
+                        `- ${c.clientId}: ${c.capabilities.join(', ')}`
+                    ).join('\n');
+                    return `✅ **Extension Connected**\n\n**Clients:**\n${clients}`;
+                }
+
+                return '📷 Chrome extension not connected. Install TreeListy Screen Awareness extension.';
+            },
+
+            'show_extension_help': () => {
+                const helpText = `
+## TreeListy Screen Awareness Extension
+
+### Installation
+1. Download the extension from \`packages/treelisty-chrome-extension\`
+2. Go to \`chrome://extensions\`
+3. Enable "Developer mode"
+4. Click "Load unpacked" and select the extension folder
+
+### Configuration
+1. Click the extension icon in Chrome
+2. Right-click → Options
+3. Enter the pairing token (shown in MCP Bridge console)
+4. Click "Save Settings"
+
+### Commands
+- \`capture_screen\` - Take screenshot of current tab
+- \`extract_page\` - Get text content from page
+- \`list_tabs\` - Show open browser tabs
+- \`extension_status\` - Check connection status
+`;
+                return helpText;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
             // BUILD 560: Gmail Single-Email Commands (for focused node)
             // ═══════════════════════════════════════════════════════════════
 
@@ -67020,13 +67279,18 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 }
 
                 // BUILD 538: Handle bare commands without parameters
-                const bareCmdMatch = lowerMessage.match(/^(focus_root|expand_node|collapse_node|project_info|help|search|add_phase|node_info|undo|redo)$/);
+                // BUILD 564: Added extension_status, capture_screen, extract_page, list_tabs
+                const bareCmdMatch = lowerMessage.match(/^(focus_root|expand_node|collapse_node|project_info|help|search|add_phase|node_info|undo|redo|extension_status|capture_screen|extract_page|list_tabs|show_extension_help)$/);
                 if (bareCmdMatch) {
                     const cmdName = bareCmdMatch[1];
                     console.log(`🎯 Direct bare command: ${cmdName}`);
                     if (COMMAND_REGISTRY[cmdName]) {
                         hideTypingIndicator();
-                        const cmdResult = COMMAND_REGISTRY[cmdName]();
+                        // BUILD 564: Handle async commands (extension commands return Promises)
+                        let cmdResult = COMMAND_REGISTRY[cmdName]();
+                        if (cmdResult instanceof Promise) {
+                            cmdResult = await cmdResult;
+                        }
                         const response = typeof cmdResult === 'object' ? cmdResult : { message: cmdResult, buttons: null };
                         addMessage(response.message || cmdResult, 'assistant', response.buttons);
                         chatState.isProcessing = false;
@@ -68974,7 +69238,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 563; // Update this with each build
+                    const KNOWN_LATEST = 564; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
