@@ -1,6 +1,6 @@
 /**
  * Gmail Handler for TreeListy MCP Bridge
- * Build 550 - Gmail Bidirectional Sync Phase 1
+ * Build 551 - Gmail Bidirectional Sync Phase 2 (Drafts)
  *
  * Handles Gmail API operations with tokens stored locally.
  * Tokens NEVER sent to browser - all API calls happen here.
@@ -10,6 +10,10 @@
  * - gmail_trash: Move to trash
  * - gmail_star: Add/remove star
  * - gmail_mark_read: Mark as read/unread
+ * - gmail_create_draft: Create a new draft
+ * - gmail_update_draft: Update an existing draft
+ * - gmail_get_draft: Get draft details (for conflict detection)
+ * - gmail_delete_draft: Delete a draft
  *
  * Copyright 2024-2025 Prairie2Cloud LLC
  * Licensed under Apache-2.0
@@ -485,6 +489,283 @@ async function listLabels() {
 }
 
 // =============================================================================
+// Draft Operations (Build 551)
+// =============================================================================
+
+/**
+ * Create a draft message (reply or new)
+ * @param {string} threadId - Thread ID to reply to (optional for new message)
+ * @param {string} to - Recipient email address
+ * @param {string} subject - Email subject
+ * @param {string} body - Email body (plain text)
+ * @param {string} cc - CC recipients (optional)
+ * @param {string} bcc - BCC recipients (optional)
+ * @param {string} inReplyTo - Message-ID to reply to (optional)
+ */
+async function createDraft({ threadId, to, subject, body, cc, bcc, inReplyTo }) {
+  const gmail = await getGmailClient();
+  if (gmail.error) return gmail;
+
+  try {
+    // Build email headers
+    const headers = [
+      `To: ${to}`,
+      `Subject: ${subject}`
+    ];
+
+    if (cc) headers.push(`Cc: ${cc}`);
+    if (bcc) headers.push(`Bcc: ${bcc}`);
+    if (inReplyTo) headers.push(`In-Reply-To: ${inReplyTo}`);
+
+    // Build raw email (RFC 2822 format)
+    const email = [
+      ...headers,
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      body
+    ].join('\r\n');
+
+    // Base64 URL-safe encode
+    const encodedEmail = Buffer.from(email)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    const requestBody = {
+      message: {
+        raw: encodedEmail
+      }
+    };
+
+    // If replying to a thread, include threadId
+    if (threadId) {
+      requestBody.message.threadId = threadId;
+    }
+
+    const response = await gmail.users.drafts.create({
+      userId: 'me',
+      requestBody
+    });
+
+    return {
+      success: true,
+      action: 'create_draft',
+      draftId: response.data.id,
+      messageId: response.data.message.id,
+      threadId: response.data.message.threadId,
+      message: 'Draft created'
+    };
+  } catch (err) {
+    return {
+      success: false,
+      action: 'create_draft',
+      error: err.message
+    };
+  }
+}
+
+/**
+ * Update an existing draft
+ * @param {string} draftId - Draft ID to update
+ * @param {string} to - Recipient email address
+ * @param {string} subject - Email subject
+ * @param {string} body - Email body (plain text)
+ * @param {string} cc - CC recipients (optional)
+ * @param {string} bcc - BCC recipients (optional)
+ */
+async function updateDraft({ draftId, to, subject, body, cc, bcc }) {
+  const gmail = await getGmailClient();
+  if (gmail.error) return gmail;
+
+  try {
+    // Build email headers
+    const headers = [
+      `To: ${to}`,
+      `Subject: ${subject}`
+    ];
+
+    if (cc) headers.push(`Cc: ${cc}`);
+    if (bcc) headers.push(`Bcc: ${bcc}`);
+
+    // Build raw email
+    const email = [
+      ...headers,
+      'Content-Type: text/plain; charset=utf-8',
+      '',
+      body
+    ].join('\r\n');
+
+    // Base64 URL-safe encode
+    const encodedEmail = Buffer.from(email)
+      .toString('base64')
+      .replace(/\+/g, '-')
+      .replace(/\//g, '_')
+      .replace(/=+$/, '');
+
+    const response = await gmail.users.drafts.update({
+      userId: 'me',
+      id: draftId,
+      requestBody: {
+        message: {
+          raw: encodedEmail
+        }
+      }
+    });
+
+    return {
+      success: true,
+      action: 'update_draft',
+      draftId: response.data.id,
+      messageId: response.data.message.id,
+      message: 'Draft updated'
+    };
+  } catch (err) {
+    return {
+      success: false,
+      action: 'update_draft',
+      draftId,
+      error: err.message
+    };
+  }
+}
+
+/**
+ * Get a draft by ID (for conflict detection)
+ * @param {string} draftId - Draft ID to fetch
+ */
+async function getDraft(draftId) {
+  const gmail = await getGmailClient();
+  if (gmail.error) return gmail;
+
+  try {
+    const response = await gmail.users.drafts.get({
+      userId: 'me',
+      id: draftId,
+      format: 'full'
+    });
+
+    const draft = response.data;
+    const message = draft.message;
+
+    // Extract headers
+    const headers = {};
+    if (message.payload && message.payload.headers) {
+      for (const header of message.payload.headers) {
+        headers[header.name.toLowerCase()] = header.value;
+      }
+    }
+
+    // Extract body
+    let body = '';
+    if (message.payload) {
+      if (message.payload.body && message.payload.body.data) {
+        body = Buffer.from(message.payload.body.data, 'base64').toString('utf-8');
+      } else if (message.payload.parts) {
+        for (const part of message.payload.parts) {
+          if (part.mimeType === 'text/plain' && part.body && part.body.data) {
+            body = Buffer.from(part.body.data, 'base64').toString('utf-8');
+            break;
+          }
+        }
+      }
+    }
+
+    return {
+      success: true,
+      draftId: draft.id,
+      messageId: message.id,
+      threadId: message.threadId,
+      to: headers['to'] || '',
+      cc: headers['cc'] || '',
+      bcc: headers['bcc'] || '',
+      subject: headers['subject'] || '',
+      body,
+      internalDate: message.internalDate,
+      // For conflict detection - use message history ID
+      historyId: message.historyId
+    };
+  } catch (err) {
+    if (err.code === 404) {
+      return {
+        success: false,
+        action: 'get_draft',
+        draftId,
+        error: 'Draft not found - may have been deleted or sent'
+      };
+    }
+    return {
+      success: false,
+      action: 'get_draft',
+      draftId,
+      error: err.message
+    };
+  }
+}
+
+/**
+ * Delete a draft
+ * @param {string} draftId - Draft ID to delete
+ */
+async function deleteDraft(draftId) {
+  const gmail = await getGmailClient();
+  if (gmail.error) return gmail;
+
+  try {
+    await gmail.users.drafts.delete({
+      userId: 'me',
+      id: draftId
+    });
+
+    return {
+      success: true,
+      action: 'delete_draft',
+      draftId,
+      message: 'Draft deleted'
+    };
+  } catch (err) {
+    return {
+      success: false,
+      action: 'delete_draft',
+      draftId,
+      error: err.message
+    };
+  }
+}
+
+/**
+ * List all drafts
+ */
+async function listDrafts() {
+  const gmail = await getGmailClient();
+  if (gmail.error) return gmail;
+
+  try {
+    const response = await gmail.users.drafts.list({
+      userId: 'me',
+      maxResults: 100
+    });
+
+    const drafts = response.data.drafts || [];
+
+    return {
+      success: true,
+      drafts: drafts.map(d => ({
+        id: d.id,
+        messageId: d.message.id,
+        threadId: d.message.threadId
+      })),
+      resultSizeEstimate: response.data.resultSizeEstimate
+    };
+  } catch (err) {
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+}
+
+// =============================================================================
 // Exports
 // =============================================================================
 
@@ -500,5 +781,11 @@ module.exports = {
   markUnread,
   addLabel,
   removeLabel,
-  listLabels
+  listLabels,
+  // Draft operations (Build 551)
+  createDraft,
+  updateDraft,
+  getDraft,
+  deleteDraft,
+  listDrafts
 };

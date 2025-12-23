@@ -1040,6 +1040,70 @@ function handleToolsList(id) {
         type: 'object',
         properties: {}
       }
+    },
+    // Draft tools (Build 551)
+    {
+      name: 'gmail_create_draft',
+      description: 'Create a new draft email (reply or new message).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Thread ID to reply to (optional for new message)' },
+          to: { type: 'string', description: 'Recipient email address' },
+          subject: { type: 'string', description: 'Email subject' },
+          body: { type: 'string', description: 'Email body (plain text)' },
+          cc: { type: 'string', description: 'CC recipients (optional)' },
+          bcc: { type: 'string', description: 'BCC recipients (optional)' },
+          in_reply_to: { type: 'string', description: 'Message-ID to reply to (optional)' }
+        },
+        required: ['to', 'subject', 'body']
+      }
+    },
+    {
+      name: 'gmail_update_draft',
+      description: 'Update an existing draft.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          draft_id: { type: 'string', description: 'Draft ID to update' },
+          to: { type: 'string', description: 'Recipient email address' },
+          subject: { type: 'string', description: 'Email subject' },
+          body: { type: 'string', description: 'Email body (plain text)' },
+          cc: { type: 'string', description: 'CC recipients (optional)' },
+          bcc: { type: 'string', description: 'BCC recipients (optional)' }
+        },
+        required: ['draft_id', 'to', 'subject', 'body']
+      }
+    },
+    {
+      name: 'gmail_get_draft',
+      description: 'Get a draft by ID (for viewing or conflict detection).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          draft_id: { type: 'string', description: 'Draft ID to fetch' }
+        },
+        required: ['draft_id']
+      }
+    },
+    {
+      name: 'gmail_delete_draft',
+      description: 'Delete a draft.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          draft_id: { type: 'string', description: 'Draft ID to delete' }
+        },
+        required: ['draft_id']
+      }
+    },
+    {
+      name: 'gmail_list_drafts',
+      description: 'List all drafts.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
     }
   ];
 
@@ -1279,6 +1343,58 @@ async function handleGmailTool(id, name, args) {
 
       case 'gmail_list_labels':
         result = await gmailHandler.listLabels();
+        break;
+
+      // Draft handlers (Build 551)
+      case 'gmail_create_draft':
+        if (!args.to || !args.subject || !args.body) {
+          sendMCPError(id, -32602, 'Missing required parameters: to, subject, body');
+          return;
+        }
+        result = await gmailHandler.createDraft({
+          threadId: args.thread_id,
+          to: args.to,
+          subject: args.subject,
+          body: args.body,
+          cc: args.cc,
+          bcc: args.bcc,
+          inReplyTo: args.in_reply_to
+        });
+        break;
+
+      case 'gmail_update_draft':
+        if (!args.draft_id || !args.to || !args.subject || !args.body) {
+          sendMCPError(id, -32602, 'Missing required parameters: draft_id, to, subject, body');
+          return;
+        }
+        result = await gmailHandler.updateDraft({
+          draftId: args.draft_id,
+          to: args.to,
+          subject: args.subject,
+          body: args.body,
+          cc: args.cc,
+          bcc: args.bcc
+        });
+        break;
+
+      case 'gmail_get_draft':
+        if (!args.draft_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: draft_id');
+          return;
+        }
+        result = await gmailHandler.getDraft(args.draft_id);
+        break;
+
+      case 'gmail_delete_draft':
+        if (!args.draft_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: draft_id');
+          return;
+        }
+        result = await gmailHandler.deleteDraft(args.draft_id);
+        break;
+
+      case 'gmail_list_drafts':
+        result = await gmailHandler.listDrafts();
         break;
 
       default:
