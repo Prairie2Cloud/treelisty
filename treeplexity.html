@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 559 | 2025-12-23
+    TreeListy v2.25.0 | Build 560 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 560): TreeBeard Gmail commands - archive, trash, star, mark read, reply, forward, triage summary via natural language
     Changelog (Build 559): Email info panel improvements - clear header display (From/To/CC/Subject/Date), thread conversation view with expandable messages
     Changelog (Build 557): Add Gmail debug logging to diagnose timeout issues
     Changelog (Build 556): Direct browser→bridge Gmail sync - handleGmailFromBrowser in bridge.js
@@ -770,7 +771,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.25.0',
-            build: 559,
+            build: 560,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -60651,6 +60652,191 @@ Slack data not available. To calculate slack:
             'refresh_gmail': () => COMMAND_REGISTRY['sync_gmail'](),
 
             // ═══════════════════════════════════════════════════════════════
+            // BUILD 560: Gmail Single-Email Commands (for focused node)
+            // ═══════════════════════════════════════════════════════════════
+
+            // Helper: Get focused email node
+            '_get_focused_email': () => {
+                if (!activeNode) return null;
+                // Check if activeNode is an email (has threadId)
+                if (activeNode.threadId) return activeNode;
+                // Check if it's a message within a thread
+                if (activeNode.type === 'subtask' && activeNode.fullBody) {
+                    // Find parent thread
+                    const parent = findParentNode(activeNode);
+                    if (parent?.threadId) return parent;
+                }
+                return null;
+            },
+
+            // Gmail Archive (single email)
+            'gmail_archive': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) {
+                    return '📭 No email focused. Use `find_node` to select an email first.';
+                }
+                if (!isMCPBridgeConnected()) {
+                    return '🔴 MCP Bridge not connected. Start the bridge to use Gmail actions.';
+                }
+                if (typeof gmailSyncArchive === 'function') {
+                    gmailSyncArchive(email.threadId, email.id, null);
+                    return `📥 Archiving "${email.name}"... (10s undo window)`;
+                }
+                return '❌ Gmail sync not available.';
+            },
+
+            'gmail_unarchive': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+                try {
+                    const result = await sendGmailAction('gmail_unarchive', { thread_id: email.threadId });
+                    if (result?.success) {
+                        return `📬 "${email.name}" moved back to inbox!`;
+                    }
+                    return `❌ Failed: ${result?.error || 'Unknown error'}`;
+                } catch (e) {
+                    return `❌ Error: ${e.message}`;
+                }
+            },
+
+            'gmail_trash': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+                if (typeof gmailSyncTrash === 'function') {
+                    gmailSyncTrash(email.threadId, email.id, null);
+                    return `🗑️ Trashing "${email.name}"... (10s undo window, 30-day recovery)`;
+                }
+                return '❌ Gmail sync not available.';
+            },
+
+            'gmail_star': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+                if (typeof gmailSyncStar === 'function') {
+                    gmailSyncStar(email.threadId, email.id, null);
+                    return `⭐ Starring "${email.name}"...`;
+                }
+                return '❌ Gmail sync not available.';
+            },
+
+            'gmail_unstar': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+                try {
+                    const result = await sendGmailAction('gmail_unstar', { thread_id: email.threadId });
+                    if (result?.success) {
+                        return `☆ Star removed from "${email.name}"`;
+                    }
+                    return `❌ Failed: ${result?.error || 'Unknown error'}`;
+                } catch (e) {
+                    return `❌ Error: ${e.message}`;
+                }
+            },
+
+            'gmail_mark_read': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+                if (typeof gmailSyncMarkRead === 'function') {
+                    gmailSyncMarkRead(email.threadId, email.id, null);
+                    return `✓ Marking "${email.name}" as read...`;
+                }
+                return '❌ Gmail sync not available.';
+            },
+
+            'gmail_mark_unread': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+                try {
+                    const result = await sendGmailAction('gmail_mark_unread', { thread_id: email.threadId });
+                    if (result?.success) {
+                        return `📩 "${email.name}" marked as unread`;
+                    }
+                    return `❌ Failed: ${result?.error || 'Unknown error'}`;
+                } catch (e) {
+                    return `❌ Error: ${e.message}`;
+                }
+            },
+
+            'gmail_open': () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!email.threadId) return '❌ This node is not a Gmail email.';
+                window.open(`https://mail.google.com/mail/u/0/#inbox/${email.threadId}`, '_blank');
+                return `🔗 Opened "${email.name}" in Gmail`;
+            },
+
+            'gmail_reply': () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (typeof emailReaderReplyFromNode === 'function') {
+                    emailReaderReplyFromNode(email);
+                    return null; // Compose modal handles the UI
+                }
+                return '❌ Reply function not available.';
+            },
+
+            'gmail_forward': () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (typeof emailReaderForwardFromNode === 'function') {
+                    emailReaderForwardFromNode(email);
+                    return null; // Compose modal handles the UI
+                }
+                return '❌ Forward function not available.';
+            },
+
+            // Triage summary - analyze inbox
+            'gmail_triage_summary': async () => {
+                const getAllNodesFlat = COMMAND_REGISTRY['_getAllNodesFlat'];
+                const allNodes = getAllNodesFlat();
+                const emailNodes = allNodes.filter(n => n.threadId);
+
+                if (emailNodes.length === 0) {
+                    return '📭 No Gmail threads found. Import a Gmail JSON first.';
+                }
+
+                // Categorize emails
+                const unread = emailNodes.filter(n => n.unread || n.labels?.includes('UNREAD'));
+                const starred = emailNodes.filter(n => n.starred || n.labels?.includes('STARRED'));
+                const important = emailNodes.filter(n => n.labels?.includes('IMPORTANT'));
+                const inbox = emailNodes.filter(n => n.labels?.includes('INBOX'));
+                const needsReply = emailNodes.filter(n => {
+                    // Emails from others (not sent by me) that are unread or starred
+                    const fromMe = n.labels?.includes('SENT') || n.senderEmail?.includes('garnet');
+                    return !fromMe && (n.unread || n.starred);
+                });
+
+                let summary = `📊 **Gmail Triage Summary**\n\n`;
+                summary += `📬 Total threads: **${emailNodes.length}**\n`;
+                summary += `📥 In inbox: **${inbox.length}**\n`;
+                summary += `📩 Unread: **${unread.length}**\n`;
+                summary += `⭐ Starred: **${starred.length}**\n`;
+                summary += `🔴 Important: **${important.length}**\n`;
+                summary += `↩️ May need reply: **${needsReply.length}**\n`;
+
+                if (needsReply.length > 0) {
+                    summary += `\n**Likely needs attention:**\n`;
+                    needsReply.slice(0, 5).forEach(e => {
+                        summary += `• ${e.senderEmail?.split('<')[0] || 'Unknown'}: ${e.name?.substring(0, 40)}...\n`;
+                    });
+                }
+
+                return {
+                    message: summary,
+                    buttons: [
+                        { label: '📥 Batch Archive Read', action: 'gmail_batch_archive:read' },
+                        { label: '⭐ Show Starred', action: 'find_node:starred' }
+                    ]
+                };
+            },
+
+            // ═══════════════════════════════════════════════════════════════
             // BUILD 552: Gmail Batch Commands (Phase 3)
             // ═══════════════════════════════════════════════════════════════
 
@@ -64617,6 +64803,21 @@ GLOBAL (work anytime):
 • sync_calendar - Sync Google Calendar events via MCP/Claude Chrome (requires Claude Code connection)
 • sync_all - Sync all connected services (Gmail, Drive, Calendar)
 
+GMAIL ACTIONS (for email nodes - requires MCP Bridge):
+• gmail_archive - Archive focused email (remove from inbox)
+• gmail_unarchive - Move archived email back to inbox
+• gmail_trash - Move focused email to trash (30-day recovery)
+• gmail_star - Star the focused email
+• gmail_unstar - Remove star from email
+• gmail_mark_read - Mark focused email as read
+• gmail_mark_unread - Mark email as unread
+• gmail_open - Open email in Gmail (browser tab)
+• gmail_reply - Open reply composer for focused email
+• gmail_forward - Open forward composer for focused email
+• gmail_batch_archive:{query} - Archive all emails matching query (e.g., "from:newsletter")
+• gmail_batch_star:{query} - Star all emails matching query
+• gmail_triage_summary - Summarize inbox: urgent, needs reply, can archive
+
 GANTT/SCHEDULE (for tasks with dates):
 • view_gantt - Switch to Gantt chart view
 • gantt_view_mode:{day|week|month|year} - Change time scale
@@ -68552,7 +68753,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 559; // Update this with each build
+                    const KNOWN_LATEST = 560; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
