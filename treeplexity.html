@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 557 | 2025-12-23
+    TreeListy v2.25.0 | Build 558 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 558): Add button feedback to Save to Gmail button (⏳ Saving...)
     Changelog (Build 557): Add Gmail debug logging to diagnose timeout issues
     Changelog (Build 556): Direct browser→bridge Gmail sync - handleGmailFromBrowser in bridge.js
     Changelog (Build 555): Fix sendGmailAction to use client.socket.send (client is TreeListyMCPClient)
@@ -769,7 +770,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.25.0',
-            build: 557,
+            build: 558,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -26894,7 +26895,7 @@ function hidePatternDescription() {
                             <button onclick="openComposeModal('${node.id}', '${node.threadId}')" style="padding: 8px 14px; background: transparent; border: 1px solid rgba(139, 92, 246, 0.4); border-radius: 6px; color: var(--text-secondary); cursor: pointer; font-size: 12px;">
                                 Expand
                             </button>
-                            <button onclick="saveDraftToGmail('${node.id}', '${node.threadId}')" style="padding: 8px 14px; background: rgba(139, 92, 246, 0.2); border: 1px solid #8b5cf6; border-radius: 6px; color: #8b5cf6; cursor: pointer; font-size: 12px; font-weight: 500;">
+                            <button onclick="saveDraftToGmail('${node.id}', '${node.threadId}', this)" style="padding: 8px 14px; background: rgba(139, 92, 246, 0.2); border: 1px solid #8b5cf6; border-radius: 6px; color: #8b5cf6; cursor: pointer; font-size: 12px; font-weight: 500;">
                                 Save to Gmail
                             </button>
                         </div>
@@ -39911,8 +39912,9 @@ https://treelisty.netlify.app`;
 
         /**
          * Save draft to Gmail from Info Panel
+         * BUILD 558: Add button feedback for better UX
          */
-        async function saveDraftToGmail(nodeId, threadId) {
+        async function saveDraftToGmail(nodeId, threadId, buttonEl) {
             if (!isMCPBridgeConnected()) {
                 showToast('MCP Bridge not connected', 'error');
                 return;
@@ -39926,6 +39928,14 @@ https://treelisty.netlify.app`;
                 return;
             }
 
+            // BUILD 558: Button feedback
+            const originalText = buttonEl?.textContent;
+            if (buttonEl) {
+                buttonEl.textContent = '⏳ Saving...';
+                buttonEl.disabled = true;
+                buttonEl.style.opacity = '0.7';
+            }
+
             const node = findNodeByIdLocal(nodeId);
             const draft = {
                 nodeId,
@@ -39935,12 +39945,21 @@ https://treelisty.netlify.app`;
                 body
             };
 
-            // Check for existing draft with conflict detection
-            const localDraft = await getDraftLocal(nodeId);
-            if (localDraft?.gmailDraftId) {
-                await checkAndSaveDraftWithConflictDetection(localDraft, draft);
-            } else {
-                await createNewGmailDraft(draft);
+            try {
+                // Check for existing draft with conflict detection
+                const localDraft = await getDraftLocal(nodeId);
+                if (localDraft?.gmailDraftId) {
+                    await checkAndSaveDraftWithConflictDetection(localDraft, draft);
+                } else {
+                    await createNewGmailDraft(draft);
+                }
+            } finally {
+                // Restore button state
+                if (buttonEl) {
+                    buttonEl.textContent = originalText || 'Save to Gmail';
+                    buttonEl.disabled = false;
+                    buttonEl.style.opacity = '1';
+                }
             }
         }
         window.saveDraftToGmail = saveDraftToGmail;
@@ -68454,7 +68473,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 557; // Update this with each build
+                    const KNOWN_LATEST = 558; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
