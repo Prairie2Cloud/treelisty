@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 565): Image Analysis - Gemini Vision decomposes images into manipulable node trees with bounding box overlays
+    Changelog (Build 565): Image Analysis - Gemini Vision decomposes images into node trees; Fix email hyperedge query to search body
     Changelog (Build 564): Chrome extension screen awareness - capture_screen, extract_page, list_tabs commands via MCP Bridge
     Changelog (Build 563): New emails hyperedge - auto-create hyperedge grouping new items after Gmail refresh
     Changelog (Build 562): Gmail refresh via MCP Bridge - export script spawned by bridge.js, status feedback in UI
@@ -17336,6 +17336,15 @@ Focus on logical structure and content organization best practices.`;
             if (pattern === 'capex') {
                 fields.push({ key: 'leadTime', label: 'Lead Time (months)' });
             }
+            // BUILD 565: Add Gmail-specific fields
+            if (pattern === 'gmail') {
+                fields.push(
+                    { key: 'emailBody', label: 'Email Body contains' },
+                    { key: 'senderEmail', label: 'From (email)' },
+                    { key: 'recipientEmail', label: 'To (email)' },
+                    { key: 'labels', label: 'Labels contain' }
+                );
+            }
 
             const fieldOptions = fields.map(f => `<option value="${f.key}">${f.label}</option>`).join('');
 
@@ -17398,14 +17407,27 @@ Focus on logical structure and content organization best practices.`;
                 return conditions.every(cond => {
                     const itemValue = item[cond.field];
                     const condValue = cond.value;
+                    const searchStr = condValue.toLowerCase();
 
                     switch (cond.operator) {
                         case 'equals':
-                            return String(itemValue || '').toLowerCase() === condValue.toLowerCase();
+                            return String(itemValue || '').toLowerCase() === searchStr;
                         case 'not_equals':
-                            return String(itemValue || '').toLowerCase() !== condValue.toLowerCase();
+                            return String(itemValue || '').toLowerCase() !== searchStr;
                         case 'contains':
-                            return String(itemValue || '').toLowerCase().includes(condValue.toLowerCase());
+                            // BUILD 565: Enhanced contains search - include email body, description, and name
+                            const fieldsToSearch = [
+                                itemValue,
+                                item.name,
+                                item.description,
+                                item.emailBody,      // Gmail email body
+                                item.fullBody,       // Full email content
+                                item.senderEmail,    // Sender address
+                                item.recipientEmail  // Recipient address
+                            ];
+                            return fieldsToSearch.some(field =>
+                                String(field || '').toLowerCase().includes(searchStr)
+                            );
                         case '>':
                             return Number(itemValue || 0) > Number(condValue);
                         case '<':
@@ -64814,13 +64836,25 @@ If this is a city/neighborhood, mention the community character of that era.`
                 return conditions.every(cond => {
                     const itemValue = item[cond.field];
                     const condValue = cond.value;
+                    const searchStr = String(condValue).toLowerCase();
 
                     switch (cond.operator) {
                         case 'equals':
-                            return String(itemValue || '').toLowerCase() === String(condValue).toLowerCase();
+                            return String(itemValue || '').toLowerCase() === searchStr;
                         case 'contains':
-                            return String(itemValue || '').toLowerCase().includes(String(condValue).toLowerCase()) ||
-                                   String(item.name || '').toLowerCase().includes(String(condValue).toLowerCase());
+                            // BUILD 565: Enhanced contains search - include email body, description, and name
+                            const fieldsToSearch = [
+                                itemValue,
+                                item.name,
+                                item.description,
+                                item.emailBody,      // Gmail email body
+                                item.fullBody,       // Full email content
+                                item.senderEmail,    // Sender address
+                                item.recipientEmail  // Recipient address
+                            ];
+                            return fieldsToSearch.some(field =>
+                                String(field || '').toLowerCase().includes(searchStr)
+                            );
                         case '>':
                             return Number(itemValue || 0) > Number(condValue);
                         case '<':
@@ -64843,7 +64877,13 @@ If this is a city/neighborhood, mention the community character of that era.`
                     pmPriority: 'priority',
                     pmAssignee: 'assignee',
                     description: 'description',
-                    name: 'name'
+                    name: 'name',
+                    // BUILD 565: Gmail field names
+                    emailBody: 'email body',
+                    fullBody: 'email content',
+                    senderEmail: 'from',
+                    recipientEmail: 'to',
+                    labels: 'labels'
                 };
                 const opNames = { '>': 'over', '<': 'under', 'equals': '', 'contains': 'containing' };
                 const field = fieldNames[c.field] || c.field;
