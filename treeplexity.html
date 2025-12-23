@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 558 | 2025-12-23
+    TreeListy v2.25.0 | Build 559 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 558): Add button feedback to Save to Gmail button (⏳ Saving...)
+    Changelog (Build 559): Email info panel improvements - clear header display (From/To/CC/Subject/Date), thread conversation view with expandable messages
     Changelog (Build 557): Add Gmail debug logging to diagnose timeout issues
     Changelog (Build 556): Direct browser→bridge Gmail sync - handleGmailFromBrowser in bridge.js
     Changelog (Build 555): Fix sendGmailAction to use client.socket.send (client is TreeListyMCPClient)
@@ -770,7 +770,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.25.0',
-            build: 558,
+            build: 559,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -26822,6 +26822,57 @@ function hidePatternDescription() {
                 <!-- BUILD 422: Key Node Infographic (Root/Phase Dashboard) -->
                 ${keyNodeInfoHtml}
 
+                <!-- BUILD 559: Email Header Section (for email nodes) -->
+                ${(node.senderEmail || node.recipientEmail || node.threadId) ? `
+                <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, rgba(234, 67, 53, 0.08), rgba(251, 188, 5, 0.05)); border-radius: 16px; border: 1px solid rgba(234, 67, 53, 0.2);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(234, 67, 53, 0.15);">
+                        <span style="font-size: 20px;">📬</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #ea4335; text-transform: uppercase; letter-spacing: 1px;">Email Details</span>
+                        ${node.messageCount > 1 ? `<span style="font-size: 11px; padding: 3px 8px; background: rgba(234, 67, 53, 0.15); border-radius: 10px; color: #ea4335; font-weight: 600;">${node.messageCount} messages</span>` : ''}
+                    </div>
+                    <div style="display: grid; gap: 12px;">
+                        ${node.senderEmail ? `
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; min-width: 50px; padding-top: 2px;">From</span>
+                            <span style="font-size: 14px; color: var(--text-primary); font-weight: 500;">${node.senderEmail}</span>
+                        </div>
+                        ` : ''}
+                        ${node.recipientEmail ? `
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; min-width: 50px; padding-top: 2px;">To</span>
+                            <span style="font-size: 14px; color: var(--text-primary);">${node.recipientEmail}</span>
+                        </div>
+                        ` : ''}
+                        ${node.ccEmail ? `
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; min-width: 50px; padding-top: 2px;">CC</span>
+                            <span style="font-size: 13px; color: var(--text-secondary);">${node.ccEmail}</span>
+                        </div>
+                        ` : ''}
+                        ${node.subjectLine ? `
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; min-width: 50px; padding-top: 2px;">Subject</span>
+                            <span style="font-size: 14px; color: var(--text-primary); font-weight: 600;">${node.subjectLine}</span>
+                        </div>
+                        ` : ''}
+                        ${node.sendDate ? `
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; min-width: 50px; padding-top: 2px;">Date</span>
+                            <span style="font-size: 13px; color: var(--text-secondary);">${node.sendDateTime ? new Date(node.sendDateTime).toLocaleString() : node.sendDate}</span>
+                        </div>
+                        ` : ''}
+                        ${node.labels && node.labels.length > 0 ? `
+                        <div style="display: flex; gap: 12px; align-items: flex-start;">
+                            <span style="font-size: 11px; font-weight: 700; color: var(--text-secondary); text-transform: uppercase; min-width: 50px; padding-top: 2px;">Labels</span>
+                            <div style="display: flex; gap: 6px; flex-wrap: wrap;">
+                                ${node.labels.filter(l => !['UNREAD', 'CATEGORY_PERSONAL', 'CATEGORY_UPDATES', 'CATEGORY_PROMOTIONS', 'CATEGORY_SOCIAL', 'CATEGORY_FORUMS'].includes(l)).map(l => `<span style="font-size: 11px; padding: 2px 8px; background: rgba(139, 92, 246, 0.15); border-radius: 4px; color: #8b5cf6;">${l}</span>`).join('')}
+                            </div>
+                        </div>
+                        ` : ''}
+                    </div>
+                </div>
+                ` : ''}
+
                 <!-- BUILD 515: Improved Description Section (BUILD 549: linkified URLs) -->
                 <div style="margin-bottom: 24px; padding: 24px; background: linear-gradient(135deg, rgba(99, 102, 241, 0.06), rgba(139, 92, 246, 0.03)); border-radius: 16px; border: 1px solid rgba(99, 102, 241, 0.15);">
                     <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(99, 102, 241, 0.1);">
@@ -26899,6 +26950,34 @@ function hidePatternDescription() {
                                 Save to Gmail
                             </button>
                         </div>
+                    </div>
+                </div>
+                ` : ''}
+
+                <!-- BUILD 559: Email Thread Conversation View -->
+                ${(node.subItems && node.subItems.length > 0) ? `
+                <div style="margin-bottom: 24px; padding: 20px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), rgba(99, 102, 241, 0.03)); border-radius: 16px; border: 1px solid rgba(59, 130, 246, 0.15);">
+                    <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 16px; padding-bottom: 12px; border-bottom: 1px solid rgba(59, 130, 246, 0.1);">
+                        <span style="font-size: 20px;">💬</span>
+                        <span style="font-size: 12px; font-weight: 700; color: #3b82f6; text-transform: uppercase; letter-spacing: 1px;">Conversation Thread</span>
+                        <span style="font-size: 11px; padding: 3px 8px; background: rgba(59, 130, 246, 0.15); border-radius: 10px; color: #3b82f6; font-weight: 600;">${node.subItems.length} message${node.subItems.length > 1 ? 's' : ''}</span>
+                    </div>
+                    <div style="display: flex; flex-direction: column; gap: 16px; max-height: 400px; overflow-y: auto; padding-right: 8px;">
+                        ${node.subItems.map((msg, idx) => `
+                        <div style="padding: 16px; background: rgba(0,0,0,0.2); border-radius: 12px; border-left: 3px solid ${msg.sender && msg.sender.includes(node.recipientEmail?.split('@')[0] || 'you') ? '#10b981' : '#3b82f6'};">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px;">
+                                <div>
+                                    <div style="font-size: 13px; font-weight: 600; color: var(--text-primary);">${msg.sender || 'Unknown'}</div>
+                                    ${msg.recipient ? `<div style="font-size: 11px; color: var(--text-secondary);">To: ${msg.recipient}</div>` : ''}
+                                </div>
+                                <div style="font-size: 11px; color: var(--text-secondary);">${msg.sendDateTime ? new Date(msg.sendDateTime).toLocaleString() : msg.sendDate || ''}</div>
+                            </div>
+                            <div style="font-size: 14px; line-height: 1.6; color: var(--text-primary); white-space: pre-wrap; overflow: hidden; ${msg.fullBody && msg.fullBody.length > 500 ? 'max-height: 150px;' : ''}">${(msg.fullBody || msg.description || '(No content)').substring(0, 800)}${(msg.fullBody || '').length > 800 ? '...' : ''}</div>
+                            ${(msg.fullBody || '').length > 500 ? `
+                            <button onclick="this.previousElementSibling.style.maxHeight = this.previousElementSibling.style.maxHeight ? '' : '150px'; this.textContent = this.previousElementSibling.style.maxHeight ? 'Show more' : 'Show less';" style="margin-top: 8px; padding: 4px 10px; background: transparent; border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 4px; color: #3b82f6; cursor: pointer; font-size: 11px;">Show more</button>
+                            ` : ''}
+                        </div>
+                        `).join('')}
                     </div>
                 </div>
                 ` : ''}
@@ -68473,7 +68552,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 558; // Update this with each build
+                    const KNOWN_LATEST = 559; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
