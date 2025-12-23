@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 556 | 2025-12-23
+    TreeListy v2.25.0 | Build 557 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 557): Add Gmail debug logging to diagnose timeout issues
     Changelog (Build 556): Direct browser→bridge Gmail sync - handleGmailFromBrowser in bridge.js
     Changelog (Build 555): Fix sendGmailAction to use client.socket.send (client is TreeListyMCPClient)
     Changelog (Build 554): Fix findNodeById scope errors in Gmail sync and Inbox UI operations
@@ -768,7 +769,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.25.0',
-            build: 556,
+            build: 557,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -39242,17 +39243,22 @@ https://treelisty.netlify.app`;
                 if (!window.pendingMCPRequests) window.pendingMCPRequests = new Map();
                 window.pendingMCPRequests.set(requestId, resolve);
 
-                // Send request - BUILD 555: Use client.socket (client is TreeListyMCPClient)
-                mcpBridgeState.client.socket.send(JSON.stringify({
+                // BUILD 557: Add debug logging for Gmail requests
+                const request = {
                     jsonrpc: '2.0',
                     id: requestId,
                     method: toolName,
                     params: params
-                }));
+                };
+                console.log('[Gmail] Sending request:', toolName, requestId);
+
+                // Send request - BUILD 555: Use client.socket (client is TreeListyMCPClient)
+                mcpBridgeState.client.socket.send(JSON.stringify(request));
 
                 // Timeout after 30 seconds
                 setTimeout(() => {
                     if (window.pendingMCPRequests.has(requestId)) {
+                        console.log('[Gmail] Request timed out:', requestId);
                         window.pendingMCPRequests.delete(requestId);
                         resolve({ success: false, error: 'timeout' });
                     }
@@ -40628,6 +40634,7 @@ https://treelisty.netlify.app`;
 
                     // BUILD 556: Handle Gmail responses (stored in window.pendingMCPRequests)
                     if (message.id && window.pendingMCPRequests && window.pendingMCPRequests.has(message.id)) {
+                        console.log('[Gmail] Received response for:', message.id, message.result || message.error);
                         const resolve = window.pendingMCPRequests.get(message.id);
                         window.pendingMCPRequests.delete(message.id);
 
@@ -40637,6 +40644,11 @@ https://treelisty.netlify.app`;
                             resolve(message.result);
                         }
                         return;
+                    }
+
+                    // BUILD 557: Log unhandled messages for debugging
+                    if (message.id && message.id.startsWith('gmail-')) {
+                        console.log('[Gmail] Received response but no pending request:', message.id);
                     }
 
                     // Incoming request from Claude Code
@@ -68442,7 +68454,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 556; // Update this with each build
+                    const KNOWN_LATEST = 557; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
