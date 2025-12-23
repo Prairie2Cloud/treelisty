@@ -1533,6 +1533,14 @@ async function handleGmailFromBrowser(tabId, requestId, method, params) {
           : await gmailHandler.starThread(params.thread_id);
         break;
 
+      case 'gmail_unstar':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = await gmailHandler.unstarThread(params.thread_id);
+        break;
+
       case 'gmail_mark_read':
         if (!params.thread_id) {
           sendError('Missing required parameter: thread_id');
@@ -1541,6 +1549,30 @@ async function handleGmailFromBrowser(tabId, requestId, method, params) {
         result = params.read === false
           ? await gmailHandler.markUnread(params.thread_id)
           : await gmailHandler.markRead(params.thread_id);
+        break;
+
+      case 'gmail_mark_unread':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = await gmailHandler.markUnread(params.thread_id);
+        break;
+
+      case 'gmail_unarchive':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = await gmailHandler.unarchiveThread(params.thread_id);
+        break;
+
+      case 'gmail_untrash':
+        if (!params.thread_id) {
+          sendError('Missing required parameter: thread_id');
+          return;
+        }
+        result = await gmailHandler.untrashThread(params.thread_id);
         break;
 
       case 'gmail_add_label':

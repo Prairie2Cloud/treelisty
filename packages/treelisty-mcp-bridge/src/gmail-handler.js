@@ -27,9 +27,11 @@ const { google } = require('googleapis');
 // Configuration
 // =============================================================================
 
-// Token path - same location as export_gmail_to_treelisty.py uses
-const TOKEN_PATH = path.join(process.cwd(), 'token.json');
-const CREDENTIALS_PATH = path.join(process.cwd(), 'credentials.json');
+// Token path - look in treeplexity root (same location as export_gmail_to_treelisty.py uses)
+// Go up from src/ -> treelisty-mcp-bridge/ -> packages/ -> treeplexity/
+const TREEPLEXITY_ROOT = path.resolve(__dirname, '..', '..', '..');
+const TOKEN_PATH = path.join(TREEPLEXITY_ROOT, 'token.json');
+const CREDENTIALS_PATH = path.join(TREEPLEXITY_ROOT, 'credentials.json');
 
 // Required scopes for bidirectional sync
 const REQUIRED_SCOPES = [
@@ -74,8 +76,8 @@ async function getGmailClient() {
     const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf-8'));
     authClient.setCredentials(token);
 
-    // Check scopes
-    const tokenScopes = token.scope ? token.scope.split(' ') : [];
+    // Check scopes (handle both 'scope' string and 'scopes' array formats)
+    const tokenScopes = token.scopes || (token.scope ? token.scope.split(' ') : []);
     const hasModify = tokenScopes.some(s => s.includes('gmail.modify'));
     const hasCompose = tokenScopes.some(s => s.includes('gmail.compose'));
 
@@ -110,7 +112,8 @@ async function checkAuthStatus() {
 
   try {
     const token = JSON.parse(fs.readFileSync(TOKEN_PATH, 'utf-8'));
-    const scopes = token.scope ? token.scope.split(' ') : [];
+    // Handle both 'scope' string and 'scopes' array formats
+    const scopes = token.scopes || (token.scope ? token.scope.split(' ') : []);
 
     const hasReadOnly = scopes.some(s => s.includes('gmail.readonly'));
     const hasModify = scopes.some(s => s.includes('gmail.modify'));
