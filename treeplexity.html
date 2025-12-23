@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.25.0 | Build 562 | 2025-12-23
+    TreeListy v2.25.0 | Build 563 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 563): New emails hyperedge - auto-create hyperedge grouping new items after Gmail refresh
     Changelog (Build 562): Gmail refresh via MCP Bridge - export script spawned by bridge.js, status feedback in UI
     Changelog (Build 561): Refresh button for Gmail/GDrive trees - appears in header when viewing synced content
     Changelog (Build 560): TreeBeard Gmail commands - archive, trash, star, mark read, reply, forward, triage summary via natural language
@@ -771,7 +772,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.25.0',
-            build: 562,
+            build: 563,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -29659,6 +29660,48 @@ Your response:`;
             // BUILD 561: Update refresh button visibility for Gmail/GDrive trees
             updateTreeRefreshButton();
 
+            // BUILD 562: Create hyperedge for new Gmail items after refresh
+            if (window._gmailRefreshBeforeIds && window._gmailRefreshBeforeIds.size > 0) {
+                const beforeIds = window._gmailRefreshBeforeIds;
+                const newItems = [];
+
+                // Collect new thread IDs
+                const collectNewItems = (node) => {
+                    if (node.threadId && !beforeIds.has(node.threadId)) {
+                        newItems.push({ id: node.id, threadId: node.threadId, name: node.name });
+                    }
+                    (node.items || node.children || node.subItems || []).forEach(collectNewItems);
+                };
+
+                if (capexTree?.children) {
+                    capexTree.children.forEach(collectNewItems);
+                }
+
+                if (newItems.length >= 2) {
+                    // Create hyperedge for new items
+                    const hyperedge = addHyperedge(
+                        'gmail_new',
+                        `New Emails (${newItems.length})`,
+                        newItems.map(item => item.id),
+                        {
+                            color: '#10b981',
+                            description: `New emails discovered during refresh at ${new Date().toLocaleTimeString()}`,
+                            isAutoCreated: true
+                        }
+                    );
+                    if (hyperedge) {
+                        showToast(`Created hyperedge for ${newItems.length} new emails`, 'success');
+                        console.log('📨 New email hyperedge created:', newItems.map(i => i.name).join(', '));
+                    }
+                } else if (newItems.length === 1) {
+                    showToast(`1 new email: ${newItems[0].name?.substring(0, 50)}...`, 'info');
+                }
+
+                // Clear the refresh state
+                delete window._gmailRefreshBeforeIds;
+                delete window._gmailRefreshFilename;
+            }
+
             // Apply default sort for filesystem pattern
             if (currentPattern === 'filesystem') {
                 sortTree(null);
@@ -39433,20 +39476,21 @@ https://treelisty.netlify.app`;
                     });
 
                     if (result?.success && result?.filename) {
-                        showToast(`Exported ${result.threadCount} threads. Loading...`, 'success');
+                        // Store beforeThreadIds for hyperedge creation after import
+                        window._gmailRefreshBeforeIds = beforeThreadIds;
+                        window._gmailRefreshFilename = result.filename;
 
-                        // Fetch and import the new JSON
-                        // Note: For security, the browser can't directly read local files
-                        // Show instructions to import the new file
-                        const filename = result.filename;
-                        showToast(`Import: ${filename}`, 'info');
+                        const newCount = result.threadCount - beforeThreadIds.size;
+                        const newMsg = newCount > 0 ? ` (${newCount} new)` : '';
+
+                        showToast(`Exported ${result.threadCount} threads${newMsg}. Loading...`, 'success');
 
                         // Create a notification with import instructions
                         const notification = document.createElement('div');
                         notification.style.cssText = 'position: fixed; top: 80px; right: 20px; padding: 16px 20px; background: linear-gradient(135deg, #10b981, #059669); color: white; border-radius: 12px; z-index: 10000; max-width: 350px; box-shadow: 0 4px 20px rgba(0,0,0,0.3);';
                         notification.innerHTML = `
-                            <div style="font-weight: 600; margin-bottom: 8px;">Gmail Refresh Complete</div>
-                            <div style="font-size: 13px; margin-bottom: 12px;">Exported ${result.threadCount} threads to:<br><code style="background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">${filename}</code></div>
+                            <div style="font-weight: 600; margin-bottom: 8px;">Gmail Refresh Complete${newMsg}</div>
+                            <div style="font-size: 13px; margin-bottom: 12px;">Exported ${result.threadCount} threads to:<br><code style="background: rgba(0,0,0,0.2); padding: 2px 6px; border-radius: 4px;">${result.filename}</code></div>
                             <div style="display: flex; gap: 8px;">
                                 <button onclick="document.getElementById('load-json-input')?.click(); this.parentElement.parentElement.remove();" style="padding: 8px 14px; background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.4); border-radius: 6px; color: white; cursor: pointer; font-size: 12px; font-weight: 500;">Import File</button>
                                 <button onclick="this.parentElement.parentElement.remove();" style="padding: 8px 14px; background: transparent; border: 1px solid rgba(255,255,255,0.3); border-radius: 6px; color: rgba(255,255,255,0.8); cursor: pointer; font-size: 12px;">Dismiss</button>
@@ -68930,7 +68974,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 562; // Update this with each build
+                    const KNOWN_LATEST = 563; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
