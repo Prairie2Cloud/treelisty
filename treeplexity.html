@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.33.0 | Build 571 | 2025-12-24
+    TreeListy v2.33.0 | Build 572 | 2025-12-24
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 572): Fix bbox bug - clear irrelevant image analysis bboxes from structured data imports (URL, JSON)
     Changelog (Build 571): Model selector - choose Gemini 2.5 Flash (faster) or Nano Banana Pro (better colors) for image analysis
     Changelog (Build 570): Gemini 2.5 Flash - upgraded image analysis model for 20% more detail detection
     Changelog (Build 569): Reconstruction Prompt - color, shape, z-index, texture, opacity attributes for visual recreation
@@ -780,7 +781,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.33.0',
-            build: 571,
+            build: 572,
             date: '2025-12-24',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -31213,6 +31214,25 @@ Your response:`;
 
             // Replace the tree data
             Object.assign(capexTree, data);
+
+            // BUILD 572: Clear irrelevant bboxes from structured data imports
+            // If _imageAnalysis is explicitly null, or if there's no source image but bboxes exist,
+            // clear them to prevent confusing overlays from URL/JSON imports
+            if (data._imageAnalysis === null ||
+                (data._imageAnalysis && !data._imageAnalysis.sourceImage && !data._imageAnalysis.virtual)) {
+                console.log('🧹 Clearing irrelevant image analysis bboxes from structured import');
+                delete capexTree._imageAnalysis;
+                function clearBboxes(node) {
+                    if (!node) return;
+                    delete node._bbox;
+                    delete node._confidence;
+                    delete node._objectType;
+                    (node.children || []).forEach(clearBboxes);
+                    (node.items || []).forEach(clearBboxes);
+                    (node.subtasks || []).forEach(clearBboxes);
+                }
+                clearBboxes(capexTree);
+            }
 
             // BUILD 530: Restore pattern from loaded tree data
             if (data.pattern) {
@@ -71052,7 +71072,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 571; // Update this with each build
+                    const KNOWN_LATEST = 572; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
