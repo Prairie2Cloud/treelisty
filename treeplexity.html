@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.30.0 | Build 568 | 2025-12-24
+    TreeListy v2.31.0 | Build 569 | 2025-12-24
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 569): Reconstruction Prompt - color, shape, z-index, texture, opacity attributes for visual recreation
     Changelog (Build 568): Image Import UX - IndexedDB storage, compression, Import Image modal with drag-drop/URL/capture
     Changelog (Build 567): Interaction Spine - bidirectional bbox↔node selection, hover highlighting, pan-to-bbox, type/confidence filters
     Changelog (Build 566): Fix canvas/3D view refresh - views now auto-update when tree changes
@@ -776,8 +777,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.30.0',
-            build: 568,
+            major: '2.31.0',
+            build: 569,
             date: '2025-12-24',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -13120,6 +13121,13 @@ For EACH detected object include:
 5. _confidence: Detection confidence 0.0 to 1.0
 6. _detectedLabel: Original detection label
 
+RECONSTRUCTION ATTRIBUTES (for visual recreation):
+7. _color: Primary color as CSS color name or hex code (e.g., "skyblue", "#4682B4")
+8. _shape: Basic shape type: "rectangle" | "circle" | "oval" | "triangle" | "polygon" | "irregular"
+9. _zIndex: Layer order (0 = furthest back, higher = closer to foreground)
+10. _texture: Optional texture hint: "solid" | "gradient" | "striped" | "patterned" | "photo"
+11. _opacity: Transparency 0.0-1.0 (default 1.0 if fully opaque)
+
 IMPORTANT BOUNDING BOX FORMAT:
 - Use 0-1000 normalized coordinates (not pixels)
 - yMin = top edge, yMax = bottom edge
@@ -13141,6 +13149,11 @@ Return this exact JSON structure:
                     "_bbox": { "yMin": 100, "xMin": 200, "yMax": 400, "xMax": 500 },
                     "_confidence": 0.95,
                     "_detectedLabel": "person",
+                    "_color": "#4682B4",
+                    "_shape": "rectangle",
+                    "_zIndex": 5,
+                    "_texture": "solid",
+                    "_opacity": 1.0,
                     "subItems": []
                 }
             ]
@@ -13154,7 +13167,15 @@ GROUPING RULES:
 - Create subItems for objects that are parts of larger objects
 - Order phases by visual importance (foreground first)
 
-Be thorough - detect ALL visible objects, text, UI elements, and distinct regions.`;
+DETAIL LEVELS BY CONTENT TYPE:
+- FACES/PEOPLE: Detect individual facial features (eyes, nose, mouth, ears, hair, eyebrows) as subItems of the person. Each feature should have its own bbox.
+- UI SCREENSHOTS: Detect each button, input, label, icon as separate items with bboxes.
+- LANDSCAPES: Detect major regions (sky, mountains, water, vegetation) and notable objects within them.
+- ROOMS/INTERIORS: Detect furniture, decorations, architectural features as items.
+- DOCUMENTS: Detect headings, paragraphs, images, diagrams as separate items.
+
+Be thorough - detect ALL visible objects, text, UI elements, and distinct regions.
+For faces, ALWAYS include subItems for: eyes, nose, mouth, and other visible facial features.`;
 
         // =============================================================================
         // BUILD 568: IndexedDB Image Store
@@ -13511,6 +13532,11 @@ Be thorough - detect ALL visible objects, text, UI elements, and distinct region
                             _bbox: item._bbox,
                             _confidence: item._confidence,
                             _objectType: item._detectedLabel || item.itemType,
+                            _color: item._color,
+                            _shape: item._shape,
+                            _zIndex: item._zIndex,
+                            _texture: item._texture,
+                            _opacity: item._opacity,
                             children: []
                         };
 
@@ -13523,6 +13549,11 @@ Be thorough - detect ALL visible objects, text, UI elements, and distinct region
                                 _bbox: sub._bbox,
                                 _confidence: sub._confidence,
                                 _objectType: sub._detectedLabel || sub.itemType,
+                                _color: sub._color,
+                                _shape: sub._shape,
+                                _zIndex: sub._zIndex,
+                                _texture: sub._texture,
+                                _opacity: sub._opacity,
                                 children: []
                             });
                         });
@@ -70987,7 +71018,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 568; // Update this with each build
+                    const KNOWN_LATEST = 569; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
