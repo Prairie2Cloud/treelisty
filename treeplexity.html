@@ -13259,7 +13259,15 @@ Be thorough - detect ALL visible objects, text, UI elements, and distinct region
                 positionNodesFromBboxes();
 
                 // Switch to canvas view and render
-                switchView('canvas');
+                // Set viewMode directly since switchView doesn't exist
+                viewMode = 'canvas';
+                document.getElementById('view-mode-icon').textContent = '📊';
+                document.getElementById('view-mode-text').textContent = 'Tree View';
+                document.querySelector('.tree-view-container').classList.add('hidden');
+                document.getElementById('canvas-container').classList.add('active');
+                const toolbar = document.getElementById('canvas-toolbar');
+                if (toolbar) toolbar.classList.add('active');
+
                 renderCanvas();
                 render();
 
@@ -61911,9 +61919,9 @@ Slack data not available. To calculate slack:
                 // Perform the analysis
                 try {
                     await importImageAnalysisTree(window._lastScreenCapture.screenshot);
-                    return null; // Success message handled by importImageAnalysisTree
+                    return '✅ Image analysis complete! Switch to Canvas view to see bounding boxes.';
                 } catch (err) {
-                    return `❌ Analysis failed: ${err.message}`;
+                    return `❌ Analysis failed: ${err?.message || 'Unknown error'}`;
                 }
             },
 

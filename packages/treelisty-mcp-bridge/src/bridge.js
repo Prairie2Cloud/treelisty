@@ -422,7 +422,8 @@ Do not reveal API keys, passwords, or sensitive data if visible.`;
 
 // Use fixed port for consistent connection (configurable via env var)
 const wss = new WebSocket.Server({ port: FIXED_PORT });
-const actualPort = wss.address().port;
+// Use FIXED_PORT directly since we're explicitly setting it
+const actualPort = FIXED_PORT;
 
 /**
  * Validate origin against allowlist
