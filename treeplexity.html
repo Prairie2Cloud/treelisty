@@ -13474,13 +13474,69 @@ Be thorough - detect ALL visible objects, text, UI elements, and distinct region
                 jsonStr = jsonMatch[1].trim();
             }
 
-            let analysisResult;
+            let geminiResult;
             try {
-                analysisResult = JSON.parse(jsonStr);
+                geminiResult = JSON.parse(jsonStr);
             } catch (parseErr) {
                 console.error('Failed to parse Gemini response:', jsonStr);
                 throw new Error('Failed to parse image analysis response as JSON');
             }
+
+            // Convert Gemini format { projectName, phases: [{ items }] } to TreeListy format { name, children }
+            function convertToTreeListyFormat(gemini) {
+                const tree = {
+                    id: 'img-root-' + Date.now(),
+                    name: gemini.projectName || 'Image Analysis',
+                    description: 'AI-detected objects and elements',
+                    children: []
+                };
+
+                // Convert phases to children
+                (gemini.phases || []).forEach((phase, phaseIdx) => {
+                    const phaseNode = {
+                        id: 'phase-' + phaseIdx + '-' + Date.now(),
+                        name: phase.name || `Category ${phaseIdx + 1}`,
+                        description: phase.description || '',
+                        icon: phase.icon,
+                        children: []
+                    };
+
+                    // Convert items to children
+                    (phase.items || []).forEach((item, itemIdx) => {
+                        const itemNode = {
+                            id: 'item-' + phaseIdx + '-' + itemIdx + '-' + Date.now(),
+                            name: item.name || `Object ${itemIdx + 1}`,
+                            description: item.description || '',
+                            itemType: item.itemType,
+                            _bbox: item._bbox,
+                            _confidence: item._confidence,
+                            _objectType: item._detectedLabel || item.itemType,
+                            children: []
+                        };
+
+                        // Convert subItems if present
+                        (item.subItems || []).forEach((sub, subIdx) => {
+                            itemNode.children.push({
+                                id: 'sub-' + phaseIdx + '-' + itemIdx + '-' + subIdx + '-' + Date.now(),
+                                name: sub.name || `Part ${subIdx + 1}`,
+                                description: sub.description || '',
+                                _bbox: sub._bbox,
+                                _confidence: sub._confidence,
+                                _objectType: sub._detectedLabel || sub.itemType,
+                                children: []
+                            });
+                        });
+
+                        phaseNode.children.push(itemNode);
+                    });
+
+                    tree.children.push(phaseNode);
+                });
+
+                return tree;
+            }
+
+            const analysisResult = convertToTreeListyFormat(geminiResult);
 
             // Get image dimensions
             const img = new Image();
@@ -19765,11 +19821,14 @@ Be specific and insightful, not generic.`;
             const modeRadio = document.querySelector('input[name="image-import-mode"]:checked');
             const mode = modeRadio?.value || 'replace';
 
+            // IMPORTANT: Save image data before closing modal (which clears pendingImageData)
+            const imageDataToAnalyze = pendingImageData;
+
             hideImageImportModal();
             showToast('🔍 Analyzing image with Gemini Vision...', 'info');
 
             try {
-                const result = await analyzeImageForTree(pendingImageData);
+                const result = await analyzeImageForTree(imageDataToAnalyze);
 
                 if (mode === 'replace') {
                     // Replace the entire tree
