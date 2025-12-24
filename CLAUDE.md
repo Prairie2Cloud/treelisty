@@ -1,6 +1,6 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.27.0 (Build 565)
+Current Version: v2.28.0 (Build 566)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 

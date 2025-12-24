@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.27.0 | Build 565 | 2025-12-23
+    TreeListy v2.28.0 | Build 566 | 2025-12-23
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 566): Fix canvas/3D view refresh - views now auto-update when tree changes
     Changelog (Build 565): Image Analysis - Gemini Vision decomposes images into node trees; Fix email hyperedge query to search body
     Changelog (Build 564): Chrome extension screen awareness - capture_screen, extract_page, list_tabs commands via MCP Bridge
     Changelog (Build 563): New emails hyperedge - auto-create hyperedge grouping new items after Gmail refresh
@@ -773,8 +774,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.27.0',
-            build: 565,
+            major: '2.28.0',
+            build: 566,
             date: '2025-12-23',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -25049,6 +25050,13 @@ function hidePatternDescription() {
                 buildFilesystemNode(capexTree, 0);
 
                 container.appendChild(tableEl);
+
+                // BUILD 566: Auto-refresh non-tree views if active
+                if (viewMode === 'canvas') {
+                    setTimeout(() => renderCanvas(), 50);
+                } else if (viewMode === '3d') {
+                    setTimeout(() => render3D(), 50);
+                }
                 return;
             }
 
@@ -25653,6 +25661,14 @@ function hidePatternDescription() {
 
             // Draw dependency lines after rendering
             setTimeout(drawDependencyLines, 100);
+
+            // BUILD 566: Auto-refresh non-tree views if active
+            // This ensures views stay in sync when render() is called
+            if (viewMode === 'canvas') {
+                setTimeout(() => renderCanvas(), 50);
+            } else if (viewMode === '3d') {
+                setTimeout(() => render3D(), 50);
+            }
         }
 
         // Draw dependency lines using SVG
@@ -70044,7 +70060,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 565; // Update this with each build
+                    const KNOWN_LATEST = 566; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
