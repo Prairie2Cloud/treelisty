@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.29.0 | Build 567 | 2025-12-24
+    TreeListy v2.30.0 | Build 568 | 2025-12-24
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 568): Image Import UX - IndexedDB storage, compression, Import Image modal with drag-drop/URL/capture
     Changelog (Build 567): Interaction Spine - bidirectional bbox↔node selection, hover highlighting, pan-to-bbox, type/confidence filters
     Changelog (Build 566): Fix canvas/3D view refresh - views now auto-update when tree changes
     Changelog (Build 565): Image Analysis - Gemini Vision decomposes images into node trees; Fix email hyperedge query to search body
@@ -775,8 +776,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.29.0',
-            build: 567,
+            major: '2.30.0',
+            build: 568,
             date: '2025-12-24',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6769,6 +6770,10 @@
                             <span class="item-icon">📅</span>
                             <span class="item-label">From MS Project (.xml)</span>
                         </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="image-import-btn">
+                            <span class="item-icon">🖼️</span>
+                            <span class="item-label">Import Image...</span>
+                        </button>
                         <div class="dropdown-menu-divider"></div>
                         <button class="dropdown-menu-item" role="menuitem" id="import-text-header-btn">
                             <span class="item-icon">📝</span>
@@ -6782,6 +6787,7 @@
                 </div>
                 <input type="file" id="excel-upload-input" accept=".xlsx,.xls" style="display: none;">
                 <input type="file" id="msproject-upload-input" accept=".xml" style="display: none;">
+                <input type="file" id="image-upload-input" accept=".png,.jpg,.jpeg,.gif,.webp,image/*" style="display: none;">
 
                 <!-- Save Dropdown -->
                 <div class="dropdown-menu" id="save-dropdown">
@@ -8329,6 +8335,85 @@ The AI will analyze the structure and convert it to a tree."
             <button id="qc-retry-btn" style="padding: 12px 32px; background: #6366f1; color: white; border: none; border-radius: 8px; font-size: 14px; cursor: pointer;">
                 Try Again
             </button>
+        </div>
+    </div>
+
+    <!-- BUILD 568: Image Import Modal -->
+    <div class="modal" id="image-import-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 600px; background: var(--bg-secondary); border: 1px solid var(--border);">
+            <div class="modal-header" style="border-bottom: 1px solid var(--border);">
+                <h3 style="color: var(--text); margin: 0; display: flex; align-items: center; gap: 8px;">
+                    <span style="font-size: 24px;">🖼️</span> Import Image for Analysis
+                </h3>
+                <button class="modal-close" onclick="hideImageImportModal()">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 24px;">
+                <!-- Drop Zone -->
+                <div id="image-drop-zone" style="border: 2px dashed var(--border); border-radius: 12px; padding: 40px 20px; text-align: center; cursor: pointer; transition: all 0.2s; margin-bottom: 20px; background: var(--bg);">
+                    <div style="font-size: 48px; margin-bottom: 12px;">📷</div>
+                    <div style="color: var(--text); font-size: 16px; font-weight: 500; margin-bottom: 8px;">
+                        Drop image here or click to browse
+                    </div>
+                    <div style="color: var(--text-secondary); font-size: 13px;">
+                        PNG, JPEG, WebP, GIF (max 20MB)
+                    </div>
+                </div>
+
+                <!-- URL Input -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 6px;">
+                        Or paste image URL:
+                    </label>
+                    <input type="text" id="image-url-input" placeholder="https://example.com/image.png"
+                           style="width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px; background: var(--bg); color: var(--text); font-size: 14px;">
+                </div>
+
+                <!-- Chrome Extension Capture -->
+                <div id="image-capture-section" style="margin-bottom: 20px; display: none;">
+                    <button onclick="captureScreenForImport()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+                        <span style="font-size: 18px;">📸</span> Capture Current Tab
+                    </button>
+                    <div style="color: var(--text-secondary); font-size: 12px; text-align: center; margin-top: 6px;">
+                        Uses Chrome extension to capture visible tab
+                    </div>
+                </div>
+
+                <!-- Preview -->
+                <div id="image-preview-container" style="display: none; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; background: #000;">
+                    <img id="image-preview" style="max-width: 100%; max-height: 300px; display: block; margin: 0 auto;">
+                    <div id="image-preview-info" style="padding: 10px; background: var(--bg-secondary); font-size: 12px; color: var(--text-secondary); display: flex; justify-content: space-between;">
+                        <span id="image-preview-dims">0 x 0</span>
+                        <span id="image-preview-size">0 KB</span>
+                    </div>
+                </div>
+
+                <!-- Import Mode -->
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; color: var(--text-secondary); font-size: 13px; margin-bottom: 8px;">
+                        Import mode:
+                    </label>
+                    <div style="display: flex; gap: 12px;">
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+                            <input type="radio" name="image-import-mode" value="replace" checked style="accent-color: #6366f1;">
+                            Replace current tree
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--text);">
+                            <input type="radio" name="image-import-mode" value="append">
+                            Add as child of selected
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Action Buttons -->
+                <div style="display: flex; gap: 12px; justify-content: flex-end;">
+                    <button onclick="hideImageImportModal()" style="padding: 10px 20px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; font-size: 14px; cursor: pointer;">
+                        Cancel
+                    </button>
+                    <button id="image-analyze-btn" onclick="analyzeImportedImage()" disabled style="padding: 10px 24px; background: linear-gradient(135deg, #10b981, #059669); color: white; border: none; border-radius: 8px; font-size: 14px; font-weight: 500; cursor: pointer; opacity: 0.5;">
+                        🔍 Analyze with Gemini
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 
@@ -13071,6 +13156,237 @@ GROUPING RULES:
 
 Be thorough - detect ALL visible objects, text, UI elements, and distinct regions.`;
 
+        // =============================================================================
+        // BUILD 568: IndexedDB Image Store
+        // Stores source images separately to prevent tree JSON bloat
+        // =============================================================================
+
+        const IMAGE_DB_NAME = 'TreeListyImages';
+        const IMAGE_DB_VERSION = 1;
+        const IMAGE_STORE_NAME = 'images';
+        let imageDB = null;
+
+        /**
+         * Initialize IndexedDB for image storage
+         */
+        async function initImageDB() {
+            return new Promise((resolve, reject) => {
+                if (imageDB) {
+                    resolve(imageDB);
+                    return;
+                }
+
+                const request = indexedDB.open(IMAGE_DB_NAME, IMAGE_DB_VERSION);
+
+                request.onerror = () => {
+                    console.warn('[Images] IndexedDB not available');
+                    resolve(null);
+                };
+
+                request.onsuccess = (event) => {
+                    imageDB = event.target.result;
+                    console.log('[Images] IndexedDB initialized');
+                    resolve(imageDB);
+                };
+
+                request.onupgradeneeded = (event) => {
+                    const db = event.target.result;
+                    if (!db.objectStoreNames.contains(IMAGE_STORE_NAME)) {
+                        const store = db.createObjectStore(IMAGE_STORE_NAME, { keyPath: 'id' });
+                        store.createIndex('hash', 'hash', { unique: false });
+                        store.createIndex('createdAt', 'createdAt', { unique: false });
+                    }
+                };
+            });
+        }
+
+        /**
+         * Generate hash for image deduplication
+         */
+        async function hashImageData(dataUrl) {
+            const base64 = dataUrl.split(',')[1] || dataUrl;
+            const encoder = new TextEncoder();
+            const data = encoder.encode(base64.substring(0, 10000)); // Hash first 10KB for speed
+            const hashBuffer = await crypto.subtle.digest('SHA-256', data);
+            const hashArray = Array.from(new Uint8Array(hashBuffer));
+            return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 16);
+        }
+
+        /**
+         * Compress image to WebP with max dimensions
+         * @param {string} dataUrl - Original image data URL
+         * @param {number} maxDimension - Max width or height (default 2048)
+         * @param {number} quality - WebP quality 0-1 (default 0.8)
+         * @returns {Promise<{dataUrl: string, dimensions: {width: number, height: number}}>}
+         */
+        async function compressImage(dataUrl, maxDimension = 2048, quality = 0.8) {
+            return new Promise((resolve, reject) => {
+                const img = new Image();
+                img.onload = () => {
+                    let { width, height } = img;
+
+                    // Scale down if needed
+                    if (width > maxDimension || height > maxDimension) {
+                        const scale = maxDimension / Math.max(width, height);
+                        width = Math.round(width * scale);
+                        height = Math.round(height * scale);
+                    }
+
+                    // Draw to canvas and export as WebP
+                    const canvas = document.createElement('canvas');
+                    canvas.width = width;
+                    canvas.height = height;
+                    const ctx = canvas.getContext('2d');
+                    ctx.drawImage(img, 0, 0, width, height);
+
+                    // Try WebP first, fall back to JPEG if not supported
+                    let compressedUrl = canvas.toDataURL('image/webp', quality);
+                    if (!compressedUrl.startsWith('data:image/webp')) {
+                        compressedUrl = canvas.toDataURL('image/jpeg', quality);
+                    }
+
+                    const originalSize = dataUrl.length;
+                    const compressedSize = compressedUrl.length;
+                    console.log(`[Images] Compressed: ${Math.round(originalSize/1024)}KB → ${Math.round(compressedSize/1024)}KB (${Math.round(compressedSize/originalSize*100)}%)`);
+
+                    resolve({
+                        dataUrl: compressedUrl,
+                        dimensions: { width, height },
+                        originalDimensions: { width: img.naturalWidth, height: img.naturalHeight }
+                    });
+                };
+                img.onerror = reject;
+                img.src = dataUrl;
+            });
+        }
+
+        /**
+         * Save image to IndexedDB store
+         * @param {string} dataUrl - Image data URL (will be compressed)
+         * @returns {Promise<{id: string, hash: string, dimensions: object}>} - Image reference
+         */
+        async function saveImageToStore(dataUrl) {
+            await initImageDB();
+
+            // Compress image first
+            const compressed = await compressImage(dataUrl);
+            const hash = await hashImageData(compressed.dataUrl);
+
+            // Check for existing image with same hash
+            if (imageDB) {
+                const existing = await new Promise((resolve) => {
+                    const tx = imageDB.transaction(IMAGE_STORE_NAME, 'readonly');
+                    const store = tx.objectStore(IMAGE_STORE_NAME);
+                    const index = store.index('hash');
+                    const request = index.get(hash);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onerror = () => resolve(null);
+                });
+
+                if (existing) {
+                    console.log('[Images] Reusing existing image with hash:', hash);
+                    return {
+                        id: existing.id,
+                        hash: existing.hash,
+                        dimensions: existing.dimensions
+                    };
+                }
+            }
+
+            const imageId = `img-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+            const imageData = {
+                id: imageId,
+                hash: hash,
+                dataUrl: compressed.dataUrl,
+                dimensions: compressed.dimensions,
+                originalDimensions: compressed.originalDimensions,
+                createdAt: Date.now(),
+                size: compressed.dataUrl.length
+            };
+
+            if (imageDB) {
+                await new Promise((resolve, reject) => {
+                    const tx = imageDB.transaction(IMAGE_STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(IMAGE_STORE_NAME);
+                    const request = store.put(imageData);
+                    request.onsuccess = () => resolve();
+                    request.onerror = () => reject(request.error);
+                });
+                console.log('[Images] Saved to IndexedDB:', imageId, `(${Math.round(imageData.size/1024)}KB)`);
+            } else {
+                // Fallback: store in localStorage (limited size)
+                try {
+                    localStorage.setItem(`treelisty-image-${imageId}`, JSON.stringify(imageData));
+                    console.log('[Images] Saved to localStorage:', imageId);
+                } catch (e) {
+                    console.warn('[Images] Storage failed:', e);
+                }
+            }
+
+            return {
+                id: imageId,
+                hash: hash,
+                dimensions: compressed.dimensions
+            };
+        }
+
+        /**
+         * Get image from IndexedDB store
+         * @param {string} imageId - Image ID
+         * @returns {Promise<string|null>} - Image data URL or null
+         */
+        async function getImageFromStore(imageId) {
+            await initImageDB();
+
+            if (imageDB) {
+                return new Promise((resolve) => {
+                    const tx = imageDB.transaction(IMAGE_STORE_NAME, 'readonly');
+                    const store = tx.objectStore(IMAGE_STORE_NAME);
+                    const request = store.get(imageId);
+                    request.onsuccess = () => {
+                        const result = request.result;
+                        resolve(result ? result.dataUrl : null);
+                    };
+                    request.onerror = () => resolve(null);
+                });
+            } else {
+                // localStorage fallback
+                const data = localStorage.getItem(`treelisty-image-${imageId}`);
+                if (data) {
+                    try {
+                        return JSON.parse(data).dataUrl;
+                    } catch (e) {
+                        return null;
+                    }
+                }
+                return null;
+            }
+        }
+
+        /**
+         * Delete image from store
+         */
+        async function deleteImageFromStore(imageId) {
+            await initImageDB();
+
+            if (imageDB) {
+                return new Promise((resolve) => {
+                    const tx = imageDB.transaction(IMAGE_STORE_NAME, 'readwrite');
+                    const store = tx.objectStore(IMAGE_STORE_NAME);
+                    const request = store.delete(imageId);
+                    request.onsuccess = () => resolve(true);
+                    request.onerror = () => resolve(false);
+                });
+            } else {
+                localStorage.removeItem(`treelisty-image-${imageId}`);
+                return true;
+            }
+        }
+
+        // =============================================================================
+        // END IMAGE STORE
+        // =============================================================================
+
         /**
          * Call Gemini Vision API with an image for analysis
          * @param {string} imageDataUrl - Base64 data URL of the image
@@ -13174,10 +13490,13 @@ Be thorough - detect ALL visible objects, text, UI elements, and distinct region
                 img.src = imageDataUrl;
             });
 
-            // Store image metadata
+            // BUILD 568: Save image to IndexedDB instead of embedding in tree
+            const imageRef = await saveImageToStore(imageDataUrl);
+
+            // Store image reference (not the full base64)
             analysisResult._imageAnalysis = {
-                sourceImage: imageDataUrl,
-                imageDimensions: {
+                imageRef: imageRef,  // { id, hash, dimensions }
+                imageDimensions: imageRef.dimensions || {
                     width: img.naturalWidth,
                     height: img.naturalHeight
                 },
@@ -18826,24 +19145,51 @@ Be specific and insightful, not generic.`;
          * Render the source image as a semi-transparent background on the canvas
          * Image is scaled to 1000px width and positioned at SVG_OFFSET
          */
-        function renderCanvasBackgroundImage() {
+        async function renderCanvasBackgroundImage() {
             const bgContainer = document.getElementById('canvas-background-image');
             const bgImg = document.getElementById('canvas-bg-img');
 
             if (!bgContainer || !bgImg) return;
 
             const imageData = capexTree._imageAnalysis;
-            if (!imageData?.sourceImage) {
+            if (!imageData) {
+                bgContainer.style.display = 'none';
+                return;
+            }
+
+            // BUILD 568: Load image from IndexedDB if imageRef present, else use legacy sourceImage
+            let imageSrc = null;
+
+            if (imageData.imageRef?.id) {
+                // New pattern: load from IndexedDB
+                try {
+                    const storedImage = await getImageFromStore(imageData.imageRef.id);
+                    if (storedImage) {
+                        imageSrc = storedImage.dataUrl;
+                        console.log('🖼️ Loaded image from IndexedDB:', imageData.imageRef.id);
+                    } else {
+                        console.warn('⚠️ Image not found in IndexedDB:', imageData.imageRef.id);
+                    }
+                } catch (err) {
+                    console.error('❌ Failed to load image from IndexedDB:', err);
+                }
+            } else if (imageData.sourceImage) {
+                // Legacy pattern: embedded base64
+                imageSrc = imageData.sourceImage;
+                console.log('🖼️ Using legacy embedded image');
+            }
+
+            if (!imageSrc) {
                 bgContainer.style.display = 'none';
                 return;
             }
 
             // Set image source
-            bgImg.src = imageData.sourceImage;
+            bgImg.src = imageSrc;
             bgContainer.style.display = 'block';
 
             // Get dimensions and scale to 1000px width
-            const imgDims = imageData.imageDimensions;
+            const imgDims = imageData.imageDimensions || imageData.imageRef?.dimensions;
             if (!imgDims) return;
 
             const targetWidth = 1000;
@@ -19303,6 +19649,265 @@ Be specific and insightful, not generic.`;
         // =============================================================================
         // END IMAGE ANALYSIS RENDERING
         // =============================================================================
+
+        // =============================================================================
+        // BUILD 568: IMAGE IMPORT MODAL
+        // =============================================================================
+
+        let pendingImageData = null; // Stores the image data URL pending analysis
+
+        function showImageImportModal() {
+            const modal = document.getElementById('image-import-modal');
+            if (!modal) return;
+
+            // Reset state
+            pendingImageData = null;
+            document.getElementById('image-url-input').value = '';
+            document.getElementById('image-preview-container').style.display = 'none';
+            document.getElementById('image-analyze-btn').disabled = true;
+            document.getElementById('image-analyze-btn').style.opacity = '0.5';
+
+            // Show capture section if extension connected
+            const captureSection = document.getElementById('image-capture-section');
+            if (captureSection && typeof mcpBridgeState !== 'undefined' && mcpBridgeState.connected) {
+                captureSection.style.display = 'block';
+            }
+
+            modal.style.display = 'flex';
+            console.log('🖼️ Image import modal opened');
+        }
+
+        function hideImageImportModal() {
+            const modal = document.getElementById('image-import-modal');
+            if (modal) {
+                modal.style.display = 'none';
+                pendingImageData = null;
+            }
+        }
+
+        function updateImagePreview(dataUrl, fileName = 'Image') {
+            pendingImageData = dataUrl;
+
+            const preview = document.getElementById('image-preview');
+            const container = document.getElementById('image-preview-container');
+            const dims = document.getElementById('image-preview-dims');
+            const size = document.getElementById('image-preview-size');
+            const analyzeBtn = document.getElementById('image-analyze-btn');
+
+            if (!preview || !container) return;
+
+            preview.src = dataUrl;
+            container.style.display = 'block';
+
+            // Get dimensions when loaded
+            preview.onload = () => {
+                dims.textContent = `${preview.naturalWidth} x ${preview.naturalHeight}`;
+            };
+
+            // Calculate size from base64
+            const base64Length = dataUrl.split(',')[1]?.length || 0;
+            const sizeBytes = Math.round((base64Length * 3) / 4);
+            const sizeKB = Math.round(sizeBytes / 1024);
+            size.textContent = sizeKB > 1024 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`;
+
+            // Enable analyze button
+            analyzeBtn.disabled = false;
+            analyzeBtn.style.opacity = '1';
+
+            console.log('🖼️ Image preview updated:', { fileName, sizeKB });
+        }
+
+        async function captureScreenForImport() {
+            showToast('📸 Capturing screen...', 'info');
+
+            try {
+                // Use existing MCP bridge capture if available
+                if (typeof mcpBridgeState !== 'undefined' && mcpBridgeState.connected && mcpBridgeState.client) {
+                    const result = await mcpBridgeState.client.callTool('ext_capture_screen', { quality: 0.8 });
+                    if (result?.content?.[0]?.text) {
+                        const response = JSON.parse(result.content[0].text);
+                        if (response.screenshot) {
+                            updateImagePreview(response.screenshot, response.title || 'Captured Screen');
+                            showToast('✅ Screen captured!', 'success');
+                            return;
+                        }
+                    }
+                }
+
+                // Fallback: check for cached screen capture
+                if (window._lastScreenCapture?.screenshot) {
+                    updateImagePreview(window._lastScreenCapture.screenshot, window._lastScreenCapture.title || 'Cached Capture');
+                    showToast('✅ Using cached screen capture', 'success');
+                    return;
+                }
+
+                showToast('⚠️ No screen capture available. Connect MCP Bridge first.', 'warning');
+            } catch (err) {
+                console.error('Failed to capture screen:', err);
+                showToast('❌ Screen capture failed: ' + err.message, 'error');
+            }
+        }
+
+        async function analyzeImportedImage() {
+            if (!pendingImageData) {
+                showToast('⚠️ No image selected', 'warning');
+                return;
+            }
+
+            // Check for Gemini API key
+            const apiKey = localStorage.getItem('gemini_api_key');
+            if (!apiKey) {
+                showToast('⚠️ Please set your Gemini API key first', 'warning');
+                return;
+            }
+
+            // Get import mode
+            const modeRadio = document.querySelector('input[name="image-import-mode"]:checked');
+            const mode = modeRadio?.value || 'replace';
+
+            hideImageImportModal();
+            showToast('🔍 Analyzing image with Gemini Vision...', 'info');
+
+            try {
+                const result = await analyzeImageForTree(pendingImageData);
+
+                if (mode === 'replace') {
+                    // Replace the entire tree
+                    capexTree = result;
+                    selectedItemId = capexTree.id;
+                } else {
+                    // Add as child of selected node
+                    const targetNode = findNode(capexTree, selectedItemId) || capexTree;
+                    if (!targetNode.children) targetNode.children = [];
+                    result.id = 'img-' + Date.now();
+                    targetNode.children.push(result);
+                }
+
+                saveState('Import Image Analysis');
+                render();
+                renderCanvas();
+
+                // Switch to canvas view to show the analysis
+                if (typeof viewMode !== 'undefined' && viewMode !== 'canvas') {
+                    document.getElementById('view-mode-toggle')?.click();
+                }
+
+                showToast('✅ Image analyzed! Switch to Canvas view to see bounding boxes.', 'success');
+            } catch (err) {
+                console.error('Image analysis failed:', err);
+                showToast('❌ Analysis failed: ' + err.message, 'error');
+            }
+        }
+
+        // Initialize image import modal event handlers
+        function initImageImportModal() {
+            const dropZone = document.getElementById('image-drop-zone');
+            const urlInput = document.getElementById('image-url-input');
+            const fileInput = document.getElementById('image-upload-input');
+
+            if (!dropZone || !fileInput) return;
+
+            // Click to browse
+            dropZone.addEventListener('click', () => fileInput.click());
+
+            // Drag and drop
+            dropZone.addEventListener('dragover', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = '#6366f1';
+                dropZone.style.background = 'rgba(99, 102, 241, 0.1)';
+            });
+
+            dropZone.addEventListener('dragleave', () => {
+                dropZone.style.borderColor = 'var(--border)';
+                dropZone.style.background = 'var(--bg)';
+            });
+
+            dropZone.addEventListener('drop', (e) => {
+                e.preventDefault();
+                dropZone.style.borderColor = 'var(--border)';
+                dropZone.style.background = 'var(--bg)';
+
+                const file = e.dataTransfer.files[0];
+                if (file && file.type.startsWith('image/')) {
+                    handleImageFile(file);
+                } else {
+                    showToast('⚠️ Please drop an image file', 'warning');
+                }
+            });
+
+            // File input change
+            fileInput.addEventListener('change', (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    handleImageFile(file);
+                    fileInput.value = ''; // Reset for next use
+                }
+            });
+
+            // URL input (on Enter or blur)
+            urlInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    handleImageUrl(urlInput.value);
+                }
+            });
+
+            urlInput.addEventListener('blur', () => {
+                if (urlInput.value) {
+                    handleImageUrl(urlInput.value);
+                }
+            });
+
+            console.log('🖼️ Image import modal initialized');
+        }
+
+        function handleImageFile(file) {
+            if (file.size > 20 * 1024 * 1024) {
+                showToast('⚠️ Image too large (max 20MB)', 'warning');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                updateImagePreview(e.target.result, file.name);
+            };
+            reader.onerror = () => {
+                showToast('❌ Failed to read image file', 'error');
+            };
+            reader.readAsDataURL(file);
+        }
+
+        async function handleImageUrl(url) {
+            if (!url) return;
+
+            try {
+                showToast('⏳ Loading image from URL...', 'info');
+
+                const response = await fetch(url);
+                if (!response.ok) throw new Error('Failed to fetch image');
+
+                const blob = await response.blob();
+                if (!blob.type.startsWith('image/')) {
+                    throw new Error('URL does not point to an image');
+                }
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    updateImagePreview(e.target.result, url.split('/').pop());
+                    showToast('✅ Image loaded', 'success');
+                };
+                reader.readAsDataURL(blob);
+            } catch (err) {
+                console.error('Failed to load image from URL:', err);
+                showToast('❌ Failed to load image: ' + err.message, 'error');
+            }
+        }
+
+        // =============================================================================
+        // END IMAGE IMPORT MODAL
+        // =============================================================================
+
+        // Initialize on page load
+        document.addEventListener('DOMContentLoaded', initImageImportModal);
 
         function drawConnections() {
             // Skip drawing connections for filesystem pattern (uses indent-based hierarchy)
@@ -57132,6 +57737,11 @@ STRATEGIES:
             document.getElementById('excel-upload-input').click();
         });
 
+        // BUILD 568: Image Import button handler - opens modal
+        document.getElementById('image-import-btn').addEventListener('click', () => {
+            showImageImportModal();
+        });
+
         // ============================================
         // LOAD FROM GOOGLE DRIVE MODAL
         // ============================================
@@ -70318,7 +70928,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 567; // Update this with each build
+                    const KNOWN_LATEST = 568; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
