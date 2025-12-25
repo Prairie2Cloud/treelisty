@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.38.5 | Build 584 | 2025-12-25
+    TreeListy v2.38.6 | Build 585 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 585): Dev request UX notifications - toast shows what Claude Code is implementing and when build is ready
     Changelog (Build 584): TB developer channel guidance - TB now knows to use request_dev_help proactively instead of asking user to relay
     Changelog (Build 583): request_dev_help command - TB can request new capabilities directly from Claude Code via MCP
     Changelog (Build 582): rename_node and read_node commands - TB can now rename nodes and read full content
@@ -792,8 +793,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.38.5',
-            build: 584,
+            major: '2.38.6',
+            build: 585,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -40882,8 +40883,18 @@ https://treelisty.netlify.app`;
                 case 'task_claimed':
                     // Claude Code started working on task
                     mcpBridgeState.activeTasks.push(event.taskId);
-                    mcpBridgeState.taskProgress[event.taskId] = { message: 'Starting...', percent: 0 };
-                    showToast('🤖 Claude Code is working...', 'info', 2000);
+                    mcpBridgeState.taskProgress[event.taskId] = {
+                        message: event.taskSummary || 'Starting...',
+                        percent: 0,
+                        type: event.taskType || 'unknown'
+                    };
+                    // Show descriptive toast for dev requests
+                    if (event.taskType === 'dev_request') {
+                        const summary = event.taskSummary || 'new capability';
+                        showToast(`🔧 Claude Code implementing: ${summary.substring(0, 50)}${summary.length > 50 ? '...' : ''}`, 'info', 5000);
+                    } else {
+                        showToast('🤖 Claude Code is working...', 'info', 2000);
+                    }
                     updateInboxUI();
                     break;
 
@@ -40899,18 +40910,26 @@ https://treelisty.netlify.app`;
                 case 'task_completed':
                     // Task completed with proposed operations
                     mcpBridgeState.activeTasks = mcpBridgeState.activeTasks.filter(id => id !== event.taskId);
+                    const completedTaskInfo = mcpBridgeState.taskProgress[event.taskId];
                     delete mcpBridgeState.taskProgress[event.taskId];
 
-                    // Add to inbox
-                    mcpBridgeState.inbox.push({
-                        taskId: event.taskId,
-                        result: event.result,
-                        receivedAt: Date.now()
-                    });
+                    // Add to inbox (unless it's a dev_request which doesn't need inbox review)
+                    if (event.taskType !== 'dev_request') {
+                        mcpBridgeState.inbox.push({
+                            taskId: event.taskId,
+                            result: event.result,
+                            receivedAt: Date.now()
+                        });
+                    }
 
-                    // Notify user
-                    const opsCount = event.result?.proposed_ops?.length || 0;
-                    showToast(`📥 Task complete! ${opsCount} proposed change${opsCount !== 1 ? 's' : ''} in Inbox`, 'success');
+                    // Notify user based on task type
+                    if (event.taskType === 'dev_request') {
+                        const buildNum = event.result?.buildNumber || 'new';
+                        showToast(`✅ Build ${buildNum} deployed! Refresh to get new capabilities.`, 'success', 8000);
+                    } else {
+                        const opsCount = event.result?.proposed_ops?.length || 0;
+                        showToast(`📥 Task complete! ${opsCount} proposed change${opsCount !== 1 ? 's' : ''} in Inbox`, 'success');
+                    }
                     updateInboxUI();
                     break;
 
@@ -72784,7 +72803,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 584; // Update this with each build
+                    const KNOWN_LATEST = 585; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
