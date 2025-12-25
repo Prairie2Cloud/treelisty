@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.36.1 | Build 577 | 2025-12-25
+    TreeListy v2.37.0 | Build 578 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 578): Treebeard safe manipulation - preview_node, move_node, duplicate_node, compare_nodes commands
     Changelog (Build 577): Case-insensitive commands - "Undo", "UNDO", "undo" all work now
     Changelog (Build 576): Treebeard add_node/add_child - direct node creation via Treebeard chat, no more "command not found"
     Changelog (Build 575): Atlas Phase-1 Link Resolution - [[node name]] syntax renders as clickable links, navigates to target node
@@ -785,8 +786,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.36.1',
-            build: 577,
+            major: '2.37.0',
+            build: 578,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -61820,10 +61821,10 @@ ${fullTranscript}`;
             },
             edit: {
                 canonical: 'add_node',
-                description: 'Add, modify, or remove nodes',
-                aliases: ['add', 'create', 'new', 'insert', 'edit', 'change', 'update', 'modify', 'remove', 'delete'],
-                commands: ['add_node', 'add_child', 'add_phase', 'add_research_nodes', 'delete_node', 'rename_root', 'rename_node', 'set_field'],
-                examples: ['add_node Marketing Campaign | Campaign for Q1 launch', 'add_child Subtask Name', 'add a new phase', 'delete this node']
+                description: 'Add, modify, move, or remove nodes',
+                aliases: ['add', 'create', 'new', 'insert', 'edit', 'change', 'update', 'modify', 'remove', 'delete', 'move', 'duplicate', 'copy', 'compare'],
+                commands: ['add_node', 'add_child', 'add_phase', 'add_research_nodes', 'move_node', 'duplicate_node', 'compare_nodes', 'preview_node', 'delete_node', 'rename_root', 'rename_node', 'set_field'],
+                examples: ['add_node Marketing Campaign | Campaign for Q1 launch', 'move_node Bergson to French Critics', 'duplicate_node Phase 1', 'compare_nodes Section A and Section B']
             },
             view: {
                 canonical: 'toggle_view',
@@ -63137,6 +63138,239 @@ Slack data not available. To calculate slack:
                     console.error('Error adding child:', error);
                     return `❌ Failed to add child: ${error.message}`;
                 }
+            },
+
+            // BUILD 578: Preview node contents directly in chat
+            'preview_node': (nodeIdOrName) => {
+                if (!nodeIdOrName) {
+                    const focused = window.chatFocusedNode || activeNode;
+                    if (!focused) return '⚠️ No node focused. Use `preview_node {name}` or focus a node first.';
+                    nodeIdOrName = focused.id;
+                }
+
+                // Find node by ID or name
+                let node = findById(capexTree, nodeIdOrName);
+                if (!node) {
+                    node = findNodeByName(capexTree, nodeIdOrName);
+                }
+                if (!node) {
+                    return `❌ Node "${nodeIdOrName}" not found.`;
+                }
+
+                // Build preview
+                const children = node.children || node.items || node.subItems || node.subtasks || [];
+                const childCount = children.length;
+                const desc = node.description ? `\n\n**Description:**\n${node.description.substring(0, 500)}${node.description.length > 500 ? '...' : ''}` : '';
+                const childList = childCount > 0
+                    ? `\n\n**Children (${childCount}):**\n${children.slice(0, 10).map(c => `• ${c.name || c.id}`).join('\n')}${childCount > 10 ? `\n... and ${childCount - 10} more` : ''}`
+                    : '\n\n*No children*';
+
+                return `📋 **${node.name}**\n\nType: ${node.type || 'item'}\nID: \`${node.id}\`${node.nodeGuid ? `\nGUID: \`${node.nodeGuid}\`` : ''}${desc}${childList}`;
+            },
+
+            // BUILD 578: Move node to new parent
+            'move_node': (args) => {
+                if (!args) {
+                    return '⚠️ Usage: `move_node {node_name} to {parent_name}`\nExample: `move_node Bergson to French Critics`';
+                }
+
+                // Parse "node to parent" format
+                const toMatch = args.match(/^(.+?)\s+to\s+(.+)$/i);
+                if (!toMatch) {
+                    return '⚠️ Format: `move_node {source} to {destination}`';
+                }
+
+                const sourceName = toMatch[1].trim();
+                const destName = toMatch[2].trim();
+
+                // Find source node
+                let sourceNode = findById(capexTree, sourceName) || findNodeByName(capexTree, sourceName);
+                if (!sourceNode) {
+                    return `❌ Source node "${sourceName}" not found.`;
+                }
+
+                // Find destination node
+                let destNode = findById(capexTree, destName) || findNodeByName(capexTree, destName);
+                if (!destNode) {
+                    return `❌ Destination "${destName}" not found.`;
+                }
+
+                // Prevent moving to self or descendant
+                if (sourceNode.id === destNode.id) {
+                    return `❌ Cannot move node to itself.`;
+                }
+
+                // Save undo state
+                if (typeof saveState === 'function') saveState('Move node via Treebeard');
+
+                // Remove from current parent
+                function removeFromParent(tree, nodeId) {
+                    const arrays = ['children', 'items', 'subItems', 'subtasks'];
+                    for (const arr of arrays) {
+                        if (tree[arr]) {
+                            const idx = tree[arr].findIndex(n => n.id === nodeId);
+                            if (idx !== -1) {
+                                tree[arr].splice(idx, 1);
+                                return true;
+                            }
+                            for (const child of tree[arr]) {
+                                if (removeFromParent(child, nodeId)) return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                removeFromParent(capexTree, sourceNode.id);
+
+                // Add to destination
+                if (!destNode.items) destNode.items = [];
+                if (!destNode.children) destNode.children = [];
+
+                // Use items for phases, children for others
+                if (destNode.type === 'phase') {
+                    destNode.items.push(sourceNode);
+                } else {
+                    destNode.children.push(sourceNode);
+                }
+
+                // Expand destination
+                destNode.collapsed = false;
+
+                if (typeof render === 'function') render();
+                if (typeof trackNodeChange === 'function') trackNodeChange(sourceNode.id, 'moved');
+
+                return `✅ Moved "${sourceNode.name}" to "${destNode.name}"`;
+            },
+
+            // BUILD 578: Duplicate node (safety copy)
+            'duplicate_node': (nodeIdOrName) => {
+                const focused = window.chatFocusedNode || activeNode;
+                const targetNode = nodeIdOrName
+                    ? (findById(capexTree, nodeIdOrName) || findNodeByName(capexTree, nodeIdOrName))
+                    : focused;
+
+                if (!targetNode) {
+                    return '⚠️ No node specified or focused. Use `duplicate_node {name}` or focus a node first.';
+                }
+
+                if (targetNode.id === 'root' || targetNode.id === capexTree.id) {
+                    return '❌ Cannot duplicate root node.';
+                }
+
+                // Save undo state
+                if (typeof saveState === 'function') saveState('Duplicate node via Treebeard');
+
+                // Deep clone the node
+                const timestamp = Date.now();
+                function cloneNode(node, isRoot = false) {
+                    const clone = { ...node };
+                    clone.id = `${node.id}-copy-${timestamp}`;
+                    clone.nodeGuid = typeof generateNodeGuid === 'function' ? generateNodeGuid() : `n_${timestamp}`;
+                    if (isRoot) clone.name = `${node.name} (Copy)`;
+
+                    // Clone children recursively
+                    ['children', 'items', 'subItems', 'subtasks'].forEach(arr => {
+                        if (clone[arr]) {
+                            clone[arr] = clone[arr].map(child => cloneNode(child, false));
+                        }
+                    });
+                    return clone;
+                }
+
+                const duplicate = cloneNode(targetNode, true);
+
+                // Find parent and add duplicate
+                function findParentAndAdd(tree, nodeId, newNode) {
+                    const arrays = ['children', 'items', 'subItems', 'subtasks'];
+                    for (const arr of arrays) {
+                        if (tree[arr]) {
+                            const idx = tree[arr].findIndex(n => n.id === nodeId);
+                            if (idx !== -1) {
+                                tree[arr].splice(idx + 1, 0, newNode);
+                                return true;
+                            }
+                            for (const child of tree[arr]) {
+                                if (findParentAndAdd(child, nodeId, newNode)) return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                findParentAndAdd(capexTree, targetNode.id, duplicate);
+
+                if (typeof render === 'function') render();
+                if (typeof trackNodeChange === 'function') trackNodeChange(duplicate.id, 'added');
+
+                return `✅ Created copy: "${duplicate.name}" (${duplicate.id})`;
+            },
+
+            // BUILD 578: Compare two nodes for similarities/differences
+            'compare_nodes': (args) => {
+                if (!args) {
+                    return '⚠️ Usage: `compare_nodes {node1} and {node2}`\nExample: `compare_nodes Bergson and Deleuze`';
+                }
+
+                // Parse "node1 and node2" or "node1 vs node2" format
+                const match = args.match(/^(.+?)\s+(?:and|vs|versus|with)\s+(.+)$/i);
+                if (!match) {
+                    return '⚠️ Format: `compare_nodes {node1} and {node2}`';
+                }
+
+                const name1 = match[1].trim();
+                const name2 = match[2].trim();
+
+                const node1 = findById(capexTree, name1) || findNodeByName(capexTree, name1);
+                const node2 = findById(capexTree, name2) || findNodeByName(capexTree, name2);
+
+                if (!node1) return `❌ Node "${name1}" not found.`;
+                if (!node2) return `❌ Node "${name2}" not found.`;
+
+                // Compare structure
+                const children1 = node1.children || node1.items || node1.subItems || [];
+                const children2 = node2.children || node2.items || node2.subItems || [];
+
+                const names1 = new Set(children1.map(c => (c.name || '').toLowerCase()));
+                const names2 = new Set(children2.map(c => (c.name || '').toLowerCase()));
+
+                const shared = [...names1].filter(n => names2.has(n));
+                const only1 = [...names1].filter(n => !names2.has(n));
+                const only2 = [...names2].filter(n => !names1.has(n));
+
+                // Compare descriptions
+                const desc1 = (node1.description || '').toLowerCase();
+                const desc2 = (node2.description || '').toLowerCase();
+                const descSimilar = desc1 && desc2 && (
+                    desc1.includes(desc2.substring(0, 50)) ||
+                    desc2.includes(desc1.substring(0, 50))
+                );
+
+                let result = `📊 **Comparing: ${node1.name} vs ${node2.name}**\n\n`;
+                result += `**${node1.name}:** ${children1.length} children\n`;
+                result += `**${node2.name}:** ${children2.length} children\n\n`;
+
+                if (shared.length > 0) {
+                    result += `⚠️ **Potentially Duplicate Children (${shared.length}):**\n`;
+                    result += shared.slice(0, 5).map(n => `• ${n}`).join('\n');
+                    if (shared.length > 5) result += `\n... and ${shared.length - 5} more`;
+                    result += '\n\n';
+                } else {
+                    result += `✅ **No duplicate children found**\n\n`;
+                }
+
+                if (only1.length > 0) {
+                    result += `**Only in ${node1.name}:** ${only1.slice(0, 3).join(', ')}${only1.length > 3 ? '...' : ''}\n`;
+                }
+                if (only2.length > 0) {
+                    result += `**Only in ${node2.name}:** ${only2.slice(0, 3).join(', ')}${only2.length > 3 ? '...' : ''}\n`;
+                }
+
+                if (descSimilar) {
+                    result += `\n⚠️ Descriptions appear similar - possible duplicate content.`;
+                }
+
+                return result;
             },
 
             'expand_all': () => {
@@ -67849,6 +68083,10 @@ GLOBAL (work anytime):
 • add_child:{name} - Add a child node to the focused node
 • add_phase - Add new phase
 • add_research_nodes:[{name, description},...] - Add multiple research nodes
+• preview_node:{name} - See node contents (description, children) in chat
+• move_node:{source} to {destination} - Move a node to a new parent
+• duplicate_node:{name} - Create a safety copy of a node (deep clone)
+• compare_nodes:{node1} and {node2} - Check for duplicate content between nodes
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
@@ -71853,7 +72091,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 577; // Update this with each build
+                    const KNOWN_LATEST = 578; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
