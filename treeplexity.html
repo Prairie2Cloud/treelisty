@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.33.0 | Build 572 | 2025-12-24
+    TreeListy v2.34.0 | Build 574 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 574): Deep Research via Claude Code - dispatch research tasks to Claude Code for web search + tree integration, bypassing fragile local filters
+    Changelog (Build 573): Atlas Phase-0 Identity Lockdown - treeId (immutable), nodeGuid (stable), uidOf() helper, link patterns for cross-tree intelligence
     Changelog (Build 572): Fix bbox bug - clear irrelevant image analysis bboxes from structured data imports (URL, JSON)
     Changelog (Build 571): Model selector - choose Gemini 2.5 Flash (faster) or Nano Banana Pro (better colors) for image analysis
     Changelog (Build 570): Gemini 2.5 Flash - upgraded image analysis model for 20% more detail detection
@@ -780,9 +782,9 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.33.0',
-            build: 572,
-            date: '2025-12-24',
+            major: '2.34.0',
+            build: 574,
+            date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -13783,7 +13785,31 @@ For faces, ALWAYS include subItems for: eyes, nose, mouth, and other visible fac
         function detectResearchIntent(message) {
             const lower = message.toLowerCase().trim();
 
+            // BUILD 574: Check for EXPLICIT research keywords FIRST
+            // These should ALWAYS trigger research, even if TreeListy terms are present
+            // This fixes the bug where "research X and add to tree" was blocked
+            const explicitResearchPatterns = [
+                /^(?:please\s+)?research\s+(.+)/i,
+                /^(?:please\s+)?look\s+up\s+(.+)/i,
+                /^(?:please\s+)?find\s+(?:information\s+)?(?:about\s+)?(.+)/i,
+                /^(?:please\s+)?get\s+(?:info|information)\s+(?:on|about)\s+(.+)/i,
+                /^(?:can you\s+)?(?:research|look up)\s+(.+)/i
+            ];
+
+            for (const pattern of explicitResearchPatterns) {
+                const match = lower.match(pattern);
+                if (match) {
+                    // Extract the query, removing TreeListy integration phrases
+                    let query = match[1].trim();
+                    // Remove phrases like "and add to tree", "and integrate", etc.
+                    query = query.replace(/\s+and\s+(?:add|integrate|put|place|insert).*$/i, '').trim();
+                    console.log('🔬 Explicit research keyword detected:', query);
+                    return { isResearch: true, query: query, useDeepResearch: true };
+                }
+            }
+
             // BUILD 522: TreeListy-specific terms should NOT trigger web research
+            // (Only checked AFTER explicit research keywords)
             // These queries should be handled by tree analysis, not web search
             const treelistyTerms = [
                 'hyperedge', 'hyperedges',
@@ -13797,26 +13823,21 @@ For faces, ALWAYS include subItems for: eyes, nose, mouth, and other visible fac
                 'pattern', 'patterns'
             ];
 
-            // If query contains TreeListy terms, don't route to web research
+            // If query contains TreeListy terms (without explicit research keyword), skip
             if (treelistyTerms.some(term => lower.includes(term))) {
                 console.log('🌳 TreeListy term detected, skipping web research:', message);
                 return null; // Let it fall through to normal command/conversation handling
             }
 
-            // Explicit research keywords
+            // Other research patterns (implicit)
             const researchPatterns = [
-                /^research\s+(.+)/i,
                 /^search\s+(?:for\s+)?(.+)/i,
-                /^find\s+(?:information\s+)?(?:about\s+)?(.+)/i,
-                /^look\s+up\s+(.+)/i,
                 /^what\s+(?:is|are|was|were)\s+(.+)\??/i,
                 /^who\s+(?:is|are|was|were)\s+(.+)\??/i,
                 /^when\s+(?:did|was|were|is)\s+(.+)\??/i,
                 /^where\s+(?:is|are|was|were)\s+(.+)\??/i,
                 /^how\s+(?:much|many|do|does|did|can|could)\s+(.+)\??/i,
-                /^tell\s+me\s+about\s+(.+)/i,
-                /^get\s+(?:info|information)\s+(?:on|about)\s+(.+)/i,
-                /^(?:can you\s+)?(?:find|research|look up)\s+(.+)/i
+                /^tell\s+me\s+about\s+(.+)/i
             ];
 
             for (const pattern of researchPatterns) {
@@ -15090,6 +15111,9 @@ Focus on logical structure and content organization best practices.`;
         // Data - "Welcome to TreeListy" starter tree - visually striking canvas layout with 5 hyperedges
         let capexTree = {
             id: 'root',
+            treeId: 'tree_welcome01', // Atlas: Immutable tree identifier
+            nodeGuid: 'n_root0001', // Atlas: Stable node identifier
+            schemaVersion: 2, // Atlas Identity Lockdown
             name: 'Welcome to TreeListy',
             type: 'root',
             icon: '🌳',
@@ -25000,9 +25024,212 @@ const SCHEMA_VERSION = 1;
 /**
  * Recursively normalizes node structure and adds defense fields
  */
+// ============================================================================
+// ATLAS IDENTITY INFRASTRUCTURE (Build 573 - Phase-0 Identity Lockdown)
+// Foundation for cross-tree intelligence: stable IDs that survive moves/renames
+// ============================================================================
+
+/**
+ * Generate a unique tree identifier.
+ * Format: tree_XXXXXXXX (8 random hex chars)
+ * This ID is immutable once created - survives file renames.
+ */
+function generateTreeId() {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    return `tree_${hex}`;
+}
+
+/**
+ * Generate a unique node identifier.
+ * Format: n_XXXXXXXX (8 random hex chars)
+ * This ID is stable - survives node moves within tree.
+ */
+function generateNodeGuid() {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    const hex = Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('');
+    return `n_${hex}`;
+}
+
+/**
+ * THE SINGLE SOURCE OF TRUTH FOR ATLAS IDENTITY
+ * Get the Atlas UID for a node. Use this EVERYWHERE in Atlas code.
+ * Never reference node.id directly in Atlas - use this function.
+ *
+ * @param {string} treeId - The tree's immutable ID
+ * @param {object} node - The node object
+ * @returns {string} The composite UID (treeId:nodeGuid)
+ * @throws {Error} If node is missing nodeGuid
+ */
+function uidOf(treeId, node) {
+    if (!node) {
+        throw new Error('[Atlas] uidOf called with null/undefined node');
+    }
+    if (!node.nodeGuid) {
+        // Auto-generate if missing (migration path)
+        console.warn(`[Atlas] Node missing nodeGuid: ${node.id || 'unknown'}, auto-generating`);
+        node.nodeGuid = generateNodeGuid();
+    }
+    if (!treeId) {
+        throw new Error('[Atlas] uidOf called with null/undefined treeId');
+    }
+    return `${treeId}:${node.nodeGuid}`;
+}
+
+/**
+ * Parse a UID back into components
+ * @param {string} uid - The composite UID (treeId:nodeGuid)
+ * @returns {{treeId: string, nodeGuid: string}}
+ * @throws {Error} If UID format is invalid
+ */
+function parseUid(uid) {
+    if (!uid || typeof uid !== 'string') {
+        throw new Error(`[Atlas] Invalid UID: ${uid}`);
+    }
+    const colonIdx = uid.indexOf(':');
+    if (colonIdx === -1) {
+        throw new Error(`[Atlas] Invalid UID format (missing colon): ${uid}`);
+    }
+    return {
+        treeId: uid.substring(0, colonIdx),
+        nodeGuid: uid.substring(colonIdx + 1)
+    };
+}
+
+/**
+ * CANONICAL LINK PATTERN
+ * Matches: [[text]], [[uid:tree:node]], [[uid:tree:node|Alias]]
+ * Groups: Full content inside brackets
+ */
+const ATLAS_LINK_PATTERN = /\[\[((?:uid:[^|\]]+|[^|\]]+)(?:\|[^\]]+)?)\]\]/g;
+
+/**
+ * Parse a link from ATLAS_LINK_PATTERN match
+ * @param {string} content - The content inside [[ ]]
+ * @returns {object} Parsed link info
+ */
+function parseAtlasLink(content) {
+    if (content.startsWith('uid:')) {
+        const pipeIdx = content.indexOf('|');
+        if (pipeIdx > -1) {
+            // Has alias: [[uid:tree:node|Display Text]]
+            return {
+                type: 'uid',
+                uid: content.substring(4, pipeIdx),
+                displayText: content.substring(pipeIdx + 1),
+                raw: content
+            };
+        } else {
+            // No alias: [[uid:tree:node]]
+            return {
+                type: 'uid',
+                uid: content.substring(4),
+                displayText: null,
+                raw: content
+            };
+        }
+    } else {
+        // Soft link: [[Some Title]] or [[Title|Alias]]
+        const pipeIdx = content.indexOf('|');
+        if (pipeIdx > -1) {
+            return {
+                type: 'soft',
+                searchText: content.substring(0, pipeIdx),
+                displayText: content.substring(pipeIdx + 1),
+                raw: content
+            };
+        } else {
+            return {
+                type: 'soft',
+                searchText: content,
+                displayText: content,
+                raw: content
+            };
+        }
+    }
+}
+
+/**
+ * Migrate a single node to have a stable nodeGuid
+ * @param {object} node - The node to migrate
+ * @returns {boolean} True if migration was performed
+ */
+function migrateNodeIdentity(node) {
+    if (!node) return false;
+
+    let migrated = false;
+
+    // Add nodeGuid if missing
+    if (!node.nodeGuid) {
+        node.nodeGuid = generateNodeGuid();
+        migrated = true;
+    }
+
+    // Recurse through all child types
+    if (node.children) {
+        node.children.forEach(child => {
+            if (migrateNodeIdentity(child)) migrated = true;
+        });
+    }
+    if (node.items) {
+        node.items.forEach(child => {
+            if (migrateNodeIdentity(child)) migrated = true;
+        });
+    }
+    if (node.subItems) {
+        node.subItems.forEach(child => {
+            if (migrateNodeIdentity(child)) migrated = true;
+        });
+    }
+    if (node.subtasks) {
+        node.subtasks.forEach(child => {
+            if (migrateNodeIdentity(child)) migrated = true;
+        });
+    }
+
+    return migrated;
+}
+
+/**
+ * Migrate a tree to have stable Atlas identity (treeId, nodeGuids)
+ * @param {object} tree - The tree root to migrate
+ * @returns {boolean} True if migration was performed
+ */
+function migrateTreeIdentity(tree) {
+    if (!tree) return false;
+
+    let migrated = false;
+
+    // Add treeId if missing
+    if (!tree.treeId) {
+        tree.treeId = generateTreeId();
+        console.log(`[Atlas] Generated treeId: ${tree.treeId}`);
+        migrated = true;
+    }
+
+    // Add nodeGuid to root
+    if (!tree.nodeGuid) {
+        tree.nodeGuid = generateNodeGuid();
+        migrated = true;
+    }
+
+    // Migrate all nodes recursively
+    if (migrateNodeIdentity(tree)) {
+        migrated = true;
+    }
+
+    return migrated;
+}
+
+// ============================================================================
+// END ATLAS IDENTITY INFRASTRUCTURE
+// ============================================================================
+
 function normalizeNode(node, source = 'legacy') {
     if (!node) return;
-    
+
     // 1. Provenance Stamping
     if (!node.provenance) {
         node.provenance = {
@@ -25041,10 +25268,10 @@ function migrateTree(tree) {
 
     if (currentVersion < 1) {
         console.log(`🛡️ Migrating tree from v${currentVersion} to v1 (Cognitive Citadel Foundation)`);
-        
+
         // Initialize Hyperedges if missing
         if (!tree.hyperedges) tree.hyperedges = [];
-        
+
         // Initialize Snapshot references (for future IndexedDB storage)
         if (!tree.snapshotRefs) tree.snapshotRefs = [];
 
@@ -25055,8 +25282,24 @@ function migrateTree(tree) {
         console.log('✅ Migration to v1 complete');
     }
 
+    if (currentVersion < 2) {
+        console.log(`🔐 Migrating tree from v${currentVersion} to v2 (Atlas Identity Lockdown)`);
+
+        // Add stable identity fields for Atlas cross-tree intelligence
+        // - treeId: immutable identifier that survives file renames
+        // - nodeGuid: stable identifier that survives node moves
+        const migrated = migrateTreeIdentity(tree);
+
+        if (migrated) {
+            console.log(`[Atlas] Tree identity established: ${tree.treeId}`);
+        }
+
+        tree.schemaVersion = 2;
+        console.log('✅ Migration to v2 complete (Atlas Identity Lockdown)');
+    }
+
     // Future migrations stack here:
-    // if (currentVersion < 2) { ... }
+    // if (currentVersion < 3) { ... }
 
     return tree;
 }
@@ -31048,6 +31291,7 @@ Your response:`;
                 // Create new sub-task with PM fields
                 const newSubtask = {
                     id: `${activeNode.id}-sub-${Date.now()}`,
+                    nodeGuid: generateNodeGuid(), // Atlas: stable identity
                     name: subtaskName,
                     description: 'Task description',
                     cost: 0,
@@ -43208,6 +43452,7 @@ https://treelisty.netlify.app`;
                                      parent.type === 'phase' ? 'item' : 'subtask');
                 const newNode = {
                     id: node_data.id || this.generateId(),
+                    nodeGuid: node_data.nodeGuid || generateNodeGuid(), // Atlas: stable identity
                     name: node_data.name || 'New Node',
                     type: defaultType,
                     description: node_data.description || '',
@@ -61436,6 +61681,51 @@ ${fullTranscript}`;
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 574: Tree Outline Helper for Deep Research
+        // Creates a brief summary of tree structure for context
+        // ═══════════════════════════════════════════════════════════════
+
+        function getTreeOutlineForResearch(tree, maxDepth = 2) {
+            if (!tree) return 'Empty tree';
+
+            const lines = [];
+            const seen = new Set();
+
+            function traverse(node, depth, prefix = '') {
+                if (!node || depth > maxDepth || seen.has(node.id)) return;
+                seen.add(node.id);
+
+                const name = node.name || 'Unnamed';
+                const type = node.type || 'node';
+                const childCount = (node.children?.length || 0) +
+                                   (node.items?.length || 0) +
+                                   (node.subtasks?.length || 0) +
+                                   (node.subItems?.length || 0);
+
+                const childInfo = childCount > 0 ? ` (${childCount} children)` : '';
+                lines.push(`${prefix}• ${name} [${type}]${childInfo}`);
+
+                if (depth < maxDepth) {
+                    const children = [
+                        ...(node.children || []),
+                        ...(node.items || []),
+                        ...(node.subtasks || []),
+                        ...(node.subItems || [])
+                    ];
+                    children.forEach(child => traverse(child, depth + 1, prefix + '  '));
+                }
+            }
+
+            traverse(tree, 0);
+
+            // Limit to reasonable size for context
+            if (lines.length > 50) {
+                return lines.slice(0, 50).join('\n') + `\n... (${lines.length - 50} more nodes)`;
+            }
+            return lines.join('\n');
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // COMMAND REGISTRY - Maps intents to TreeListy functions
         // ═══════════════════════════════════════════════════════════════
 
@@ -62754,6 +63044,54 @@ Slack data not available. To calculate slack:
                     return null;
                 }
                 return '⚠️ MCP connect modal not available.';
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 574: Deep Research via Claude Code
+            // Dispatches research tasks to Claude Code for web search + integration
+            // Bypasses fragile local Gemini filters that block on TreeListy terms
+            // ═══════════════════════════════════════════════════════════════
+
+            'deep_research': (query) => {
+                if (!mcpBridgeState?.client?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected to Claude Code**\n\nDeep research requires Claude Code running with the TreeListy MCP bridge.\n\nThis dispatches your research request to Claude Code, which uses web search and can create proposed nodes for your tree.',
+                        buttons: [
+                            { label: '🔗 Connect', action: 'show_mcp_connect' },
+                            { label: '🔍 Local Research (Gemini)', action: `research:${query}` }
+                        ]
+                    };
+                }
+
+                // Build tree context for Claude Code
+                const treeOutline = getTreeOutlineForResearch(capexTree, 2);
+                const targetNode = activeNode || capexTree;
+
+                try {
+                    mcpBridgeState.client.submitTask({
+                        type: 'research',
+                        query: query,
+                        context: {
+                            treeName: capexTree.name,
+                            treeId: capexTree.treeId || 'unknown',
+                            pattern: capexTree.pattern?.key || 'generic',
+                            targetNodeId: targetNode.id,
+                            targetNodeName: targetNode.name,
+                            treeOutline: treeOutline,
+                            instructions: `Research "${query}" using web search. Create proposed nodes that integrate well with the existing tree structure. Return results as proposed_ops with create_node operations. Each node should have: name, description, and relevant pattern fields. Place nodes under "${targetNode.name}" or suggest appropriate locations based on the tree outline.`
+                        }
+                    });
+
+                    return {
+                        message: `🔬 **Deep Research Started**\n\n**Query:** ${query}\n**Target:** ${targetNode.name}\n\nClaude Code is researching with web search.\nProposed nodes will appear in your **Inbox** for review.`,
+                        buttons: [
+                            { label: '📥 View Inbox', action: 'show_inbox' }
+                        ]
+                    };
+                } catch (e) {
+                    console.error('[deep_research] Failed:', e);
+                    return `❌ Failed to start research: ${e.message}`;
+                }
             },
 
             // Legacy aliases for backwards compatibility
@@ -67104,6 +67442,7 @@ GLOBAL (work anytime):
 • sync_drive - Sync Google Drive files via MCP/Claude Chrome (requires Claude Code connection)
 • sync_calendar - Sync Google Calendar events via MCP/Claude Chrome (requires Claude Code connection)
 • sync_all - Sync all connected services (Gmail, Drive, Calendar)
+• deep_research:{query} - Research a topic via Claude Code web search and propose nodes for tree integration (requires Claude Code connection)
 
 GMAIL ACTIONS (for email nodes - requires MCP Bridge):
 • gmail_archive - Archive focused email (remove from inbox)
@@ -69003,12 +69342,23 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     return;
                 }
 
-                // BUILD 442: Research intent detection (web search via Gemini)
+                // BUILD 442/574: Research intent detection (web search)
                 const researchIntent = detectResearchIntent(message);
                 if (researchIntent) {
-                    console.log('🔍 Research intent detected:', researchIntent.query);
+                    console.log('🔍 Research intent detected:', researchIntent.query, 'useDeepResearch:', researchIntent.useDeepResearch);
 
-                    // Show research in progress
+                    // BUILD 574: Use deep_research (Claude Code) for explicit research + integration requests
+                    if (researchIntent.useDeepResearch && mcpBridgeState?.client?.isConnected) {
+                        hideTypingIndicator();
+                        console.log('🔬 Routing to deep_research via Claude Code');
+                        const cmdResult = COMMAND_REGISTRY['deep_research'](researchIntent.query);
+                        const response = typeof cmdResult === 'object' ? cmdResult : { message: cmdResult, buttons: null };
+                        addMessage(response.message, 'assistant', response.buttons);
+                        chatState.isProcessing = false;
+                        return;
+                    }
+
+                    // Fallback to local Gemini research
                     hideTypingIndicator();
                     addMessage(`🔍 Researching: "${researchIntent.query}"...`, 'assistant');
                     showTypingIndicator();
@@ -71072,7 +71422,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 572; // Update this with each build
+                    const KNOWN_LATEST = 574; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
