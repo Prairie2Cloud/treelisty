@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.34.0 | Build 574 | 2025-12-25
+    TreeListy v2.35.0 | Build 575 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 575): Atlas Phase-1 Link Resolution - [[node name]] syntax renders as clickable links, navigates to target node
     Changelog (Build 574): Deep Research via Claude Code - dispatch research tasks to Claude Code for web search + tree integration, bypassing fragile local filters
     Changelog (Build 573): Atlas Phase-0 Identity Lockdown - treeId (immutable), nodeGuid (stable), uidOf() helper, link patterns for cross-tree intelligence
     Changelog (Build 572): Fix bbox bug - clear irrelevant image analysis bboxes from structured data imports (URL, JSON)
@@ -782,8 +783,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.34.0',
-            build: 574,
+            major: '2.35.0',
+            build: 575,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -25224,6 +25225,256 @@ function migrateTreeIdentity(tree) {
 }
 
 // ============================================================================
+// ATLAS LINK RESOLUTION (Build 575 - Phase-1 Link Resolution)
+// ============================================================================
+
+/**
+ * Find a node by name within a tree (case-insensitive, exact match first)
+ * @param {object} tree - The tree to search
+ * @param {string} searchText - The node name to find
+ * @returns {object|null} The matching node or null
+ */
+function findNodeByName(tree, searchText) {
+    if (!tree || !searchText) return null;
+
+    const searchLower = searchText.toLowerCase().trim();
+    let exactMatch = null;
+    let partialMatch = null;
+
+    function traverse(node) {
+        if (!node) return;
+
+        const nodeName = (node.name || '').toLowerCase().trim();
+
+        // Exact match takes priority
+        if (nodeName === searchLower) {
+            exactMatch = node;
+            return; // Found exact match, stop searching
+        }
+
+        // Track first partial match (starts with)
+        if (!partialMatch && nodeName.startsWith(searchLower)) {
+            partialMatch = node;
+        }
+
+        // Recurse through children
+        if (node.children) node.children.forEach(traverse);
+        if (node.items) node.items.forEach(traverse);
+        if (node.subItems) node.subItems.forEach(traverse);
+        if (node.subtasks) node.subtasks.forEach(traverse);
+    }
+
+    // Check root
+    if ((tree.name || '').toLowerCase().trim() === searchLower) {
+        return tree;
+    }
+
+    // Search children
+    traverse(tree);
+
+    return exactMatch || partialMatch;
+}
+
+/**
+ * Find a node by its nodeGuid within a tree
+ * @param {object} tree - The tree to search
+ * @param {string} nodeGuid - The nodeGuid to find
+ * @returns {object|null} The matching node or null
+ */
+function findNodeByGuid(tree, nodeGuid) {
+    if (!tree || !nodeGuid) return null;
+
+    let result = null;
+
+    function traverse(node) {
+        if (!node || result) return;
+
+        if (node.nodeGuid === nodeGuid) {
+            result = node;
+            return;
+        }
+
+        // Recurse through children
+        if (node.children) node.children.forEach(traverse);
+        if (node.items) node.items.forEach(traverse);
+        if (node.subItems) node.subItems.forEach(traverse);
+        if (node.subtasks) node.subtasks.forEach(traverse);
+    }
+
+    // Check root
+    if (tree.nodeGuid === nodeGuid) return tree;
+
+    traverse(tree);
+    return result;
+}
+
+/**
+ * Resolve an Atlas link to a target node
+ * @param {object} parsedLink - Output from parseAtlasLink()
+ * @param {object} currentTree - The current tree (capexTree)
+ * @returns {object} Resolution result {resolved, node, displayText, error}
+ */
+function resolveAtlasLink(parsedLink, currentTree) {
+    if (!parsedLink) {
+        return { resolved: false, node: null, error: 'No link provided' };
+    }
+
+    if (parsedLink.type === 'uid') {
+        // UID link: [[uid:treeId:nodeGuid]] or [[uid:treeId:nodeGuid|Alias]]
+        try {
+            const { treeId, nodeGuid } = parseUid(parsedLink.uid);
+
+            // Check if this is the current tree
+            if (currentTree && currentTree.treeId === treeId) {
+                const node = findNodeByGuid(currentTree, nodeGuid);
+                if (node) {
+                    return {
+                        resolved: true,
+                        node: node,
+                        displayText: parsedLink.displayText || node.name || 'Unnamed Node',
+                        isLocal: true
+                    };
+                }
+            }
+
+            // Cross-tree link - not yet implemented (Phase 2)
+            return {
+                resolved: false,
+                node: null,
+                displayText: parsedLink.displayText || parsedLink.uid,
+                error: 'Cross-tree links not yet supported',
+                isCrossTree: true,
+                targetTreeId: treeId,
+                targetNodeGuid: nodeGuid
+            };
+        } catch (e) {
+            return {
+                resolved: false,
+                node: null,
+                displayText: parsedLink.raw,
+                error: e.message
+            };
+        }
+    } else {
+        // Soft link: [[Node Name]] or [[Node Name|Alias]]
+        const node = findNodeByName(currentTree, parsedLink.searchText);
+
+        if (node) {
+            return {
+                resolved: true,
+                node: node,
+                displayText: parsedLink.displayText || node.name,
+                searchText: parsedLink.searchText
+            };
+        } else {
+            return {
+                resolved: false,
+                node: null,
+                displayText: parsedLink.displayText || parsedLink.searchText,
+                error: `Node "${parsedLink.searchText}" not found`,
+                searchText: parsedLink.searchText
+            };
+        }
+    }
+}
+
+/**
+ * Navigate to a node by clicking an Atlas link
+ * @param {string} nodeId - The node.id to navigate to
+ * @param {string} nodeGuid - The node.nodeGuid (optional, for future cross-tree)
+ */
+function handleAtlasLinkClick(nodeId, nodeGuid) {
+    if (!nodeId) {
+        console.warn('[Atlas] handleAtlasLinkClick called with no nodeId');
+        return;
+    }
+
+    // Find the node in the current tree
+    const node = findNodeByGuid(capexTree, nodeGuid) || findById(capexTree, nodeId);
+
+    if (!node) {
+        showToast(`Could not find node "${nodeId}"`, 'error');
+        return;
+    }
+
+    // Select the node (this will update the info panel)
+    if (typeof selectNode === 'function') {
+        selectNode(node);
+    }
+
+    // Scroll to node if in tree view
+    if (typeof scrollToNode === 'function') {
+        scrollToNode(node);
+    }
+
+    console.log(`[Atlas] Navigated to: ${node.name} (${node.nodeGuid || node.id})`);
+}
+
+/**
+ * Render Atlas links in text as clickable HTML elements
+ * Converts [[link]] syntax to clickable spans
+ * @param {string} text - The text containing Atlas links
+ * @returns {string} HTML with clickable links
+ */
+function renderAtlasLinks(text) {
+    if (!text || typeof text !== 'string') return text;
+
+    // Use fresh regex to avoid state issues
+    const pattern = /\[\[((?:uid:[^|\]]+|[^|\]]+)(?:\|[^\]]+)?)\]\]/g;
+
+    return text.replace(pattern, (match, content) => {
+        const parsed = parseAtlasLink(content);
+        const resolution = resolveAtlasLink(parsed, capexTree);
+
+        if (resolution.resolved && resolution.node) {
+            // Resolved link - make clickable
+            const nodeId = resolution.node.id;
+            const nodeGuid = resolution.node.nodeGuid || '';
+            const displayText = escapeHtml(resolution.displayText);
+
+            return `<span class="atlas-link atlas-link-resolved"
+                onclick="handleAtlasLinkClick('${escapeHtml(nodeId)}', '${escapeHtml(nodeGuid)}')"
+                title="Go to: ${escapeHtml(resolution.node.name)}"
+                style="color: #8b5cf6; cursor: pointer; text-decoration: underline; font-weight: 500;">
+                ${displayText}
+            </span>`;
+        } else if (resolution.isCrossTree) {
+            // Cross-tree link - show as pending (Phase 2)
+            const displayText = escapeHtml(resolution.displayText);
+            return `<span class="atlas-link atlas-link-cross-tree"
+                title="Cross-tree link (not yet supported)"
+                style="color: #6b7280; cursor: not-allowed; text-decoration: underline dotted;">
+                ${displayText}
+            </span>`;
+        } else {
+            // Unresolved link - show as broken
+            const displayText = escapeHtml(resolution.displayText);
+            const error = escapeHtml(resolution.error || 'Not found');
+            return `<span class="atlas-link atlas-link-broken"
+                title="${error}"
+                style="color: #ef4444; text-decoration: underline wavy;">
+                ${displayText}
+            </span>`;
+        }
+    });
+}
+
+/**
+ * Escape HTML special characters
+ * @param {string} str - String to escape
+ * @returns {string} Escaped string
+ */
+function escapeHtml(str) {
+    if (!str) return '';
+    return String(str)
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
+// ============================================================================
 // END ATLAS IDENTITY INFRASTRUCTURE
 // ============================================================================
 
@@ -25897,17 +26148,24 @@ function hidePatternDescription() {
             return '$' + numCost.toLocaleString();
         }
 
-        // BUILD 549: Convert URLs in text to clickable links
+        // BUILD 575: Convert URLs and Atlas links in text to clickable elements
+        // Order: Atlas links first (to preserve [[]] syntax), then URL linkification
         function linkifyText(text) {
             if (!text) return text;
-            // Match URLs (http, https, or www)
+
+            // 1. First process Atlas links [[...]]
+            let result = renderAtlasLinks(text);
+
+            // 2. Then convert URLs (http, https, or www)
             const urlRegex = /(https?:\/\/[^\s<>"{}|\\^`\[\]]+)|(www\.[^\s<>"{}|\\^`\[\]]+)/gi;
-            return text.replace(urlRegex, (match) => {
+            result = result.replace(urlRegex, (match) => {
                 const url = match.startsWith('www.') ? 'https://' + match : match;
                 // Truncate display for very long URLs
                 const displayUrl = match.length > 50 ? match.substring(0, 47) + '...' : match;
                 return `<a href="${url}" target="_blank" rel="noopener noreferrer" style="color: #8b5cf6; text-decoration: underline; word-break: break-all;">${displayUrl}</a>`;
             });
+
+            return result;
         }
 
         // BUILD 387: Safe node name helper - prevents "undefined" from displaying
@@ -71422,7 +71680,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 574; // Update this with each build
+                    const KNOWN_LATEST = 575; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);

@@ -1,13 +1,20 @@
 /**
- * Atlas Identity Tests (Build 573 - Phase-0 Identity Lockdown)
+ * Atlas Identity Tests (Build 575 - Phase-1 Link Resolution)
  *
- * Tests for the Atlas cross-tree intelligence identity infrastructure:
+ * Tests for the Atlas cross-tree intelligence infrastructure:
+ * Phase-0 (Build 573):
  * - treeId: immutable tree identifier
  * - nodeGuid: stable node identifier
  * - uidOf(): single source of truth for Atlas UIDs
  * - parseUid(): UID parsing
  * - Link pattern matching
  * - Migration functions
+ *
+ * Phase-1 (Build 575):
+ * - findNodeByName(): search nodes by name
+ * - findNodeByGuid(): search nodes by nodeGuid
+ * - resolveAtlasLink(): resolve [[link]] to target node
+ * - renderAtlasLinks(): render links as clickable HTML
  */
 
 import { describe, it, expect, beforeAll } from 'vitest';
@@ -49,6 +56,7 @@ describe('Atlas Identity Infrastructure', () => {
         const code = cryptoPolyfill + atlasCodeMatch[0];
         const fn = new Function(code + `
             return {
+                // Phase-0 functions
                 generateTreeId,
                 generateNodeGuid,
                 uidOf,
@@ -56,7 +64,12 @@ describe('Atlas Identity Infrastructure', () => {
                 ATLAS_LINK_PATTERN,
                 parseAtlasLink,
                 migrateNodeIdentity,
-                migrateTreeIdentity
+                migrateTreeIdentity,
+                // Phase-1 functions
+                findNodeByName,
+                findNodeByGuid,
+                resolveAtlasLink,
+                escapeHtml
             };
         `);
 
@@ -329,6 +342,220 @@ describe('Atlas Identity Infrastructure', () => {
 
         it('should add nodeGuid in handleAddSubtask', () => {
             expect(htmlContent).toContain('nodeGuid: generateNodeGuid(), // Atlas: stable identity');
+        });
+    });
+
+    // ========================================================================
+    // Phase-1: Link Resolution Tests (Build 575)
+    // ========================================================================
+
+    describe('findNodeByName()', () => {
+        const testTree = {
+            id: 'root',
+            name: 'Project Alpha',
+            treeId: 'tree_test1234',
+            nodeGuid: 'n_root0001',
+            children: [
+                {
+                    id: 'phase1',
+                    name: 'Phase One',
+                    nodeGuid: 'n_phase001',
+                    items: [
+                        { id: 'item1', name: 'First Task', nodeGuid: 'n_item0001' },
+                        { id: 'item2', name: 'Second Task', nodeGuid: 'n_item0002' }
+                    ]
+                },
+                {
+                    id: 'phase2',
+                    name: 'Phase Two',
+                    nodeGuid: 'n_phase002',
+                    items: [
+                        { id: 'item3', name: 'Third Task', nodeGuid: 'n_item0003' }
+                    ]
+                }
+            ]
+        };
+
+        it('should find node by exact name match', () => {
+            const result = extractedFunctions.findNodeByName(testTree, 'First Task');
+            expect(result).not.toBeNull();
+            expect(result.id).toBe('item1');
+        });
+
+        it('should be case-insensitive', () => {
+            const result = extractedFunctions.findNodeByName(testTree, 'first task');
+            expect(result).not.toBeNull();
+            expect(result.id).toBe('item1');
+        });
+
+        it('should find root node', () => {
+            const result = extractedFunctions.findNodeByName(testTree, 'Project Alpha');
+            expect(result).not.toBeNull();
+            expect(result.id).toBe('root');
+        });
+
+        it('should return null for non-existent node', () => {
+            const result = extractedFunctions.findNodeByName(testTree, 'Does Not Exist');
+            expect(result).toBeNull();
+        });
+
+        it('should handle null tree', () => {
+            const result = extractedFunctions.findNodeByName(null, 'Test');
+            expect(result).toBeNull();
+        });
+
+        it('should handle empty search text', () => {
+            const result = extractedFunctions.findNodeByName(testTree, '');
+            expect(result).toBeNull();
+        });
+    });
+
+    describe('findNodeByGuid()', () => {
+        const testTree = {
+            id: 'root',
+            name: 'Project',
+            nodeGuid: 'n_root0001',
+            children: [
+                {
+                    id: 'phase1',
+                    name: 'Phase',
+                    nodeGuid: 'n_phase001',
+                    items: [
+                        { id: 'item1', name: 'Task', nodeGuid: 'n_item0001' }
+                    ]
+                }
+            ]
+        };
+
+        it('should find node by nodeGuid', () => {
+            const result = extractedFunctions.findNodeByGuid(testTree, 'n_item0001');
+            expect(result).not.toBeNull();
+            expect(result.id).toBe('item1');
+        });
+
+        it('should find root by nodeGuid', () => {
+            const result = extractedFunctions.findNodeByGuid(testTree, 'n_root0001');
+            expect(result).not.toBeNull();
+            expect(result.id).toBe('root');
+        });
+
+        it('should return null for non-existent guid', () => {
+            const result = extractedFunctions.findNodeByGuid(testTree, 'n_nonexist');
+            expect(result).toBeNull();
+        });
+
+        it('should handle null tree', () => {
+            const result = extractedFunctions.findNodeByGuid(null, 'n_test');
+            expect(result).toBeNull();
+        });
+    });
+
+    describe('resolveAtlasLink()', () => {
+        const testTree = {
+            id: 'root',
+            name: 'Test Project',
+            treeId: 'tree_test1234',
+            nodeGuid: 'n_root0001',
+            children: [
+                {
+                    id: 'task1',
+                    name: 'My Task',
+                    nodeGuid: 'n_task0001'
+                }
+            ]
+        };
+
+        it('should resolve soft link to node', () => {
+            const parsed = extractedFunctions.parseAtlasLink('My Task');
+            const result = extractedFunctions.resolveAtlasLink(parsed, testTree);
+            expect(result.resolved).toBe(true);
+            expect(result.node.id).toBe('task1');
+            expect(result.displayText).toBe('My Task');
+        });
+
+        it('should resolve soft link with alias', () => {
+            const parsed = extractedFunctions.parseAtlasLink('My Task|Display Name');
+            const result = extractedFunctions.resolveAtlasLink(parsed, testTree);
+            expect(result.resolved).toBe(true);
+            expect(result.node.id).toBe('task1');
+            expect(result.displayText).toBe('Display Name');
+        });
+
+        it('should return unresolved for non-existent soft link', () => {
+            const parsed = extractedFunctions.parseAtlasLink('Does Not Exist');
+            const result = extractedFunctions.resolveAtlasLink(parsed, testTree);
+            expect(result.resolved).toBe(false);
+            expect(result.error).toContain('not found');
+        });
+
+        it('should resolve UID link in current tree', () => {
+            const parsed = extractedFunctions.parseAtlasLink('uid:tree_test1234:n_task0001');
+            const result = extractedFunctions.resolveAtlasLink(parsed, testTree);
+            expect(result.resolved).toBe(true);
+            expect(result.node.id).toBe('task1');
+            expect(result.isLocal).toBe(true);
+        });
+
+        it('should resolve UID link with alias', () => {
+            const parsed = extractedFunctions.parseAtlasLink('uid:tree_test1234:n_task0001|Custom Display');
+            const result = extractedFunctions.resolveAtlasLink(parsed, testTree);
+            expect(result.resolved).toBe(true);
+            expect(result.displayText).toBe('Custom Display');
+        });
+
+        it('should mark cross-tree UID link as unresolved', () => {
+            const parsed = extractedFunctions.parseAtlasLink('uid:tree_other:n_abc123');
+            const result = extractedFunctions.resolveAtlasLink(parsed, testTree);
+            expect(result.resolved).toBe(false);
+            expect(result.isCrossTree).toBe(true);
+            expect(result.targetTreeId).toBe('tree_other');
+        });
+
+        it('should handle null parsed link', () => {
+            const result = extractedFunctions.resolveAtlasLink(null, testTree);
+            expect(result.resolved).toBe(false);
+            expect(result.error).toBe('No link provided');
+        });
+    });
+
+    describe('escapeHtml()', () => {
+        it('should escape HTML special characters', () => {
+            expect(extractedFunctions.escapeHtml('<script>')).toBe('&lt;script&gt;');
+            expect(extractedFunctions.escapeHtml('a & b')).toBe('a &amp; b');
+            expect(extractedFunctions.escapeHtml('"quoted"')).toBe('&quot;quoted&quot;');
+            expect(extractedFunctions.escapeHtml("it's")).toBe("it&#39;s");
+        });
+
+        it('should handle null/empty input', () => {
+            expect(extractedFunctions.escapeHtml(null)).toBe('');
+            expect(extractedFunctions.escapeHtml('')).toBe('');
+        });
+    });
+
+    describe('Link resolution source code (Build 575)', () => {
+        it('should have findNodeByName function', () => {
+            expect(htmlContent).toContain('function findNodeByName(tree, searchText)');
+        });
+
+        it('should have findNodeByGuid function', () => {
+            expect(htmlContent).toContain('function findNodeByGuid(tree, nodeGuid)');
+        });
+
+        it('should have resolveAtlasLink function', () => {
+            expect(htmlContent).toContain('function resolveAtlasLink(parsedLink, currentTree)');
+        });
+
+        it('should have renderAtlasLinks function', () => {
+            expect(htmlContent).toContain('function renderAtlasLinks(text)');
+        });
+
+        it('should have handleAtlasLinkClick function', () => {
+            expect(htmlContent).toContain('function handleAtlasLinkClick(nodeId, nodeGuid)');
+        });
+
+        it('should integrate Atlas links in linkifyText', () => {
+            expect(htmlContent).toContain('renderAtlasLinks(text)');
+            expect(htmlContent).toContain('BUILD 575');
         });
     });
 });
