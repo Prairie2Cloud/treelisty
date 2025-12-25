@@ -63536,6 +63536,275 @@ Slack data not available. To calculate slack:
                 return output;
             },
 
+            // BUILD 578: List all empty nodes (containers with 0 children)
+            'list_empty_nodes': () => {
+                const emptyNodes = [];
+
+                function findEmpty(node, path = []) {
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    const hasChildren = children.length > 0;
+                    const isLeaf = node.type === 'item' || node.type === 'subitem';
+
+                    // A node is "empty" if it's a container type (phase, category) with no children
+                    // OR if it's explicitly marked as expandable but has nothing
+                    if (!isLeaf && !hasChildren && node.id !== capexTree.id) {
+                        emptyNodes.push({
+                            node: node,
+                            path: path.join(' > '),
+                            type: node.type || 'unknown'
+                        });
+                    }
+
+                    // Recurse
+                    children.forEach(child => {
+                        findEmpty(child, [...path, node.name || node.id]);
+                    });
+                }
+
+                findEmpty(capexTree, []);
+
+                if (emptyNodes.length === 0) {
+                    return '✅ No empty containers found! All nodes have content.';
+                }
+
+                let output = `📭 **Found ${emptyNodes.length} empty container(s):**\n\n`;
+                emptyNodes.slice(0, 15).forEach((e, i) => {
+                    output += `${i + 1}. **${e.node.name || e.node.id}** (${e.type})\n`;
+                    if (e.path) output += `   └ ${e.path}\n`;
+                });
+                if (emptyNodes.length > 15) {
+                    output += `\n... and ${emptyNodes.length - 15} more`;
+                }
+                output += `\n\n💡 Use \`focus {name}\` then \`add_child\` to fill, or \`delete_node\` to remove.`;
+
+                return output;
+            },
+
+            // BUILD 578: Show tree structure with item counts
+            'show_tree_structure': (maxDepth) => {
+                const depth = parseInt(maxDepth) || 3;
+                let output = `🌳 **Tree Structure: "${capexTree.name}"**\n\n`;
+
+                function renderNode(node, indent = 0, currentDepth = 0) {
+                    if (currentDepth > depth) return '';
+
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    const prefix = '  '.repeat(indent);
+                    const icon = children.length > 0 ? '📁' : '📄';
+                    const count = children.length > 0 ? ` (${children.length})` : '';
+
+                    let line = `${prefix}${icon} ${node.name || node.id}${count}\n`;
+
+                    if (currentDepth < depth) {
+                        children.forEach(child => {
+                            line += renderNode(child, indent + 1, currentDepth + 1);
+                        });
+                    } else if (children.length > 0) {
+                        line += `${prefix}  └ ... ${children.length} more\n`;
+                    }
+
+                    return line;
+                }
+
+                output += renderNode(capexTree, 0, 0);
+
+                // Summary
+                let totalNodes = 0;
+                function count(node) {
+                    totalNodes++;
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    children.forEach(count);
+                }
+                count(capexTree);
+
+                output += `\n📊 **Total: ${totalNodes} nodes** (showing ${depth} levels)`;
+                output += `\n💡 Use \`show_tree_structure {depth}\` to see more/fewer levels.`;
+
+                return output;
+            },
+
+            // BUILD 578: Find duplicate/similar node names
+            'find_duplicates': () => {
+                const nameMap = {};
+
+                function collectNames(node, path = []) {
+                    const name = (node.name || '').toLowerCase().trim();
+                    if (name && name.length > 2) {
+                        if (!nameMap[name]) nameMap[name] = [];
+                        nameMap[name].push({
+                            node: node,
+                            path: path.join(' > ')
+                        });
+                    }
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    children.forEach(child => {
+                        collectNames(child, [...path, node.name || node.id]);
+                    });
+                }
+
+                collectNames(capexTree, []);
+
+                // Find duplicates (names appearing more than once)
+                const duplicates = Object.entries(nameMap)
+                    .filter(([name, nodes]) => nodes.length > 1)
+                    .sort((a, b) => b[1].length - a[1].length);
+
+                if (duplicates.length === 0) {
+                    return '✅ No duplicate node names found!';
+                }
+
+                let output = `⚠️ **Found ${duplicates.length} duplicate name(s):**\n\n`;
+                duplicates.slice(0, 10).forEach(([name, nodes]) => {
+                    output += `**"${nodes[0].node.name}"** appears ${nodes.length} times:\n`;
+                    nodes.forEach((n, i) => {
+                        output += `  ${i + 1}. ${n.path || 'root'}\n`;
+                    });
+                    output += '\n';
+                });
+                if (duplicates.length > 10) {
+                    output += `... and ${duplicates.length - 10} more duplicates`;
+                }
+                output += `\n💡 Use \`merge_nodes {node1} and {node2}\` to combine, or \`compare_nodes\` to check content.`;
+
+                return output;
+            },
+
+            // BUILD 578: Show detailed stats for a node
+            'node_stats': (nodeIdOrName) => {
+                let targetNode = null;
+
+                if (!nodeIdOrName) {
+                    targetNode = window.chatFocusedNode || activeNode;
+                    if (!targetNode) {
+                        return '⚠️ Usage: `node_stats {node_name}` or focus a node first.';
+                    }
+                } else {
+                    targetNode = findNodeById(nodeIdOrName) || findNodeByName(capexTree, nodeIdOrName);
+                    if (!targetNode) {
+                        return `❌ Node "${nodeIdOrName}" not found.`;
+                    }
+                }
+
+                // Calculate stats
+                let totalDescendants = 0;
+                let maxDepth = 0;
+                let totalContentLength = 0;
+
+                function analyze(node, depth = 0) {
+                    totalDescendants++;
+                    if (depth > maxDepth) maxDepth = depth;
+                    totalContentLength += (node.description || '').length;
+                    totalContentLength += (node.name || '').length;
+
+                    const children = node.children || node.items || node.subItems || node.subtasks || [];
+                    children.forEach(child => analyze(child, depth + 1));
+                }
+
+                const directChildren = targetNode.children || targetNode.items || targetNode.subItems || targetNode.subtasks || [];
+                directChildren.forEach(child => analyze(child, 1));
+
+                const descLen = (targetNode.description || '').length;
+
+                let output = `📊 **Stats for "${targetNode.name}"**\n\n`;
+                output += `• **Type:** ${targetNode.type || 'item'}\n`;
+                output += `• **ID:** \`${targetNode.id}\`\n`;
+                if (targetNode.nodeGuid) output += `• **GUID:** \`${targetNode.nodeGuid}\`\n`;
+                output += `• **Direct children:** ${directChildren.length}\n`;
+                output += `• **Total descendants:** ${totalDescendants}\n`;
+                output += `• **Max depth:** ${maxDepth} level(s)\n`;
+                output += `• **Description length:** ${descLen} chars\n`;
+                output += `• **Total content:** ${totalContentLength} chars\n`;
+
+                if (targetNode.tags) {
+                    output += `• **Tags:** ${targetNode.tags}\n`;
+                }
+
+                return output;
+            },
+
+            // BUILD 578: Merge two nodes (move children from source to destination)
+            'merge_nodes': (args) => {
+                if (!args) {
+                    return '⚠️ Usage: `merge_nodes {source} into {destination}`\nThis moves all children from source to destination, then deletes source.';
+                }
+
+                // Parse "source into destination" format
+                const match = args.match(/^(.+?)\s+(?:into|to|with)\s+(.+)$/i);
+                if (!match) {
+                    return '⚠️ Format: `merge_nodes {source} into {destination}`';
+                }
+
+                const sourceName = match[1].trim();
+                const destName = match[2].trim();
+
+                const sourceNode = findNodeById(sourceName) || findNodeByName(capexTree, sourceName);
+                const destNode = findNodeById(destName) || findNodeByName(capexTree, destName);
+
+                if (!sourceNode) return `❌ Source node "${sourceName}" not found.`;
+                if (!destNode) return `❌ Destination node "${destName}" not found.`;
+                if (sourceNode.id === destNode.id) return '❌ Cannot merge a node with itself.';
+                if (sourceNode.id === capexTree.id) return '❌ Cannot merge root node.';
+
+                // Save undo state
+                if (typeof saveState === 'function') saveState('Merge nodes via Treebeard');
+
+                // Get children from source
+                const sourceChildren = sourceNode.children || sourceNode.items || sourceNode.subItems || sourceNode.subtasks || [];
+                const movedCount = sourceChildren.length;
+
+                // Determine which array to use on destination
+                const destArray = destNode.items ? 'items' :
+                                  destNode.children ? 'children' :
+                                  destNode.subItems ? 'subItems' : 'items';
+
+                if (!destNode[destArray]) destNode[destArray] = [];
+
+                // Move children to destination
+                sourceChildren.forEach(child => {
+                    destNode[destArray].push(child);
+                });
+
+                // Clear source children
+                if (sourceNode.children) sourceNode.children = [];
+                if (sourceNode.items) sourceNode.items = [];
+                if (sourceNode.subItems) sourceNode.subItems = [];
+                if (sourceNode.subtasks) sourceNode.subtasks = [];
+
+                // Also merge description if source has one and dest doesn't
+                if (sourceNode.description && !destNode.description) {
+                    destNode.description = sourceNode.description;
+                } else if (sourceNode.description && destNode.description) {
+                    destNode.description += '\n\n---\n[Merged from ' + sourceNode.name + ']\n' + sourceNode.description;
+                }
+
+                // Delete source node from its parent
+                function removeFromParent(tree, nodeId) {
+                    const arrays = ['children', 'items', 'subItems', 'subtasks'];
+                    for (const arr of arrays) {
+                        if (tree[arr]) {
+                            const idx = tree[arr].findIndex(n => n.id === nodeId);
+                            if (idx !== -1) {
+                                tree[arr].splice(idx, 1);
+                                return true;
+                            }
+                            for (const child of tree[arr]) {
+                                if (removeFromParent(child, nodeId)) return true;
+                            }
+                        }
+                    }
+                    return false;
+                }
+
+                removeFromParent(capexTree, sourceNode.id);
+
+                if (typeof render === 'function') render();
+
+                return `✅ Merged "${sourceNode.name}" into "${destNode.name}"\n` +
+                       `• Moved ${movedCount} children\n` +
+                       `• Source node deleted\n` +
+                       `💡 Use \`undo\` to reverse this operation.`;
+            },
+
             'expand_all': () => {
                 document.getElementById('expand-btn')?.click();
                 return '⬇️ Expanded one level!';
@@ -68294,6 +68563,11 @@ GLOBAL (work anytime):
 • tag_node:{name} with {tags} - Add tags to a node (comma-separated)
 • untag_node:{name} remove {tags} - Remove tags from a node
 • list_tags - Show all tags used in the tree with counts
+• list_empty_nodes - Find containers (phases/sections) with 0 children
+• show_tree_structure:{depth} - Show hierarchical tree view (default depth: 3)
+• find_duplicates - Find nodes with identical names
+• node_stats:{name or id} - Show detailed stats for a node (children, depth, content size)
+• merge_nodes:{source} into {target} - Merge source node into target (moves children, combines descriptions)
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
