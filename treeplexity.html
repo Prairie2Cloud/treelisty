@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.38.2 | Build 581 | 2025-12-25
+    TreeListy v2.38.3 | Build 582 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 582): rename_node and read_node commands - TB can now rename nodes and read full content
     Changelog (Build 581): delete_empty_nodes command - bulk cleanup of empty containers with preview/confirm safety
     Changelog (Build 580): Fix focus_node to accept names (not just IDs) - enables TB to focus by node name
     Changelog (Build 579): TB tree analysis - list_empty_nodes, show_tree_structure, find_duplicates, node_stats, merge_nodes, search_tree, tag/untag commands
@@ -789,8 +790,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.38.2',
-            build: 581,
+            major: '2.38.3',
+            build: 582,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -63246,6 +63247,80 @@ Slack data not available. To calculate slack:
                 return `✅ Moved "${sourceNode.name}" to "${destNode.name}"`;
             },
 
+            // BUILD 581: Rename node
+            'rename_node': (args) => {
+                if (!args) {
+                    return '⚠️ Usage: `rename_node {old_name} to {new_name}`\nOr: `rename_node {new_name}` (renames focused node)';
+                }
+
+                let targetNode = null;
+                let newName = null;
+
+                // Parse "old to new" format
+                const toMatch = args.match(/^(.+?)\s+to\s+(.+)$/i);
+                if (toMatch) {
+                    const oldName = toMatch[1].trim();
+                    newName = toMatch[2].trim();
+                    targetNode = findNodeById(oldName) || findNodeByName(capexTree, oldName);
+                } else {
+                    // Single arg = rename focused node
+                    newName = args.trim();
+                    targetNode = window.chatFocusedNode || activeNode;
+                }
+
+                if (!targetNode) {
+                    return '❌ Node not found. Use `rename_node {old_name} to {new_name}` or focus a node first.';
+                }
+
+                if (!newName) {
+                    return '⚠️ Please provide a new name.';
+                }
+
+                if (targetNode.id === capexTree.id) {
+                    return '❌ Cannot rename root via this command. Edit it directly in the info panel.';
+                }
+
+                const oldName = targetNode.name;
+
+                // Save undo state
+                if (typeof saveState === 'function') saveState(`Rename node from "${oldName}" to "${newName}"`);
+
+                targetNode.name = newName;
+
+                if (typeof render === 'function') render();
+                if (typeof trackNodeChange === 'function') trackNodeChange(targetNode.id, 'renamed');
+
+                return `✅ Renamed "${oldName}" → "${newName}"`;
+            },
+
+            // BUILD 581: Read full node content
+            'read_node': (nodeIdOrName) => {
+                const focused = window.chatFocusedNode || activeNode;
+                const targetNode = nodeIdOrName
+                    ? (findNodeById(nodeIdOrName) || findNodeByName(capexTree, nodeIdOrName))
+                    : focused;
+
+                if (!targetNode) {
+                    return '⚠️ No node specified or focused. Use `read_node {name}` or focus a node first.';
+                }
+
+                const children = targetNode.children || targetNode.items || targetNode.subItems || targetNode.subtasks || [];
+                const tags = targetNode.tags ? `\n**Tags:** ${targetNode.tags}` : '';
+                const pattern = targetNode.pattern?.key ? `\n**Pattern:** ${targetNode.pattern.key}` : '';
+
+                // Full description without truncation
+                const desc = targetNode.description
+                    ? `\n\n---\n**Content:**\n${targetNode.description}`
+                    : '\n\n*No description/content*';
+
+                const childList = children.length > 0
+                    ? `\n\n**Children (${children.length}):**\n${children.map(c => `• ${c.name || c.id}`).join('\n')}`
+                    : '';
+
+                return `📖 **${targetNode.name}**\n\n` +
+                       `Type: ${targetNode.type || 'item'} | ID: \`${targetNode.id}\`${tags}${pattern}${desc}${childList}`;
+            },
+
             // BUILD 578: Duplicate node (safety copy)
             'duplicate_node': (nodeIdOrName) => {
                 const focused = window.chatFocusedNode || activeNode;
@@ -68643,6 +68718,8 @@ GLOBAL (work anytime):
 • node_stats:{name or id} - Show detailed stats for a node (children, depth, content size)
 • merge_nodes:{source} into {target} - Merge source node into target (moves children, combines descriptions)
 • delete_empty_nodes - Bulk delete all empty containers (preview/confirm options)
+• rename_node:{old} to {new} - Rename a node (or just {new} if focused)
+• read_node:{name} - Read full content/description of a node
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
@@ -72651,7 +72728,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 581; // Update this with each build
+                    const KNOWN_LATEST = 582; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
