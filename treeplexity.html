@@ -63308,6 +63308,234 @@ Slack data not available. To calculate slack:
 
             // BUILD 578: compare_nodes moved to line ~64871 (consolidated with multi-select version)
 
+            // BUILD 578: Search tree for nodes matching query
+            'search_tree': (query) => {
+                if (!query || query.trim() === '') {
+                    return '⚠️ Usage: `search_tree {query}`\nExample: `search_tree budget` or `search_tree @tag:important`';
+                }
+
+                query = query.trim();
+                const results = [];
+                const maxResults = 15;
+
+                // Check for tag search: @tag:value or #value
+                const tagMatch = query.match(/^(?:@tag:|#)(.+)$/i);
+                const isTagSearch = !!tagMatch;
+                const searchTerm = tagMatch ? tagMatch[1].toLowerCase() : query.toLowerCase();
+
+                function searchNode(node, path = []) {
+                    if (results.length >= maxResults) return;
+
+                    const nodeName = (node.name || node.title || '').toLowerCase();
+                    const nodeDesc = (node.description || '').toLowerCase();
+                    const nodeTags = (node.tags || '').toLowerCase();
+                    const nodeId = (node.id || '').toLowerCase();
+
+                    let matched = false;
+                    let matchField = '';
+
+                    if (isTagSearch) {
+                        // Tag search - check tags field
+                        if (nodeTags.includes(searchTerm)) {
+                            matched = true;
+                            matchField = 'tags';
+                        }
+                    } else {
+                        // General search - check name, description, id
+                        if (nodeName.includes(searchTerm)) {
+                            matched = true;
+                            matchField = 'name';
+                        } else if (nodeDesc.includes(searchTerm)) {
+                            matched = true;
+                            matchField = 'description';
+                        } else if (nodeId.includes(searchTerm)) {
+                            matched = true;
+                            matchField = 'id';
+                        } else if (nodeTags.includes(searchTerm)) {
+                            matched = true;
+                            matchField = 'tags';
+                        }
+                    }
+
+                    if (matched) {
+                        results.push({
+                            node: node,
+                            path: path.join(' > '),
+                            matchField: matchField
+                        });
+                    }
+
+                    // Search children
+                    ['children', 'items', 'subItems', 'subtasks'].forEach(arr => {
+                        if (node[arr]) {
+                            node[arr].forEach(child => {
+                                searchNode(child, [...path, node.name || node.id]);
+                            });
+                        }
+                    });
+                }
+
+                // Start search from root
+                searchNode(capexTree, []);
+
+                if (results.length === 0) {
+                    return `🔍 No results found for "${query}"`;
+                }
+
+                let output = `🔍 **Found ${results.length}${results.length >= maxResults ? '+' : ''} results for "${query}":**\n\n`;
+                results.forEach((r, i) => {
+                    const icon = r.matchField === 'tags' ? '🏷️' : r.matchField === 'name' ? '📄' : '📝';
+                    output += `${i + 1}. ${icon} **${r.node.name || r.node.id}**`;
+                    if (r.path) output += `\n   └ ${r.path}`;
+                    output += '\n';
+                });
+
+                output += `\n💡 Use \`focus {name}\` to navigate to a result.`;
+                return output;
+            },
+
+            // BUILD 578: Add or manage tags on a node
+            'tag_node': (args) => {
+                if (!args || args.trim() === '') {
+                    return '⚠️ Usage: `tag_node {node_name} with {tags}` or `tag_node {tags}` (for focused node)\nExample: `tag_node Budget with important, review` or `tag_node urgent, high-priority`';
+                }
+
+                let targetNode = null;
+                let tagsToAdd = '';
+
+                // Parse "node with tags" format
+                const withMatch = args.match(/^(.+?)\s+with\s+(.+)$/i);
+                if (withMatch) {
+                    const nodeName = withMatch[1].trim();
+                    tagsToAdd = withMatch[2].trim();
+                    targetNode = findNodeById(nodeName) || findNodeByName(capexTree, nodeName);
+                    if (!targetNode) {
+                        return `❌ Node "${nodeName}" not found.`;
+                    }
+                } else {
+                    // Apply tags to focused node
+                    targetNode = window.chatFocusedNode || activeNode;
+                    if (!targetNode) {
+                        return '⚠️ No node focused. Use `tag_node {name} with {tags}` or focus a node first.';
+                    }
+                    tagsToAdd = args.trim();
+                }
+
+                // Save undo state
+                if (typeof saveState === 'function') saveState('Tag node via Treebeard');
+
+                // Parse and normalize tags
+                const newTags = tagsToAdd.split(/[,;]/).map(t => t.trim().toLowerCase()).filter(t => t);
+                if (newTags.length === 0) {
+                    return '⚠️ No valid tags provided.';
+                }
+
+                // Get existing tags
+                const existingTags = (targetNode.tags || '').split(/[,;]/).map(t => t.trim().toLowerCase()).filter(t => t);
+
+                // Merge tags (avoid duplicates)
+                const allTags = [...new Set([...existingTags, ...newTags])];
+                targetNode.tags = allTags.join(', ');
+
+                // Render and track
+                if (typeof render === 'function') render();
+                if (typeof trackNodeChange === 'function') trackNodeChange(targetNode.id, 'edited');
+
+                const addedCount = newTags.filter(t => !existingTags.includes(t)).length;
+                return `🏷️ Tagged "${targetNode.name}" with: ${newTags.join(', ')}\n` +
+                       `Total tags: ${allTags.join(', ')}` +
+                       (addedCount < newTags.length ? `\n(${newTags.length - addedCount} tag(s) already existed)` : '');
+            },
+
+            // BUILD 578: Remove tags from a node
+            'untag_node': (args) => {
+                if (!args || args.trim() === '') {
+                    return '⚠️ Usage: `untag_node {node_name} remove {tags}` or `untag_node {tags}` (for focused node)';
+                }
+
+                let targetNode = null;
+                let tagsToRemove = '';
+
+                // Parse "node remove tags" format
+                const removeMatch = args.match(/^(.+?)\s+remove\s+(.+)$/i);
+                if (removeMatch) {
+                    const nodeName = removeMatch[1].trim();
+                    tagsToRemove = removeMatch[2].trim();
+                    targetNode = findNodeById(nodeName) || findNodeByName(capexTree, nodeName);
+                    if (!targetNode) {
+                        return `❌ Node "${nodeName}" not found.`;
+                    }
+                } else {
+                    targetNode = window.chatFocusedNode || activeNode;
+                    if (!targetNode) {
+                        return '⚠️ No node focused. Use `untag_node {name} remove {tags}` or focus a node first.';
+                    }
+                    tagsToRemove = args.trim();
+                }
+
+                if (!targetNode.tags) {
+                    return `ℹ️ "${targetNode.name}" has no tags to remove.`;
+                }
+
+                // Save undo state
+                if (typeof saveState === 'function') saveState('Remove tags via Treebeard');
+
+                const toRemove = new Set(tagsToRemove.split(/[,;]/).map(t => t.trim().toLowerCase()).filter(t => t));
+                const existingTags = targetNode.tags.split(/[,;]/).map(t => t.trim().toLowerCase()).filter(t => t);
+                const remainingTags = existingTags.filter(t => !toRemove.has(t));
+                const removedCount = existingTags.length - remainingTags.length;
+
+                targetNode.tags = remainingTags.join(', ');
+
+                if (typeof render === 'function') render();
+                if (typeof trackNodeChange === 'function') trackNodeChange(targetNode.id, 'edited');
+
+                if (removedCount === 0) {
+                    return `ℹ️ None of the specified tags were found on "${targetNode.name}"`;
+                }
+
+                return `🏷️ Removed ${removedCount} tag(s) from "${targetNode.name}"\n` +
+                       (remainingTags.length > 0 ? `Remaining tags: ${remainingTags.join(', ')}` : 'No tags remaining');
+            },
+
+            // BUILD 578: List all tags in the tree
+            'list_tags': () => {
+                const tagCounts = {};
+
+                function collectTags(node) {
+                    if (node.tags) {
+                        node.tags.split(/[,;]/).forEach(t => {
+                            const tag = t.trim().toLowerCase();
+                            if (tag) {
+                                tagCounts[tag] = (tagCounts[tag] || 0) + 1;
+                            }
+                        });
+                    }
+                    ['children', 'items', 'subItems', 'subtasks'].forEach(arr => {
+                        if (node[arr]) node[arr].forEach(collectTags);
+                    });
+                }
+
+                collectTags(capexTree);
+
+                const tags = Object.entries(tagCounts).sort((a, b) => b[1] - a[1]);
+
+                if (tags.length === 0) {
+                    return '🏷️ No tags found in this tree.\n\n💡 Add tags with `tag_node {name} with {tags}`';
+                }
+
+                let output = `🏷️ **Tags in "${capexTree.name}" (${tags.length} unique):**\n\n`;
+                tags.slice(0, 20).forEach(([tag, count]) => {
+                    output += `• **${tag}** (${count} node${count > 1 ? 's' : ''})\n`;
+                });
+                if (tags.length > 20) {
+                    output += `\n... and ${tags.length - 20} more tags`;
+                }
+                output += `\n\n💡 Search by tag: \`search_tree #tagname\``;
+
+                return output;
+            },
+
             'expand_all': () => {
                 document.getElementById('expand-btn')?.click();
                 return '⬇️ Expanded one level!';
@@ -68062,6 +68290,10 @@ GLOBAL (work anytime):
 • move_node:{source} to {destination} - Move a node to a new parent
 • duplicate_node:{name} - Create a safety copy of a node (deep clone)
 • compare_nodes:{node1} and {node2} - Check for duplicate content between nodes
+• search_tree:{query} - Search nodes by name/description/id (use #tag for tag search)
+• tag_node:{name} with {tags} - Add tags to a node (comma-separated)
+• untag_node:{name} remove {tags} - Remove tags from a node
+• list_tags - Show all tags used in the tree with counts
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
