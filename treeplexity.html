@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.35.0 | Build 575 | 2025-12-25
+    TreeListy v2.36.0 | Build 576 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 576): Treebeard add_node/add_child - direct node creation via Treebeard chat, no more "command not found"
     Changelog (Build 575): Atlas Phase-1 Link Resolution - [[node name]] syntax renders as clickable links, navigates to target node
     Changelog (Build 574): Deep Research via Claude Code - dispatch research tasks to Claude Code for web search + tree integration, bypassing fragile local filters
     Changelog (Build 573): Atlas Phase-0 Identity Lockdown - treeId (immutable), nodeGuid (stable), uidOf() helper, link patterns for cross-tree intelligence
@@ -783,8 +784,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.35.0',
-            build: 575,
+            major: '2.36.0',
+            build: 576,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -61817,11 +61818,11 @@ ${fullTranscript}`;
                 examples: ['find marketing', 'go to phase 2', 'show me the budget items']
             },
             edit: {
-                canonical: 'add_child',
+                canonical: 'add_node',
                 description: 'Add, modify, or remove nodes',
                 aliases: ['add', 'create', 'new', 'insert', 'edit', 'change', 'update', 'modify', 'remove', 'delete'],
-                commands: ['add_child', 'add_phase', 'delete_node', 'rename_root', 'rename_node', 'set_field'],
-                examples: ['add a new phase', 'create marketing item', 'delete this node']
+                commands: ['add_node', 'add_child', 'add_phase', 'add_research_nodes', 'delete_node', 'rename_root', 'rename_node', 'set_field'],
+                examples: ['add_node Marketing Campaign | Campaign for Q1 launch', 'add_child Subtask Name', 'add a new phase', 'delete this node']
             },
             view: {
                 canonical: 'toggle_view',
@@ -62972,6 +62973,171 @@ Slack data not available. To calculate slack:
                 document.getElementById('add-phase-btn')?.click();
                 return '➕ New phase added! You can rename it by clicking on it.';
             },
+
+            // BUILD 576: Add single node to tree
+            'add_node': (args) => {
+                try {
+                    // Parse args: "Name" or "Name | Description" or JSON
+                    let name, description = '';
+
+                    if (!args || args.trim() === '') {
+                        return '⚠️ Please specify a node name. Example: `add_node My New Task` or `add_node Task Name | Task description here`';
+                    }
+
+                    // Check if it's JSON format
+                    if (args.trim().startsWith('{')) {
+                        try {
+                            const parsed = JSON.parse(args);
+                            name = parsed.name;
+                            description = parsed.description || '';
+                        } catch (e) {
+                            return '❌ Invalid JSON format. Use: `add_node {"name": "Task", "description": "Details"}`';
+                        }
+                    } else if (args.includes('|')) {
+                        // "Name | Description" format
+                        const parts = args.split('|');
+                        name = parts[0].trim();
+                        description = parts.slice(1).join('|').trim();
+                    } else {
+                        // Just the name
+                        name = args.trim();
+                    }
+
+                    if (!name) {
+                        return '⚠️ Node name is required.';
+                    }
+
+                    // Find target phase - use focused node's phase or first phase
+                    const phases = capexTree?.children || capexTree?.phases || [];
+                    if (phases.length === 0) {
+                        return '⚠️ No phases in tree. Use `add_phase` first.';
+                    }
+
+                    let targetPhase = phases[0];
+                    let targetPhaseIndex = 0;
+                    const focusedNode = window.chatFocusedNode;
+
+                    if (focusedNode) {
+                        // Find which phase contains the focused node
+                        for (let i = 0; i < phases.length; i++) {
+                            const phase = phases[i];
+                            const items = phase.items || phase.children || [];
+                            const found = items.some(item => item.id === focusedNode.id) ||
+                                items.some(item => (item.subItems || item.children || []).some(sub => sub.id === focusedNode.id));
+                            if (found || phase.id === focusedNode.id) {
+                                targetPhase = phase;
+                                targetPhaseIndex = i;
+                                break;
+                            }
+                        }
+                    }
+
+                    // Save undo state
+                    if (typeof saveState === 'function') saveState('Add node via Treebeard');
+
+                    // Create the new node
+                    const timestamp = Date.now();
+                    const newNode = {
+                        type: 'item',
+                        id: `item-${targetPhaseIndex}-${timestamp}`,
+                        nodeGuid: typeof generateNodeGuid === 'function' ? generateNodeGuid() : `n_${timestamp}`,
+                        name: name,
+                        description: description,
+                        icon: '📝',
+                        provenance: { source: 'treebeard', timestamp: new Date().toISOString() }
+                    };
+
+                    if (!targetPhase.items) targetPhase.items = [];
+                    targetPhase.items.push(newNode);
+
+                    // Track and render
+                    if (typeof trackNodeChange === 'function') trackNodeChange(newNode.id, 'added');
+                    if (typeof render === 'function') render();
+
+                    return `✅ Added "${name}" to "${targetPhase.name}"${description ? ' with description' : ''}`;
+                } catch (error) {
+                    console.error('Error adding node:', error);
+                    return `❌ Failed to add node: ${error.message}`;
+                }
+            },
+
+            // BUILD 576: Add child node to focused/selected node
+            'add_child': (args) => {
+                try {
+                    const focusedNode = window.chatFocusedNode || activeNode;
+                    if (!focusedNode) {
+                        return '⚠️ No node focused. Click on a node first, then use `add_child Child Name`.';
+                    }
+
+                    // Parse args same as add_node
+                    let name, description = '';
+
+                    if (!args || args.trim() === '') {
+                        return `⚠️ Please specify child name. Example: \`add_child New Subtask\` (will add to "${focusedNode.name}")`;
+                    }
+
+                    if (args.trim().startsWith('{')) {
+                        try {
+                            const parsed = JSON.parse(args);
+                            name = parsed.name;
+                            description = parsed.description || '';
+                        } catch (e) {
+                            return '❌ Invalid JSON format.';
+                        }
+                    } else if (args.includes('|')) {
+                        const parts = args.split('|');
+                        name = parts[0].trim();
+                        description = parts.slice(1).join('|').trim();
+                    } else {
+                        name = args.trim();
+                    }
+
+                    if (!name) return '⚠️ Child name is required.';
+
+                    // Save undo state
+                    if (typeof saveState === 'function') saveState('Add child via Treebeard');
+
+                    // Determine child array based on node type
+                    const timestamp = Date.now();
+                    const newChild = {
+                        type: 'subtask',
+                        id: `subtask-${timestamp}`,
+                        nodeGuid: typeof generateNodeGuid === 'function' ? generateNodeGuid() : `n_${timestamp}`,
+                        name: name,
+                        description: description,
+                        icon: '📌',
+                        provenance: { source: 'treebeard', timestamp: new Date().toISOString() }
+                    };
+
+                    // Add to appropriate child array
+                    if (focusedNode.type === 'phase' || focusedNode.id === 'root') {
+                        newChild.type = 'item';
+                        newChild.id = `item-${timestamp}`;
+                        if (!focusedNode.items) focusedNode.items = [];
+                        focusedNode.items.push(newChild);
+                    } else if (focusedNode.type === 'item') {
+                        if (!focusedNode.subItems) focusedNode.subItems = [];
+                        focusedNode.subItems.push(newChild);
+                    } else {
+                        // Generic children array
+                        if (!focusedNode.children) focusedNode.children = [];
+                        focusedNode.children.push(newChild);
+                    }
+
+                    // Ensure parent is expanded
+                    focusedNode.collapsed = false;
+
+                    // Track and render
+                    if (typeof trackNodeChange === 'function') trackNodeChange(newChild.id, 'added');
+                    if (typeof render === 'function') render();
+
+                    return `✅ Added "${name}" as child of "${focusedNode.name}"`;
+                } catch (error) {
+                    console.error('Error adding child:', error);
+                    return `❌ Failed to add child: ${error.message}`;
+                }
+            },
+
             'expand_all': () => {
                 document.getElementById('expand-btn')?.click();
                 return '⬇️ Expanded one level!';
@@ -67678,7 +67844,10 @@ GLOBAL (work anytime):
 • create_tree:{name} - Create a new tree with custom name
 • rename_root:{name} - Rename the root node
 • research:{query} - Web search via Gemini (requires Gemini API key)
+• add_node:{name} or add_node:{name | description} - Add a new node to current phase
+• add_child:{name} - Add a child node to the focused node
 • add_phase - Add new phase
+• add_research_nodes:[{name, description},...] - Add multiple research nodes
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
@@ -71680,7 +71849,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 575; // Update this with each build
+                    const KNOWN_LATEST = 576; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
