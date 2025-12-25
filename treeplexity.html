@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.38.7 | Build 586 | 2025-12-25
+    TreeListy v2.38.8 | Build 587 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 587): bulk_move and analyze_balance commands for tree restructuring
     Changelog (Build 586): TB self-awareness - whats_new command + prompt to check capabilities before saying "I can't"
     Changelog (Build 585): Dev request UX notifications - toast shows what Claude Code is implementing and when build is ready
     Changelog (Build 584): TB developer channel guidance - TB now knows to use request_dev_help proactively instead of asking user to relay
@@ -794,8 +795,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.38.7',
-            build: 586,
+            major: '2.38.8',
+            build: 587,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -63822,6 +63823,132 @@ Slack data not available. To calculate slack:
                 return output;
             },
 
+            // BUILD 586: Bulk move - move multiple items to a destination
+            'bulk_move': (args) => {
+                if (!args) {
+                    return '⚠️ Usage: `bulk_move {item1}, {item2}, {item3} to {destination}`\nMoves multiple nodes to a new parent in one operation.';
+                }
+
+                const toMatch = args.match(/^(.+?)\s+to\s+(.+)$/i);
+                if (!toMatch) {
+                    return '⚠️ Format: `bulk_move {items} to {destination}`';
+                }
+
+                const itemsStr = toMatch[1].trim();
+                const destName = toMatch[2].trim();
+                const itemNames = itemsStr.split(/,\s*/).map(s => s.trim()).filter(s => s);
+
+                if (itemNames.length === 0) {
+                    return '⚠️ No items specified.';
+                }
+
+                const destNode = findNodeById(destName) || findNodeByName(capexTree, destName);
+                if (!destNode) {
+                    return `❌ Destination "${destName}" not found.`;
+                }
+
+                // Save single undo state
+                if (typeof saveState === 'function') saveState(`Bulk move ${itemNames.length} items to ${destName}`);
+
+                let movedCount = 0;
+                let errors = [];
+
+                itemNames.forEach(name => {
+                    const node = findNodeById(name) || findNodeByName(capexTree, name);
+                    if (!node) {
+                        errors.push(`"${name}" not found`);
+                        return;
+                    }
+                    if (node.id === capexTree.id || node.id === destNode.id) {
+                        errors.push(`Cannot move "${name}"`);
+                        return;
+                    }
+
+                    // Remove from current parent
+                    if (typeof removeFromParent === 'function') {
+                        removeFromParent(capexTree, node.id);
+                    }
+
+                    // Add to destination
+                    if (!destNode.children) destNode.children = [];
+                    if (!destNode.items) destNode.items = [];
+                    if (destNode.type === 'phase') {
+                        destNode.items.push(node);
+                    } else {
+                        destNode.children.push(node);
+                    }
+                    movedCount++;
+                });
+
+                destNode.collapsed = false;
+                if (typeof render === 'function') render();
+
+                let result = `✅ Moved **${movedCount}/${itemNames.length}** items to "${destNode.name}"`;
+                if (errors.length > 0) {
+                    result += `\n\n⚠️ Issues:\n${errors.map(e => `• ${e}`).join('\n')}`;
+                }
+                result += `\n\n💡 Use \`undo\` to reverse.`;
+                return result;
+            },
+
+            // BUILD 586: Analyze tree balance and suggest redistribution
+            'analyze_balance': () => {
+                const phases = capexTree.children || [];
+                if (phases.length === 0) {
+                    return '⚠️ No phases found in tree.';
+                }
+
+                const stats = phases.map(p => {
+                    const items = p.items || p.children || [];
+                    return { name: p.name, count: items.length, id: p.id };
+                }).sort((a, b) => b.count - a.count);
+
+                const total = stats.reduce((sum, s) => sum + s.count, 0);
+                const avg = Math.round(total / stats.length);
+                const overloaded = stats.filter(s => s.count > avg * 1.5);
+                const empty = stats.filter(s => s.count === 0);
+                const light = stats.filter(s => s.count > 0 && s.count < avg * 0.5);
+
+                let output = `📊 **Tree Balance Analysis**\n\n`;
+                output += `**Total items:** ${total} across ${stats.length} phases\n`;
+                output += `**Average per phase:** ${avg} items\n\n`;
+
+                if (overloaded.length > 0) {
+                    output += `🔴 **Overloaded (>${Math.round(avg * 1.5)} items):**\n`;
+                    overloaded.forEach(p => {
+                        output += `• "${p.name}" - ${p.count} items (${p.count - avg} over avg)\n`;
+                    });
+                    output += '\n';
+                }
+
+                if (empty.length > 0) {
+                    output += `⚪ **Empty phases:**\n`;
+                    empty.forEach(p => {
+                        output += `• "${p.name}" - 0 items\n`;
+                    });
+                    output += '\n';
+                }
+
+                if (light.length > 0) {
+                    output += `🟡 **Light (<${Math.round(avg * 0.5)} items):**\n`;
+                    light.forEach(p => {
+                        output += `• "${p.name}" - ${p.count} items\n`;
+                    });
+                    output += '\n';
+                }
+
+                output += `💡 **Suggestions:**\n`;
+                if (overloaded.length > 0) {
+                    output += `• Use \`bulk_move {items} to {dest}\` to redistribute from overloaded phases\n`;
+                }
+                if (empty.length > 0) {
+                    output += `• Use \`delete_empty_nodes confirm\` to remove empty containers\n`;
+                    output += `• Or use \`merge_nodes {empty} into {related}\` to consolidate\n`;
+                }
+
+                return output;
+            },
+
             // BUILD 578: Merge two nodes (move children from source to destination)
             'merge_nodes': (args) => {
                 if (!args) {
@@ -68840,6 +68967,8 @@ GLOBAL (work anytime):
 • request_dev_help:{description} - Request new capabilities from Claude Code via MCP (requires bridge connection)
 • whats_new - Show recent capabilities added in latest builds (RUN THIS AFTER REFRESH!)
 • list_all_commands - Show all 100+ available commands
+• bulk_move:{items} to {dest} - Move multiple items at once (comma-separated)
+• analyze_balance - Show tree balance stats and redistribution suggestions
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
@@ -72848,7 +72977,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 586; // Update this with each build
+                    const KNOWN_LATEST = 587; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
