@@ -63149,7 +63149,7 @@ Slack data not available. To calculate slack:
                 }
 
                 // Find node by ID or name
-                let node = findById(capexTree, nodeIdOrName);
+                let node = findNodeById(nodeIdOrName);
                 if (!node) {
                     node = findNodeByName(capexTree, nodeIdOrName);
                 }
@@ -63184,13 +63184,13 @@ Slack data not available. To calculate slack:
                 const destName = toMatch[2].trim();
 
                 // Find source node
-                let sourceNode = findById(capexTree, sourceName) || findNodeByName(capexTree, sourceName);
+                let sourceNode = findNodeById(sourceName) || findNodeByName(capexTree, sourceName);
                 if (!sourceNode) {
                     return `❌ Source node "${sourceName}" not found.`;
                 }
 
                 // Find destination node
-                let destNode = findById(capexTree, destName) || findNodeByName(capexTree, destName);
+                let destNode = findNodeById(destName) || findNodeByName(capexTree, destName);
                 if (!destNode) {
                     return `❌ Destination "${destName}" not found.`;
                 }
@@ -63247,7 +63247,7 @@ Slack data not available. To calculate slack:
             'duplicate_node': (nodeIdOrName) => {
                 const focused = window.chatFocusedNode || activeNode;
                 const targetNode = nodeIdOrName
-                    ? (findById(capexTree, nodeIdOrName) || findNodeByName(capexTree, nodeIdOrName))
+                    ? (findNodeById(nodeIdOrName) || findNodeByName(capexTree, nodeIdOrName))
                     : focused;
 
                 if (!targetNode) {
@@ -63306,72 +63306,7 @@ Slack data not available. To calculate slack:
                 return `✅ Created copy: "${duplicate.name}" (${duplicate.id})`;
             },
 
-            // BUILD 578: Compare two nodes for similarities/differences
-            'compare_nodes': (args) => {
-                if (!args) {
-                    return '⚠️ Usage: `compare_nodes {node1} and {node2}`\nExample: `compare_nodes Bergson and Deleuze`';
-                }
-
-                // Parse "node1 and node2" or "node1 vs node2" format
-                const match = args.match(/^(.+?)\s+(?:and|vs|versus|with)\s+(.+)$/i);
-                if (!match) {
-                    return '⚠️ Format: `compare_nodes {node1} and {node2}`';
-                }
-
-                const name1 = match[1].trim();
-                const name2 = match[2].trim();
-
-                const node1 = findById(capexTree, name1) || findNodeByName(capexTree, name1);
-                const node2 = findById(capexTree, name2) || findNodeByName(capexTree, name2);
-
-                if (!node1) return `❌ Node "${name1}" not found.`;
-                if (!node2) return `❌ Node "${name2}" not found.`;
-
-                // Compare structure
-                const children1 = node1.children || node1.items || node1.subItems || [];
-                const children2 = node2.children || node2.items || node2.subItems || [];
-
-                const names1 = new Set(children1.map(c => (c.name || '').toLowerCase()));
-                const names2 = new Set(children2.map(c => (c.name || '').toLowerCase()));
-
-                const shared = [...names1].filter(n => names2.has(n));
-                const only1 = [...names1].filter(n => !names2.has(n));
-                const only2 = [...names2].filter(n => !names1.has(n));
-
-                // Compare descriptions
-                const desc1 = (node1.description || '').toLowerCase();
-                const desc2 = (node2.description || '').toLowerCase();
-                const descSimilar = desc1 && desc2 && (
-                    desc1.includes(desc2.substring(0, 50)) ||
-                    desc2.includes(desc1.substring(0, 50))
-                );
-
-                let result = `📊 **Comparing: ${node1.name} vs ${node2.name}**\n\n`;
-                result += `**${node1.name}:** ${children1.length} children\n`;
-                result += `**${node2.name}:** ${children2.length} children\n\n`;
-
-                if (shared.length > 0) {
-                    result += `⚠️ **Potentially Duplicate Children (${shared.length}):**\n`;
-                    result += shared.slice(0, 5).map(n => `• ${n}`).join('\n');
-                    if (shared.length > 5) result += `\n... and ${shared.length - 5} more`;
-                    result += '\n\n';
-                } else {
-                    result += `✅ **No duplicate children found**\n\n`;
-                }
-
-                if (only1.length > 0) {
-                    result += `**Only in ${node1.name}:** ${only1.slice(0, 3).join(', ')}${only1.length > 3 ? '...' : ''}\n`;
-                }
-                if (only2.length > 0) {
-                    result += `**Only in ${node2.name}:** ${only2.slice(0, 3).join(', ')}${only2.length > 3 ? '...' : ''}\n`;
-                }
-
-                if (descSimilar) {
-                    result += `\n⚠️ Descriptions appear similar - possible duplicate content.`;
-                }
-
-                return result;
-            },
+            // BUILD 578: compare_nodes moved to line ~64871 (consolidated with multi-select version)
 
             'expand_all': () => {
                 document.getElementById('expand-btn')?.click();
@@ -64867,10 +64802,50 @@ Slack data not available. To calculate slack:
                 return info.join('\n');
             },
 
-            // BUILD 394: Compare selected nodes
-            'compare_nodes': async () => {
+            // BUILD 394/578: Compare nodes - supports both multi-select and text-based
+            'compare_nodes': (args) => {
+                // BUILD 578: Text-based comparison if args provided
+                if (args && typeof args === 'string') {
+                    const match = args.match(/^(.+?)\s+(?:and|vs|versus)\s+(.+)$/i);
+                    if (match) {
+                        const name1 = match[1].trim();
+                        const name2 = match[2].trim();
+
+                        const node1 = findNodeById(name1) || findNodeByName(capexTree, name1);
+                        const node2 = findNodeById(name2) || findNodeByName(capexTree, name2);
+
+                        if (!node1) return `❌ First node "${name1}" not found.`;
+                        if (!node2) return `❌ Second node "${name2}" not found.`;
+
+                        const children1 = node1.children || node1.items || [];
+                        const children2 = node2.children || node2.items || [];
+                        const names1 = new Set(children1.map(c => (c.name || c.id).toLowerCase()));
+                        const names2 = new Set(children2.map(c => (c.name || c.id).toLowerCase()));
+                        const common = [...names1].filter(n => names2.has(n));
+
+                        let result = `🔬 **Comparison: "${node1.name}" vs "${node2.name}"**\n\n`;
+                        result += `**${node1.name}**: ${children1.length} children\n`;
+                        result += `**${node2.name}**: ${children2.length} children\n\n`;
+
+                        if (common.length > 0) {
+                            result += `**Duplicates (${common.length}):** ${common.slice(0, 5).join(', ')}${common.length > 5 ? '...' : ''}\n`;
+                        } else {
+                            result += '**No duplicate children found**\n';
+                        }
+
+                        const desc1 = (node1.description || '').toLowerCase().substring(0, 100);
+                        const desc2 = (node2.description || '').toLowerCase().substring(0, 100);
+                        if (desc1 && desc2 && desc1 === desc2) {
+                            result += '\n⚠️ Descriptions are identical!';
+                        }
+
+                        return result;
+                    }
+                }
+
+                // BUILD 394: Multi-select fallback
                 const nodes = selectedNodes || [];
-                if (nodes.length < 2) return '⚠️ Select 2+ nodes to compare (Ctrl+click).';
+                if (nodes.length < 2) return '⚠️ Usage: `compare_nodes {node1} and {node2}` or Ctrl+click 2+ nodes in Canvas.';
 
                 const comparison = nodes.map(n => `• **${n.name}**: ${n.description || n.status || 'No description'}`).join('\n');
                 return `🔬 Comparing ${nodes.length} nodes:\n${comparison}`;
@@ -69560,6 +69535,10 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
         // Expose globally
         window.visualFeedback = visualFeedback;
+
+        // BUILD 578: Expose COMMAND_REGISTRY and executeAction for testing
+        window.COMMAND_REGISTRY = COMMAND_REGISTRY;
+        window.executeTreebeardAction = executeAction;
 
         function addMessage(content, type = 'assistant', buttons = null) {
             const messagesContainer = document.getElementById('chat-assistant-messages');
