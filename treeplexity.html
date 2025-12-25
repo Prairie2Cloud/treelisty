@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.38.0 | Build 579 | 2025-12-25
+    TreeListy v2.38.1 | Build 580 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 580): Fix focus_node to accept names (not just IDs) - enables TB to focus by node name
     Changelog (Build 579): TB tree analysis - list_empty_nodes, show_tree_structure, find_duplicates, node_stats, merge_nodes, search_tree, tag/untag commands
     Changelog (Build 578): Treebeard safe manipulation - preview_node, move_node, duplicate_node, compare_nodes commands
     Changelog (Build 577): Case-insensitive commands - "Undo", "UNDO", "undo" all work now
@@ -787,8 +788,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.38.0',
-            build: 579,
+            major: '2.38.1',
+            build: 580,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -65116,25 +65117,29 @@ Slack data not available. To calculate slack:
                 return `🔍 Found ${results.length} match${results.length > 1 ? 'es' : ''} for "${query}":\n${matchList}\n\n✅ Selected: "${firstMatch.name || firstMatch.title}"`;
             },
 
-            // Focus on a specific node by ID
-            'focus_node': (nodeId) => {
-                if (!nodeId) return '⚠️ Please specify a node ID';
+            // Focus on a specific node by ID or name
+            'focus_node': (nodeIdOrName) => {
+                if (!nodeIdOrName) return '⚠️ Please specify a node ID or name';
 
-                const node = typeof getNodeById === 'function' ? getNodeById(nodeId) : null;
+                // Try by ID first, then by name
+                let node = typeof getNodeById === 'function' ? getNodeById(nodeIdOrName) : null;
                 if (!node) {
-                    return `❌ Node with ID "${nodeId}" not found`;
+                    node = findNodeById(nodeIdOrName) || findNodeByName(capexTree, nodeIdOrName);
+                }
+                if (!node) {
+                    return `❌ Node "${nodeIdOrName}" not found. Try a partial name or use \`search_tree\` to find it.`;
                 }
 
                 window.chatFocusedNode = node;
                 window.selectedCanvasNodes = [node];
 
-                const nodeEl = document.querySelector(`.canvas-node[data-id="${nodeId}"]`);
+                const nodeEl = document.querySelector(`.canvas-node[data-id="${node.id}"]`);
                 if (nodeEl) {
                     nodeEl.classList.add('selected');
                     nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
                 }
 
-                return `🎯 Focused on: "${node.name || node.title || nodeId}"`;
+                return `🎯 Focused on: "${node.name || node.title}" (ID: ${node.id})`;
             },
 
             // BUILD 538: Focus on root node - enables building from scratch
@@ -72577,7 +72582,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 579; // Update this with each build
+                    const KNOWN_LATEST = 580; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
