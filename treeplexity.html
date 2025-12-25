@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.38.3 | Build 582 | 2025-12-25
+    TreeListy v2.38.4 | Build 583 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 583): request_dev_help command - TB can request new capabilities directly from Claude Code via MCP
     Changelog (Build 582): rename_node and read_node commands - TB can now rename nodes and read full content
     Changelog (Build 581): delete_empty_nodes command - bulk cleanup of empty containers with preview/confirm safety
     Changelog (Build 580): Fix focus_node to accept names (not just IDs) - enables TB to focus by node name
@@ -790,8 +791,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.38.3',
-            build: 582,
+            major: '2.38.4',
+            build: 583,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -63987,6 +63988,51 @@ Slack data not available. To calculate slack:
                 return '📖 Opening help modal...';
             },
 
+            // BUILD 582: Request capabilities from Claude Code via MCP
+            'request_dev_help': async (request) => {
+                if (!request || request.trim().length < 10) {
+                    return '⚠️ Usage: `request_dev_help {detailed description of capability needed}`\n\n' +
+                           'Example: `request_dev_help I need a command to find all nodes with descriptions longer than 500 chars`';
+                }
+
+                // Check if MCP bridge is connected
+                if (!window.mcpBridgeState?.client?.connected) {
+                    return '❌ MCP Bridge not connected. Claude Code needs to be running with the bridge.\n\n' +
+                           '💡 Start with: `node packages/treelisty-mcp-bridge/src/bridge.js`';
+                }
+
+                // Format as dev request task
+                const task = {
+                    type: 'dev_request',
+                    source: 'treebeard',
+                    priority: 'normal',
+                    request: request.trim(),
+                    context: {
+                        currentBuild: window.TREELISTY_VERSION?.build || 'unknown',
+                        timestamp: new Date().toISOString(),
+                        treeInfo: {
+                            name: capexTree?.name || 'unknown',
+                            nodeCount: (function countNodes(n) {
+                                let c = 1;
+                                (n.children || n.items || []).forEach(ch => c += countNodes(ch));
+                                return c;
+                            })(capexTree)
+                        }
+                    }
+                };
+
+                try {
+                    // Dispatch via MCP
+                    await window.mcpBridgeState.client.dispatchTask(task);
+                    return `📤 **Dev request sent to Claude Code!**\n\n` +
+                           `**Request:** ${request.substring(0, 200)}${request.length > 200 ? '...' : ''}\n\n` +
+                           `Claude Code will implement this and push a new build. Refresh to get the update.`;
+                } catch (err) {
+                    return `❌ Failed to dispatch request: ${err.message}\n\n` +
+                           `Try copying this to Claude Code manually:\n\`\`\`\n${request}\n\`\`\``;
+                }
+            },
+
             // BUILD 442: Research command - web search via Gemini
             'research': async (query) => {
                 if (!query) return '⚠️ Please specify what to research. Example: "research competitors to Notion"';
@@ -68720,6 +68766,7 @@ GLOBAL (work anytime):
 • delete_empty_nodes - Bulk delete all empty containers (preview/confirm options)
 • rename_node:{old} to {new} - Rename a node (or just {new} if focused)
 • read_node:{name} - Read full content/description of a node
+• request_dev_help:{description} - Request new capabilities from Claude Code via MCP (requires bridge connection)
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
@@ -72728,7 +72775,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 582; // Update this with each build
+                    const KNOWN_LATEST = 583; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
