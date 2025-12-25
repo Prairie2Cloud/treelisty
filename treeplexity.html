@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.38.6 | Build 585 | 2025-12-25
+    TreeListy v2.38.7 | Build 586 | 2025-12-25
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 586): TB self-awareness - whats_new command + prompt to check capabilities before saying "I can't"
     Changelog (Build 585): Dev request UX notifications - toast shows what Claude Code is implementing and when build is ready
     Changelog (Build 584): TB developer channel guidance - TB now knows to use request_dev_help proactively instead of asking user to relay
     Changelog (Build 583): request_dev_help command - TB can request new capabilities directly from Claude Code via MCP
@@ -793,8 +794,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.38.6',
-            build: 585,
+            major: '2.38.7',
+            build: 586,
             date: '2025-12-25',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -64184,6 +64185,43 @@ Slack data not available. To calculate slack:
                 return output;
             },
 
+            // BUILD 586: Help TB discover new capabilities
+            'whats_new': () => {
+                const currentBuild = window.TREELISTY_VERSION?.build || 'unknown';
+                return `🆕 **What's New - Build ${currentBuild}**
+
+**Recent Capabilities (Builds 578-586):**
+
+📊 **Tree Analysis:**
+• \`list_empty_nodes\` - Find containers with 0 children
+• \`show_tree_structure {depth}\` - Hierarchical view with counts
+• \`find_duplicates\` - Find nodes with identical names
+• \`node_stats {name}\` - Detailed stats for any node
+
+🔧 **Tree Manipulation:**
+• \`delete_empty_nodes confirm\` - Bulk delete all empty containers
+• \`rename_node {old} to {new}\` - Rename any node
+• \`move_node {source} to {dest}\` - Relocate nodes
+• \`merge_nodes {source} into {dest}\` - Combine nodes
+• \`duplicate_node {name}\` - Create safety copy
+
+📖 **Content Access:**
+• \`read_node {name}\` - Read full content (no truncation)
+• \`preview_node {name}\` - Quick preview with children
+• \`compare_nodes {a} and {b}\` - Side-by-side comparison
+
+🏷️ **Tagging:**
+• \`tag_node {name} with {tags}\` - Add tags
+• \`untag_node {name} remove {tags}\` - Remove tags
+• \`search_tree #tagname\` - Search by tag
+• \`list_tags\` - Show all tags with counts
+
+🔗 **Developer Channel:**
+• \`request_dev_help {description}\` - Request new capabilities from Claude Code
+
+💡 Run \`list_all_commands\` for the full list (100+ commands)`;
+            },
+
             'list_all_commands': () => {
                 const commands = Object.keys(COMMAND_REGISTRY).sort();
                 const grouped = {
@@ -68758,8 +68796,13 @@ Be warm, concise (2-3 sentences), occasionally witty.`;
             return `
 COMMANDS (return as action in JSON buttons):
 
-IMPORTANT - DEVELOPER CHANNEL:
-When you encounter a limitation, missing capability, or cannot complete a user's request:
+IMPORTANT - SELF-AWARENESS:
+• Run \`whats_new\` after any refresh to discover your latest capabilities
+• Run \`list_all_commands\` to see everything you can do (100+ commands)
+• If you're unsure whether you have a capability, CHECK before telling the user you don't have it
+
+DEVELOPER CHANNEL:
+When you encounter a limitation or missing capability:
 1. DO NOT ask the user to relay messages to Claude Code
 2. INSTEAD, use: request_dev_help:{detailed description of what you need}
 3. This sends your request directly to Claude Code who will implement and deploy the fix
@@ -68795,6 +68838,8 @@ GLOBAL (work anytime):
 • rename_node:{old} to {new} - Rename a node (or just {new} if focused)
 • read_node:{name} - Read full content/description of a node
 • request_dev_help:{description} - Request new capabilities from Claude Code via MCP (requires bridge connection)
+• whats_new - Show recent capabilities added in latest builds (RUN THIS AFTER REFRESH!)
+• list_all_commands - Show all 100+ available commands
 • open_wizard - Start AI wizard
 • find_redundancies - Find duplicate nodes
 • switch_to_canvas / switch_to_tree / switch_to_3d - Change view
@@ -72803,7 +72848,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 585; // Update this with each build
+                    const KNOWN_LATEST = 586; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
