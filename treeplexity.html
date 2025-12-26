@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.39.9 | Build 598 | 2025-12-26
+    TreeListy v2.40.0 | Build 599 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 599): Canvas auto-layout for collapsed phases without positions (grid layout)
     Changelog (Build 598): Fix item counting for version comparison (handles all child types)
     Changelog (Build 597): Fix add_child to keep parent focused (enables ADD MULTIPLE CHILDREN)
     Changelog (Build 596): TB COMMAND EXECUTION SEQUENCES - exact step-by-step recipes for add/move/delete
@@ -804,8 +805,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.39.9',
-            build: 598,
+            major: '2.40.0',
+            build: 599,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -17058,6 +17059,14 @@ Focus on logical structure and content organization best practices.`;
 
                     // BUILD 536: Check if phase is collapsed
                     if (phase.expanded === false) {
+                        // BUILD 599: Auto-position collapsed phase nodes if no position set
+                        if (phase.canvasX === undefined || phase.canvasY === undefined) {
+                            // Grid layout: 2 columns, 250px spacing
+                            const col = phaseIdx % 2;
+                            const row = Math.floor(phaseIdx / 2);
+                            phase.canvasX = phase.canvasX !== undefined ? phase.canvasX : (50 + col * 500);
+                            phase.canvasY = phase.canvasY !== undefined ? phase.canvasY : (50 + row * 250);
+                        }
                         // Phase is collapsed - render phase node but not its children
                         renderCanvasNode(phase, null, capexTree, 0);
                         return;
@@ -73254,7 +73263,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 598; // Update this with each build
+                    const KNOWN_LATEST = 599; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
