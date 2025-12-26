@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.44.0 | Build 603 | 2025-12-26
+    TreeListy v2.45.0 | Build 604 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 603): TB POWER CONSCIOUSNESS - Claude Code partnership, proactive execution
+    Changelog (Build 604): Fast-Path interceptor + dispatch_task - instant commands bypass AI, dispatch tasks to Claude Code
+    Changelog (Build 603): TB POWER CONSCIOUSNESS - Claude Code partnership, proactive execution + fix modal footer bug
     Changelog (Build 601): TB command vocabulary - Add Build 600 canvas commands + screen capture to TB prompt
     Changelog (Build 600): TB canvas commands - focus_hyperedge, phase filtering (show/hide/solo), camera focus/zoom/reset
     Changelog (Build 599): Canvas auto-layout for collapsed phases without positions (grid layout)
@@ -808,8 +809,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.44.0',
-            build: 603,
+            major: '2.45.0',
+            build: 604,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -64701,6 +64702,54 @@ Slack data not available. To calculate slack:
             },
 
             // ═══════════════════════════════════════════════════════════════
+            // BUILD 604: dispatch_task - General-purpose task dispatch to Claude Code
+            // Usage: "dispatch: <your task>" sends any task to Claude Code
+            // ═══════════════════════════════════════════════════════════════
+            'dispatch_task': (taskPrompt) => {
+                if (!taskPrompt || taskPrompt.trim().length === 0) {
+                    return {
+                        message: '📤 **Dispatch Task to Claude Code**\n\nUsage: `dispatch: <your task>`\n\nExamples:\n• `dispatch: research Napoleon for my history tree`\n• `dispatch: find all PDF files in my Downloads folder`\n• `dispatch: create a summary of the current tree`',
+                        buttons: null
+                    };
+                }
+
+                if (!mcpBridgeState?.client?.isConnected) {
+                    return {
+                        message: '🔴 **Not Connected to Claude Code**\n\nTo dispatch tasks, you need Claude Code running with the TreeListy MCP bridge.\n\nClick "Connect" in the header or run `/mcp add treelisty` in Claude Code.',
+                        buttons: [
+                            { label: '🔗 Connect', action: 'show_mcp_connect' }
+                        ]
+                    };
+                }
+
+                const selectedNode = typeof getSelectedNode === 'function' ? getSelectedNode() : activeNode;
+                const treeContext = {
+                    treeName: capexTree?.name || 'Untitled',
+                    pattern: currentPattern || 'generic',
+                    nodeCount: typeof countNodes === 'function' ? countNodes() : 0,
+                    selectedNode: selectedNode ? { id: selectedNode.id, name: selectedNode.name } : null
+                };
+
+                try {
+                    mcpBridgeState.client.submitTask({
+                        type: 'dispatch',
+                        agentId: 'general',
+                        prompt: taskPrompt,
+                        targetNodeId: selectedNode?.id,
+                        treeContext: treeContext,
+                        requestedCapabilities: ['webSearch', 'fileRead', 'treeWrite'],
+                        options: { source: 'fast-path' }
+                    });
+
+                    showToast('📤 Task dispatched to Claude Code', 'success');
+                    return `📤 **Task Dispatched**\n\n"${taskPrompt.substring(0, 100)}${taskPrompt.length > 100 ? '...' : ''}"\n\nClaude Code is working on this. Results will appear in your **Inbox** for review.`;
+                } catch (e) {
+                    console.error('[dispatch_task] Error:', e);
+                    return `❌ Failed to dispatch task: ${e.message}`;
+                }
+            },
+
+            // ═══════════════════════════════════════════════════════════════
             // BUILD 574: Deep Research via Claude Code
             // Dispatches research tasks to Claude Code for web search + integration
             // Bypasses fragile local Gemini filters that block on TreeListy terms
@@ -71441,6 +71490,159 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════════
+        // BUILD 604: FAST-PATH INTERCEPTOR
+        // Deterministic command interceptor that bypasses AI interpretation
+        // for known patterns. Returns { intercepted, command, param, message, reason }
+        // ═══════════════════════════════════════════════════════════════════
+        function interceptFastPath(message) {
+            const MAX_LENGTH = 150;
+            const lowerMsg = message.toLowerCase().trim();
+
+            // GATE 1: Message too long for Fast-Path
+            if (message.length > MAX_LENGTH) {
+                return { intercepted: false, reason: 'message_too_long' };
+            }
+
+            // GATE 2: Complex questions (what/why/how) - EXCEPT "what can you do"
+            if (/^(what|why|how)/i.test(lowerMsg)) {
+                // Allow "what can you do" to pass through to help
+                if (/^what\s+can\s+you\s+do\??$/i.test(lowerMsg)) {
+                    // This will be handled below as show_help
+                } else {
+                    return { intercepted: false, reason: 'complex_question' };
+                }
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // VIEW SWITCHING
+            // ─────────────────────────────────────────────────────────────────
+            if (/^(canvas|switch\s+to\s+canvas(\s+view)?|show\s+canvas)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['switch_to_canvas']();
+                viewMode = 'canvas';
+                return { intercepted: true, command: 'switch_to_canvas', message: result };
+            }
+
+            if (/^(tree|switch\s+to\s+tree(\s+view)?|show\s+tree)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['switch_to_tree']();
+                viewMode = 'tree';
+                return { intercepted: true, command: 'switch_to_tree', message: result };
+            }
+
+            if (/^(3d|switch\s+to\s+3d(\s+view)?|show\s+3d)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['switch_to_3d']();
+                return { intercepted: true, command: 'switch_to_3d', message: result };
+            }
+
+            if (/^(gantt|switch\s+to\s+gantt(\s+view)?|show\s+gantt)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['view_gantt']();
+                return { intercepted: true, command: 'view_gantt', message: result };
+            }
+
+            if (/^(calendar|switch\s+to\s+calendar(\s+view)?|show\s+calendar)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['view_calendar']();
+                return { intercepted: true, command: 'view_calendar', message: result };
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // PHASE CONTROL (Canvas View)
+            // ─────────────────────────────────────────────────────────────────
+            // Use original message to preserve case of phase name
+            const soloMatch = message.match(/^(?:solo\s+(?:phase)?|show\s+only|isolate)[:\s]+(.+)$/i);
+            if (soloMatch) {
+                const phaseName = soloMatch[1].trim();
+                const result = COMMAND_REGISTRY['solo_phase'](phaseName);
+                return { intercepted: true, command: 'solo_phase', param: phaseName, message: result };
+            }
+
+            if (/^(show\s+all\s+phases?|reveal\s+all|unhide\s+all|reset\s+filter)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['show_all_phases']();
+                return { intercepted: true, command: 'show_all_phases', message: result };
+            }
+
+            // Use original message to preserve case of phase name
+            const hideMatch = message.match(/^hide\s+(?:phase)?[:\s]+(.+)$/i);
+            if (hideMatch) {
+                const phaseName = hideMatch[1].trim();
+                const result = COMMAND_REGISTRY['hide_phase'](phaseName);
+                return { intercepted: true, command: 'hide_phase', param: phaseName, message: result };
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // CAMERA CONTROL
+            // ─────────────────────────────────────────────────────────────────
+            if (/^(zoom\s+fit|fit\s+all|zoom\s+all|fit\s+to\s+view)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['zoom_fit']();
+                return { intercepted: true, command: 'zoom_fit', message: result };
+            }
+
+            // Use original message to preserve case of node name
+            const focusMatch = message.match(/^(?:focus\s+on|center\s+on|go\s+to|pan\s+to)[:\s]+(.+)$/i);
+            if (focusMatch) {
+                const nodeName = focusMatch[1].trim();
+                const result = COMMAND_REGISTRY['focus_camera'](nodeName);
+                return { intercepted: true, command: 'focus_camera', param: nodeName, message: result };
+            }
+
+            if (/^(reset\s+camera|camera\s+reset|reset\s+view)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['reset_camera']();
+                return { intercepted: true, command: 'reset_camera', message: result };
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // HYPEREDGE COMMANDS
+            // ─────────────────────────────────────────────────────────────────
+            if (/^(list\s+hyperedges?|show\s+hyperedges?|hyperedges?)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['list_hyperedges']();
+                return { intercepted: true, command: 'list_hyperedges', message: typeof result === 'object' ? result.message : result };
+            }
+
+            // Use original message to preserve case of hyperedge name
+            const focusHyperedgeMatch = message.match(/^(?:focus\s+hyperedge|show\s+hyperedge)[:\s]+(.+)$/i);
+            if (focusHyperedgeMatch) {
+                const heName = focusHyperedgeMatch[1].trim();
+                const result = COMMAND_REGISTRY['focus_hyperedge'](heName);
+                return { intercepted: true, command: 'focus_hyperedge', param: heName, message: result };
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // NAVIGATION / UNDO / REDO
+            // ─────────────────────────────────────────────────────────────────
+            if (/^undo$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['undo']();
+                return { intercepted: true, command: 'undo', message: result };
+            }
+
+            if (/^redo$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['redo']();
+                return { intercepted: true, command: 'redo', message: result };
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // HELP
+            // ─────────────────────────────────────────────────────────────────
+            if (/^(help|what\s+can\s+you\s+do\??|commands|show\s+help)$/i.test(lowerMsg)) {
+                const result = COMMAND_REGISTRY['show_help'] ? COMMAND_REGISTRY['show_help']() : COMMAND_REGISTRY['help']();
+                return { intercepted: true, command: 'show_help', message: result };
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // DISPATCH TASK TO CLAUDE CODE
+            // ─────────────────────────────────────────────────────────────────
+            const dispatchMatch = message.match(/^dispatch[:\s]+(.+)$/i);
+            if (dispatchMatch) {
+                const taskPrompt = dispatchMatch[1].trim();
+                const result = COMMAND_REGISTRY['dispatch_task'](taskPrompt);
+                return { intercepted: true, command: 'dispatch_task', param: taskPrompt, message: result };
+            }
+
+            // ─────────────────────────────────────────────────────────────────
+            // NOT INTERCEPTED - Falls through to AI interpretation
+            // ─────────────────────────────────────────────────────────────────
+            return { intercepted: false, reason: 'no_match' };
+        }
+        window.interceptFastPath = interceptFastPath; // Expose for testing
+
         async function handleSendMessage() {
             const input = document.getElementById('chat-assistant-input');
             const message = input.value.trim();
@@ -71467,6 +71669,20 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             showTypingIndicator();
 
             try {
+                // ═══════════════════════════════════════════════════════════════
+                // BUILD 604: FAST-PATH INTERCEPTION
+                // Deterministic commands bypass AI interpretation for instant response
+                // ═══════════════════════════════════════════════════════════════
+                const fastPath = interceptFastPath(message);
+                if (fastPath.intercepted) {
+                    console.log(`⚡ Fast-Path: ${fastPath.command}${fastPath.param ? `(${fastPath.param})` : ''}`);
+                    hideTypingIndicator();
+                    const response = typeof fastPath.message === 'object' ? fastPath.message : { message: fastPath.message, buttons: null };
+                    addMessage(response.message || fastPath.message, 'assistant', response.buttons);
+                    chatState.isProcessing = false;
+                    return;
+                }
+
                 // BUILD 543: Pattern Mismatch Routing
                 // Check if message uses terminology from a different pattern
                 if (!chatState.skipPatternMismatchCheck && typeof currentPattern !== 'undefined') {
@@ -73655,7 +73871,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 603; // Update this with each build
+                    const KNOWN_LATEST = 604; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
