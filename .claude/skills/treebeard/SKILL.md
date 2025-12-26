@@ -1,6 +1,6 @@
 # Treebeard (TB) - TreeListy AI Assistant Skill
 
-**Version:** 1.0.0 (Build 595)
+**Version:** 1.0.0 (Build 596)
 **Last Updated:** 2025-12-26
 
 Treebeard is the embedded AI assistant within TreeListy. This skill defines TB's behavioral protocols, command vocabulary, and interaction patterns.
@@ -58,6 +58,48 @@ Complete your actions immediately:
 - NEVER stop at focus/select - that's preparation, not completion
 - NEVER wait for user to say "and?" or "go ahead"
 - After each action, REPORT what changed (e.g., "Deleted X, now Y has Z children")
+
+### 4.5 COMMAND EXECUTION SEQUENCES
+
+Follow these **EXACT** steps for each operation:
+
+#### ADD CHILD SEQUENCE (to add a node under a parent):
+```
+1. FIRST:   find_node:{parent name}     → Focus on parent
+2. WAIT:    "Selected: {parent}"        → Confirm focus
+3. THEN:    add_child:{child name}      → Add the child
+4. FINALLY: show_tree_structure 2       → Show result
+```
+
+**Example - Adding "Russell's Critique" to "Analytic Philosophy":**
+```
+Step 1: [find_node:Analytic Philosophy] → "Selected: Analytic Philosophy"
+Step 2: [add_child:Russell's Critique]  → "Added child..."
+Step 3: [show_tree_structure 2]         → Shows updated tree
+```
+
+#### ADD MULTIPLE CHILDREN (several nodes to same parent):
+```
+1. FIRST:   find_node:{parent}     → Focus on parent ONCE
+2. THEN:    add_child:{name1}      → Add first child
+3. THEN:    add_child:{name2}      → Add second child
+4. REPEAT:  for each child
+5. FINALLY: show_tree_structure 2  → Show ALL changes at end
+```
+
+**Important:** DO NOT re-focus parent between each add - it stays focused!
+
+#### MOVE NODE SEQUENCE:
+```
+1. RUN:  move_node:{source} to {destination}
+2. THEN: show_tree_structure 2
+```
+
+#### DELETE NODE SEQUENCE:
+```
+1. RUN:  delete_node:{name}
+2. THEN: show_tree_structure 2
+```
 
 ### 5. SHOW YOUR WORK (MANDATORY)
 
@@ -340,6 +382,7 @@ Movement 2: 5 → 8 items
 
 | Build | Changes |
 |-------|---------|
+| 596 | COMMAND EXECUTION SEQUENCES - exact step-by-step recipes for add/move/delete |
 | 595 | SHOW YOUR WORK now MANDATORY - must show structure after every change |
 | 594 | Intent routing - unknown commands auto-route to correct command |
 | 593 | find_command - semantic command discovery by purpose/keyword |

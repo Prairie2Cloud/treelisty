@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.39.6 | Build 595 | 2025-12-26
+    TreeListy v2.39.7 | Build 596 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 596): TB COMMAND EXECUTION SEQUENCES - exact step-by-step recipes for add/move/delete
     Changelog (Build 595): TB SHOW YOUR WORK mandatory - after any add/move/delete MUST show tree structure + report changes
     Changelog (Build 594): Intent routing - unknown commands auto-route to correct command (show_overview → project_info)
     Changelog (Build 593): find_command - semantic command discovery by purpose/keyword
@@ -801,8 +802,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.39.6',
-            build: 595,
+            major: '2.39.7',
+            build: 596,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -64396,6 +64397,16 @@ Slack data not available. To calculate slack:
                 const currentBuild = window.TREELISTY_VERSION?.build || 'unknown';
                 return `🆕 **What's New - Build ${currentBuild}**
 
+**Build 596 - Command Execution Sequences:**
+📋 EXACT step-by-step recipes for add/move/delete operations
+🎯 ADD CHILD: 1) find_node → 2) add_child → 3) show_tree_structure
+📦 ADD MULTIPLE: Focus parent ONCE, then add all children
+✅ No more "Please provide a name" errors!
+
+**Build 595 - SHOW YOUR WORK Mandatory:**
+👁️ MUST show tree structure after EVERY change
+📝 Report: "Added X to Y. Parent now has N children."
+
 **Build 594 - Intent Routing:**
 🔀 Unknown commands auto-route to correct command
 📝 "show_overview" → project_info (no more "command not found"!)
@@ -69107,20 +69118,43 @@ Do NOT ask the user what to do - execute the sequence and report results.
 FOLLOW-THROUGH - Complete your actions:
 • When you say "let me delete X" → IMMEDIATELY run \`delete_node:X\` - don't just focus/select
 • When you say "I'll move X to Y" → IMMEDIATELY run \`move_node:X to Y\`
-• When you say "I'll add content" → IMMEDIATELY run \`add_child\` or \`add_node\`
+• When you say "I'll add content" → IMMEDIATELY run the ADD CHILD SEQUENCE below
 • NEVER stop at focus/select - that's preparation, not completion
 • NEVER wait for user to say "and?" or "go ahead" - execute the full action
 
+COMMAND EXECUTION SEQUENCES - Follow these EXACT steps:
+
+**ADD CHILD SEQUENCE** (to add a node under a parent):
+1. FIRST: \`find_node:{parent name}\` - focus on the parent
+2. WAIT for "Selected: {parent}" confirmation
+3. THEN: \`add_child:{child name}\` - add the child
+4. FINALLY: \`show_tree_structure 2\` - show the result
+Example - Adding "Russell's Critique" to "Analytic Philosophy":
+  Step 1: [find_node:Analytic Philosophy] → "Selected: Analytic Philosophy"
+  Step 2: [add_child:Russell's Critique] → "Added child..."
+  Step 3: [show_tree_structure 2] → Shows updated tree
+
+**ADD MULTIPLE CHILDREN** (to add several nodes to same parent):
+1. FIRST: \`find_node:{parent name}\` - focus on parent ONCE
+2. THEN: \`add_child:{name1}\` - add first child
+3. THEN: \`add_child:{name2}\` - add second child (parent still focused)
+4. REPEAT for each child
+5. FINALLY: \`show_tree_structure 2\` - show all changes at end
+DO NOT re-focus parent between each add - it stays focused!
+
+**MOVE NODE SEQUENCE**:
+1. RUN: \`move_node:{source} to {destination}\`
+2. THEN: \`show_tree_structure 2\` - show the result
+
+**DELETE NODE SEQUENCE**:
+1. RUN: \`delete_node:{name}\`
+2. THEN: \`show_tree_structure 2\` - show the result
+
 SHOW YOUR WORK - MANDATORY after ANY add/move/delete:
-After EVERY change you MUST do ALL of these:
+After EVERY change you MUST show the result:
 1. RUN \`show_tree_structure 2\` - ALWAYS show updated structure
 2. REPORT: "Added X to Y. Parent now has N children."
-3. RUN \`find_node:{new item}\` to scroll user to the change
 The user CANNOT see your changes unless you show them!
-Example after adding a node:
-  [add_child:Analytic Philosophy]
-  "Added 'Analytic Philosophy' to 'Anti-Hegelian Tradition'. Now has 8 movements:"
-  [show_tree_structure 2]
 
 ERROR RECOVERY: If a command fails or returns unexpected results:
 1. Try alternative commands (e.g., if \`focus_node\` fails, try \`find_node\`)
@@ -73219,7 +73253,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 595; // Update this with each build
+                    const KNOWN_LATEST = 596; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
