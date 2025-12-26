@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.39.4 | Build 593 | 2025-12-26
+    TreeListy v2.39.5 | Build 594 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 594): Intent routing - unknown commands auto-route to correct command (show_overview → project_info)
     Changelog (Build 593): find_command - semantic command discovery by purpose/keyword
     Changelog (Build 592): Command aliases - show_overview, overview, project_overview all map to project_info
     Changelog (Build 591): TB visual feedback - animated highlights for moved nodes, toast notifications, auto-scroll to changes
@@ -799,8 +800,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.39.4',
-            build: 593,
+            major: '2.39.5',
+            build: 594,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -64394,6 +64395,15 @@ Slack data not available. To calculate slack:
                 const currentBuild = window.TREELISTY_VERSION?.build || 'unknown';
                 return `🆕 **What's New - Build ${currentBuild}**
 
+**Build 594 - Intent Routing:**
+🔀 Unknown commands auto-route to correct command
+📝 "show_overview" → project_info (no more "command not found"!)
+🎯 Natural language command mapping
+
+**Build 593 - Command Discovery:**
+🔍 \`find_command:{what you want}\` - search by purpose
+📖 Never guess command names - discover them first!
+
 **Build 591 - Visual Feedback:**
 👁️ Moved nodes highlight BLUE with pulse animation
 📍 Auto-scroll to changed area after operations
@@ -70908,7 +70918,49 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             // BUILD 577: Normalize command name to lowercase for case-insensitive matching
             commandName = commandName.toLowerCase().trim();
 
-            const command = COMMAND_REGISTRY[commandName];
+            // BUILD 594: Intent routing - map natural language to commands
+            const INTENT_ROUTES = {
+                // Show/Display intents
+                'show_project': 'project_info', 'show_overview': 'project_info', 'project_summary': 'project_info',
+                'project_overview': 'project_info', 'overview': 'project_info', 'show_info': 'project_info',
+                'show_tree': 'show_tree_structure', 'tree_structure': 'show_tree_structure', 'display_tree': 'show_tree_structure',
+                'show_structure': 'show_tree_structure', 'view_structure': 'show_tree_structure',
+                // Analysis intents
+                'analyze_tree': 'analyze_balance', 'check_balance': 'analyze_balance', 'tree_balance': 'analyze_balance',
+                'find_empty': 'list_empty_nodes', 'show_empty': 'list_empty_nodes', 'empty_nodes': 'list_empty_nodes',
+                'find_duplicate': 'find_duplicates', 'show_duplicates': 'find_duplicates', 'check_duplicates': 'find_duplicates',
+                'get_stats': 'node_stats', 'show_stats': 'node_stats',
+                // Navigation intents
+                'go_to': 'find_node', 'goto': 'find_node', 'navigate_to': 'find_node', 'jump_to': 'find_node',
+                'focus_on': 'focus_node', 'select': 'find_node',
+                // Manipulation intents
+                'remove_node': 'delete_node', 'remove': 'delete_node',
+                'copy_node': 'duplicate_node', 'clone_node': 'duplicate_node', 'clone': 'duplicate_node',
+                'rename': 'rename_node', 'change_name': 'rename_node',
+                // View intents
+                'show_canvas': 'switch_to_canvas', 'canvas_view': 'switch_to_canvas', 'go_canvas': 'switch_to_canvas',
+                'show_3d': 'switch_to_3d', '3d_view': 'switch_to_3d', 'go_3d': 'switch_to_3d',
+                'show_gantt': 'view_gantt', 'gantt': 'view_gantt', 'go_gantt': 'view_gantt',
+                // Discovery intents
+                'what_can_you_do': 'list_all_commands', 'help': 'list_all_commands', 'commands': 'list_all_commands',
+                'whats_new': 'whats_new', 'new_features': 'whats_new', 'updates': 'whats_new',
+            };
+
+            // Try exact match first, then intent routing
+            let command = COMMAND_REGISTRY[commandName];
+            let routedFrom = null;
+
+            if (!command && INTENT_ROUTES[commandName]) {
+                routedFrom = commandName;
+                commandName = INTENT_ROUTES[commandName];
+                command = COMMAND_REGISTRY[commandName];
+                console.log(`🔀 Intent routed: "${routedFrom}" → "${commandName}"`);
+                // Show routing notification
+                if (typeof showToast === 'function') {
+                    showToast(`🔀 "${routedFrom}" → ${commandName}`, 'info', 2000);
+                }
+            }
+
             if (command) {
                 try {
                     const result = await command(commandParam);
@@ -73162,7 +73214,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 593; // Update this with each build
+                    const KNOWN_LATEST = 594; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
