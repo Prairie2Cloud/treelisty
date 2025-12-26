@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.40.0 | Build 599 | 2025-12-26
+    TreeListy v2.41.0 | Build 600 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 600): TB canvas commands - focus_hyperedge, phase filtering (show/hide/solo), camera focus/zoom/reset
     Changelog (Build 599): Canvas auto-layout for collapsed phases without positions (grid layout)
     Changelog (Build 598): Fix item counting for version comparison (handles all child types)
     Changelog (Build 597): Fix add_child to keep parent focused (enables ADD MULTIPLE CHILDREN)
@@ -805,8 +806,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.40.0',
-            build: 599,
+            major: '2.41.0',
+            build: 600,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -67630,6 +67631,300 @@ Slack data not available. To calculate slack:
                 return '❌ Hyperedge panel not available.';
             },
 
+            // BUILD 600: Hyperedge focus mode - browse a single hyperedge
+            'focus_hyperedge': (nameOrId) => {
+                const hyperedges = capexTree.hyperedges || [];
+                if (hyperedges.length === 0) {
+                    return '⚠️ No hyperedges in this tree. Create hyperedges first by selecting nodes in Canvas view → Right-click → Create Hyperedge.';
+                }
+
+                // If no arg provided, list available hyperedges
+                if (!nameOrId) {
+                    let response = '🔗 **Available Hyperedges:**\n\n';
+                    hyperedges.forEach((h, idx) => {
+                        const nodeCount = (h.nodeIds || []).length;
+                        response += `${idx + 1}. **${h.label || h.name || h.id}** - ${nodeCount} nodes\n`;
+                    });
+                    response += '\n💡 Use `focus_hyperedge:<name>` to focus on one.';
+                    return response;
+                }
+
+                // Find hyperedge by name or id (case-insensitive)
+                const searchTerm = nameOrId.toLowerCase();
+                const hyperedge = hyperedges.find(h =>
+                    h.id === nameOrId ||
+                    (h.label || '').toLowerCase().includes(searchTerm) ||
+                    (h.name || '').toLowerCase().includes(searchTerm)
+                );
+
+                if (!hyperedge) {
+                    return `❌ Hyperedge "${nameOrId}" not found.\n\nAvailable: ${hyperedges.map(h => h.label || h.name || h.id).join(', ')}`;
+                }
+
+                // Switch to canvas view if needed
+                if (typeof viewMode !== 'undefined' && viewMode !== 'canvas') {
+                    document.getElementById('view-canvas-btn')?.click();
+                }
+
+                // Focus on the hyperedge
+                if (typeof focusOnHyperedge === 'function') {
+                    setTimeout(() => focusOnHyperedge(hyperedge.id), 300);
+                    return `🎯 Focusing on hyperedge **"${hyperedge.label || hyperedge.name}"** with ${(hyperedge.nodeIds || []).length} nodes.\n\n💡 Use \`exit_focus\` to return to full canvas view.`;
+                }
+                return '❌ Focus mode not available.';
+            },
+
+            // BUILD 600: Exit hyperedge focus mode
+            'exit_focus': () => {
+                if (typeof exitFocusMode === 'function') {
+                    exitFocusMode();
+                    return '🔙 Exited focus mode - showing all nodes.';
+                }
+                return '❌ Not in focus mode.';
+            },
+
+            // BUILD 600: List all hyperedges with details
+            'list_hyperedges': () => {
+                const hyperedges = capexTree.hyperedges || [];
+                if (hyperedges.length === 0) {
+                    return '📋 No hyperedges defined in this tree.\n\n💡 Create hyperedges by:\n1. Switch to Canvas view\n2. Select 2+ nodes\n3. Right-click → Create Hyperedge';
+                }
+
+                let response = `📋 **Hyperedges in Tree (${hyperedges.length}):**\n\n`;
+                hyperedges.forEach((h, idx) => {
+                    const nodeCount = (h.nodeIds || []).length;
+                    const visible = h.visible !== false ? '👁️' : '🙈';
+                    response += `${idx + 1}. ${visible} **${h.label || h.name || h.id}**\n`;
+                    response += `   • Nodes: ${nodeCount} | Type: ${h.type || 'manual'}\n`;
+                    if (h.description) response += `   • ${h.description.substring(0, 50)}...\n`;
+                });
+                response += '\n💡 Commands: `focus_hyperedge:<name>`, `toggle_hyperedge_panel`';
+                return response;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 600: CANVAS PHASE FILTERING
+            // ═══════════════════════════════════════════════════════════════
+
+            // Filter canvas to show only specific phases
+            'filter_phases': (phaseName) => {
+                const phases = capexTree.children || [];
+                if (phases.length === 0) {
+                    return '⚠️ No phases in this tree.';
+                }
+
+                // If no arg, list phases and their visibility
+                if (!phaseName) {
+                    let response = '📋 **Phase Visibility:**\n\n';
+                    phases.forEach((p, idx) => {
+                        const visible = p.showInCanvas !== false ? '👁️' : '🙈';
+                        response += `${idx + 1}. ${visible} **${p.name}**\n`;
+                    });
+                    response += '\n💡 Commands:\n';
+                    response += '• `show_phase:<name>` - Show a phase in canvas\n';
+                    response += '• `hide_phase:<name>` - Hide a phase from canvas\n';
+                    response += '• `show_all_phases` - Show all phases\n';
+                    response += '• `solo_phase:<name>` - Show only one phase';
+                    return response;
+                }
+
+                // Try to match the phase name
+                const searchTerm = phaseName.toLowerCase();
+                const matchedPhases = phases.filter(p =>
+                    (p.name || '').toLowerCase().includes(searchTerm)
+                );
+
+                if (matchedPhases.length === 0) {
+                    return `❌ No phase matching "${phaseName}".\n\nAvailable: ${phases.map(p => p.name).join(', ')}`;
+                }
+
+                // Toggle the matched phases visibility
+                matchedPhases.forEach(p => {
+                    p.showInCanvas = p.showInCanvas === false ? true : false;
+                });
+
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                const nowVisible = matchedPhases.every(p => p.showInCanvas !== false);
+                return `${nowVisible ? '👁️ Showing' : '🙈 Hiding'} phase(s): ${matchedPhases.map(p => p.name).join(', ')}`;
+            },
+
+            // Show a specific phase in canvas
+            'show_phase': (phaseName) => {
+                if (!phaseName) return '⚠️ Specify phase name. Example: `show_phase:Existentialist`';
+
+                const phases = capexTree.children || [];
+                const searchTerm = phaseName.toLowerCase();
+                const matched = phases.filter(p => (p.name || '').toLowerCase().includes(searchTerm));
+
+                if (matched.length === 0) {
+                    return `❌ No phase matching "${phaseName}".`;
+                }
+
+                matched.forEach(p => p.showInCanvas = true);
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `👁️ Now showing: ${matched.map(p => p.name).join(', ')}`;
+            },
+
+            // Hide a specific phase from canvas
+            'hide_phase': (phaseName) => {
+                if (!phaseName) return '⚠️ Specify phase name. Example: `hide_phase:Materialist`';
+
+                const phases = capexTree.children || [];
+                const searchTerm = phaseName.toLowerCase();
+                const matched = phases.filter(p => (p.name || '').toLowerCase().includes(searchTerm));
+
+                if (matched.length === 0) {
+                    return `❌ No phase matching "${phaseName}".`;
+                }
+
+                matched.forEach(p => p.showInCanvas = false);
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `🙈 Now hidden: ${matched.map(p => p.name).join(', ')}`;
+            },
+
+            // Show all phases
+            'show_all_phases': () => {
+                const phases = capexTree.children || [];
+                phases.forEach(p => p.showInCanvas = true);
+                if (typeof renderCanvas === 'function') renderCanvas();
+                return `👁️ All ${phases.length} phases now visible in Canvas view.`;
+            },
+
+            // Solo a phase (show only one, hide all others)
+            'solo_phase': (phaseName) => {
+                if (!phaseName) return '⚠️ Specify phase name. Example: `solo_phase:Existentialist`';
+
+                const phases = capexTree.children || [];
+                const searchTerm = phaseName.toLowerCase();
+                const matched = phases.find(p => (p.name || '').toLowerCase().includes(searchTerm));
+
+                if (!matched) {
+                    return `❌ No phase matching "${phaseName}".`;
+                }
+
+                // Hide all phases except the matched one
+                phases.forEach(p => {
+                    p.showInCanvas = (p.id === matched.id);
+                });
+                if (typeof renderCanvas === 'function') renderCanvas();
+
+                return `🎯 Solo mode: Showing only **${matched.name}**\n\n💡 Use \`show_all_phases\` to show all again.`;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 600: CANVAS CAMERA FOCUS COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            // Focus camera on a specific node
+            'focus_camera': (nodeName) => {
+                if (!nodeName) {
+                    return '⚠️ Specify node to focus on. Example: `focus_camera:Kierkegaard`';
+                }
+
+                // Find the node by name
+                let targetNode = null;
+                function findNode(node) {
+                    if (targetNode) return;
+                    if ((node.name || '').toLowerCase().includes(nodeName.toLowerCase())) {
+                        targetNode = node;
+                        return;
+                    }
+                    (node.items || node.subItems || node.children || []).forEach(findNode);
+                }
+                findNode(capexTree);
+
+                if (!targetNode) {
+                    return `❌ No node matching "${nodeName}".`;
+                }
+
+                // Switch to canvas if needed
+                if (typeof viewMode !== 'undefined' && viewMode !== 'canvas') {
+                    document.getElementById('view-canvas-btn')?.click();
+                }
+
+                // Calculate camera position to center on node
+                const nodeX = targetNode.canvasX || 0;
+                const nodeY = targetNode.canvasY || 0;
+                const containerWidth = document.getElementById('canvas-container')?.offsetWidth || 1200;
+                const containerHeight = document.getElementById('canvas-container')?.offsetHeight || 800;
+
+                setTimeout(() => {
+                    if (typeof canvasPan !== 'undefined' && typeof canvasZoom !== 'undefined') {
+                        canvasPan = {
+                            x: (containerWidth / 2) - (nodeX * canvasZoom),
+                            y: (containerHeight / 2) - (nodeY * canvasZoom)
+                        };
+                        if (typeof updateCanvasTransform === 'function') updateCanvasTransform();
+                        if (typeof updateMinimap === 'function') updateMinimap();
+                    }
+                }, 300);
+
+                return `📍 Camera focused on **${targetNode.name}**`;
+            },
+
+            // Zoom to fit all visible nodes
+            'zoom_fit': () => {
+                if (typeof viewMode !== 'undefined' && viewMode !== 'canvas') {
+                    return '⚠️ Switch to Canvas view first.';
+                }
+
+                // Get all visible canvas nodes
+                const nodes = document.querySelectorAll('.canvas-node');
+                if (nodes.length === 0) {
+                    return '⚠️ No nodes visible in canvas.';
+                }
+
+                // Calculate bounding box
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                nodes.forEach(node => {
+                    const rect = node.getBoundingClientRect();
+                    const style = window.getComputedStyle(node);
+                    const left = parseFloat(node.style.left) || 0;
+                    const top = parseFloat(node.style.top) || 0;
+                    minX = Math.min(minX, left);
+                    minY = Math.min(minY, top);
+                    maxX = Math.max(maxX, left + 320);
+                    maxY = Math.max(maxY, top + 150);
+                });
+
+                const containerWidth = document.getElementById('canvas-container')?.offsetWidth || 1200;
+                const containerHeight = document.getElementById('canvas-container')?.offsetHeight || 800;
+
+                // Calculate zoom to fit
+                const contentWidth = maxX - minX + 100;
+                const contentHeight = maxY - minY + 100;
+                const zoomX = containerWidth / contentWidth;
+                const zoomY = containerHeight / contentHeight;
+                const newZoom = Math.min(zoomX, zoomY, 1.5);
+
+                if (typeof canvasZoom !== 'undefined' && typeof canvasPan !== 'undefined') {
+                    canvasZoom = Math.max(0.2, Math.min(newZoom, 1.5));
+                    canvasPan = {
+                        x: (containerWidth / 2) - ((minX + contentWidth / 2) * canvasZoom),
+                        y: (containerHeight / 2) - ((minY + contentHeight / 2) * canvasZoom)
+                    };
+                    if (typeof updateCanvasTransform === 'function') updateCanvasTransform();
+                    if (typeof updateMinimap === 'function') updateMinimap();
+                }
+
+                return `🔍 Zoomed to fit ${nodes.length} nodes (zoom: ${Math.round(canvasZoom * 100)}%)`;
+            },
+
+            // Reset camera to default position
+            'reset_camera': () => {
+                if (typeof canvasZoom !== 'undefined' && typeof canvasPan !== 'undefined') {
+                    canvasZoom = 1;
+                    canvasPan = { x: 50, y: 50 };
+                    if (typeof updateCanvasTransform === 'function') updateCanvasTransform();
+                    if (typeof updateMinimap === 'function') updateMinimap();
+                    return '🔄 Camera reset to default position.';
+                }
+                return '⚠️ Switch to Canvas view first.';
+            },
+
             // ═══════════════════════════════════════════════════════════════
             // BUILD 381: LIFETREE CONTEXTUAL RESEARCH
             // ═══════════════════════════════════════════════════════════════
@@ -70990,6 +71285,18 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 'show_canvas': 'switch_to_canvas', 'canvas_view': 'switch_to_canvas', 'go_canvas': 'switch_to_canvas',
                 'show_3d': 'switch_to_3d', '3d_view': 'switch_to_3d', 'go_3d': 'switch_to_3d',
                 'show_gantt': 'view_gantt', 'gantt': 'view_gantt', 'go_gantt': 'view_gantt',
+                // BUILD 600: Canvas control intents
+                'browse_hyperedge': 'focus_hyperedge', 'explore_hyperedge': 'focus_hyperedge', 'hyperedge': 'focus_hyperedge',
+                'exit_hyperedge': 'exit_focus', 'unfocus': 'exit_focus', 'show_all': 'exit_focus',
+                'hyperedges': 'list_hyperedges', 'show_hyperedges': 'list_hyperedges',
+                'phases': 'filter_phases', 'show_phases': 'filter_phases', 'filter': 'filter_phases',
+                'solo': 'solo_phase', 'isolate': 'solo_phase', 'only': 'solo_phase',
+                'show_phase': 'show_phase', 'reveal_phase': 'show_phase',
+                'hide_phase': 'hide_phase', 'hide': 'hide_phase',
+                'show_all_phases': 'show_all_phases', 'reveal_all': 'show_all_phases',
+                'center_on': 'focus_camera', 'go_to': 'focus_camera', 'pan_to': 'focus_camera',
+                'fit': 'zoom_fit', 'fit_all': 'zoom_fit', 'zoom_all': 'zoom_fit',
+                'reset_view': 'reset_camera', 'reset_zoom': 'reset_camera', 'home': 'reset_camera',
                 // Discovery intents
                 'what_can_you_do': 'list_all_commands', 'help': 'list_all_commands', 'commands': 'list_all_commands',
                 'whats_new': 'whats_new', 'new_features': 'whats_new', 'updates': 'whats_new',
@@ -73263,7 +73570,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 599; // Update this with each build
+                    const KNOWN_LATEST = 600; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
