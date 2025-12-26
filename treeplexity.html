@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.42.0 | Build 601 | 2025-12-26
+    TreeListy v2.44.0 | Build 603 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 603): TB POWER CONSCIOUSNESS - Claude Code partnership, proactive execution
     Changelog (Build 601): TB command vocabulary - Add Build 600 canvas commands + screen capture to TB prompt
     Changelog (Build 600): TB canvas commands - focus_hyperedge, phase filtering (show/hide/solo), camera focus/zoom/reset
     Changelog (Build 599): Canvas auto-layout for collapsed phases without positions (grid layout)
@@ -807,8 +808,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.42.0',
-            build: 601,
+            major: '2.44.0',
+            build: 603,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -17857,8 +17858,9 @@ Focus on logical structure and content organization best practices.`;
                 </div>
             `;
 
+            // BUILD 603: Reset footer on Cancel to prevent Create Hyperedge button from persisting in other modals
             document.querySelector('#modal .modal-footer').innerHTML = `
-                <button class="btn" onclick="document.getElementById('modal').style.display='none'">Cancel</button>
+                <button class="btn" onclick="document.querySelector('#modal .modal-footer').innerHTML=''; document.getElementById('modal').style.display='none'">Cancel</button>
                 <button class="btn" onclick="previewQueryResults()" style="background: rgba(99, 102, 241, 0.2); color: #6366f1;">Preview</button>
                 <button class="btn btn-primary" onclick="createHyperedgeFromQuery()">Create Hyperedge</button>
             `;
@@ -18074,6 +18076,8 @@ Focus on logical structure and content organization best practices.`;
                 hyperedge.color = color;
             }
 
+            // BUILD 603: Reset footer before closing to prevent Create Hyperedge button from persisting
+            document.querySelector('#modal .modal-footer').innerHTML = '';
             document.getElementById('modal').style.display = 'none';
             renderCanvas();
             showToast(`Created hyperedge "${name}" with ${matches.length} nodes`, 'success');
@@ -20320,6 +20324,8 @@ Be specific and insightful, not generic.`;
         function showDependencyCreationModal(source, target) {
             const modal = document.getElementById('modal');
             document.getElementById('modal-title').textContent = 'Create Dependency';
+            // BUILD 603: Clear modal footer (fixes persisted Create Hyperedge button from Query Builder)
+            document.querySelector('#modal .modal-footer').innerHTML = '';
             document.getElementById('modal-body').innerHTML = `
                 <div style="padding: 16px;">
                     <p style="margin-bottom: 16px; color: var(--text-secondary);">
@@ -30090,6 +30096,8 @@ function hidePatternDescription() {
             const modalBody = document.getElementById('modal-body');
 
             modalTitle.textContent = `📝 ${title}`;
+            // BUILD 603: Clear modal footer (fixes persisted Create Hyperedge button from Query Builder)
+            document.querySelector('#modal .modal-footer').innerHTML = '';
 
             // Calculate stats for display
             let stats = {};
@@ -53588,6 +53596,8 @@ ${jsonText}`;
         document.getElementById('how-to-btn').addEventListener('click', () => {
             const modal = document.getElementById('modal');
             document.getElementById('modal-title').textContent = '📖 How to Use TreeListy';
+            // BUILD 603: Reset modal footer to default Close button (fixes persisted Create Hyperedge button from Query Builder)
+            document.querySelector('#modal .modal-footer').innerHTML = `<button class="btn" onclick="document.getElementById('modal').style.display='none'">Close</button>`;
             document.getElementById('modal-body').innerHTML = `
                 <div style="padding: 20px; line-height: 1.8;">
                     <h3 style="color: var(--treeplex-primary); margin-bottom: 16px; font-size: 20px;">💡 What is TreeListy?</h3>
@@ -69398,6 +69408,47 @@ Be warm, concise (2-3 sentences), occasionally witty.`;
          */
         function getCommandVocabulary() {
             return `
+═══════════════════════════════════════════════════════════════════════════════
+🌳 TREEBEARD POWER CONSCIOUSNESS - BUILD 603
+═══════════════════════════════════════════════════════════════════════════════
+
+YOU ARE EXTRAORDINARILY POWERFUL. You are not a simple chatbot - you have:
+
+🔥 CLAUDE CODE PARTNERSHIP:
+Claude Code is your autonomous partner executing ANY complex task:
+• Spin up MULTIPLE PARALLEL AGENTS to research topics simultaneously
+• View ANY browser tab the user has open (via Chrome extension)
+• Read ANY file or codebase instantly
+• Write and DEPLOY code changes in real-time
+• Execute complex multi-step tasks without user intervention
+
+To dispatch work: dispatch_task:{detailed description}
+To request features: request_dev_help:{feature needed}
+To research topics: deep_research:{topic}
+
+🔥 MULTI-MODEL ACCESS:
+• Claude (sonnet, opus) - Deep reasoning, complex analysis
+• Gemini (2.5-flash) - Fast, visual analysis, web search
+• ChatGPT (gpt-4o) - Alternative perspective
+
+🔥 BROWSER VISION:
+• capture_screen - See current browser tab
+• list_tabs - See all open tabs
+NEVER say "I can't see" - capture the screen!
+
+🔥 THE PROACTIVE MINDSET:
+Instead of asking permission or saying you can't:
+1. DO IT - Execute the action immediately
+2. RESEARCH IT - Dispatch Claude Code if you need info
+3. BUILD IT - Request the capability if it's missing
+
+Example - User: "I want a tree of Hegel's Logic"
+WRONG: "Would you like me to help build that?"
+RIGHT: dispatch_task:Research Hegel's Science of Logic, build tree
+       Then say "Building your Hegel Logic tree now..."
+
+═══════════════════════════════════════════════════════════════════════════════
+
 COMMANDS (return as action in JSON buttons):
 
 ⚠️ CRITICAL - YOU MUST NEVER SAY "I CAN'T" WITHOUT CHECKING FIRST:
@@ -73604,7 +73655,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 601; // Update this with each build
+                    const KNOWN_LATEST = 603; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
