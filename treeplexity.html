@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.38.9 | Build 588 | 2025-12-25
+    TreeListy v2.39.0 | Build 589 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,7 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
-    Changelog (Build 588): whats_new now shows all Build 587 commands including bulk_move
+    Changelog (Build 589): TB proactive behavior - CRITICAL capability check, COMPLEX TASKS sequence, ERROR RECOVERY protocol
     Changelog (Build 586): TB self-awareness - whats_new command + prompt to check capabilities before saying "I can't"
     Changelog (Build 585): Dev request UX notifications - toast shows what Claude Code is implementing and when build is ready
     Changelog (Build 584): TB developer channel guidance - TB now knows to use request_dev_help proactively instead of asking user to relay
@@ -795,9 +795,9 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.38.9',
-            build: 588,
-            date: '2025-12-25',
+            major: '2.39.0',
+            build: 589,
+            date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -64317,6 +64317,11 @@ Slack data not available. To calculate slack:
                 const currentBuild = window.TREELISTY_VERSION?.build || 'unknown';
                 return `🆕 **What's New - Build ${currentBuild}**
 
+**Build 589 - Proactive Behavior:**
+🧠 CRITICAL capability check - I now verify my tools before saying "I can't"
+📋 COMPLEX TASKS sequence - analyze → identify → act → verify
+🔄 ERROR RECOVERY - try alternatives before asking for help
+
 **Recent Capabilities (Builds 578-587):**
 
 📊 **Tree Analysis:**
@@ -68925,10 +68930,28 @@ Be warm, concise (2-3 sentences), occasionally witty.`;
             return `
 COMMANDS (return as action in JSON buttons):
 
-IMPORTANT - SELF-AWARENESS:
-• Run \`whats_new\` after any refresh to discover your latest capabilities
-• Run \`list_all_commands\` to see everything you can do (100+ commands)
-• If you're unsure whether you have a capability, CHECK before telling the user you don't have it
+CRITICAL - CAPABILITY CHECK (READ THIS FIRST):
+When you think ANY of these phrases, STOP and check first:
+• "I don't have access to..." → RUN \`list_all_commands\` or \`whats_new\`
+• "I need tools to..." → RUN \`list_all_commands\` - you probably have them
+• "What tools are available?" → NEVER ask user this - RUN \`list_all_commands\`
+• "I can't see the content..." → USE \`read_node:{name}\` or \`show_tree_structure\`
+• "I need to view..." → USE \`preview_node:{name}\` or \`node_stats:{name}\`
+NEVER tell the user you lack capabilities without running these checks first!
+
+SESSION START: Run \`whats_new\` at the start of each conversation to know your latest capabilities.
+
+COMPLEX TASKS - Follow this sequence:
+1. ANALYZE: Use \`analyze_balance\`, \`show_tree_structure 3\`, \`list_empty_nodes\` to understand the tree
+2. IDENTIFY: Use \`read_node\`, \`node_stats\`, \`find_duplicates\` to inspect specific items
+3. ACT: Use \`bulk_move\`, \`merge_nodes\`, \`delete_empty_nodes\` to make changes
+4. VERIFY: Use \`show_tree_structure\` again to confirm changes
+Do NOT ask the user what to do - execute the sequence and report results.
+
+ERROR RECOVERY: If a command fails or returns unexpected results:
+1. Try alternative commands (e.g., if \`focus_node\` fails, try \`find_node\`)
+2. Check spelling/exact node names with \`search_tree\`
+3. If truly stuck, use \`request_dev_help\` - DO NOT ask user to relay to Claude Code
 
 DEVELOPER CHANNEL:
 When you encounter a limitation or missing capability:
@@ -72979,7 +73002,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 588; // Update this with each build
+                    const KNOWN_LATEST = 589; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
