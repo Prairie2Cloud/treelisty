@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.39.3 | Build 592 | 2025-12-26
+    TreeListy v2.39.4 | Build 593 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 593): find_command - semantic command discovery by purpose/keyword
     Changelog (Build 592): Command aliases - show_overview, overview, project_overview all map to project_info
     Changelog (Build 591): TB visual feedback - animated highlights for moved nodes, toast notifications, auto-scroll to changes
     Changelog (Build 590): TB FOLLOW-THROUGH - complete actions immediately, don't stop at focus/select
@@ -798,8 +799,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.39.3',
-            build: 592,
+            major: '2.39.4',
+            build: 593,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -64469,6 +64470,56 @@ Slack data not available. To calculate slack:
                 return output;
             },
 
+            // BUILD 593: Search commands by purpose/keyword
+            'find_command': (query) => {
+                if (!query) {
+                    return '⚠️ Usage: `find_command {what you want to do}`\nExample: `find_command show project info`';
+                }
+                const q = query.toLowerCase();
+                const commands = Object.keys(COMMAND_REGISTRY);
+
+                // Search by name match
+                const nameMatches = commands.filter(c => c.toLowerCase().includes(q));
+
+                // Search by keyword associations
+                const keywords = {
+                    'overview': ['project_info', 'tree_analysis', 'analyze_balance'],
+                    'info': ['project_info', 'node_stats', 'preview_node', 'read_node'],
+                    'show': ['project_info', 'show_tree_structure', 'preview_node', 'list_all_commands'],
+                    'project': ['project_info', 'new_project', 'rename_root', 'create_tree'],
+                    'move': ['move_node', 'bulk_move', 'reorder_node'],
+                    'delete': ['delete_node', 'delete_empty_nodes', 'bulk_delete'],
+                    'search': ['search_tree', 'find_node', 'find_duplicates', 'search'],
+                    'structure': ['show_tree_structure', 'tree_analysis', 'analyze_balance'],
+                    'empty': ['list_empty_nodes', 'delete_empty_nodes'],
+                    'stats': ['node_stats', 'project_info', 'tree_analysis', 'analyze_balance'],
+                    'help': ['whats_new', 'list_all_commands', 'find_command'],
+                    'new': ['whats_new', 'add_node', 'add_child', 'add_phase', 'create_tree'],
+                };
+
+                let keywordMatches = [];
+                for (const [kw, cmds] of Object.entries(keywords)) {
+                    if (q.includes(kw)) {
+                        keywordMatches = keywordMatches.concat(cmds);
+                    }
+                }
+
+                const allMatches = [...new Set([...nameMatches, ...keywordMatches])];
+
+                if (allMatches.length === 0) {
+                    return `❌ No commands found for "${query}"\n\n💡 Try: \`list_all_commands\` to see everything`;
+                }
+
+                let output = `🔍 **Commands matching "${query}":**\n\n`;
+                allMatches.slice(0, 10).forEach(cmd => {
+                    output += `• \`${cmd}\`\n`;
+                });
+                if (allMatches.length > 10) {
+                    output += `\n... and ${allMatches.length - 10} more`;
+                }
+                return output;
+            },
+
             // Project operations
             'new_project': () => {
                 document.getElementById('new-project-btn')?.click();
@@ -69022,13 +69073,16 @@ Be warm, concise (2-3 sentences), occasionally witty.`;
 COMMANDS (return as action in JSON buttons):
 
 CRITICAL - CAPABILITY CHECK (READ THIS FIRST):
+BEFORE trying ANY command, use \`find_command:{what you want}\` to discover the right command!
+Example: \`find_command show overview\` → finds \`project_info\`
+
 When you think ANY of these phrases, STOP and check first:
-• "I don't have access to..." → RUN \`list_all_commands\` or \`whats_new\`
-• "I need tools to..." → RUN \`list_all_commands\` - you probably have them
-• "What tools are available?" → NEVER ask user this - RUN \`list_all_commands\`
+• "I want to show/display X" → RUN \`find_command:show X\` to find the right command
+• "I don't have access to..." → RUN \`find_command\` or \`list_all_commands\`
+• "I need tools to..." → RUN \`find_command:{what you need}\`
+• "What tools are available?" → NEVER ask user - RUN \`list_all_commands\`
 • "I can't see the content..." → USE \`read_node:{name}\` or \`show_tree_structure\`
-• "I need to view..." → USE \`preview_node:{name}\` or \`node_stats:{name}\`
-NEVER tell the user you lack capabilities without running these checks first!
+NEVER guess command names - use \`find_command\` to discover them first!
 
 SESSION START: Run \`whats_new\` at the start of each conversation to know your latest capabilities.
 
@@ -69067,6 +69121,7 @@ When you encounter a limitation or missing capability:
 This is YOUR direct line to get new capabilities - use it proactively!
 
 GLOBAL (work anytime):
+• find_command:{what you want} - DISCOVER commands by purpose (USE THIS FIRST!)
 • project_info - Show project overview/stats
 • search - Open search modal
 • find_node:{query} - Search & focus a node
@@ -73107,7 +73162,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 592; // Update this with each build
+                    const KNOWN_LATEST = 593; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
