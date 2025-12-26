@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.39.1 | Build 590 | 2025-12-26
+    TreeListy v2.39.2 | Build 591 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 591): TB visual feedback - animated highlights for moved nodes, toast notifications, auto-scroll to changes
     Changelog (Build 590): TB FOLLOW-THROUGH - complete actions immediately, don't stop at focus/select
     Changelog (Build 589): TB proactive behavior - CRITICAL capability check, COMPLEX TASKS sequence, ERROR RECOVERY protocol
     Changelog (Build 586): TB self-awareness - whats_new command + prompt to check capabilities before saying "I can't"
@@ -796,8 +797,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.39.1',
-            build: 590,
+            major: '2.39.2',
+            build: 591,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -5453,6 +5454,47 @@
         100% {
             box-shadow: 0 0 0 rgba(234, 179, 8, 0);
             background-color: transparent;
+        }
+    }
+
+    /* BUILD 591: Moved node highlight - blue pulse */
+    .node-moved-highlight {
+        animation: nodeMovedPulse 2.5s ease-out;
+        box-shadow: 0 0 25px rgba(59, 130, 246, 0.7);
+    }
+
+    @keyframes nodeMovedPulse {
+        0% {
+            box-shadow: 0 0 0 rgba(59, 130, 246, 0.9);
+            background-color: rgba(59, 130, 246, 0.3);
+            transform: scale(1.02);
+        }
+        30% {
+            box-shadow: 0 0 30px rgba(59, 130, 246, 0.7);
+            transform: scale(1);
+        }
+        100% {
+            box-shadow: 0 0 0 rgba(59, 130, 246, 0);
+            background-color: transparent;
+        }
+    }
+
+    /* BUILD 591: Deleted node fade-out */
+    .node-deleted-highlight {
+        animation: nodeDeletedFade 0.5s ease-out forwards;
+    }
+
+    @keyframes nodeDeletedFade {
+        0% {
+            opacity: 1;
+            background-color: rgba(239, 68, 68, 0.3);
+        }
+        100% {
+            opacity: 0;
+            transform: translateX(-20px);
+            height: 0;
+            margin: 0;
+            padding: 0;
         }
     }
 
@@ -26398,7 +26440,9 @@ function hidePatternDescription() {
                     if (typeof hasRecentChange === 'function') {
                         const change = hasRecentChange(node.id);
                         if (change) {
-                            nodeDiv.classList.add(change.type === 'new' ? 'node-new-highlight' : 'node-modified-highlight');
+                            const highlightClass = change.type === 'new' ? 'node-new-highlight' :
+                                               change.type === 'moved' ? 'node-moved-highlight' : 'node-modified-highlight';
+                            nodeDiv.classList.add(highlightClass);
                         }
                     }
 
@@ -26588,7 +26632,9 @@ function hidePatternDescription() {
                 if (typeof hasRecentChange === 'function') {
                     const change = hasRecentChange(node.id);
                     if (change) {
-                        nodeDiv.classList.add(change.type === 'new' ? 'node-new-highlight' : 'node-modified-highlight');
+                        const highlightClass = change.type === 'new' ? 'node-new-highlight' :
+                                               change.type === 'moved' ? 'node-moved-highlight' : 'node-modified-highlight';
+                            nodeDiv.classList.add(highlightClass);
                     }
                 }
 
@@ -63265,8 +63311,21 @@ Slack data not available. To calculate slack:
                 // Expand destination
                 destNode.collapsed = false;
 
+                // BUILD 591: Show action toast before render
+                if (typeof showToast === 'function') {
+                    showToast(`📦 Moving "${sourceNode.name}" → "${destNode.name}"`, 'info', 2000);
+                }
+
                 if (typeof render === 'function') render();
                 if (typeof trackNodeChange === 'function') trackNodeChange(sourceNode.id, 'moved');
+
+                // BUILD 591: Scroll to moved node after brief delay
+                setTimeout(() => {
+                    const nodeEl = document.querySelector(`[data-node-id="${sourceNode.id}"]`);
+                    if (nodeEl) {
+                        nodeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
 
                 return `✅ Moved "${sourceNode.name}" to "${destNode.name}"`;
             },
@@ -63878,11 +63937,26 @@ Slack data not available. To calculate slack:
                     } else {
                         destNode.children.push(node);
                     }
+                    // BUILD 591: Track each moved node for animation
+                    if (typeof trackNodeChange === 'function') trackNodeChange(node.id, 'moved');
                     movedCount++;
                 });
 
+                // BUILD 591: Show action toast
+                if (typeof showToast === 'function') {
+                    showToast(`📦 Moving ${movedCount} items → "${destNode.name}"`, 'info', 2000);
+                }
+
                 destNode.collapsed = false;
                 if (typeof render === 'function') render();
+
+                // BUILD 591: Scroll to destination after brief delay
+                setTimeout(() => {
+                    const destEl = document.querySelector(`[data-node-id="${destNode.id}"]`);
+                    if (destEl) {
+                        destEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                    }
+                }, 100);
 
                 let result = `✅ Moved **${movedCount}/${itemNames.length}** items to "${destNode.name}"`;
                 if (errors.length > 0) {
@@ -64317,6 +64391,11 @@ Slack data not available. To calculate slack:
             'whats_new': () => {
                 const currentBuild = window.TREELISTY_VERSION?.build || 'unknown';
                 return `🆕 **What's New - Build ${currentBuild}**
+
+**Build 591 - Visual Feedback:**
+👁️ Moved nodes highlight BLUE with pulse animation
+📍 Auto-scroll to changed area after operations
+🔔 Toast notifications show actions being performed
 
 **Build 590 - Follow-Through:**
 ✅ COMPLETE actions immediately - don't stop at focus/select
@@ -68960,7 +69039,13 @@ FOLLOW-THROUGH - Complete your actions:
 • When you say "I'll add content" → IMMEDIATELY run \`add_child\` or \`add_node\`
 • NEVER stop at focus/select - that's preparation, not completion
 • NEVER wait for user to say "and?" or "go ahead" - execute the full action
-• After each action, REPORT what changed (e.g., "Deleted X, now Y has Z children")
+
+SHOW YOUR WORK - After making changes:
+• REPORT counts: "Movement 1: 39 → 25 items (moved 14 to Movement 2)"
+• FOCUS on area: Use \`find_node:{changed area}\` to scroll user to changes
+• LIST specifics: Name the items moved/deleted/added
+• RUN \`show_tree_structure 2\` to display the new structure visually
+• BEFORE/AFTER format helps user see impact of changes
 
 ERROR RECOVERY: If a command fails or returns unexpected results:
 1. Try alternative commands (e.g., if \`focus_node\` fails, try \`find_node\`)
@@ -73016,7 +73101,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 590; // Update this with each build
+                    const KNOWN_LATEST = 591; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
