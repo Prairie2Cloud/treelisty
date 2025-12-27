@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.53.0 | Build 612 | 2025-12-27
+    TreeListy v2.54.0 | Build 613 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 613): TOOL-USE API - TreeBeard uses Claude's tool_use for guaranteed structured responses, MCP fallback
     Changelog (Build 612): FAST-PATH EXPANSION - Edge visibility, expand/collapse, layout, search patterns + show_edges/hide_edges commands
     Changelog (Build 611): DIRECT HELP LOADING - Simplified help from iframe to direct tree load with Back button
     Changelog (Build 610): HELP AS TREE + EMBED MODE - URL params ?mode=readonly|embed&tree=help for embedded TreeListy instances
@@ -814,8 +815,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.53.0',
-            build: 612,
+            major: '2.54.0',
+            build: 613,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -70654,6 +70655,209 @@ RESPONSE:
         }
 
         // ═══════════════════════════════════════════════════════════════
+        // BUILD 613: TOOL-USE AI INTERPRETER
+        // Forces structured output via Claude's tool_use API
+        // Fallback: MCP dispatch to Claude Code
+        // ═══════════════════════════════════════════════════════════════
+
+        // Define TreeBeard tools for Claude's tool_use API
+        const TREEBEARD_TOOLS = [
+            // View switching
+            { name: 'switch_to_canvas', description: 'Switch to Canvas view for visual node diagram', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'switch_to_tree', description: 'Switch to Tree view for hierarchical outline', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'switch_to_3d', description: 'Switch to 3D view for spatial visualization', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'view_gantt', description: 'Switch to Gantt chart timeline view', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'view_calendar', description: 'Switch to Calendar view', input_schema: { type: 'object', properties: {}, required: [] } },
+            // Edge/hyperedge visibility
+            { name: 'show_edges', description: 'Show all hyperedges/connections in canvas', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'hide_edges', description: 'Hide all hyperedges/connections in canvas', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'toggle_edges', description: 'Toggle hyperedge visibility on/off', input_schema: { type: 'object', properties: {}, required: [] } },
+            // Phase filtering
+            { name: 'solo_phase', description: 'Show only one phase in canvas, hide others', input_schema: { type: 'object', properties: { phase_name: { type: 'string', description: 'Name of phase to show' } }, required: ['phase_name'] } },
+            { name: 'hide_phase', description: 'Hide a specific phase from canvas', input_schema: { type: 'object', properties: { phase_name: { type: 'string', description: 'Name of phase to hide' } }, required: ['phase_name'] } },
+            { name: 'show_all_phases', description: 'Show all phases in canvas', input_schema: { type: 'object', properties: {}, required: [] } },
+            // Camera control
+            { name: 'zoom_fit', description: 'Zoom to fit all nodes in view', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'focus_camera', description: 'Center camera on a specific node', input_schema: { type: 'object', properties: { node_name: { type: 'string', description: 'Name of node to focus on' } }, required: ['node_name'] } },
+            { name: 'reset_camera', description: 'Reset camera to default position', input_schema: { type: 'object', properties: {}, required: [] } },
+            // Layout
+            { name: 'layout_grid', description: 'Arrange nodes in grid layout', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'layout_radial', description: 'Arrange nodes in radial/circular layout', input_schema: { type: 'object', properties: {}, required: [] } },
+            // Navigation
+            { name: 'expand_all', description: 'Expand all nodes in tree', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'collapse_all', description: 'Collapse all nodes in tree', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'search_tree', description: 'Search for nodes by name or content', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Search query' } }, required: ['query'] } },
+            { name: 'find_node', description: 'Find and focus on a specific node', input_schema: { type: 'object', properties: { node_name: { type: 'string', description: 'Name of node to find' } }, required: ['node_name'] } },
+            // Editing
+            { name: 'add_child', description: 'Add a child node under a parent', input_schema: { type: 'object', properties: { parent_name: { type: 'string', description: 'Name of parent node' }, child_name: { type: 'string', description: 'Name for new child' } }, required: ['parent_name', 'child_name'] } },
+            { name: 'rename_node', description: 'Rename a node', input_schema: { type: 'object', properties: { old_name: { type: 'string', description: 'Current node name' }, new_name: { type: 'string', description: 'New name' } }, required: ['old_name', 'new_name'] } },
+            // Undo/Redo
+            { name: 'undo', description: 'Undo last action', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'redo', description: 'Redo last undone action', input_schema: { type: 'object', properties: {}, required: [] } },
+            // Help
+            { name: 'show_help', description: 'Show help and available commands', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'list_hyperedges', description: 'List all hyperedges in the tree', input_schema: { type: 'object', properties: {}, required: [] } },
+            // Conversational response (when no action needed)
+            { name: 'respond', description: 'Respond conversationally without executing a command', input_schema: { type: 'object', properties: { message: { type: 'string', description: 'Response message to user' } }, required: ['message'] } }
+        ];
+
+        async function callTreeBeardWithTools(userMessage, context) {
+            const anthropicKey = localStorage.getItem('anthropic_api_key');
+
+            // Check for API key
+            if (!anthropicKey) {
+                // Try server proxy as fallback
+                return await callTreeBeardViaServer(userMessage, context);
+            }
+
+            const systemPrompt = `You are TreeBeard, the AI assistant for TreeListy. You help users navigate and manipulate hierarchical project trees.
+
+CURRENT CONTEXT:
+- Project: ${context.projectName}
+- Pattern: ${context.pattern}
+- View: ${context.viewMode}
+- Phases: ${context.phaseCount}
+- Items: ${context.itemCount}
+
+INSTRUCTIONS:
+1. Analyze the user's request
+2. Use the appropriate tool(s) to fulfill it
+3. For compound requests (e.g., "canvas view with edges"), use MULTIPLE tools
+4. If no action is needed, use the 'respond' tool to reply conversationally
+5. ALWAYS use a tool - never return plain text
+
+Be concise and helpful. 🌳 is your signature.`;
+
+            try {
+                const response = await fetch('https://api.anthropic.com/v1/messages', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'x-api-key': anthropicKey,
+                        'anthropic-version': '2023-06-01',
+                        'anthropic-dangerous-direct-browser-access': 'true'
+                    },
+                    body: JSON.stringify({
+                        model: 'claude-sonnet-4-20250514',
+                        max_tokens: 1024,
+                        system: systemPrompt,
+                        tools: TREEBEARD_TOOLS,
+                        tool_choice: { type: 'any' }, // Force tool use
+                        messages: [{ role: 'user', content: userMessage }]
+                    })
+                });
+
+                const data = await response.json();
+                if (data.error) throw new Error(data.error.message);
+
+                // Parse and execute tool calls
+                return executeToolCalls(data.content, userMessage);
+
+            } catch (error) {
+                console.error('🌳 Tool-use API failed:', error);
+                // Fallback to MCP dispatch
+                return fallbackToMCPDispatch(userMessage);
+            }
+        }
+
+        async function callTreeBeardViaServer(userMessage, context) {
+            // Server proxy doesn't support tool-use yet, use traditional approach
+            // This is the existing behavior - returns to interpretCommand flow
+            return null; // Signal to use existing interpretCommand logic
+        }
+
+        function executeToolCalls(content, userMessage) {
+            const results = [];
+            let responseMessage = '';
+
+            for (const block of content) {
+                if (block.type === 'tool_use') {
+                    const toolName = block.name;
+                    const toolInput = block.input || {};
+
+                    console.log(`🌳 Tool-use: ${toolName}`, toolInput);
+
+                    // Handle conversational response
+                    if (toolName === 'respond') {
+                        responseMessage = toolInput.message || '🌳 How can I help?';
+                        continue;
+                    }
+
+                    // Execute command via COMMAND_REGISTRY
+                    if (COMMAND_REGISTRY[toolName]) {
+                        try {
+                            // Map tool input to command parameters
+                            const param = toolInput.phase_name || toolInput.node_name ||
+                                         toolInput.query || toolInput.parent_name ||
+                                         toolInput.old_name || null;
+
+                            const result = COMMAND_REGISTRY[toolName](param);
+                            results.push({ tool: toolName, result: result, success: true });
+
+                            // Build response message
+                            if (typeof result === 'string') {
+                                responseMessage += (responseMessage ? '\n' : '') + result;
+                            } else if (result && result.message) {
+                                responseMessage += (responseMessage ? '\n' : '') + result.message;
+                            }
+                        } catch (err) {
+                            console.error(`🌳 Tool ${toolName} failed:`, err);
+                            results.push({ tool: toolName, error: err.message, success: false });
+                        }
+                    } else {
+                        console.warn(`🌳 Unknown tool: ${toolName}`);
+                        results.push({ tool: toolName, error: 'Unknown command', success: false });
+                    }
+                } else if (block.type === 'text') {
+                    // Shouldn't happen with tool_choice: any, but handle it
+                    responseMessage = block.text;
+                }
+            }
+
+            // If no message generated, create summary
+            if (!responseMessage && results.length > 0) {
+                const successfulTools = results.filter(r => r.success).map(r => r.tool);
+                responseMessage = `🌳 Executed: ${successfulTools.join(', ')}`;
+            }
+
+            return {
+                type: 'action',
+                message: responseMessage || '🌳 Done!',
+                toolResults: results,
+                buttons: null
+            };
+        }
+
+        async function fallbackToMCPDispatch(userMessage) {
+            console.log('🌳 Falling back to MCP dispatch');
+
+            // Check if MCP bridge is connected
+            if (typeof mcpBridgeState !== 'undefined' && mcpBridgeState.client?.connected) {
+                try {
+                    const result = COMMAND_REGISTRY['dispatch_task'](userMessage);
+                    return {
+                        type: 'action',
+                        message: result || '🌳 Task dispatched to Claude Code for execution.',
+                        action: 'dispatch_task',
+                        buttons: null
+                    };
+                } catch (err) {
+                    console.error('MCP dispatch failed:', err);
+                }
+            }
+
+            // Final fallback - return helpful message
+            return {
+                type: 'answer',
+                message: '🌳 I couldn\'t execute that command directly. Try:\n• More specific phrasing\n• Check available commands with "help"\n• Or connect Claude Code for advanced actions',
+                buttons: [
+                    { label: '📖 Help', action: 'show_help' },
+                    { label: '🔌 Connect Claude Code', action: 'check_mcp_status' }
+                ]
+            };
+        }
+
+        // ═══════════════════════════════════════════════════════════════
         // AI COMMAND INTERPRETER - BUILD 378: TIERED PROMPT SYSTEM
         // ═══════════════════════════════════════════════════════════════
 
@@ -70737,6 +70941,17 @@ Return ONLY valid JSON.`;
 RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
             try {
+                // ═══════════════════════════════════════════════════════════════
+                // BUILD 613: Try tool-use API first (guaranteed structured output)
+                // ═══════════════════════════════════════════════════════════════
+                const toolUseResult = await callTreeBeardWithTools(userMessage, context);
+                if (toolUseResult) {
+                    console.log('🌳 Tool-use succeeded:', toolUseResult);
+                    return toolUseResult;
+                }
+                // Tool-use unavailable (no API key) or failed - fall back to existing approach
+                console.log('🌳 Tool-use unavailable, using traditional approach');
+
                 // Use TreeListy's existing AI infrastructure
                 const aiMode = document.getElementById('unified-ai-mode-select')?.value || 'server-sonnet';
 
@@ -74636,7 +74851,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 612; // Update this with each build
+                    const KNOWN_LATEST = 613; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
