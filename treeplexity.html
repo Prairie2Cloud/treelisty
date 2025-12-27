@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.51.0 | Build 610 | 2025-12-27
+    TreeListy v2.52.0 | Build 611 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,9 +19,9 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 611): DIRECT HELP LOADING - Simplified help from iframe to direct tree load with Back button
     Changelog (Build 610): HELP AS TREE + EMBED MODE - URL params ?mode=readonly|embed&tree=help for embedded TreeListy instances
     Changelog (Build 609): SMART JSON NORMALIZATION - Auto-fix imported trees (subItems->items, expanded flags, missing IDs)
-    Changelog (Build 607): TB ALWAYS KNOWS COMMANDS - core persona includes essential commands, never says "I can't"
     Changelog (Build 606): TB Canvas Layout Commands - layout_grid, layout_radial + full layout docs for TreeBeard
     Changelog (Build 605): Enhanced version picker - shows ALL browser trees with date, size, items; clickable cards
     Changelog (Build 604): Fast-Path interceptor + dispatch_task - instant commands bypass AI, dispatch tasks to Claude Code
@@ -814,8 +814,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.51.0',
-            build: 610,
+            major: '2.52.0',
+            build: 611,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -968,6 +968,38 @@
         #modal.help-modal .modal-content {
             max-width: 900px;
             width: 90vw;
+        }
+
+        /* BUILD 611: Help Mode - Back Button */
+        .help-back-btn {
+            position: fixed;
+            top: 12px;
+            left: 50%;
+            transform: translateX(-50%);
+            z-index: 10000;
+            background: var(--treeplex-primary);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            box-shadow: var(--shadow-lg);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+            transition: all 0.2s;
+        }
+
+        .help-back-btn:hover {
+            background: var(--treeplex-primary-dark);
+            transform: translateX(-50%) scale(1.05);
+        }
+
+        /* Help mode indicator */
+        body.help-mode .tree-header {
+            background: linear-gradient(135deg, var(--treeplex-primary) 0%, var(--phase-1) 100%);
         }
 
         /* THEME: STEAMPUNK */
@@ -54093,42 +54125,103 @@ ${jsonText}`;
             }
         }
 
-        // How to Use button - BUILD 610: Help as Tree via iframe
-        document.getElementById('how-to-btn').addEventListener('click', () => {
-            const modal = document.getElementById('modal');
-            document.getElementById('modal-title').textContent = '📖 Help';
-            modal.classList.add('help-modal');
+        // How to Use button - BUILD 611: Direct load help tree (simplified from iframe)
+        document.getElementById('how-to-btn').addEventListener('click', async () => {
+            // If already in help mode, do nothing
+            if (document.body.classList.contains('help-mode')) {
+                showToast('Already viewing help', 'info');
+                return;
+            }
 
-            // BUILD 610: Lazy load help tree via iframe in embed mode
-            document.getElementById('modal-body').innerHTML = `
-                <div class="help-iframe-container" style="
-                    width: 100%;
-                    height: 70vh;
-                    min-height: 500px;
-                    border-radius: 8px;
-                    overflow: hidden;
-                    background: var(--bg);
-                ">
-                    <iframe
-                        src="treeplexity.html?mode=embed&tree=help&expanded=false"
-                        style="width: 100%; height: 100%; border: none;"
-                        loading="lazy"
-                        title="TreeListy Help"
-                    ></iframe>
-                </div>
-            `;
+            // Save current tree to session storage for restore
+            try {
+                sessionStorage.setItem('treelisty_help_return', JSON.stringify(capexTree));
+                sessionStorage.setItem('treelisty_help_undo', JSON.stringify(undoStack));
+            } catch (e) {
+                console.warn('Could not save tree state:', e);
+            }
 
-            document.querySelector('#modal .modal-footer').innerHTML = `
-                <button class="btn" onclick="window.open('treeplexity.html?mode=readonly&tree=help', '_blank')" style="margin-right: 8px;">
-                    ↗️ Open Full Screen
-                </button>
-                <button class="btn" onclick="document.getElementById('modal').style.display='none'; document.getElementById('modal').classList.remove('help-modal');">
-                    Close
-                </button>
-            `;
+            // Load help tree directly
+            try {
+                const response = await fetch('help-tree.json');
+                if (!response.ok) throw new Error('Failed to fetch help-tree.json');
+                const helpTree = await response.json();
 
-            modal.style.display = 'flex';
+                // Normalize and load
+                const { tree: normalized } = normalizeTreeStructure(helpTree);
+                migrateTree(normalized);
+
+                // Clear and replace capexTree
+                Object.keys(capexTree).forEach(k => delete capexTree[k]);
+                Object.assign(capexTree, normalized);
+
+                // Clear undo stack for help mode
+                undoStack.length = 0;
+
+                // Mark help mode
+                document.body.classList.add('help-mode');
+
+                // Add back button
+                showHelpModeBackButton();
+
+                // Render
+                render();
+                showToast('📖 Viewing Help - Click "Back to My Tree" when done', 'success');
+
+            } catch (err) {
+                console.error('Failed to load help tree:', err);
+                // Fallback to legacy help modal
+                showLegacyHelp();
+            }
         });
+
+        // BUILD 611: Show floating back button in help mode
+        function showHelpModeBackButton() {
+            // Remove existing if any
+            document.getElementById('help-back-btn')?.remove();
+
+            const backBtn = document.createElement('button');
+            backBtn.id = 'help-back-btn';
+            backBtn.className = 'help-back-btn';
+            backBtn.innerHTML = '← Back to My Tree';
+            backBtn.onclick = returnFromHelpMode;
+            document.body.appendChild(backBtn);
+        }
+
+        // BUILD 611: Return from help mode to user's tree
+        function returnFromHelpMode() {
+            const savedTree = sessionStorage.getItem('treelisty_help_return');
+            const savedUndo = sessionStorage.getItem('treelisty_help_undo');
+
+            if (savedTree) {
+                try {
+                    const tree = JSON.parse(savedTree);
+                    Object.keys(capexTree).forEach(k => delete capexTree[k]);
+                    Object.assign(capexTree, tree);
+
+                    // Restore undo stack
+                    if (savedUndo) {
+                        const undo = JSON.parse(savedUndo);
+                        undoStack.length = 0;
+                        undoStack.push(...undo);
+                    }
+
+                    // Clean up
+                    sessionStorage.removeItem('treelisty_help_return');
+                    sessionStorage.removeItem('treelisty_help_undo');
+
+                    render();
+                    showToast('Welcome back!', 'success');
+                } catch (e) {
+                    console.error('Failed to restore tree:', e);
+                    showToast('Could not restore previous tree', 'error');
+                }
+            }
+
+            // Remove help mode
+            document.body.classList.remove('help-mode');
+            document.getElementById('help-back-btn')?.remove();
+        }
 
         // BUILD 610: Legacy help content (kept for fallback if iframe fails)
         // Original inline help content preserved below for reference
@@ -74454,7 +74547,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 610; // Update this with each build
+                    const KNOWN_LATEST = 611; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
