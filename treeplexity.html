@@ -54136,7 +54136,7 @@ ${jsonText}`;
             // Save current tree to session storage for restore
             try {
                 sessionStorage.setItem('treelisty_help_return', JSON.stringify(capexTree));
-                sessionStorage.setItem('treelisty_help_undo', JSON.stringify(undoStack));
+                sessionStorage.setItem('treelisty_help_history', JSON.stringify(historyStack));
             } catch (e) {
                 console.warn('Could not save tree state:', e);
             }
@@ -54155,8 +54155,8 @@ ${jsonText}`;
                 Object.keys(capexTree).forEach(k => delete capexTree[k]);
                 Object.assign(capexTree, normalized);
 
-                // Clear undo stack for help mode
-                undoStack.length = 0;
+                // Clear history stack for help mode
+                historyStack.length = 0;
 
                 // Mark help mode
                 document.body.classList.add('help-mode');
@@ -54191,7 +54191,7 @@ ${jsonText}`;
         // BUILD 611: Return from help mode to user's tree
         function returnFromHelpMode() {
             const savedTree = sessionStorage.getItem('treelisty_help_return');
-            const savedUndo = sessionStorage.getItem('treelisty_help_undo');
+            const savedHistory = sessionStorage.getItem('treelisty_help_history');
 
             if (savedTree) {
                 try {
@@ -54199,16 +54199,16 @@ ${jsonText}`;
                     Object.keys(capexTree).forEach(k => delete capexTree[k]);
                     Object.assign(capexTree, tree);
 
-                    // Restore undo stack
-                    if (savedUndo) {
-                        const undo = JSON.parse(savedUndo);
-                        undoStack.length = 0;
-                        undoStack.push(...undo);
+                    // Restore history stack
+                    if (savedHistory) {
+                        const history = JSON.parse(savedHistory);
+                        historyStack.length = 0;
+                        historyStack.push(...history);
                     }
 
                     // Clean up
                     sessionStorage.removeItem('treelisty_help_return');
-                    sessionStorage.removeItem('treelisty_help_undo');
+                    sessionStorage.removeItem('treelisty_help_history');
 
                     render();
                     showToast('Welcome back!', 'success');
