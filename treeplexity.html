@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.48.0 | Build 607 | 2025-12-27
+    TreeListy v2.49.0 | Build 608 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 608): Fix Canvas View subItems bug - phases using subItems array now render correctly
     Changelog (Build 607): TB ALWAYS KNOWS COMMANDS - core persona includes essential commands, never says "I can't"
     Changelog (Build 606): TB Canvas Layout Commands - layout_grid, layout_radial + full layout docs for TreeBeard
     Changelog (Build 605): Enhanced version picker - shows ALL browser trees with date, size, items; clickable cards
@@ -812,8 +813,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.48.0',
-            build: 607,
+            major: '2.49.0',
+            build: 608,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -15928,7 +15929,7 @@ Focus on logical structure and content organization best practices.`;
                 // Search phases and their items
                 for (const phase of (capexTree?.children || [])) {
                     if (phase.id === nodeId) return phase;
-                    const items = phase.items || phase.children || [];
+                    const items = phase.items || phase.children || phase.subItems || [];
                     const found = searchTree(items);
                     if (found) return found;
                 }
@@ -16166,7 +16167,7 @@ Focus on logical structure and content organization best practices.`;
 
             // Search through all phases
             capexTree.children.forEach(phase => {
-                const nodeList = phase.items || phase.children || [];
+                const nodeList = phase.items || phase.children || phase.subItems || [];
                 nodeList.forEach(item => findNodes(item));
             });
 
@@ -16268,7 +16269,7 @@ Focus on logical structure and content organization best practices.`;
             capexTree.children.forEach((phase, phaseIdx) => {
                 if (phase.showInCanvas === false) return;
 
-                const nodeList = phase.items || phase.children || [];
+                const nodeList = phase.items || phase.children || phase.subItems || [];
                 nodeList.forEach((item) => {
                     renderFocusedNodeAndDescendants(item, phase, null, 0, memberIds);
                 });
@@ -16672,7 +16673,7 @@ Focus on logical structure and content organization best practices.`;
                 } else {
                     // Even if coordinates exist, ensure expanded state is initialized
                     capexTree.children.forEach(phase => {
-                        const nodeList = phase.items || phase.children || [];
+                        const nodeList = phase.items || phase.children || phase.subItems || [];
                         nodeList.forEach(item => {
                             initializeExpandedState(item);
                         });
@@ -16971,7 +16972,7 @@ Focus on logical structure and content organization best practices.`;
             }
             if (tree.children) {
                 tree.children.forEach(phase => {
-                    const items = phase.items || phase.children || [];
+                    const items = phase.items || phase.children || phase.subItems || [];
                     items.forEach(countNode);
                 });
             }
@@ -16985,7 +16986,7 @@ Focus on logical structure and content organization best practices.`;
             capexTree.children.forEach((phase, phaseIdx) => {
                 let yOffset = 100;
                 // Support both 'items' (standard) and 'children' (filesystem pattern)
-                const nodeList = phase.items || phase.children || [];
+                const nodeList = phase.items || phase.children || phase.subItems || [];
                 nodeList.forEach((item) => {
                     item.canvasX = xOffset + 50;
                     item.canvasY = yOffset;
@@ -17079,8 +17080,8 @@ Focus on logical structure and content organization best practices.`;
                         return;
                     }
 
-                    // Support both 'items' (standard) and 'children' (filesystem pattern)
-                    const nodeList = phase.items || phase.children || [];
+                    // Support 'items' (standard), 'children' (filesystem), and 'subItems' (philosophy)
+                    const nodeList = phase.items || phase.children || phase.subItems || [];
                     nodeList.forEach((item, itemIdx) => {
                         // Preserve existing positions for root items to prevent jumping
                         // Only set initial position if not already set
@@ -18930,7 +18931,7 @@ Focus on logical structure and content organization best practices.`;
                 if (node.children) node.children.forEach(findMemberNodes);
             }
             capexTree.children?.forEach(phase => {
-                (phase.items || phase.children || []).forEach(findMemberNodes);
+                (phase.items || phase.children || phase.subItems || []).forEach(findMemberNodes);
             });
 
             // Build aggregates display
@@ -19154,7 +19155,7 @@ Focus on logical structure and content organization best practices.`;
                 if (node.children) node.children.forEach(findNodes);
             }
             capexTree.children?.forEach(phase => {
-                (phase.items || phase.children || []).forEach(findNodes);
+                (phase.items || phase.children || phase.subItems || []).forEach(findNodes);
             });
 
             const pattern = capexTree.pattern?.key || 'generic';
@@ -20160,7 +20161,7 @@ Be specific and insightful, not generic.`;
                 }
 
                 // Handle both items (standard) and children (imported JSON) arrays
-                const phaseItems = phase.items || phase.children || [];
+                const phaseItems = phase.items || phase.children || phase.subItems || [];
                 phaseItems.forEach(item => {
                     drawNodeConnections(item);
                 });
@@ -20389,7 +20390,7 @@ Be specific and insightful, not generic.`;
             }
             for (const phase of (capexTree?.children || [])) {
                 if (phase.id === targetId) { targetNode = phase; break; }
-                const items = phase.items || phase.children || [];
+                const items = phase.items || phase.children || phase.subItems || [];
                 targetNode = findNode(items);
                 if (targetNode) break;
             }
@@ -35676,7 +35677,7 @@ Output JSON only (no markdown):
             if (capexTree.children) {
                 for (const phase of capexTree.children) {
                     // Support both 'items' (standard patterns) and 'children' (filesystem pattern)
-                    const nodeList = phase.items || phase.children || [];
+                    const nodeList = phase.items || phase.children || phase.subItems || [];
                     if (nodeList.length > 0) {
                         return true;
                     }
@@ -36320,7 +36321,7 @@ Output JSON only (no markdown):
             const treeSummary = wizardState.workingTree.name || 'Empty';
             const phaseCount = (wizardState.workingTree.children || []).length;
             const itemCount = (wizardState.workingTree.children || []).reduce((acc, phase) =>
-                acc + (phase.items || phase.children || []).length, 0);
+                acc + (phase.items || phase.children || phase.subItems || []).length, 0);
 
             // Build detailed existing structure summary for enhance mode
             let existingStructure = '';
@@ -36337,7 +36338,7 @@ Output JSON only (no markdown):
                     if (phase.subtitle) existingStructure += ` (${phase.subtitle})`;
                     existingStructure += `\n`;
 
-                    const phaseItems = phase.items || phase.children || [];
+                    const phaseItems = phase.items || phase.children || phase.subItems || [];
                     if (phaseItems.length > 0) {
                         phaseItems.forEach(item => {
                             existingStructure += `  - ${item.name}`;
@@ -49787,8 +49788,8 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
 
             if (tree.children) {
                 tree.children.forEach(phase => {
-                    // Support both 'items' (standard) and 'children' (filesystem pattern)
-                    const nodeList = phase.items || phase.children || [];
+                    // Support 'items' (standard), 'children' (filesystem), and 'subItems' (philosophy)
+                    const nodeList = phase.items || phase.children || phase.subItems || [];
                     if (nodeList.length > 0) {
                         itemCounts.items += nodeList.length;
                         nodeList.forEach(item => {
@@ -49814,8 +49815,8 @@ Camera: Dynamic - Start wide, dolly in to close-up, or handheld for intensity.`;
                         prompt += `${phase.description}\n\n`;
                     }
 
-                    // Support both 'items' (standard) and 'children' (filesystem pattern)
-                    const nodeList = phase.items || phase.children || [];
+                    // Support 'items' (standard), 'children' (filesystem), and 'subItems' (philosophy)
+                    const nodeList = phase.items || phase.children || phase.subItems || [];
                     if (nodeList.length > 0) {
                         nodeList.forEach((item, iIdx) => {
                             prompt += `  **${iIdx + 1}. ${item.name}**\n`;
@@ -60701,7 +60702,7 @@ STRATEGIES:
             } else if (viewMode === 'canvas') {
                 // Clear canvas coordinates to force re-positioning in new sorted order
                 capexTree.children.forEach(phase => {
-                    const nodeList = phase.items || phase.children || [];
+                    const nodeList = phase.items || phase.children || phase.subItems || [];
                     nodeList.forEach(node => clearCanvasCoordinates(node));
                 });
 
@@ -63213,7 +63214,7 @@ Slack data not available. To calculate slack:
                         // Find which phase contains the focused node
                         for (let i = 0; i < phases.length; i++) {
                             const phase = phases[i];
-                            const items = phase.items || phase.children || [];
+                            const items = phase.items || phase.children || phase.subItems || [];
                             const found = items.some(item => item.id === focusedNode.id) ||
                                 items.some(item => (item.subItems || item.children || []).some(sub => sub.id === focusedNode.id));
                             if (found || phase.id === focusedNode.id) {
@@ -64398,7 +64399,7 @@ Slack data not available. To calculate slack:
                         // Find which phase contains this node
                         for (let i = 0; i < phases.length; i++) {
                             const phase = phases[i];
-                            const items = phase.items || phase.children || [];
+                            const items = phase.items || phase.children || phase.subItems || [];
                             if (items.some(item => item.id === focusedNode.id)) {
                                 targetPhase = phase;
                                 targetPhaseIndex = i;
@@ -65726,7 +65727,7 @@ Slack data not available. To calculate slack:
 
                 // Collect all items with their stats
                 phaseList.forEach((phase, pi) => {
-                    const items = phase.items || phase.children || [];
+                    const items = phase.items || phase.children || phase.subItems || [];
                     items.forEach((item, ii) => {
                         const children = (item.subItems || item.subtasks || item.children || []).length;
                         const descLen = (item.description || '').length;
@@ -66598,7 +66599,7 @@ Slack data not available. To calculate slack:
                 }
 
                 const phase = phases[phaseIndex];
-                const itemCount = (phase.items || phase.children || []).length;
+                const itemCount = (phase.items || phase.children || phase.subItems || []).length;
 
                 if (typeof saveState === 'function') {
                     saveState(`Delete phase: ${phase.name}`);
@@ -66711,7 +66712,7 @@ Slack data not available. To calculate slack:
                 // Check 3: Duplicates within same phase
                 const phases = capexTree.children || capexTree.phases || [];
                 phases.forEach(phase => {
-                    const items = phase.items || phase.children || [];
+                    const items = phase.items || phase.children || phase.subItems || [];
                     for (let i = 0; i < items.length; i++) {
                         for (let j = i + 1; j < items.length; j++) {
                             const nameA = (items[i].name || items[i].title || '').toLowerCase();
@@ -66871,7 +66872,7 @@ Slack data not available. To calculate slack:
                 }
 
                 // Remove the duplicate from phase
-                const phaseItems = phase.items || phase.children || [];
+                const phaseItems = phase.items || phase.children || phase.subItems || [];
                 const idx = phaseItems.findIndex(c => c.id === remove.id);
                 if (idx >= 0) {
                     phaseItems.splice(idx, 1);
@@ -67300,7 +67301,7 @@ Slack data not available. To calculate slack:
 
                 // 1. Empty phases detection
                 phases.forEach(phase => {
-                    const itemCount = (phase.items || phase.children || []).length;
+                    const itemCount = (phase.items || phase.children || phase.subItems || []).length;
                     if (itemCount === 0) {
                         issues.emptyPhases.push({ phase, name: phase.name });
                     }
@@ -67339,7 +67340,7 @@ Slack data not available. To calculate slack:
                 let totalEvents = 0;
                 let phasesWithZeroDisplay = 0;
                 phases.forEach(phase => {
-                    const items = phase.items || phase.children || [];
+                    const items = phase.items || phase.children || phase.subItems || [];
                     totalEvents += items.length;
                     items.forEach(item => {
                         totalEvents += (item.subItems || item.children || []).length;
@@ -67349,7 +67350,7 @@ Slack data not available. To calculate slack:
                 // 4. Sparse items (events without subtasks that should have detail)
                 const significantEvents = ['battle', 'siege', 'trial', 'execution', 'coronation', 'campaign'];
                 phases.forEach(phase => {
-                    (phase.items || phase.children || []).forEach(item => {
+                    (phase.items || phase.children || phase.subItems || []).forEach(item => {
                         const nameLower = (item.name || '').toLowerCase();
                         const hasSubitems = (item.subItems || item.children || []).length > 0;
                         if (!hasSubitems && significantEvents.some(evt => nameLower.includes(evt))) {
@@ -67456,7 +67457,7 @@ Slack data not available. To calculate slack:
 
                 capexTree.children.forEach((phase, idx) => {
                     if (legacyPhaseNames.includes(phase.name)) {
-                        (phase.items || phase.children || []).forEach(item => {
+                        (phase.items || phase.children || phase.subItems || []).forEach(item => {
                             allLegacyItems.push({ ...item, sourcePhase: phase.name });
                         });
                         phasesToRemove.push(idx);
@@ -69072,7 +69073,7 @@ Be warm, insightful, concise. Ask at most one follow-up question only if needed.
 
             // List phases with their items
             phases.slice(0, 8).forEach((phase, i) => {
-                const items = phase.items || phase.children || [];
+                const items = phase.items || phase.children || phase.subItems || [];
                 const itemNames = items.slice(0, 5).map(it => it.name).join(', ');
                 const moreItems = items.length > 5 ? ` +${items.length - 5} more` : '';
                 context += `• ${phase.name}: ${items.length} items${itemNames ? ` (${itemNames}${moreItems})` : ''}\n`;
@@ -69101,7 +69102,7 @@ Be warm, insightful, concise. Ask at most one follow-up question only if needed.
 
             phases.forEach(phase => {
                 const decadeName = phase.name || 'Unknown';
-                (phase.items || phase.children || []).forEach(item => {
+                (phase.items || phase.children || phase.subItems || []).forEach(item => {
                     // Track this memory
                     const memory = {
                         decade: decadeName,
@@ -69162,7 +69163,7 @@ WHAT WE'VE CAPTURED (${allMemories.length} memories)
             const activeDecades = phases.filter(p => (p.items || p.children || []).length > 0);
             context += `📅 MEMORIES BY DECADE:\n`;
             activeDecades.slice(-5).forEach(phase => {
-                const items = phase.items || phase.children || [];
+                const items = phase.items || phase.children || phase.subItems || [];
                 if (items.length > 0) {
                     context += `\n${phase.name}:\n`;
                     items.forEach(item => {
@@ -74006,7 +74007,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 607; // Update this with each build
+                    const KNOWN_LATEST = 608; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
