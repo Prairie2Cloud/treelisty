@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.45.0 | Build 604 | 2025-12-26
+    TreeListy v2.46.0 | Build 605 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 605): Enhanced version picker - shows ALL browser trees with date, size, items; clickable cards
     Changelog (Build 604): Fast-Path interceptor + dispatch_task - instant commands bypass AI, dispatch tasks to Claude Code
     Changelog (Build 603): TB POWER CONSCIOUSNESS - Claude Code partnership, proactive execution + fix modal footer bug
     Changelog (Build 601): TB command vocabulary - Add Build 600 canvas commands + screen capture to TB prompt
@@ -809,8 +810,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.45.0',
-            build: 604,
+            major: '2.46.0',
+            build: 605,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -32092,9 +32093,10 @@ Your response:`;
         }
 
         /**
-         * BUILD 284/426: Show version conflict dialog
+         * BUILD 284/426/605: Show version conflict dialog
          * When loading a file that has a different version in LocalStorage
          * BUILD 426: Clearer labels, neutral styling when dates unknown
+         * BUILD 605: Show ALL browser stored trees with full metadata (name, date, size, items)
          */
         function showVersionConflictDialog(options) {
             const { treeId, treeName, fileData, fileDate, localData, localDate, localItemCount } = options;
@@ -32115,72 +32117,114 @@ Your response:`;
             }
             fileItemCount = countAllItems(fileData);
 
+            // Calculate file size
+            const fileJson = JSON.stringify(fileData);
+            const fileSizeKB = (fileJson.length / 1024).toFixed(1);
+            const fileSizeDisplay = fileSizeKB >= 1000 ? `${(fileSizeKB / 1024).toFixed(1)} MB` : `${fileSizeKB} KB`;
+
+            // BUILD 605: Get ALL stored trees from browser
+            const allStoredTrees = window.treeManager?.getAllStoredTrees() || [];
+
+            // Format date helper
+            const formatDate = (timestamp) => {
+                if (!timestamp) return 'Unknown';
+                return new Date(timestamp).toLocaleString();
+            };
+
             // Determine if we can actually compare dates
             const fileDateKnown = fileDate && fileDate !== 'Unknown';
-            const canCompare = fileDateKnown;
 
-            // Title and subtitle based on whether we can compare
-            const title = canCompare
-                ? 'Different Versions Found'
+            // Title and subtitle
+            const title = allStoredTrees.length > 1
+                ? `Choose Version to Load`
                 : 'Multiple Versions Found';
-            const subtitle = canCompare
-                ? `"${treeName}" exists in both your file and browser storage`
-                : `"${treeName}" - browser has auto-saved changes`;
+            const subtitle = `"${treeName}" - select which version to open`;
 
-            // Style based on whether dates are comparable
-            // If file date unknown, use neutral blue for file, keep green for browser
-            const fileColor = fileDateKnown ? 'rgba(99, 102, 241, 0.8)' : 'rgba(99, 102, 241, 0.8)'; // Indigo (neutral)
-            const fileBg = 'rgba(99, 102, 241, 0.1)';
-            const fileBorder = 'rgba(99, 102, 241, 0.3)';
-            const fileLabel = fileDateKnown ? `Modified: ${fileDate}` : 'Date: Not stored in file';
+            // Build stored trees list HTML
+            let storedTreesHtml = '';
+            if (allStoredTrees.length > 0) {
+                storedTreesHtml = allStoredTrees.map((tree, idx) => {
+                    const isMatch = tree.id === treeId;
+                    const bgColor = isMatch ? 'rgba(16, 185, 129, 0.15)' : 'rgba(107, 114, 128, 0.1)';
+                    const borderColor = isMatch ? 'rgba(16, 185, 129, 0.4)' : 'rgba(107, 114, 128, 0.2)';
+                    const labelColor = isMatch ? '#10B981' : 'var(--text-secondary)';
+                    const matchBadge = isMatch ? '<span style="background: #10B981; color: white; font-size: 9px; padding: 2px 6px; border-radius: 4px; margin-left: 8px;">MATCH</span>' : '';
+
+                    return `
+                        <div onclick="loadVersionChoice('local', '${tree.id}')"
+                            style="padding: 12px 16px; background: ${bgColor}; border: 1px solid ${borderColor}; border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.transform='translateX(4px)'; this.style.borderColor='#6366f1'"
+                            onmouseout="this.style.transform='none'; this.style.borderColor='${borderColor}'">
+                            <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 6px;">
+                                <div style="font-weight: 600; color: var(--text-primary); font-size: 14px;">
+                                    💾 ${tree.name}${matchBadge}
+                                </div>
+                                <div style="font-size: 11px; color: ${labelColor}; text-transform: uppercase;">${tree.pattern}</div>
+                            </div>
+                            <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary);">
+                                <span>📅 ${formatDate(tree.lastModified)}</span>
+                                <span>📊 ${tree.itemCount} items</span>
+                                <span>💿 ${tree.sizeDisplay}</span>
+                            </div>
+                        </div>
+                    `;
+                }).join('');
+            } else {
+                storedTreesHtml = `
+                    <div style="padding: 16px; background: rgba(107, 114, 128, 0.1); border-radius: 8px; text-align: center; color: var(--text-secondary);">
+                        No browser-stored trees found
+                    </div>
+                `;
+            }
 
             modalBody.innerHTML = `
-                <div style="padding: 30px; max-width: 580px;">
-                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-                        <div style="font-size: 48px;">📂</div>
+                <div style="padding: 24px; max-width: 650px;">
+                    <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 20px;">
+                        <div style="font-size: 40px;">📂</div>
                         <div>
-                            <h3 style="color: #6366f1; margin-bottom: 4px;">${title}</h3>
-                            <div style="font-size: 12px; color: var(--text-secondary);">
-                                ${subtitle}
+                            <h3 style="color: #6366f1; margin-bottom: 4px; font-size: 18px;">${title}</h3>
+                            <div style="font-size: 12px; color: var(--text-secondary);">${subtitle}</div>
+                        </div>
+                    </div>
+
+                    <!-- File being opened -->
+                    <div style="margin-bottom: 16px;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📁 File You're Opening</div>
+                        <div onclick="loadVersionChoice('file')"
+                            style="padding: 12px 16px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; cursor: pointer; transition: all 0.2s;"
+                            onmouseover="this.style.transform='translateX(4px)'; this.style.borderColor='#6366f1'"
+                            onmouseout="this.style.transform='none'; this.style.borderColor='rgba(99, 102, 241, 0.3)'">
+                            <div style="font-weight: 600; color: var(--text-primary); font-size: 14px; margin-bottom: 6px;">
+                                📄 ${treeName}
+                            </div>
+                            <div style="display: flex; gap: 16px; font-size: 12px; color: var(--text-secondary);">
+                                <span>📅 ${fileDateKnown ? fileDate : 'Date not in file'}</span>
+                                <span>📊 ${fileItemCount} items</span>
+                                <span>💿 ${fileSizeDisplay}</span>
                             </div>
                         </div>
                     </div>
 
-                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 20px;">
-                        <!-- File Version -->
-                        <div style="padding: 16px; background: ${fileBg}; border: 1px solid ${fileBorder}; border-radius: 8px;">
-                            <div style="font-size: 11px; color: ${fileColor}; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">📁 Your Saved File</div>
-                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">${fileLabel}</div>
-                            <div style="font-size: 14px; color: var(--text-primary); font-weight: 600;">${fileItemCount} items</div>
+                    <!-- Browser stored trees -->
+                    <div style="margin-bottom: 20px;">
+                        <div style="font-size: 11px; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">
+                            💾 Browser Stored Trees (${allStoredTrees.length})
                         </div>
-
-                        <!-- Browser Auto-Save Version -->
-                        <div style="padding: 16px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px;">
-                            <div style="font-size: 11px; color: rgba(16, 185, 129, 0.8); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 8px;">💾 Browser Auto-Save</div>
-                            <div style="font-size: 13px; color: var(--text-primary); margin-bottom: 4px;">Saved: ${localDate}</div>
-                            <div style="font-size: 14px; color: var(--text-primary); font-weight: 600;">${localItemCount} items</div>
+                        <div style="max-height: 240px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px;">
+                            ${storedTreesHtml}
                         </div>
                     </div>
 
-                    <div style="background: rgba(107, 114, 128, 0.1); padding: 12px 16px; border-radius: 8px; margin-bottom: 20px;">
-                        <p style="color: var(--text-secondary); font-size: 13px; margin: 0; line-height: 1.5;">
-                            <strong>Your Saved File:</strong> The JSON file you downloaded/saved<br>
-                            <strong>Browser Auto-Save:</strong> Changes auto-saved every 2 minutes while you worked
+                    <div style="background: rgba(107, 114, 128, 0.08); padding: 10px 14px; border-radius: 6px; margin-bottom: 16px;">
+                        <p style="color: var(--text-secondary); font-size: 12px; margin: 0; line-height: 1.5;">
+                            Click any option above to load. Browser trees are auto-saved every 2 minutes.
                         </p>
                     </div>
 
-                    <div style="display: flex; gap: 12px; justify-content: flex-end; flex-wrap: wrap;">
+                    <div style="display: flex; gap: 12px; justify-content: flex-end;">
                         <button onclick="document.getElementById('modal').style.display='none'"
                             style="padding: 10px 20px; background: rgba(107, 114, 128, 0.2); color: var(--text-secondary); border: 1px solid var(--border-color); border-radius: 6px; cursor: pointer; font-size: 13px;">
                             Cancel
-                        </button>
-                        <button onclick="loadVersionChoice('file')"
-                            style="padding: 10px 20px; background: rgba(99, 102, 241, 0.2); color: #6366f1; border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            📁 Load Saved File
-                        </button>
-                        <button onclick="loadVersionChoice('local', '${treeId}')"
-                            style="padding: 10px 20px; background: rgba(16, 185, 129, 0.2); color: #10B981; border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 6px; cursor: pointer; font-size: 13px; font-weight: 500;">
-                            💾 Load Browser Version
                         </button>
                     </div>
                 </div>
@@ -32188,6 +32232,9 @@ Your response:`;
 
             // Store file data for potential loading
             window._pendingFileData = fileData;
+
+            // BUILD 603: Reset modal footer
+            document.querySelector('#modal .modal-footer').innerHTML = '';
 
             modal.style.display = 'flex';
         }
@@ -32313,6 +32360,46 @@ Your response:`;
                 }
                 countRecursive(tree);
                 return count;
+            }
+
+            // BUILD 605: Get all stored trees from localStorage with full metadata
+            getAllStoredTrees() {
+                const trees = [];
+                const treePrefix = 'treelisty:tree:';
+                const metaPrefix = 'treelisty:meta:';
+
+                for (let i = 0; i < localStorage.length; i++) {
+                    const key = localStorage.key(i);
+                    if (key && key.startsWith(treePrefix)) {
+                        const treeId = key.replace(treePrefix, '');
+                        try {
+                            const treeJson = localStorage.getItem(key);
+                            const metaJson = localStorage.getItem(metaPrefix + treeId);
+                            const tree = JSON.parse(treeJson);
+                            const meta = metaJson ? JSON.parse(metaJson) : {};
+
+                            // Calculate size in KB
+                            const sizeKB = (treeJson.length / 1024).toFixed(1);
+
+                            trees.push({
+                                id: treeId,
+                                name: tree.name || meta.name || 'Untitled',
+                                pattern: tree.pattern?.key || meta.pattern || 'generic',
+                                itemCount: meta.itemCount || this.countItems(tree),
+                                lastModified: meta.lastModified || null,
+                                lastSaved: meta.lastSaved || meta.lastModified || null,
+                                sizeKB: parseFloat(sizeKB),
+                                sizeDisplay: sizeKB >= 1000 ? `${(sizeKB / 1024).toFixed(1)} MB` : `${sizeKB} KB`
+                            });
+                        } catch (err) {
+                            console.warn(`Failed to parse stored tree ${treeId}:`, err);
+                        }
+                    }
+                }
+
+                // Sort by lastModified descending (most recent first)
+                trees.sort((a, b) => (b.lastModified || 0) - (a.lastModified || 0));
+                return trees;
             }
 
             downloadJSON(tree) {
@@ -73871,7 +73958,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 604; // Update this with each build
+                    const KNOWN_LATEST = 605; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
