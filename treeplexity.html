@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.50.0 | Build 609 | 2025-12-27
+    TreeListy v2.51.0 | Build 610 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,8 +19,8 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 610): HELP AS TREE + EMBED MODE - URL params ?mode=readonly|embed&tree=help for embedded TreeListy instances
     Changelog (Build 609): SMART JSON NORMALIZATION - Auto-fix imported trees (subItems->items, expanded flags, missing IDs)
-    Changelog (Build 608): Fix Canvas View subItems bug - phases using subItems array now render correctly
     Changelog (Build 607): TB ALWAYS KNOWS COMMANDS - core persona includes essential commands, never says "I can't"
     Changelog (Build 606): TB Canvas Layout Commands - layout_grid, layout_radial + full layout docs for TreeBeard
     Changelog (Build 605): Enhanced version picker - shows ALL browser trees with date, size, items; clickable cards
@@ -814,12 +814,42 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.50.0',
-            build: 609,
+            major: '2.51.0',
+            build: 610,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
+
+        // BUILD 610: URL Parameter API for Readonly/Embed Mode
+        // Usage: treeplexity.html?mode=readonly&tree=help
+        //        treeplexity.html?mode=embed&tree=https://example.com/tree.json
+        (function() {
+            const urlParams = new URLSearchParams(window.location.search);
+            const viewMode = urlParams.get('mode'); // 'readonly' | 'embed' | null
+            const treeSource = urlParams.get('tree'); // 'help' | 'welcome' | URL | null
+            const themeOverride = urlParams.get('theme'); // 'dark' | 'light' | null
+            const startExpanded = urlParams.get('expanded') !== 'false';
+
+            window.TREELISTY_MODE = {
+                readonly: viewMode === 'readonly' || viewMode === 'embed',
+                embed: viewMode === 'embed',
+                treeSource: treeSource,
+                themeOverride: themeOverride,
+                startExpanded: startExpanded
+            };
+
+            // Apply body classes immediately for CSS-based hiding
+            if (document.body) {
+                if (TREELISTY_MODE.readonly) document.body.classList.add('readonly-mode');
+                if (TREELISTY_MODE.embed) document.body.classList.add('embed-mode');
+            } else {
+                document.addEventListener('DOMContentLoaded', () => {
+                    if (TREELISTY_MODE.readonly) document.body.classList.add('readonly-mode');
+                    if (TREELISTY_MODE.embed) document.body.classList.add('embed-mode');
+                });
+            }
+        })();
     </script>
     <meta name="theme-color" content="#6366f1">
     <meta name="apple-mobile-web-app-capable" content="yes">
@@ -854,6 +884,90 @@
             --shadow-md: 0 4px 12px rgba(0,0,0,0.4);
             --shadow-lg: 0 8px 24px rgba(0,0,0,0.5);
             --shadow-xl: 0 12px 40px rgba(0,0,0,0.6);
+        }
+
+        /* ============================================================================
+           BUILD 610: READONLY/EMBED MODE STYLES
+           Hide editing controls when viewing in readonly or embed mode
+           ============================================================================ */
+
+        /* READONLY MODE - Hide editing controls but keep full chrome */
+        body.readonly-mode .edit-control,
+        body.readonly-mode .save-btn,
+        body.readonly-mode .ai-wizard-btn,
+        body.readonly-mode [data-action="add"],
+        body.readonly-mode [data-action="delete"],
+        body.readonly-mode [data-action="edit"],
+        body.readonly-mode .add-phase-btn,
+        body.readonly-mode .context-menu-item[data-action="edit"],
+        body.readonly-mode .context-menu-item[data-action="delete"],
+        body.readonly-mode .context-menu-item[data-action="add-child"],
+        body.readonly-mode .context-menu-item[data-action="add-sibling"],
+        body.readonly-mode .import-btn,
+        body.readonly-mode #import-modal,
+        body.readonly-mode .paste-mode-container {
+            display: none !important;
+        }
+
+        /* Readonly mode - show clone button when present */
+        body.readonly-mode .clone-to-edit-btn {
+            display: inline-flex !important;
+        }
+
+        /* EMBED MODE - Minimal chrome for iframes (hides header, sidebar, footer) */
+        body.embed-mode .header,
+        body.embed-mode .header-container,
+        body.embed-mode .sidebar,
+        body.embed-mode .sidebar-collapsed,
+        body.embed-mode .version-badge,
+        body.embed-mode .footer-bar,
+        body.embed-mode #how-to-btn,
+        body.embed-mode #theme-toggle,
+        body.embed-mode .pwa-install-btn,
+        body.embed-mode .fullscreen-exit-btn,
+        body.embed-mode .mobile-hamburger {
+            display: none !important;
+        }
+
+        body.embed-mode .main-content {
+            margin-left: 0 !important;
+            padding-top: 0 !important;
+        }
+
+        body.embed-mode .tree-container {
+            padding-top: 8px;
+        }
+
+        /* Embed mode - compact header with just tree title */
+        body.embed-mode .tree-header-bar {
+            padding: 8px 16px;
+            border-bottom: 1px solid var(--border);
+            background: var(--card-bg);
+        }
+
+        /* Clone to edit button - only shown in readonly/embed modes */
+        .clone-to-edit-btn {
+            display: none;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 12px;
+            background: var(--treeplex-primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .clone-to-edit-btn:hover {
+            background: var(--treeplex-primary-dark);
+        }
+
+        /* Help modal sizing for embedded TreeListy */
+        #modal.help-modal .modal-content {
+            max-width: 900px;
+            width: 90vw;
         }
 
         /* THEME: STEAMPUNK */
@@ -6755,6 +6869,11 @@
             <div id="save-indicator" style="font-size: 12px; color: #9DA3B4; margin-left: 12px; white-space: nowrap;">
                 ● Unsaved changes
             </div>
+
+            <!-- BUILD 610: Clone to Edit Button (only visible in readonly/embed mode) -->
+            <button id="clone-to-edit-btn" class="clone-to-edit-btn" onclick="cloneTreeForEditing()" title="Open a copy of this tree for editing">
+                ✏️ Clone to Edit
+            </button>
 
             <!-- BUILD 561: Refresh Button for Gmail/GDrive Trees -->
             <button id="tree-refresh-btn" onclick="refreshCurrentTree()" style="display: none; padding: 6px 12px; background: linear-gradient(135deg, #3b82f6, #1d4ed8); border: none; border-radius: 8px; color: white; font-size: 12px; font-weight: 600; cursor: pointer; white-space: nowrap; margin-left: 8px;" title="Refresh from source">
@@ -32692,6 +32811,14 @@ Your response:`;
 
             loadTreeFromURLOrStorage() {
                 const urlParams = new URLSearchParams(window.location.search);
+
+                // BUILD 610: Check for tree source from URL parameter
+                if (window.TREELISTY_MODE && window.TREELISTY_MODE.treeSource) {
+                    console.log('📥 Loading tree from URL parameter:', window.TREELISTY_MODE.treeSource);
+                    this.loadTreeFromSource(window.TREELISTY_MODE.treeSource);
+                    return;
+                }
+
                 if (urlParams.has('data')) {
                     console.log('📥 Loading tree from shared URL...');
                     return;
@@ -32762,6 +32889,87 @@ Your response:`;
                     }
                 }
             }
+
+            // BUILD 610: Load tree from source (help, welcome, URL, or base64)
+            async loadTreeFromSource(source) {
+                try {
+                    let treeData;
+
+                    if (source === 'help') {
+                        // Load built-in help tree
+                        console.log('📖 Loading help tree...');
+                        const response = await fetch('help-tree.json');
+                        if (!response.ok) throw new Error('Failed to load help-tree.json');
+                        treeData = await response.json();
+                    } else if (source === 'welcome') {
+                        // Load default welcome tree
+                        console.log('👋 Loading welcome tree...');
+                        const response = await fetch('welcome-to-treelisty.json');
+                        if (!response.ok) throw new Error('Failed to load welcome-to-treelisty.json');
+                        treeData = await response.json();
+                    } else if (source.startsWith('http://') || source.startsWith('https://')) {
+                        // Load from external URL
+                        console.log('🌐 Loading tree from URL:', source);
+                        const response = await fetch(source);
+                        if (!response.ok) throw new Error(`Failed to fetch tree from ${source}`);
+                        treeData = await response.json();
+                    } else {
+                        // Try to decompress as LZ-String base64
+                        console.log('📦 Loading tree from compressed data...');
+                        if (typeof LZString !== 'undefined') {
+                            const decompressed = LZString.decompressFromEncodedURIComponent(source);
+                            if (decompressed) {
+                                treeData = JSON.parse(decompressed);
+                            }
+                        }
+                    }
+
+                    if (treeData) {
+                        // Normalize and migrate the tree
+                        if (typeof normalizeTreeStructure === 'function') {
+                            const { tree: normalized, fixes } = normalizeTreeStructure(treeData);
+                            treeData = normalized;
+                            if (fixes.length > 0) {
+                                console.log('🔧 Tree normalized:', [...new Set(fixes)].join(', '));
+                            }
+                        }
+                        if (typeof migrateTree === 'function') {
+                            migrateTree(treeData);
+                        }
+
+                        // Apply to capexTree
+                        Object.assign(capexTree, treeData);
+                        this.currentTreeId = treeData.id || 'embedded';
+
+                        // Restore pattern
+                        if (treeData.pattern) {
+                            const patternKey = typeof treeData.pattern === 'string'
+                                ? treeData.pattern
+                                : (treeData.pattern.key || 'generic');
+                            if (PATTERNS && PATTERNS[patternKey]) {
+                                currentPattern = patternKey;
+                                const patternSelect = document.getElementById('pattern-select');
+                                if (patternSelect) patternSelect.value = patternKey;
+                            }
+                        }
+
+                        // Render the tree
+                        if (typeof render === 'function') {
+                            render();
+                        }
+
+                        console.log('✅ Tree loaded from source:', source);
+                        if (typeof showToast === 'function') {
+                            showToast(`Loaded: ${treeData.name || 'Tree'}`, 'success');
+                        }
+                    }
+                } catch (error) {
+                    console.error('❌ Failed to load tree from source:', error);
+                    if (typeof showToast === 'function') {
+                        showToast(`Failed to load tree: ${error.message}`, 'error');
+                    }
+                }
+            }
         }
 
         const treeManager = new TreeManager();
@@ -32770,6 +32978,38 @@ Your response:`;
         window.addEventListener('DOMContentLoaded', () => {
             treeManager.initialize();
         });
+
+        // BUILD 610: Clone to Edit - opens current tree in a new editable window
+        function cloneTreeForEditing() {
+            try {
+                // Serialize current tree to compressed format
+                const treeJson = JSON.stringify(capexTree);
+                const compressed = typeof LZString !== 'undefined'
+                    ? LZString.compressToEncodedURIComponent(treeJson)
+                    : null;
+
+                if (compressed && compressed.length < 8000) {
+                    // Open new window with compressed tree data
+                    const editUrl = `${window.location.pathname}?data=${compressed}`;
+                    window.open(editUrl, '_blank');
+                    showToast('Opening editable copy...', 'info');
+                } else {
+                    // Tree too large for URL, copy to clipboard instead
+                    navigator.clipboard.writeText(treeJson).then(() => {
+                        window.open(window.location.pathname, '_blank');
+                        showToast('Tree copied! Paste in new window via Open → Paste JSON', 'info');
+                    }).catch(() => {
+                        // Fallback: just open new window
+                        window.open(window.location.pathname, '_blank');
+                        showToast('Opening TreeListy... Save current tree first to edit it', 'warning');
+                    });
+                }
+            } catch (error) {
+                console.error('Clone to edit failed:', error);
+                showToast('Failed to clone tree', 'error');
+            }
+        }
+        window.cloneTreeForEditing = cloneTreeForEditing;
 
         // BUILD 284: Warn user before closing if there are unsaved changes
         window.addEventListener('beforeunload', (e) => {
@@ -53853,11 +54093,48 @@ ${jsonText}`;
             }
         }
 
-        // How to Use button
+        // How to Use button - BUILD 610: Help as Tree via iframe
         document.getElementById('how-to-btn').addEventListener('click', () => {
             const modal = document.getElementById('modal');
+            document.getElementById('modal-title').textContent = '📖 Help';
+            modal.classList.add('help-modal');
+
+            // BUILD 610: Lazy load help tree via iframe in embed mode
+            document.getElementById('modal-body').innerHTML = `
+                <div class="help-iframe-container" style="
+                    width: 100%;
+                    height: 70vh;
+                    min-height: 500px;
+                    border-radius: 8px;
+                    overflow: hidden;
+                    background: var(--bg);
+                ">
+                    <iframe
+                        src="treeplexity.html?mode=embed&tree=help&expanded=false"
+                        style="width: 100%; height: 100%; border: none;"
+                        loading="lazy"
+                        title="TreeListy Help"
+                    ></iframe>
+                </div>
+            `;
+
+            document.querySelector('#modal .modal-footer').innerHTML = `
+                <button class="btn" onclick="window.open('treeplexity.html?mode=readonly&tree=help', '_blank')" style="margin-right: 8px;">
+                    ↗️ Open Full Screen
+                </button>
+                <button class="btn" onclick="document.getElementById('modal').style.display='none'; document.getElementById('modal').classList.remove('help-modal');">
+                    Close
+                </button>
+            `;
+
+            modal.style.display = 'flex';
+        });
+
+        // BUILD 610: Legacy help content (kept for fallback if iframe fails)
+        // Original inline help content preserved below for reference
+        function showLegacyHelp() {
+            const modal = document.getElementById('modal');
             document.getElementById('modal-title').textContent = '📖 How to Use TreeListy';
-            // BUILD 603: Reset modal footer to default Close button (fixes persisted Create Hyperedge button from Query Builder)
             document.querySelector('#modal .modal-footer').innerHTML = `<button class="btn" onclick="document.getElementById('modal').style.display='none'">Close</button>`;
             document.getElementById('modal-body').innerHTML = `
                 <div style="padding: 20px; line-height: 1.8;">
@@ -54430,7 +54707,7 @@ ${jsonText}`;
                 </div>
             `;
             modal.style.display = 'flex';
-        });
+        }
 
         // BUILD 441: About Modal - minimalist attribution
         // BUILD 443: Updated with logo image
@@ -74177,7 +74454,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 609; // Update this with each build
+                    const KNOWN_LATEST = 610; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
