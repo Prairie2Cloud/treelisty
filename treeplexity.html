@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.46.0 | Build 605 | 2025-12-26
+    TreeListy v2.47.0 | Build 606 | 2025-12-26
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 606): TB Canvas Layout Commands - layout_grid, layout_radial + full layout docs for TreeBeard
     Changelog (Build 605): Enhanced version picker - shows ALL browser trees with date, size, items; clickable cards
     Changelog (Build 604): Fast-Path interceptor + dispatch_task - instant commands bypass AI, dispatch tasks to Claude Code
     Changelog (Build 603): TB POWER CONSCIOUSNESS - Claude Code partnership, proactive execution + fix modal footer bug
@@ -810,8 +811,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.46.0',
-            build: 605,
+            major: '2.47.0',
+            build: 606,
             date: '2025-12-26',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -65664,6 +65665,24 @@ Slack data not available. To calculate slack:
                 }
                 return '❌ Switch to Canvas view first.';
             },
+            'layout_grid': () => {
+                const select = document.getElementById('auto-layout-select');
+                if (select) {
+                    select.value = 'grid';
+                    select.dispatchEvent(new Event('change'));
+                    return '📊 Grid layout applied! Nodes arranged in a neat 4-column grid.';
+                }
+                return '❌ Switch to Canvas view first.';
+            },
+            'layout_radial': () => {
+                const select = document.getElementById('auto-layout-select');
+                if (select) {
+                    select.value = 'radial';
+                    select.dispatchEvent(new Event('change'));
+                    return '🎯 Radial layout applied! Nodes arranged in a circle.';
+                }
+                return '❌ Switch to Canvas view first.';
+            },
 
             // Selection helpers
             'select_all': () => {
@@ -69716,7 +69735,15 @@ GLOBAL (work anytime):
 • view_calendar - Switch to Calendar view
 • toggle_view - Cycle through all 5 views
 
-CANVAS VIEW COMMANDS (Build 600):
+CANVAS VIEW COMMANDS (Build 606):
+Layout Commands (5 layouts for arranging nodes spatially):
+• layout_hierarchical - Tree-like top-down arrangement (phases → items → subitems)
+• layout_timeline - Left-to-right chronological arrangement
+• layout_force - Clustered physics-based layout (related nodes group together)
+• layout_grid - Clean 4-column grid arrangement
+• layout_radial - Circular arrangement around center
+
+Phase & Focus Controls:
 • filter_phases - List all phases and their visibility status
 • show_phase:{name} - Show a phase in canvas view
 • hide_phase:{name} - Hide a phase from canvas view
@@ -69725,8 +69752,11 @@ CANVAS VIEW COMMANDS (Build 600):
 • focus_hyperedge:{name} - Enter hyperedge focus mode (show only connected nodes)
 • exit_focus - Exit hyperedge focus mode, return to full canvas
 • list_hyperedges - List all hyperedges with their member counts
+
+Camera Controls:
 • focus_camera:{node name} - Center the canvas camera on a specific node
 • zoom_fit - Zoom canvas to fit all visible nodes
+• zoom_in / zoom_out - Adjust zoom level
 • reset_camera - Reset canvas camera to default position
 
 SCREEN AWARENESS (Build 564+ - requires Chrome Extension + MCP Bridge):
@@ -70335,8 +70365,10 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
             // Layout commands
             if (lower.includes('hierarchical') || lower.includes('hierarchy')) return { type: 'action', message: '🌳 Hierarchical layout!', action: 'layout_hierarchical' };
-            if (lower.includes('timeline')) return { type: 'action', message: '📅 Timeline layout!', action: 'layout_timeline' };
+            if (lower.includes('timeline') && !lower.includes('gantt')) return { type: 'action', message: '📅 Timeline layout!', action: 'layout_timeline' };
             if (lower.includes('force') || lower.includes('cluster')) return { type: 'action', message: '🌀 Force layout!', action: 'layout_force' };
+            if (lower.includes('grid') && lower.includes('layout')) return { type: 'action', message: '📊 Grid layout!', action: 'layout_grid' };
+            if (lower.includes('radial') || lower.includes('circular') || lower.includes('circle layout')) return { type: 'action', message: '🎯 Radial layout!', action: 'layout_radial' };
 
             // File operations
             if (lower.includes('import excel')) return { type: 'action', message: '📊 Opening Excel import!', action: 'import_excel' };
@@ -73958,7 +73990,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 605; // Update this with each build
+                    const KNOWN_LATEST = 606; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
