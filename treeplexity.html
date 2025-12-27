@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.49.0 | Build 608 | 2025-12-27
+    TreeListy v2.50.0 | Build 609 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 609): SMART JSON NORMALIZATION - Auto-fix imported trees (subItems->items, expanded flags, missing IDs)
     Changelog (Build 608): Fix Canvas View subItems bug - phases using subItems array now render correctly
     Changelog (Build 607): TB ALWAYS KNOWS COMMANDS - core persona includes essential commands, never says "I can't"
     Changelog (Build 606): TB Canvas Layout Commands - layout_grid, layout_radial + full layout docs for TreeBeard
@@ -813,8 +814,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.49.0',
-            build: 608,
+            major: '2.50.0',
+            build: 609,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -25640,6 +25641,164 @@ function migrateTree(tree) {
 }
 
 // ============================================================================
+// SMART JSON NORMALIZATION (Build 609)
+// Converts any tree-like JSON into TreeListy's canonical schema
+// ============================================================================
+
+/**
+ * Normalize any tree-like JSON to TreeListy's canonical schema.
+ * Called automatically on import, before migrateTree().
+ * @param {object} tree - The raw parsed JSON tree
+ * @returns {object} Result with { tree: normalizedTree, fixes: string[] }
+ */
+function normalizeTreeStructure(tree) {
+    if (!tree || typeof tree !== 'object') {
+        return { tree: { id: 'root', type: 'root', name: 'New Tree', expanded: true, children: [], hyperedges: [] }, fixes: ['created empty tree'] };
+    }
+
+    const fixes = [];
+    const normalized = JSON.parse(JSON.stringify(tree));
+
+    normalizeRootNode(normalized, fixes);
+    normalizeChildrenRecursive(normalized, 0, fixes);
+    ensureRequiredArrays(normalized, fixes);
+
+    return { tree: normalized, fixes };
+}
+
+function normalizeRootNode(node, fixes) {
+    // ID normalization
+    if (!node.id) {
+        node.id = 'root';
+        fixes.push('missing root ID');
+    }
+
+    // Type normalization
+    if (!node.type) {
+        node.type = 'root';
+        fixes.push('missing types');
+    }
+
+    // Name from title fallback
+    if (!node.name && node.title) {
+        node.name = node.title;
+        delete node.title;
+        fixes.push('title->name');
+    }
+
+    // Expanded state
+    if (node.expanded !== true) {
+        node.expanded = true;
+        fixes.push('root expanded');
+    }
+
+    // Pattern normalization - string to object
+    if (node.pattern && typeof node.pattern === 'string') {
+        node.pattern = { key: node.pattern };
+        fixes.push('pattern->object');
+    }
+
+    // Normalize child array at root level
+    normalizeChildArrayForDepth(node, 0, fixes);
+}
+
+function normalizeChildArrayForDepth(node, depth, fixes) {
+    if (depth === 0) {
+        // Root: canonical property is 'children'
+        if (!node.children) {
+            node.children = node.items || node.subItems || node.subtasks || [];
+            if (node.items) { delete node.items; fixes.push('items->children'); }
+            if (node.subItems) { delete node.subItems; fixes.push('subItems->children'); }
+            if (node.subtasks) { delete node.subtasks; fixes.push('subtasks->children'); }
+        }
+    } else if (depth === 1) {
+        // Phase: canonical property is 'items'
+        if (!node.items) {
+            node.items = node.children || node.subItems || node.subtasks || [];
+            if (node.children) { delete node.children; fixes.push('children->items'); }
+            if (node.subItems) { delete node.subItems; fixes.push('subItems->items'); }
+            if (node.subtasks) { delete node.subtasks; fixes.push('subtasks->items'); }
+        }
+    } else if (depth === 2) {
+        // Item: canonical property is 'subtasks'
+        if (!node.subtasks) {
+            node.subtasks = node.children || node.items || node.subItems || [];
+            if (node.children) delete node.children;
+            if (node.items) delete node.items;
+            if (node.subItems) delete node.subItems;
+        }
+    }
+}
+
+function normalizeChildrenRecursive(node, depth, fixes) {
+    const children = depth === 0 ? (node.children || [])
+                   : depth === 1 ? (node.items || [])
+                   : (node.subtasks || []);
+
+    children.forEach(child => {
+        // ID normalization
+        if (!child.id) {
+            child.id = generateNormalizationId(getTypeForDepth(depth + 1));
+            fixes.push('missing IDs');
+        }
+
+        // Type normalization
+        if (!child.type) {
+            child.type = getTypeForDepth(depth + 1);
+            fixes.push('missing types');
+        }
+
+        // Name from title
+        if (!child.name && child.title) {
+            child.name = child.title;
+            delete child.title;
+            fixes.push('title->name');
+        }
+
+        // Expanded state for phases and items (not subtasks)
+        if (depth < 2 && child.expanded !== true) {
+            child.expanded = true;
+            fixes.push('expanded flags');
+        }
+
+        // showInCanvas for phases only
+        if (depth === 0 && child.showInCanvas !== true) {
+            child.showInCanvas = true;
+            fixes.push('showInCanvas flags');
+        }
+
+        // Normalize this node's child array
+        normalizeChildArrayForDepth(child, depth + 1, fixes);
+
+        // Recurse into children (max depth 4)
+        if (depth < 3) {
+            normalizeChildrenRecursive(child, depth + 1, fixes);
+        }
+    });
+}
+
+function getTypeForDepth(depth) {
+    return ['root', 'phase', 'item', 'subtask'][depth] || 'subtask';
+}
+
+function generateNormalizationId(prefix) {
+    const bytes = new Uint8Array(4);
+    crypto.getRandomValues(bytes);
+    return `${prefix}_${Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')}`;
+}
+
+function ensureRequiredArrays(tree, fixes) {
+    if (!tree.hyperedges) {
+        tree.hyperedges = [];
+        fixes.push('hyperedges array');
+    }
+    if (!tree.children) {
+        tree.children = [];
+        fixes.push('children array');
+    }
+}
+
+// ============================================================================
 // FILE SYSTEM ICON MAPPING
 // ============================================================================
 
@@ -33491,7 +33650,10 @@ Return ONLY the JSON array.`
                 const reader = new FileReader();
                 reader.onload = (event) => {
                     try {
-                        const data = JSON.parse(event.target.result);
+                        const rawData = JSON.parse(event.target.result);
+
+                        // Build 609: Smart JSON Normalization - fix structure before migration
+                        const { tree: data, fixes } = normalizeTreeStructure(rawData);
 
                         // Migrate tree to current schema (Cognitive Citadel Foundation)
                         migrateTree(data);
@@ -33535,7 +33697,15 @@ Return ONLY the JSON array.`
 
                             // No conflict - proceed with loading
                             loadTreeData(data);
-                            showToast(`Loaded: ${data.name || 'Tree'}`, 'success');
+
+                            // Build 609: Show normalization summary if fixes were made
+                            const uniqueFixes = [...new Set(fixes)];
+                            if (uniqueFixes.length > 0) {
+                                const summary = uniqueFixes.slice(0, 3).join(', ') + (uniqueFixes.length > 3 ? '...' : '');
+                                showToast(`Loaded: ${data.name || 'Tree'} (Fixed ${uniqueFixes.length}: ${summary})`, 'success');
+                            } else {
+                                showToast(`Loaded: ${data.name || 'Tree'}`, 'success');
+                            }
                         } else {
                             alert('Invalid JSON structure. Must have "id" and "children" properties.');
                         }
@@ -74007,7 +74177,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 608; // Update this with each build
+                    const KNOWN_LATEST = 609; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
