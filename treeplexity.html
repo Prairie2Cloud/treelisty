@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.64.0 | Build 626 | 2025-12-28
+    TreeListy v2.65.0 | Build 627 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 627): TREEMAP COLOR PALETTES - 5 sophisticated palettes (Obsidian Ember, Arctic Meridian, Terracotta Dusk, Nebula Drift, Coastal Chalk) with light/dark variants
     Changelog (Build 626): MERGED INBOX BUTTON - Removed duplicate Inbox button; Work Status now serves as unified inbox entry point
     Changelog (Build 625): HEADER UPDATE CHECK - Subtle 🔄 button next to version display to check for updates
     Changelog (Build 624): TREEMAP VIEW - Squarified treemap visualization with drill-down navigation, hover tooltips, breadcrumbs, and size metrics toggle
@@ -828,8 +829,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.64.0',
-            build: 626,
+            major: '2.65.0',
+            build: 627,
             date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -77360,7 +77361,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 626; // Update this with each build
+                    const KNOWN_LATEST = 627; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -78953,6 +78954,15 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         <option value="value" style="background: #1a1a2e; color: #ffffff;">Size by Value</option>
     </select>
     <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
+    <!-- BUILD 627: Palette selector -->
+    <select id="treemap-palette-select" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;" title="Color palette">
+        <option value="obsidian-ember" style="background: #1a1a2e; color: #ffffff;">🔥 Obsidian Ember</option>
+        <option value="arctic-meridian" style="background: #1a1a2e; color: #ffffff;">❄️ Arctic Meridian</option>
+        <option value="terracotta-dusk" style="background: #1a1a2e; color: #ffffff;">🏜️ Terracotta Dusk</option>
+        <option value="nebula-drift" style="background: #1a1a2e; color: #ffffff;">🌌 Nebula Drift</option>
+        <option value="coastal-chalk" style="background: #1a1a2e; color: #ffffff;">🌊 Coastal Chalk</option>
+    </select>
+    <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
     <button id="treemap-back-btn" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
         ← Back
     </button>
@@ -80316,17 +80326,156 @@ console.log('📊 Frappe Gantt loaded');
     let treemapHoveredRect = null;
     let treemapBreadcrumbs = []; // Navigation stack
 
-    // Color palette - modern, aesthetically pleasing with good distinction
-    const TREEMAP_COLORS = [
-        'rgba(99, 102, 241, 0.85)',  // Indigo (primary brand)
-        'rgba(34, 197, 94, 0.8)',    // Emerald
-        'rgba(168, 85, 247, 0.8)',   // Violet
-        'rgba(14, 165, 233, 0.8)',   // Sky Blue
-        'rgba(249, 115, 22, 0.8)',   // Orange
-        'rgba(236, 72, 153, 0.75)',  // Pink
-        'rgba(20, 184, 166, 0.8)',   // Teal
-        'rgba(234, 179, 8, 0.75)',   // Amber
-    ];
+    // BUILD 627: Sophisticated color palette system for treemap
+    // 5 original palettes with light/dark variants, designed for accessibility and beauty
+    const TREEMAP_PALETTES = {
+        'obsidian-ember': {
+            name: 'Obsidian Ember',
+            inspiration: 'Volcanic glass cooling from molten core to crystalline surface',
+            useCase: 'Priority trees, sales pipelines, deadline-driven projects',
+            light: {
+                background: '#FAF8F6',
+                nodes: ['#9D2A0C', '#B83B1D', '#D45033', '#E8724D', '#F49272', '#FCAE97', '#FDC9B8', '#FEE4DA'],
+                connectors: '#C9B8A8',
+                text: { primary: '#2D2622', secondary: '#5C524A', muted: '#9A8F86' },
+                states: { hover: '#FFF5F0', selected: '#1D6EC1', disabled: '#D9D4CF', error: '#7D1A1A' }
+            },
+            dark: {
+                background: '#1A1614',
+                nodes: ['#FEE4DA', '#FDC9B8', '#FCAE97', '#F49272', '#E8724D', '#D45033', '#B83B1D', '#9D2A0C'],
+                connectors: '#5C4A3D',
+                text: { primary: '#F5F0EB', secondary: '#C9BFB5', muted: '#8A7F74' },
+                states: { hover: '#2E2520', selected: '#4DA3FF', disabled: '#3D3632', error: '#FF6B6B' }
+            }
+        },
+        'arctic-meridian': {
+            name: 'Arctic Meridian',
+            inspiration: 'Northern ice shelf gradients from deep glacial blue to surface frost',
+            useCase: 'Org charts, permission hierarchies, enterprise documentation',
+            light: {
+                background: '#F6F9FB',
+                nodes: ['#0A4B6E', '#0E6593', '#1A7FB3', '#3498CC', '#58AED8', '#82C4E3', '#ACD9EE', '#D6EEF7'],
+                connectors: '#A8BCC7',
+                text: { primary: '#1A2C38', secondary: '#3D5567', muted: '#7A95A8' },
+                states: { hover: '#E8F4F8', selected: '#E8A838', disabled: '#D4DCE0', error: '#C44536' }
+            },
+            dark: {
+                background: '#0E1A20',
+                nodes: ['#D6EEF7', '#ACD9EE', '#82C4E3', '#58AED8', '#3498CC', '#1A7FB3', '#0E6593', '#0A4B6E'],
+                connectors: '#2D5468',
+                text: { primary: '#E8F1F5', secondary: '#A8C5D4', muted: '#5D8799' },
+                states: { hover: '#16282F', selected: '#FFB84D', disabled: '#263640', error: '#E86A5A' }
+            }
+        },
+        'terracotta-dusk': {
+            name: 'Terracotta Dusk',
+            inspiration: 'Adobe village at golden hour - warm clay to purple twilight',
+            useCase: 'Creative projects, content hierarchies, portfolio structures',
+            light: {
+                background: '#FBF8F5',
+                nodes: ['#7A4B3A', '#946151', '#AA7869', '#C09485', '#C9A096', '#D4AFA4', '#E0C4B8', '#EDD9D1'],
+                connectors: '#CCBDB4',
+                text: { primary: '#3D2D27', secondary: '#6B5750', muted: '#A39690' },
+                states: { hover: '#FFF6F0', selected: '#5B7F95', disabled: '#DDD8D4', error: '#A63D40' }
+            },
+            dark: {
+                background: '#1F1815',
+                nodes: ['#EDD9D1', '#E0C4B8', '#D4AFA4', '#C9A096', '#C09485', '#AA7869', '#946151', '#7A4B3A'],
+                connectors: '#5A4A42',
+                text: { primary: '#F2E8E3', secondary: '#C7B5AB', muted: '#8A776C' },
+                states: { hover: '#2E2420', selected: '#7AB5D3', disabled: '#3A302B', error: '#D66B6E' }
+            }
+        },
+        'nebula-drift': {
+            name: 'Nebula Drift',
+            inspiration: 'Interstellar gas clouds - violet depths to magenta luminescence',
+            useCase: 'Mind maps, brainstorming trees, creative ideation',
+            light: {
+                background: '#FAF8FC',
+                nodes: ['#4A1F6D', '#5E2D82', '#743F98', '#8B5AAE', '#A37BC3', '#BA9DD5', '#D1BFE5', '#E8E0F3'],
+                connectors: '#C4B5D1',
+                text: { primary: '#2A1E38', secondary: '#564768', muted: '#9485A8' },
+                states: { hover: '#F5F0FA', selected: '#2AAA8A', disabled: '#DAD5E0', error: '#C1374A' }
+            },
+            dark: {
+                background: '#13101A',
+                nodes: ['#E8E0F3', '#D1BFE5', '#BA9DD5', '#A37BC3', '#8B5AAE', '#743F98', '#5E2D82', '#4A1F6D'],
+                connectors: '#4D3B65',
+                text: { primary: '#EDE8F5', secondary: '#B8A8CC', muted: '#7A6894' },
+                states: { hover: '#1E1928', selected: '#3DDBB0', disabled: '#2A243A', error: '#E8606F' }
+            }
+        },
+        'coastal-chalk': {
+            name: 'Coastal Chalk',
+            inspiration: 'Dover cliffs meeting grey-green sea - muted, serene, mineral quietude',
+            useCase: 'Research trees, academic taxonomies, knowledge bases',
+            light: {
+                background: '#F9FAFA',
+                nodes: ['#4A6D70', '#5C7F82', '#6E9194', '#84A4A6', '#9BB6B8', '#B3C7C9', '#CAD8DA', '#E2EAEB'],
+                connectors: '#B8C5C7',
+                text: { primary: '#2B3E40', secondary: '#4E6366', muted: '#8A9C9E' },
+                states: { hover: '#EDF3F4', selected: '#C68B4E', disabled: '#D8DDDE', error: '#B54A4A' }
+            },
+            dark: {
+                background: '#141B1C',
+                nodes: ['#E2EAEB', '#CAD8DA', '#B3C7C9', '#9BB6B8', '#84A4A6', '#6E9194', '#5C7F82', '#4A6D70'],
+                connectors: '#3F5658',
+                text: { primary: '#E6ECEC', secondary: '#A8B8BA', muted: '#6A8082' },
+                states: { hover: '#1C2728', selected: '#E5A663', disabled: '#2A3638', error: '#D46C6C' }
+            }
+        }
+    };
+
+    // Current palette preference (persisted in localStorage)
+    let treemapPalette = localStorage.getItem('treemapPalette') || 'nebula-drift';
+
+    // Detect if user prefers dark mode
+    function isTreemapDarkMode() {
+        // Check CSS variable or media query
+        const rootStyle = getComputedStyle(document.documentElement);
+        const bgColor = rootStyle.getPropertyValue('--bg').trim();
+        // Simple heuristic: if background is dark, use dark palette
+        if (bgColor) {
+            const hex = bgColor.replace('#', '');
+            if (hex.length === 6) {
+                const r = parseInt(hex.substr(0, 2), 16);
+                const g = parseInt(hex.substr(2, 2), 16);
+                const b = parseInt(hex.substr(4, 2), 16);
+                const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255;
+                return luminance < 0.5;
+            }
+        }
+        return window.matchMedia('(prefers-color-scheme: dark)').matches;
+    }
+
+    // Get current palette colors
+    function getTreemapColors() {
+        const palette = TREEMAP_PALETTES[treemapPalette] || TREEMAP_PALETTES['nebula-drift'];
+        const theme = isTreemapDarkMode() ? 'dark' : 'light';
+        return palette[theme];
+    }
+
+    // Get node color by index
+    function getTreemapNodeColor(index, opacity = 0.85) {
+        const colors = getTreemapColors();
+        const hex = colors.nodes[index % colors.nodes.length];
+        // Convert hex to rgba
+        const r = parseInt(hex.substr(1, 2), 16);
+        const g = parseInt(hex.substr(3, 2), 16);
+        const b = parseInt(hex.substr(5, 2), 16);
+        return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+    }
+
+    // Legacy reference for backward compatibility
+    const TREEMAP_COLORS = (() => {
+        const colors = getTreemapColors();
+        return colors.nodes.map(hex => {
+            const r = parseInt(hex.substr(1, 2), 16);
+            const g = parseInt(hex.substr(3, 2), 16);
+            const b = parseInt(hex.substr(5, 2), 16);
+            return `rgba(${r}, ${g}, ${b}, 0.85)`;
+        });
+    })();
 
     /**
      * Squarified Treemap Algorithm (Bruls, Huizing, van Wijk 2000)
@@ -80378,7 +80527,7 @@ console.log('📊 Frappe Gantt loaded');
                         h: nodeH,
                         depth,
                         colorIndex: item.originalIndex,
-                        color: TREEMAP_COLORS[item.originalIndex % TREEMAP_COLORS.length]
+                        color: getTreemapNodeColor(item.originalIndex)
                     });
 
                     offsetY += nodeH;
@@ -80403,7 +80552,7 @@ console.log('📊 Frappe Gantt loaded');
                         h: stripH,
                         depth,
                         colorIndex: item.originalIndex,
-                        color: TREEMAP_COLORS[item.originalIndex % TREEMAP_COLORS.length]
+                        color: getTreemapNodeColor(item.originalIndex)
                     });
 
                     offsetX += nodeW;
@@ -80901,6 +81050,21 @@ console.log('📊 Frappe Gantt loaded');
                 treemapSizeMetric = e.target.value;
                 renderTreemap();
                 showToast(`📊 Size metric: ${treemapSizeMetric}`, 'info');
+            });
+        }
+
+        // BUILD 627: Palette selector
+        const paletteSelect = document.getElementById('treemap-palette-select');
+        if (paletteSelect) {
+            // Set initial value from localStorage
+            paletteSelect.value = treemapPalette;
+
+            paletteSelect.addEventListener('change', (e) => {
+                treemapPalette = e.target.value;
+                localStorage.setItem('treemapPalette', treemapPalette);
+                const palette = TREEMAP_PALETTES[treemapPalette];
+                renderTreemap();
+                showToast(`🎨 ${palette.name}: ${palette.useCase}`, 'info', 3000);
             });
         }
 
