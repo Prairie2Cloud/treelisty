@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
 **Date:** 2025-12-27
-**Current Build:** 620
+**Current Build:** 621
 **Status:** Living Document
-**Last Updated:** 2025-12-27 (Major update - Builds 610-620 shipped)
+**Last Updated:** 2025-12-27 (Builds 610-621 shipped)
 
 ---
 
@@ -34,12 +34,13 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Recent Shipping Sprint (Builds 610-620)
+## Recent Shipping Sprint (Builds 610-621)
 
 *Massive progress from December 27, 2025*
 
 | Build | Feature | Status |
 |-------|---------|--------|
+| 621 | Image Spatial Commands - nearby/region/containing | **SHIPPED** |
 | 620 | Sub-Agent Architecture - Trigger detection and dispatch | **SHIPPED** |
 | 619 | Image Pattern Recognition - Gemini detects content type | **SHIPPED** |
 | 618 | Gmail Label Management UI | **SHIPPED** |
@@ -84,48 +85,35 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-### 2. Image Analysis Spatial Commands (Build 622)
-**Status:** READY - Pattern recognition shipped
+### 2. ~~Image Analysis Spatial Commands~~ → SHIPPED
+**Status:** SHIPPED (Build 621)
 **File:** `2025-12-24-image-analysis-pattern-design.md`
-**Effort:** Medium (3-5 days)
-**Value:** Medium - Enhances image tree manipulation
 
-**What:**
-- Spatial TreeBeard commands when `_imageAnalysis` metadata exists
-- `nearby [node]` - returns spatially proximate nodes by bbox
-- `region top-left|center|bottom-right` - lists objects in quadrant
-- `containing [node]` - finds parent objects by bbox containment
+**Implemented:**
+- ✅ `nearby [threshold]` - returns spatially proximate nodes by bbox distance
+- ✅ `region [quadrant]` - lists objects in image quadrant (top-left, center, bottom-right, etc.)
+- ✅ `containing` - finds parent objects that contain focused node by bbox
+- ✅ Helper functions: `_bbox_distance`, `_bbox_contains`, `_bbox_in_region`
+- ✅ Aliases: `near`, `objects_near`, `in_region`, `quadrant`, `contains`, `parent_objects`
 
 **Acceptance Tests:**
-- [ ] `nearby [node]` returns nodes within 100px
-- [ ] `region top-left` lists objects in that quadrant
-- [ ] Spatial commands only available for image-analyzed trees
-
-**Dependencies:** Image Pattern Recognition (SHIPPED Build 619)
-**Blocks:** Nothing critical
+- [x] `nearby 0.15` returns nodes within distance threshold
+- [x] `region top-left` lists objects in that quadrant
+- [x] Spatial commands only available for image-analyzed trees
 
 ---
 
-### 3. Gmail Bidirectional Actions UI (Build 623)
-**Status:** READY - MCP tools exist, need UI
+### 3. ~~Gmail Bidirectional Actions UI~~ → SHIPPED
+**Status:** SHIPPED (Build 550-551, enhanced Build 618)
 **File:** `2025-12-22-gmail-bidirectional-sync-design.md`
-**Effort:** Medium (3-5 days)
-**Value:** High - Completes email workflow
 
-**What:**
-- Context menu actions on email nodes: Archive, Trash, Star, Label
-- Draft creation modal with reply threading
-- Visual sync status indicators
+**Already implemented:**
+- ✅ Archive/Trash/Star/Mark Read buttons in info panel
+- ✅ Label management UI (Build 618)
+- ✅ Quick Reply box with Expand to compose modal
+- ✅ Draft auto-save
 
-**Note:** MCP bridge tools already implemented (gmail_archive, gmail_trash, gmail_star, gmail_add_label, gmail_create_draft). This is UI integration only.
-
-**Acceptance Tests:**
-- [ ] Right-click email node → Archive moves to archive
-- [ ] Right-click email node → Create Draft opens modal
-- [ ] Draft saves to Gmail and shows confirmation
-
-**Dependencies:** Gmail Import (SHIPPED), MCP Bridge tools (SHIPPED Build 618)
-**Blocks:** Nothing critical
+**Next unshipped item:** TreeBeard batch commands for Gmail (Phase 3)
 
 ---
 
@@ -252,6 +240,7 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 | Build | Feature | File |
 |-------|---------|------|
+| 621 | Image Spatial Commands | `2025-12-24-image-analysis-pattern-design.md` |
 | 620 | Sub-Agent Architecture | `2025-12-22-sub-agent-architecture-design.md` |
 | 619 | Image Pattern Recognition | `2025-12-24-image-analysis-pattern-design.md` |
 | 618 | Gmail Label Management UI | `2025-12-22-gmail-bidirectional-sync-design.md` |
