@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.66.0 | Build 631 | 2025-12-28
+    TreeListy v2.67.0 | Build 632 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 632): MOBILE KEYBOARD ACCESSORY BAR - Indent/outdent/move controls above keyboard for efficient tree editing on mobile
     Changelog (Build 631): UI THEME EXPANSION - 10 new themes: Obsidian Ember, Arctic Meridian, Terracotta Dusk, Nebula Drift, Coastal Chalk (light + dark variants)
     Changelog (Build 630): TREEMAP INFO PANEL - Click on treemap nodes shows info panel, consistent UX with other views
     Changelog (Build 629): TREEMAP LAYOUT FIX - Toolbar visible with z-index 11000, container accounts for sidebar (left: 60px)
@@ -833,8 +834,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.66.0',
-            build: 631,
+            major: '2.67.0',
+            build: 632,
             date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6510,6 +6511,82 @@
         body.view-3d-active #voice-capture-fab {
             display: none !important;
         }
+    }
+
+    /* =========================================================================
+       MOBILE KEYBOARD ACCESSORY BAR (Build 632)
+       ========================================================================= */
+
+    .keyboard-accessory-bar {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        height: 48px;
+        background: var(--bg-secondary, #2a2a4a);
+        border-top: 1px solid var(--border, #3a3a5a);
+        display: none; /* Hidden by default */
+        flex-direction: row;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 0 16px;
+        z-index: 10001; /* Above modals */
+    }
+
+    /* Show on mobile when keyboard is open */
+    @media (max-width: 768px) {
+        body.keyboard-open .keyboard-accessory-bar {
+            display: flex;
+        }
+    }
+
+    /* Also show on touch devices in landscape */
+    @media (pointer: coarse) and (max-width: 1024px) {
+        body.keyboard-open .keyboard-accessory-bar {
+            display: flex;
+        }
+    }
+
+    .keyboard-accessory-bar button {
+        width: 48px;
+        height: 40px;
+        border: none;
+        background: var(--bg-tertiary, #3a3a6a);
+        border-radius: 8px;
+        color: var(--text-primary, #fff);
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s, transform 0.1s;
+        -webkit-tap-highlight-color: transparent;
+    }
+
+    .keyboard-accessory-bar button:active {
+        background: var(--accent, #6366f1);
+        transform: scale(0.95);
+    }
+
+    .keyboard-accessory-bar button:disabled {
+        opacity: 0.4;
+        pointer-events: none;
+    }
+
+    .keyboard-accessory-bar .kbd-divider {
+        width: 1px;
+        height: 24px;
+        background: var(--border, #3a3a5a);
+        margin: 0 4px;
+    }
+
+    /* AI button special styling */
+    .keyboard-accessory-bar #kbd-ai {
+        background: linear-gradient(135deg, var(--accent, #6366f1), #8b5cf6);
+    }
+
+    .keyboard-accessory-bar #kbd-ai:active {
+        background: linear-gradient(135deg, #8b5cf6, #a78bfa);
     }
 
     /* Voice Capture Section in TreeBeard */
@@ -77675,7 +77752,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 631; // Update this with each build
+                    const KNOWN_LATEST = 632; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -78000,6 +78077,38 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
         🎤
         <span class="fab-badge" style="display: none;">0</span>
     </button>
+
+    <!-- BUILD 632: Mobile Keyboard Accessory Bar -->
+    <div id="keyboard-accessory-bar" class="keyboard-accessory-bar">
+        <button id="kbd-outdent" title="Outdent" aria-label="Outdent node">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 17l-5-5 5-5M18 17V7"/>
+            </svg>
+        </button>
+        <button id="kbd-indent" title="Indent" aria-label="Indent node">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M13 7l5 5-5 5M6 17V7"/>
+            </svg>
+        </button>
+        <div class="kbd-divider"></div>
+        <button id="kbd-move-up" title="Move Up" aria-label="Move node up">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 19V5M5 12l7-7 7 7"/>
+            </svg>
+        </button>
+        <button id="kbd-move-down" title="Move Down" aria-label="Move node down">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12l7 7 7-7"/>
+            </svg>
+        </button>
+        <div class="kbd-divider"></div>
+        <button id="kbd-ai" title="AI Assist" aria-label="AI assist">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="3"/>
+                <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+            </svg>
+        </button>
+    </div>
 
     <!-- Floating Chat Bubble -->
     <button id="chat-assistant-bubble" title="TreeBeard (Ctrl+/)">
@@ -83671,6 +83780,281 @@ console.log('📊 Frappe Gantt loaded');
     window.refresh3DData = refresh3DData;
 
 })(); // End IIFE
+</script>
+
+<!-- ═══════════════════════════════════════════════════════════════
+     BUILD 632: MOBILE KEYBOARD ACCESSORY BAR
+     ═══════════════════════════════════════════════════════════════ -->
+<script>
+(function initKeyboardAccessoryBar() {
+    'use strict';
+
+    const bar = document.getElementById('keyboard-accessory-bar');
+    if (!bar) return;
+
+    // Get currently selected/active node for editing
+    function getActiveNodeForEditing() {
+        // Priority: activeNode from context menu, then focused input's node
+        if (window.activeNode && window.activeNode.id) {
+            return window.activeNode;
+        }
+        // Try to get from focused input element
+        const focused = document.activeElement;
+        if (focused && focused.dataset && focused.dataset.nodeId) {
+            return findNodeById(focused.dataset.nodeId);
+        }
+        return null;
+    }
+
+    // Find node by ID (wrapper for TreeOps method or local search)
+    function findNodeById(nodeId) {
+        if (window.mcpBridge?.treeOps?.findNodeById) {
+            return window.mcpBridge.treeOps.findNodeById(nodeId);
+        }
+        // Fallback: recursive search
+        function search(node) {
+            if (node.id === nodeId) return node;
+            const children = node.children || node.items || node.subtasks || [];
+            for (const child of children) {
+                const found = search(child);
+                if (found) return found;
+            }
+            return null;
+        }
+        return search(capexTree);
+    }
+
+    // Find parent of node
+    function findParentOf(nodeId) {
+        if (window.mcpBridge?.treeOps?.findParentOf) {
+            return window.mcpBridge.treeOps.findParentOf(nodeId);
+        }
+        // Fallback: recursive search
+        function search(node) {
+            const children = node.children || node.items || node.subtasks || [];
+            for (const child of children) {
+                if (child.id === nodeId) return node;
+                const found = search(child);
+                if (found) return found;
+            }
+            return null;
+        }
+        return search(capexTree);
+    }
+
+    // Get siblings array and index
+    function getSiblingsInfo(nodeId) {
+        const parent = findParentOf(nodeId);
+        if (!parent) return null;
+
+        const childKeys = ['children', 'items', 'subtasks'];
+        for (const key of childKeys) {
+            if (parent[key]) {
+                const idx = parent[key].findIndex(c => c.id === nodeId);
+                if (idx >= 0) {
+                    return { parent, siblings: parent[key], index: idx, key };
+                }
+            }
+        }
+        return null;
+    }
+
+    // INDENT: Move node to become child of previous sibling
+    function handleIndent() {
+        const node = getActiveNodeForEditing();
+        if (!node || node.id === 'root' || node.id === capexTree.id) {
+            showToast('Cannot indent: no node selected', 'warning');
+            return;
+        }
+
+        const info = getSiblingsInfo(node.id);
+        if (!info || info.index === 0) {
+            showToast('Cannot indent: no previous sibling', 'warning');
+            return;
+        }
+
+        const newParent = info.siblings[info.index - 1];
+        saveState('Indent node');
+
+        // Remove from current parent
+        info.siblings.splice(info.index, 1);
+
+        // Add to new parent (determine correct child key)
+        const pattern = (capexTree.pattern?.key) || 'generic';
+        const childKey = pattern === 'filesystem' ? 'children' :
+                         newParent.type === 'root' ? 'children' :
+                         newParent.type === 'phase' ? 'items' : 'subtasks';
+
+        if (!newParent[childKey]) newParent[childKey] = [];
+        newParent[childKey].push(node);
+        newParent.expanded = true;
+
+        // Update node type if not filesystem
+        if (pattern !== 'filesystem') {
+            node.type = newParent.type === 'root' ? 'phase' :
+                        newParent.type === 'phase' ? 'item' : 'subtask';
+        }
+
+        render();
+        window.triggerHaptic?.('light');
+        showToast(`Indented: ${node.name}`, 'info');
+    }
+
+    // OUTDENT: Move node to become sibling of parent
+    function handleOutdent() {
+        const node = getActiveNodeForEditing();
+        if (!node || node.id === 'root' || node.id === capexTree.id) {
+            showToast('Cannot outdent: no node selected', 'warning');
+            return;
+        }
+
+        const parent = findParentOf(node.id);
+        if (!parent || parent.id === 'root' || parent.id === capexTree.id) {
+            showToast('Cannot outdent: already at top level', 'warning');
+            return;
+        }
+
+        const grandparent = findParentOf(parent.id);
+        if (!grandparent) {
+            showToast('Cannot outdent: no grandparent', 'warning');
+            return;
+        }
+
+        saveState('Outdent node');
+
+        // Remove from parent
+        const info = getSiblingsInfo(node.id);
+        if (info) info.siblings.splice(info.index, 1);
+
+        // Add to grandparent after parent
+        const gpInfo = getSiblingsInfo(parent.id);
+        if (gpInfo) {
+            gpInfo.siblings.splice(gpInfo.index + 1, 0, node);
+        }
+
+        // Update node type if not filesystem
+        const pattern = (capexTree.pattern?.key) || 'generic';
+        if (pattern !== 'filesystem') {
+            node.type = grandparent.type === 'root' ? 'phase' :
+                        grandparent.type === 'phase' ? 'item' : 'subtask';
+        }
+
+        render();
+        window.triggerHaptic?.('light');
+        showToast(`Outdented: ${node.name}`, 'info');
+    }
+
+    // MOVE UP: Reorder node earlier in siblings
+    function handleMoveUp() {
+        const node = getActiveNodeForEditing();
+        if (!node || node.id === 'root' || node.id === capexTree.id) {
+            showToast('Cannot move: no node selected', 'warning');
+            return;
+        }
+
+        const info = getSiblingsInfo(node.id);
+        if (!info || info.index === 0) {
+            showToast('Cannot move up: already first', 'warning');
+            return;
+        }
+
+        saveState('Move node up');
+        info.siblings.splice(info.index, 1);
+        info.siblings.splice(info.index - 1, 0, node);
+
+        render();
+        window.triggerHaptic?.('light');
+        showToast(`Moved up: ${node.name}`, 'info');
+    }
+
+    // MOVE DOWN: Reorder node later in siblings
+    function handleMoveDown() {
+        const node = getActiveNodeForEditing();
+        if (!node || node.id === 'root' || node.id === capexTree.id) {
+            showToast('Cannot move: no node selected', 'warning');
+            return;
+        }
+
+        const info = getSiblingsInfo(node.id);
+        if (!info || info.index >= info.siblings.length - 1) {
+            showToast('Cannot move down: already last', 'warning');
+            return;
+        }
+
+        saveState('Move node down');
+        info.siblings.splice(info.index, 1);
+        info.siblings.splice(info.index + 1, 0, node);
+
+        render();
+        window.triggerHaptic?.('light');
+        showToast(`Moved down: ${node.name}`, 'info');
+    }
+
+    // AI ASSIST: Open TreeBeard with context
+    function handleAIAssist() {
+        const node = getActiveNodeForEditing();
+        window.triggerHaptic?.('medium');
+
+        // Hide keyboard first
+        window.hideKeyboard?.();
+
+        // Open TreeBeard panel
+        if (typeof toggleTreebeardChat === 'function') {
+            const panel = document.getElementById('treebeard-panel');
+            if (!panel || !panel.classList.contains('open')) {
+                toggleTreebeardChat();
+            }
+            // Pre-fill with context if node selected
+            if (node) {
+                setTimeout(() => {
+                    const input = document.getElementById('treebeard-input');
+                    if (input) {
+                        input.value = `Help me with "${node.name}": `;
+                        input.focus();
+                    }
+                }, 300);
+            }
+        }
+    }
+
+    // Attach event listeners
+    document.getElementById('kbd-indent')?.addEventListener('click', handleIndent);
+    document.getElementById('kbd-outdent')?.addEventListener('click', handleOutdent);
+    document.getElementById('kbd-move-up')?.addEventListener('click', handleMoveUp);
+    document.getElementById('kbd-move-down')?.addEventListener('click', handleMoveDown);
+    document.getElementById('kbd-ai')?.addEventListener('click', handleAIAssist);
+
+    // Update button states based on selected node
+    function updateButtonStates() {
+        const node = getActiveNodeForEditing();
+        const indentBtn = document.getElementById('kbd-indent');
+        const outdentBtn = document.getElementById('kbd-outdent');
+        const moveUpBtn = document.getElementById('kbd-move-up');
+        const moveDownBtn = document.getElementById('kbd-move-down');
+
+        if (!node || node.id === 'root' || node.id === capexTree.id) {
+            indentBtn && (indentBtn.disabled = true);
+            outdentBtn && (outdentBtn.disabled = true);
+            moveUpBtn && (moveUpBtn.disabled = true);
+            moveDownBtn && (moveDownBtn.disabled = true);
+            return;
+        }
+
+        const info = getSiblingsInfo(node.id);
+        const parent = findParentOf(node.id);
+
+        indentBtn && (indentBtn.disabled = !info || info.index === 0);
+        outdentBtn && (outdentBtn.disabled = !parent || parent.id === 'root' || parent.id === capexTree.id);
+        moveUpBtn && (moveUpBtn.disabled = !info || info.index === 0);
+        moveDownBtn && (moveDownBtn.disabled = !info || info.index >= info.siblings.length - 1);
+    }
+
+    // Listen for node selection changes
+    document.addEventListener('nodeSelected', updateButtonStates);
+    document.addEventListener('click', () => setTimeout(updateButtonStates, 100));
+
+    console.log('[Build 632] Keyboard accessory bar initialized');
+})();
 </script>
 
 </body>
