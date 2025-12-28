@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.62.0 | Build 623 | 2025-12-28
+    TreeListy v2.63.0 | Build 624 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 624): TREEMAP VIEW - Squarified treemap visualization with drill-down navigation, hover tooltips, breadcrumbs, and size metrics toggle
     Changelog (Build 623): ATLAS PHASE 1 - Cross-tree references: TreeRegistry, hyperedge nodeIds support treeId:nodeGuid, list_trees/search_trees/link_cross_tree commands
     Changelog (Build 622): SUB-AGENT PHASE 2 - Result integration: enrichments injected into TreeBeard context, collapsible insight UI, validation updates tree nodes, auto-retry
     Changelog (Build 621): IMAGE SPATIAL COMMANDS - nearby/region/containing commands for bbox-based queries on image-analyzed trees
@@ -825,8 +826,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.62.0',
-            build: 623,
+            major: '2.63.0',
+            build: 624,
             date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -7021,6 +7022,11 @@
                             <span class="item-label">Calendar</span>
                             <span class="item-shortcut" id="calendar-check" style="opacity: 0;">✓</span>
                         </button>
+                        <button class="dropdown-menu-item" role="menuitem" id="view-treemap-btn" data-view="treemap">
+                            <span class="item-icon">🗺️</span>
+                            <span class="item-label">Treemap</span>
+                            <span class="item-shortcut" id="treemap-check" style="opacity: 0;">✓</span>
+                        </button>
                         <div class="dropdown-menu-divider"></div>
                         <button class="dropdown-menu-item" role="menuitem" id="export-canvas-btn" style="display: none;">
                             <span class="item-icon">📷</span>
@@ -11295,8 +11301,8 @@ Do not ask permission—just provide the critique, then help.
 
         // BUILD 333: View Selector Dropdown - handles view switching
         document.addEventListener('DOMContentLoaded', () => {
-            const viewIcons = { tree: '🌲', canvas: '🎨', '3d': '🧊', gantt: '📊', calendar: '📅' };
-            const viewLabels = { tree: 'Tree', canvas: 'Canvas', '3d': '3D', gantt: 'Gantt', calendar: 'Calendar' };
+            const viewIcons = { tree: '🌲', canvas: '🎨', '3d': '🧊', gantt: '📊', calendar: '📅', treemap: '🗺️' };
+            const viewLabels = { tree: 'Tree', canvas: 'Canvas', '3d': '3D', gantt: 'Gantt', calendar: 'Calendar', treemap: 'Treemap' };
 
             function updateViewDropdown(newView) {
                 // Update trigger button to show current state
@@ -11311,6 +11317,7 @@ Do not ask permission—just provide the critique, then help.
                 document.getElementById('3d-check').style.opacity = newView === '3d' ? '1' : '0';
                 document.getElementById('gantt-check').style.opacity = newView === 'gantt' ? '1' : '0';
                 document.getElementById('calendar-check').style.opacity = newView === 'calendar' ? '1' : '0';
+                document.getElementById('treemap-check').style.opacity = newView === 'treemap' ? '1' : '0';
 
                 // Show/hide export option based on view
                 const exportBtn = document.getElementById('export-canvas-btn');
@@ -11341,6 +11348,16 @@ Do not ask permission—just provide the critique, then help.
                 return false;
             }
 
+            // BUILD 624: Helper: Close Treemap view if active
+            function closeTreemapViewIfActive() {
+                const viewTreemap = document.getElementById('view-treemap');
+                if (viewTreemap && viewTreemap.classList.contains('active')) {
+                    viewTreemap.classList.remove('active');
+                    return true;  // Was in Treemap view
+                }
+                return false;
+            }
+
             // Tree View button
             document.getElementById('view-tree-btn')?.addEventListener('click', () => {
                 if (typeof viewMode !== 'undefined' && viewMode !== 'tree') {
@@ -11354,6 +11371,13 @@ Do not ask permission—just provide the critique, then help.
                     } else if (viewMode === 'calendar') {
                         // BUILD 494: Close Calendar view
                         closeCalendarViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                        render();
+                    } else if (viewMode === 'treemap') {
+                        // BUILD 624: Close Treemap view
+                        closeTreemapViewIfActive();
                         const treeView = document.querySelector('.tree-view-container');
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
@@ -11382,6 +11406,13 @@ Do not ask permission—just provide the critique, then help.
                     } else if (viewMode === 'calendar') {
                         // BUILD 494: Close Calendar view then switch to canvas
                         closeCalendarViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                        if (typeof toggleViewMode === 'function') toggleViewMode();
+                    } else if (viewMode === 'treemap') {
+                        // BUILD 624: Close Treemap view then switch to canvas
+                        closeTreemapViewIfActive();
                         const treeView = document.querySelector('.tree-view-container');
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
@@ -11417,6 +11448,13 @@ Do not ask permission—just provide the critique, then help.
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
                     }
+                    // BUILD 624: Close Treemap view if active
+                    if (viewMode === 'treemap') {
+                        closeTreemapViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                    }
                     // Call function directly (button may be hidden on mobile)
                     if (typeof toggle3DView === 'function') toggle3DView();
                 }
@@ -11429,6 +11467,13 @@ Do not ask permission—just provide the critique, then help.
                     // BUILD 494: Close Calendar view if active
                     if (viewMode === 'calendar') {
                         closeCalendarViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                    }
+                    // BUILD 624: Close Treemap view if active
+                    if (viewMode === 'treemap') {
+                        closeTreemapViewIfActive();
                         const treeView = document.querySelector('.tree-view-container');
                         if (treeView) treeView.classList.remove('hidden');
                         viewMode = 'tree';
@@ -11446,6 +11491,13 @@ Do not ask permission—just provide the critique, then help.
             // BUILD 494: Calendar View button
             document.getElementById('view-calendar-btn')?.addEventListener('click', () => {
                 if (typeof viewMode !== 'undefined' && viewMode !== 'calendar') {
+                    // BUILD 624: Close Treemap view if active
+                    if (viewMode === 'treemap') {
+                        closeTreemapViewIfActive();
+                        const treeView = document.querySelector('.tree-view-container');
+                        if (treeView) treeView.classList.remove('hidden');
+                        viewMode = 'tree';
+                    }
                     if (typeof toggleCalendarView === 'function') {
                         toggleCalendarView();
                     } else {
@@ -11454,6 +11506,19 @@ Do not ask permission—just provide the critique, then help.
                     }
                 }
                 updateViewDropdown('calendar');
+            });
+
+            // BUILD 624: Treemap View button
+            document.getElementById('view-treemap-btn')?.addEventListener('click', () => {
+                if (typeof viewMode !== 'undefined' && viewMode !== 'treemap') {
+                    if (typeof toggleTreemapView === 'function') {
+                        toggleTreemapView();
+                    } else {
+                        console.warn('Treemap view not yet implemented');
+                        showToast('Treemap view coming soon!', 'info');
+                    }
+                }
+                updateViewDropdown('treemap');
             });
 
             // Expose update function globally so existing view toggle code can call it
@@ -77280,7 +77345,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 623; // Update this with each build
+                    const KNOWN_LATEST = 624; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -78682,6 +78747,214 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
     </div>
 </div>
 
+<!-- BUILD 624: Treemap View Container -->
+<style>
+    #view-treemap {
+        display: none;
+        position: fixed;
+        top: 60px;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: var(--bg-primary);
+        z-index: 100;
+        overflow: hidden;
+    }
+
+    #view-treemap.active {
+        display: block;
+    }
+
+    /* Treemap Toolbar */
+    #treemap-toolbar {
+        display: none;
+        position: fixed;
+        top: 60px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 105;
+        background: rgba(26, 26, 46, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        border-radius: 12px;
+        padding: 8px 16px;
+        gap: 12px;
+        align-items: center;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
+    }
+
+    #treemap-toolbar.active {
+        display: flex;
+    }
+
+    /* Treemap Canvas */
+    #treemap-canvas {
+        width: 100%;
+        height: 100%;
+        display: block;
+    }
+
+    /* Treemap Breadcrumbs */
+    #treemap-breadcrumbs {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+        display: flex;
+        gap: 8px;
+        align-items: center;
+        background: rgba(26, 26, 46, 0.9);
+        backdrop-filter: blur(8px);
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        z-index: 102;
+        font-size: 14px;
+    }
+
+    .treemap-breadcrumb {
+        color: var(--text-secondary);
+        cursor: pointer;
+        transition: color 0.2s;
+    }
+
+    .treemap-breadcrumb:hover {
+        color: var(--accent-primary);
+    }
+
+    .treemap-breadcrumb.current {
+        color: var(--text-primary);
+        font-weight: 600;
+        cursor: default;
+    }
+
+    .treemap-breadcrumb-separator {
+        color: rgba(99, 102, 241, 0.5);
+    }
+
+    /* Treemap Tooltip */
+    #treemap-tooltip {
+        display: none;
+        position: fixed;
+        background: rgba(26, 26, 46, 0.95);
+        backdrop-filter: blur(12px);
+        border: 1px solid rgba(99, 102, 241, 0.4);
+        border-radius: 8px;
+        padding: 12px 16px;
+        max-width: 300px;
+        z-index: 110;
+        pointer-events: none;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    #treemap-tooltip.visible {
+        display: block;
+    }
+
+    #treemap-tooltip-title {
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    #treemap-tooltip-meta {
+        font-size: 12px;
+        color: var(--text-secondary);
+    }
+
+    /* Treemap Legend */
+    #treemap-legend {
+        position: absolute;
+        bottom: 16px;
+        right: 16px;
+        background: rgba(26, 26, 46, 0.9);
+        backdrop-filter: blur(8px);
+        padding: 12px 16px;
+        border-radius: 8px;
+        border: 1px solid rgba(99, 102, 241, 0.3);
+        z-index: 102;
+        font-size: 12px;
+    }
+
+    .treemap-legend-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        margin-bottom: 4px;
+    }
+
+    .treemap-legend-item:last-child {
+        margin-bottom: 0;
+    }
+
+    .treemap-legend-color {
+        width: 16px;
+        height: 16px;
+        border-radius: 4px;
+    }
+
+    @media (max-width: 768px) {
+        #view-treemap {
+            top: 100px;
+        }
+
+        #treemap-toolbar {
+            top: 100px;
+            padding: 6px 10px;
+            gap: 8px;
+        }
+
+        #treemap-breadcrumbs {
+            top: 10px;
+            left: 10px;
+            padding: 6px 12px;
+            font-size: 12px;
+        }
+
+        #treemap-legend {
+            bottom: 10px;
+            right: 10px;
+            padding: 8px 12px;
+        }
+    }
+</style>
+
+<div id="view-treemap">
+    <!-- Treemap Canvas -->
+    <canvas id="treemap-canvas"></canvas>
+
+    <!-- Breadcrumbs for drill-down navigation -->
+    <div id="treemap-breadcrumbs">
+        <span class="treemap-breadcrumb current">Root</span>
+    </div>
+
+    <!-- Legend (dynamically populated) -->
+    <div id="treemap-legend" style="display: none;"></div>
+</div>
+
+<!-- Treemap Toolbar -->
+<div id="treemap-toolbar">
+    <select id="treemap-size-metric" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">
+        <option value="count" style="background: #1a1a2e; color: #ffffff;">Size by Count</option>
+        <option value="value" style="background: #1a1a2e; color: #ffffff;">Size by Value</option>
+    </select>
+    <div style="width: 1px; height: 24px; background: rgba(99, 102, 241, 0.2);"></div>
+    <button id="treemap-back-btn" class="btn" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 13px; cursor: pointer;">
+        ← Back
+    </button>
+    <button id="treemap-zoom-out-btn" class="btn" style="padding: 8px 12px; background: rgba(99, 102, 241, 0.1); border: 1px solid rgba(99, 102, 241, 0.3); border-radius: 8px; color: var(--text-primary); font-size: 14px; cursor: pointer;">
+        ⤴ Zoom Out
+    </button>
+    <button id="treemap-exit-btn" class="btn" style="padding: 8px 14px; background: linear-gradient(135deg, #f43f5e, #e11d48); border: none; border-radius: 8px; color: white; font-size: 13px; font-weight: 600; cursor: pointer;">
+        ✕ Exit
+    </button>
+</div>
+
+<!-- Treemap Tooltip -->
+<div id="treemap-tooltip">
+    <div id="treemap-tooltip-title"></div>
+    <div id="treemap-tooltip-meta"></div>
+</div>
+
 <!-- Gantt Toolbar (shown when Gantt view is active) -->
 <div id="gantt-toolbar">
     <select id="gantt-view-mode" style="padding: 8px 14px; background: rgba(99, 102, 241, 0.15); border: 1px solid rgba(99, 102, 241, 0.4); border-radius: 8px; color: #ffffff; font-size: 13px; font-weight: 600; cursor: pointer;">
@@ -80015,6 +80288,613 @@ console.log('📊 Frappe Gantt loaded');
                 toggleCalendarView();
             });
         }
+    });
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // BUILD 624: TREEMAP VIEW - Squarified treemap visualization
+    // ═══════════════════════════════════════════════════════════════════════════
+
+    // Treemap state
+    let treemapRootNode = null; // Current root for drill-down
+    let treemapRects = []; // Computed rectangles for interaction
+    let treemapSizeMetric = 'count'; // 'count' or 'value'
+    let treemapHoveredRect = null;
+    let treemapBreadcrumbs = []; // Navigation stack
+
+    // Color palette - modern, aesthetically pleasing with good distinction
+    const TREEMAP_COLORS = [
+        'rgba(99, 102, 241, 0.85)',  // Indigo (primary brand)
+        'rgba(34, 197, 94, 0.8)',    // Emerald
+        'rgba(168, 85, 247, 0.8)',   // Violet
+        'rgba(14, 165, 233, 0.8)',   // Sky Blue
+        'rgba(249, 115, 22, 0.8)',   // Orange
+        'rgba(236, 72, 153, 0.75)',  // Pink
+        'rgba(20, 184, 166, 0.8)',   // Teal
+        'rgba(234, 179, 8, 0.75)',   // Amber
+    ];
+
+    /**
+     * Squarified Treemap Algorithm (Bruls, Huizing, van Wijk 2000)
+     * Returns array of {node, x, y, w, h} rectangles
+     * Each sibling gets a distinct color from the palette
+     */
+    function squarify(children, x, y, w, h, depth = 0) {
+        if (!children || children.length === 0) return [];
+
+        const rects = [];
+        const total = children.reduce((sum, c) => sum + getNodeSize(c), 0);
+        if (total === 0) return [];
+
+        // Sort children by size (largest first for better layout)
+        // Keep track of original indices for color assignment
+        const indexed = children.map((c, i) => ({ node: c, originalIndex: i }));
+        const sorted = [...indexed].sort((a, b) => getNodeSize(b.node) - getNodeSize(a.node));
+
+        let remaining = sorted.slice();
+        let currentX = x, currentY = y;
+        let remainingW = w, remainingH = h;
+
+        while (remaining.length > 0) {
+            // Determine if we layout in row or column
+            const isHorizontal = remainingW >= remainingH;
+
+            // Find the best row/column using squarify algorithm
+            const { row, rest } = squarifyRowIndexed(remaining, remainingW, remainingH, total);
+
+            // Layout the row
+            const rowSize = row.reduce((sum, c) => sum + getNodeSize(c.node), 0);
+            const rowTotal = remaining.reduce((sum, c) => sum + getNodeSize(c.node), 0);
+            const rowRatio = rowSize / rowTotal;
+
+            if (isHorizontal) {
+                // Vertical strip
+                const stripW = remainingW * rowRatio;
+                let offsetY = currentY;
+
+                for (const item of row) {
+                    const nodeRatio = getNodeSize(item.node) / rowSize;
+                    const nodeH = remainingH * nodeRatio;
+
+                    rects.push({
+                        node: item.node,
+                        x: currentX,
+                        y: offsetY,
+                        w: stripW,
+                        h: nodeH,
+                        depth,
+                        colorIndex: item.originalIndex,
+                        color: TREEMAP_COLORS[item.originalIndex % TREEMAP_COLORS.length]
+                    });
+
+                    offsetY += nodeH;
+                }
+
+                currentX += stripW;
+                remainingW -= stripW;
+            } else {
+                // Horizontal strip
+                const stripH = remainingH * rowRatio;
+                let offsetX = currentX;
+
+                for (const item of row) {
+                    const nodeRatio = getNodeSize(item.node) / rowSize;
+                    const nodeW = remainingW * nodeRatio;
+
+                    rects.push({
+                        node: item.node,
+                        x: offsetX,
+                        y: currentY,
+                        w: nodeW,
+                        h: stripH,
+                        depth,
+                        colorIndex: item.originalIndex,
+                        color: TREEMAP_COLORS[item.originalIndex % TREEMAP_COLORS.length]
+                    });
+
+                    offsetX += nodeW;
+                }
+
+                currentY += stripH;
+                remainingH -= stripH;
+            }
+
+            remaining = rest;
+        }
+
+        return rects;
+    }
+
+    /**
+     * Indexed version of squarifyRow for color tracking
+     */
+    function squarifyRowIndexed(children, w, h, total) {
+        if (children.length === 0) return { row: [], rest: [] };
+        if (children.length === 1) return { row: children, rest: [] };
+
+        const side = Math.min(w, h);
+        let row = [children[0]];
+        let rowSize = getNodeSize(children[0].node);
+        let worstRatio = getWorstRatioIndexed(row, side, total);
+
+        for (let i = 1; i < children.length; i++) {
+            const testRow = [...row, children[i]];
+            const testSize = rowSize + getNodeSize(children[i].node);
+            const testRatio = getWorstRatioIndexed(testRow, side, total);
+
+            if (testRatio > worstRatio) {
+                // Adding this node makes the ratio worse, stop here
+                return { row, rest: children.slice(i) };
+            }
+
+            row = testRow;
+            rowSize = testSize;
+            worstRatio = testRatio;
+        }
+
+        return { row, rest: [] };
+    }
+
+    /**
+     * Get worst aspect ratio for indexed items
+     */
+    function getWorstRatioIndexed(row, side, total) {
+        if (row.length === 0) return Infinity;
+
+        const rowSum = row.reduce((sum, c) => sum + getNodeSize(c.node), 0);
+        const rowArea = rowSum / total;
+        const rowSide = rowArea * side;
+
+        let worst = 0;
+        for (const item of row) {
+            const nodeArea = getNodeSize(item.node) / total;
+            const nodeLen = (nodeArea / rowArea) * side;
+            const ratio = Math.max(rowSide / nodeLen, nodeLen / rowSide);
+            worst = Math.max(worst, ratio);
+        }
+
+        return worst;
+    }
+
+    /**
+     * Find the best row using worst aspect ratio optimization
+     */
+    function squarifyRow(children, w, h, total) {
+        if (children.length === 0) return { row: [], rest: [] };
+        if (children.length === 1) return { row: children, rest: [] };
+
+        const side = Math.min(w, h);
+        let row = [children[0]];
+        let rowSize = getNodeSize(children[0]);
+        let worstRatio = getWorstRatio(row, side, total);
+
+        for (let i = 1; i < children.length; i++) {
+            const testRow = [...row, children[i]];
+            const testSize = rowSize + getNodeSize(children[i]);
+            const testRatio = getWorstRatio(testRow, side, total);
+
+            if (testRatio > worstRatio) {
+                // Adding this node makes the ratio worse, stop here
+                return { row, rest: children.slice(i) };
+            }
+
+            row = testRow;
+            rowSize = testSize;
+            worstRatio = testRatio;
+        }
+
+        return { row, rest: [] };
+    }
+
+    /**
+     * Get worst aspect ratio in a row (lower is better)
+     */
+    function getWorstRatio(row, side, total) {
+        if (row.length === 0) return Infinity;
+
+        const rowSum = row.reduce((sum, c) => sum + getNodeSize(c), 0);
+        const rowArea = rowSum / total;
+        const rowSide = rowArea * side;
+
+        let worst = 0;
+        for (const node of row) {
+            const nodeArea = getNodeSize(node) / total;
+            const nodeLen = (nodeArea / rowArea) * side;
+            const ratio = Math.max(rowSide / nodeLen, nodeLen / rowSide);
+            worst = Math.max(worst, ratio);
+        }
+
+        return worst;
+    }
+
+    /**
+     * Get node size based on current metric
+     */
+    function getNodeSize(node) {
+        if (treemapSizeMetric === 'value') {
+            // Use value field if available
+            return node.value || node.amount || node.cost || node.budget || 1;
+        }
+        // Count: number of descendants + 1
+        return countDescendants(node) + 1;
+    }
+
+    /**
+     * Count all descendants of a node
+     */
+    function countDescendants(node) {
+        let count = 0;
+        const children = getNodeChildren(node);
+        for (const child of children) {
+            count += 1 + countDescendants(child);
+        }
+        return count;
+    }
+
+    /**
+     * Get children of a node (handles different tree structures)
+     */
+    function getNodeChildren(node) {
+        return node.children || node.items || node.subtasks || node.phases || [];
+    }
+
+    /**
+     * Toggle Treemap view on/off
+     */
+    function toggleTreemapView() {
+        const viewTreemap = document.getElementById('view-treemap');
+        const toolbar = document.getElementById('treemap-toolbar');
+        const treeView = document.querySelector('.tree-view-container');
+        const canvasView = document.getElementById('canvas-container');
+        const view3D = document.getElementById('view-3d');
+        const viewGantt = document.getElementById('view-gantt');
+        const ganttToolbar = document.getElementById('gantt-toolbar');
+        const viewCalendar = document.getElementById('view-calendar');
+
+        const isActive = viewTreemap.classList.contains('active');
+
+        if (isActive) {
+            // Close Treemap view
+            viewTreemap.classList.remove('active');
+            toolbar.classList.remove('active');
+            treeView.classList.remove('hidden');
+            viewMode = 'tree';
+            if (window.updateViewDropdown) window.updateViewDropdown('tree');
+            render();
+            console.log('🗺️ Treemap view closed');
+        } else {
+            // Open Treemap view
+            viewTreemap.classList.add('active');
+            toolbar.classList.add('active');
+            treeView.classList.add('hidden');
+            canvasView?.classList.remove('active');
+            view3D?.classList.remove('active');
+            viewGantt?.classList.remove('active');
+            if (ganttToolbar) ganttToolbar.classList.remove('active');
+            viewCalendar?.classList.remove('active');
+
+            // Hide canvas toolbar
+            const canvasToolbar = document.getElementById('canvas-toolbar');
+            if (canvasToolbar) canvasToolbar.classList.remove('active');
+
+            viewMode = 'treemap';
+
+            // Initialize with root
+            treemapRootNode = capexTree;
+            treemapBreadcrumbs = [{ node: capexTree, name: capexTree.name || 'Root' }];
+
+            renderTreemap();
+            if (window.updateViewDropdown) window.updateViewDropdown('treemap');
+            console.log('🗺️ Treemap view opened');
+        }
+    }
+
+    /**
+     * Render the treemap visualization
+     */
+    function renderTreemap() {
+        const canvas = document.getElementById('treemap-canvas');
+        const container = document.getElementById('view-treemap');
+        if (!canvas || !container) return;
+
+        // Set canvas size to container size
+        const rect = container.getBoundingClientRect();
+        const dpr = window.devicePixelRatio || 1;
+        canvas.width = rect.width * dpr;
+        canvas.height = rect.height * dpr;
+        canvas.style.width = rect.width + 'px';
+        canvas.style.height = rect.height + 'px';
+
+        const ctx = canvas.getContext('2d');
+        ctx.scale(dpr, dpr);
+
+        // Clear canvas
+        ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--bg-primary') || '#0a0a0f';
+        ctx.fillRect(0, 0, rect.width, rect.height);
+
+        // Get children of current root
+        const children = getNodeChildren(treemapRootNode);
+        if (children.length === 0) {
+            // Show empty state
+            ctx.fillStyle = '#888';
+            ctx.font = '16px Inter, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('No children to display', rect.width / 2, rect.height / 2);
+            treemapRects = [];
+            return;
+        }
+
+        // Add padding
+        const padding = 16;
+        const w = rect.width - padding * 2;
+        const h = rect.height - padding * 2 - 60; // Account for toolbar
+
+        // Compute treemap layout
+        treemapRects = squarify(children, padding, padding + 60, w, h);
+
+        // Draw rectangles
+        for (const r of treemapRects) {
+            // Background
+            ctx.fillStyle = r.color;
+            ctx.fillRect(r.x, r.y, r.w, r.h);
+
+            // Border
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.3)';
+            ctx.lineWidth = 1;
+            ctx.strokeRect(r.x, r.y, r.w, r.h);
+
+            // Label (if rect is large enough)
+            if (r.w > 60 && r.h > 30) {
+                ctx.fillStyle = 'white';
+                ctx.font = 'bold 12px Inter, sans-serif';
+                ctx.textAlign = 'left';
+                ctx.textBaseline = 'top';
+
+                const name = r.node.name || r.node.title || 'Untitled';
+                const maxWidth = r.w - 10;
+                let displayName = name;
+
+                // Truncate if too long
+                const metrics = ctx.measureText(name);
+                if (metrics.width > maxWidth) {
+                    const ratio = maxWidth / metrics.width;
+                    const chars = Math.floor(name.length * ratio) - 3;
+                    displayName = name.substring(0, Math.max(1, chars)) + '...';
+                }
+
+                ctx.fillText(displayName, r.x + 5, r.y + 5);
+
+                // Show size
+                if (r.h > 50) {
+                    ctx.font = '10px Inter, sans-serif';
+                    ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+                    const size = treemapSizeMetric === 'count'
+                        ? `${countDescendants(r.node) + 1} items`
+                        : `Value: ${getNodeSize(r.node)}`;
+                    ctx.fillText(size, r.x + 5, r.y + 22);
+                }
+            }
+
+            // Hover highlight
+            if (treemapHoveredRect === r) {
+                ctx.strokeStyle = '#fff';
+                ctx.lineWidth = 3;
+                ctx.strokeRect(r.x, r.y, r.w, r.h);
+            }
+        }
+
+        // Update breadcrumbs
+        updateTreemapBreadcrumbs();
+    }
+
+    /**
+     * Update breadcrumb navigation
+     */
+    function updateTreemapBreadcrumbs() {
+        const container = document.getElementById('treemap-breadcrumbs');
+        if (!container) return;
+
+        container.innerHTML = '';
+
+        treemapBreadcrumbs.forEach((crumb, index) => {
+            if (index > 0) {
+                const sep = document.createElement('span');
+                sep.className = 'treemap-breadcrumb-separator';
+                sep.textContent = '›';
+                container.appendChild(sep);
+            }
+
+            const span = document.createElement('span');
+            span.className = 'treemap-breadcrumb';
+            span.textContent = crumb.name;
+
+            if (index === treemapBreadcrumbs.length - 1) {
+                span.classList.add('current');
+            } else {
+                span.addEventListener('click', () => {
+                    // Navigate to this level
+                    treemapBreadcrumbs = treemapBreadcrumbs.slice(0, index + 1);
+                    treemapRootNode = crumb.node;
+                    renderTreemap();
+                });
+            }
+
+            container.appendChild(span);
+        });
+    }
+
+    /**
+     * Handle treemap canvas click (drill-down)
+     */
+    function handleTreemapClick(e) {
+        const canvas = document.getElementById('treemap-canvas');
+        if (!canvas) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Find clicked rectangle
+        for (const r of treemapRects) {
+            if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+                const children = getNodeChildren(r.node);
+
+                if (children.length > 0) {
+                    // Drill down into this node
+                    treemapRootNode = r.node;
+                    treemapBreadcrumbs.push({
+                        node: r.node,
+                        name: r.node.name || r.node.title || 'Untitled'
+                    });
+                    renderTreemap();
+                    showToast(`📂 Drilled into: ${r.node.name || 'Node'}`, 'info');
+                } else {
+                    // Leaf node - select it
+                    if (typeof selectNode === 'function') {
+                        selectNode(r.node.id);
+                    }
+                    showToast(`Selected: ${r.node.name || 'Node'}`, 'info');
+                }
+                return;
+            }
+        }
+    }
+
+    /**
+     * Handle treemap canvas hover (tooltips)
+     */
+    function handleTreemapMouseMove(e) {
+        const canvas = document.getElementById('treemap-canvas');
+        const tooltip = document.getElementById('treemap-tooltip');
+        if (!canvas || !tooltip) return;
+
+        const rect = canvas.getBoundingClientRect();
+        const x = e.clientX - rect.left;
+        const y = e.clientY - rect.top;
+
+        // Find hovered rectangle
+        let found = null;
+        for (const r of treemapRects) {
+            if (x >= r.x && x <= r.x + r.w && y >= r.y && y <= r.y + r.h) {
+                found = r;
+                break;
+            }
+        }
+
+        if (found && found !== treemapHoveredRect) {
+            treemapHoveredRect = found;
+
+            // Update tooltip
+            const titleEl = document.getElementById('treemap-tooltip-title');
+            const metaEl = document.getElementById('treemap-tooltip-meta');
+
+            if (titleEl) titleEl.textContent = found.node.name || found.node.title || 'Untitled';
+            if (metaEl) {
+                const children = getNodeChildren(found.node);
+                const desc = found.node.description ? found.node.description.substring(0, 100) + '...' : '';
+                metaEl.innerHTML = `
+                    <div>Children: ${children.length}</div>
+                    <div>Size: ${getNodeSize(found.node)}</div>
+                    ${desc ? `<div style="margin-top: 4px; font-style: italic;">${desc}</div>` : ''}
+                    <div style="margin-top: 4px; opacity: 0.7;">Click to drill down</div>
+                `;
+            }
+
+            // Position tooltip
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+            tooltip.classList.add('visible');
+
+            // Redraw to show highlight
+            renderTreemap();
+
+            // Change cursor
+            canvas.style.cursor = 'pointer';
+        } else if (!found && treemapHoveredRect) {
+            treemapHoveredRect = null;
+            tooltip.classList.remove('visible');
+            renderTreemap();
+            canvas.style.cursor = 'default';
+        } else if (found) {
+            // Update tooltip position
+            tooltip.style.left = (e.clientX + 15) + 'px';
+            tooltip.style.top = (e.clientY + 15) + 'px';
+        }
+    }
+
+    /**
+     * Handle treemap mouse leave
+     */
+    function handleTreemapMouseLeave() {
+        const tooltip = document.getElementById('treemap-tooltip');
+        if (tooltip) tooltip.classList.remove('visible');
+        treemapHoveredRect = null;
+        renderTreemap();
+    }
+
+    /**
+     * Zoom out one level in treemap
+     */
+    function treemapZoomOut() {
+        if (treemapBreadcrumbs.length <= 1) {
+            showToast('Already at root level', 'info');
+            return;
+        }
+
+        treemapBreadcrumbs.pop();
+        treemapRootNode = treemapBreadcrumbs[treemapBreadcrumbs.length - 1].node;
+        renderTreemap();
+    }
+
+    // Expose toggleTreemapView globally
+    window.toggleTreemapView = toggleTreemapView;
+    window.renderTreemap = renderTreemap;
+    window.treemapZoomOut = treemapZoomOut;
+    // Expose state for debugging
+    Object.defineProperty(window, 'treemapRects', { get: () => treemapRects });
+    Object.defineProperty(window, 'treemapBreadcrumbs', { get: () => treemapBreadcrumbs });
+
+    // Initialize Treemap controls
+    document.addEventListener('DOMContentLoaded', () => {
+        // Canvas event listeners
+        const canvas = document.getElementById('treemap-canvas');
+        if (canvas) {
+            canvas.addEventListener('click', handleTreemapClick);
+            canvas.addEventListener('mousemove', handleTreemapMouseMove);
+            canvas.addEventListener('mouseleave', handleTreemapMouseLeave);
+        }
+
+        // Toolbar buttons
+        const exitBtn = document.getElementById('treemap-exit-btn');
+        if (exitBtn) {
+            exitBtn.addEventListener('click', toggleTreemapView);
+        }
+
+        const backBtn = document.getElementById('treemap-back-btn');
+        if (backBtn) {
+            backBtn.addEventListener('click', toggleTreemapView);
+        }
+
+        const zoomOutBtn = document.getElementById('treemap-zoom-out-btn');
+        if (zoomOutBtn) {
+            zoomOutBtn.addEventListener('click', treemapZoomOut);
+        }
+
+        // Size metric selector
+        const sizeMetric = document.getElementById('treemap-size-metric');
+        if (sizeMetric) {
+            sizeMetric.addEventListener('change', (e) => {
+                treemapSizeMetric = e.target.value;
+                renderTreemap();
+                showToast(`📊 Size metric: ${treemapSizeMetric}`, 'info');
+            });
+        }
+
+        // Handle resize
+        window.addEventListener('resize', () => {
+            if (viewMode === 'treemap') {
+                renderTreemap();
+            }
+        });
     });
 
     // Initialize Gantt back button
