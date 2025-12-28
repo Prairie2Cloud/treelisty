@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.69.0 | Build 634 | 2025-12-28
+    TreeListy v2.70.0 | Build 635 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -836,8 +836,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.69.0',
-            build: 634,
+            major: '2.70.0',
+            build: 635,
             date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -6641,6 +6641,166 @@
         .tree-node, .canvas-node, button, a, [role="button"] {
             touch-action: manipulation;
         }
+
+        /* P1 FIX: Visible collapse toggles - replace triangles with styled buttons */
+        .expand-toggle {
+            background: rgba(99, 102, 241, 0.2);
+            border: 1px solid rgba(99, 102, 241, 0.4);
+            border-radius: 6px;
+            font-size: 16px;
+            font-weight: bold;
+            color: var(--accent, #6366f1);
+        }
+        .expand-toggle::before {
+            content: '−';
+        }
+        .tree-node.collapsed .expand-toggle::before,
+        .tree-node:not(.expanded) .expand-toggle::before {
+            content: '+';
+        }
+        /* Hide the triangle character on mobile, use +/- instead */
+        .expand-toggle {
+            font-size: 0; /* Hide triangle */
+        }
+        .expand-toggle::before {
+            font-size: 18px; /* Show +/- */
+        }
+    }
+
+    /* P1 FIX: Safe area insets for notch and home indicator */
+    .tree-view-container,
+    .main-container,
+    #app-container {
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+        padding-left: env(safe-area-inset-left);
+        padding-right: env(safe-area-inset-right);
+    }
+
+    /* P1 FIX: Header respects safe area */
+    .header {
+        padding-top: max(12px, env(safe-area-inset-top));
+    }
+
+    /* P1 FIX: Bottom elements respect home indicator */
+    @media (max-width: 768px) {
+        #treebeard-fab,
+        #voice-fab,
+        .keyboard-accessory-bar {
+            margin-bottom: env(safe-area-inset-bottom, 0px);
+        }
+    }
+
+    /* P1 FIX: Mobile floating action bar on node selection */
+    #mobile-action-bar {
+        display: none;
+        position: fixed;
+        bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+        left: 50%;
+        transform: translateX(-50%);
+        background: var(--bg-secondary, #2a2a4a);
+        border: 1px solid var(--border, #3f3f5a);
+        border-radius: 12px;
+        padding: 8px 12px;
+        gap: 8px;
+        z-index: 9999;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    }
+
+    @media (max-width: 768px) {
+        body.node-selected #mobile-action-bar {
+            display: flex;
+        }
+    }
+
+    #mobile-action-bar button {
+        width: 48px;
+        height: 44px;
+        border: none;
+        background: var(--bg-tertiary, #3a3a6a);
+        border-radius: 8px;
+        color: var(--text-primary, #fff);
+        font-size: 18px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    #mobile-action-bar button:active {
+        background: var(--accent, #6366f1);
+        transform: scale(0.95);
+    }
+
+    #mobile-action-bar .action-divider {
+        width: 1px;
+        height: 28px;
+        background: var(--border, #3f3f5a);
+    }
+
+    /* P1 FIX: Breadcrumb bar for deep tree navigation */
+    #mobile-breadcrumb-bar {
+        display: none;
+        position: fixed;
+        top: 52px;
+        left: 0;
+        right: 0;
+        height: 36px;
+        background: var(--bg-secondary, #2a2a4a);
+        border-bottom: 1px solid var(--border, #3f3f5a);
+        padding: 0 12px;
+        padding-top: env(safe-area-inset-top, 0px);
+        overflow-x: auto;
+        overflow-y: hidden;
+        white-space: nowrap;
+        z-index: 999;
+        -webkit-overflow-scrolling: touch;
+        scrollbar-width: none;
+    }
+
+    #mobile-breadcrumb-bar::-webkit-scrollbar {
+        display: none;
+    }
+
+    @media (max-width: 768px) {
+        body.show-breadcrumbs #mobile-breadcrumb-bar {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        body.show-breadcrumbs .tree-view-container {
+            padding-top: calc(36px + env(safe-area-inset-top, 0px));
+        }
+    }
+
+    .breadcrumb-item {
+        display: inline-flex;
+        align-items: center;
+        padding: 4px 10px;
+        background: var(--bg-tertiary, #3a3a6a);
+        border-radius: 6px;
+        color: var(--text-secondary, #a0a0c0);
+        font-size: 13px;
+        cursor: pointer;
+        flex-shrink: 0;
+    }
+
+    .breadcrumb-item:hover,
+    .breadcrumb-item:active {
+        background: var(--accent, #6366f1);
+        color: white;
+    }
+
+    .breadcrumb-item.current {
+        background: var(--accent, #6366f1);
+        color: white;
+        font-weight: 600;
+    }
+
+    .breadcrumb-separator {
+        color: var(--text-secondary, #a0a0c0);
+        font-size: 12px;
+        flex-shrink: 0;
     }
 
     /* Voice Capture Section in TreeBeard */
@@ -77806,7 +77966,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 634; // Update this with each build
+                    const KNOWN_LATEST = 635; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
@@ -78160,6 +78320,47 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
             <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                 <circle cx="12" cy="12" r="3"/>
                 <path d="M12 2v4M12 18v4M2 12h4M18 12h4"/>
+            </svg>
+        </button>
+    </div>
+
+    <!-- BUILD 635: Mobile Breadcrumb Bar (P1 Fix) -->
+    <div id="mobile-breadcrumb-bar">
+        <!-- Populated by JavaScript when navigating deep trees -->
+    </div>
+
+    <!-- BUILD 635: Mobile Floating Action Bar (P1 Fix) -->
+    <div id="mobile-action-bar">
+        <button id="mob-add-child" title="Add Child" aria-label="Add child node">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M12 5v14M5 12h14"/>
+            </svg>
+        </button>
+        <button id="mob-edit" title="Edit" aria-label="Edit node">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"/>
+                <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"/>
+            </svg>
+        </button>
+        <div class="action-divider"></div>
+        <button id="mob-focus" title="Focus" aria-label="Focus on this node">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <circle cx="12" cy="12" r="3"/>
+            </svg>
+        </button>
+        <button id="mob-info" title="Details" aria-label="View details">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <path d="M12 16v-4M12 8h.01"/>
+            </svg>
+        </button>
+        <div class="action-divider"></div>
+        <button id="mob-more" title="More" aria-label="More actions">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="1"/>
+                <circle cx="19" cy="12" r="1"/>
+                <circle cx="5" cy="12" r="1"/>
             </svg>
         </button>
     </div>
@@ -84140,6 +84341,191 @@ console.log('📊 Frappe Gantt loaded');
 
     console.log('[Build 633] Keyboard accessory bar initialized');
 })();
+
+
+// ============================================================================
+// BUILD 635: MOBILE ACTION BAR & BREADCRUMB (P1 Fixes)
+// ============================================================================
+
+(function initMobileActionBar() {
+    'use strict';
+
+    // Only initialize on mobile/touch devices
+    if (window.innerWidth > 768 && !('ontouchstart' in window)) return;
+
+    const actionBar = document.getElementById('mobile-action-bar');
+    const breadcrumbBar = document.getElementById('mobile-breadcrumb-bar');
+    if (!actionBar) return;
+
+    let selectedNode = null;
+
+    // Show/hide action bar based on node selection
+    function updateActionBarVisibility() {
+        const node = window.activeNode;
+        if (node && node.id && node.id !== 'root' && node.id !== capexTree?.id) {
+            selectedNode = node;
+            document.body.classList.add('node-selected');
+            updateBreadcrumbs(node);
+        } else {
+            selectedNode = null;
+            document.body.classList.remove('node-selected');
+        }
+    }
+
+    // Build breadcrumb path
+    function getNodePath(nodeId) {
+        const path = [];
+
+        function findPath(node, targetId, currentPath) {
+            if (node.id === targetId) {
+                path.push(...currentPath, node);
+                return true;
+            }
+            const children = node.children || node.items || node.subtasks || [];
+            for (const child of children) {
+                if (findPath(child, targetId, [...currentPath, node])) return true;
+            }
+            return false;
+        }
+
+        if (typeof capexTree !== 'undefined') {
+            findPath(capexTree, nodeId, []);
+        }
+        return path;
+    }
+
+    // Update breadcrumb bar
+    function updateBreadcrumbs(node) {
+        if (!breadcrumbBar || !node) return;
+
+        const path = getNodePath(node.id);
+        if (path.length < 3) {
+            document.body.classList.remove('show-breadcrumbs');
+            return;
+        }
+
+        document.body.classList.add('show-breadcrumbs');
+
+        // Build breadcrumb HTML - show first, ellipsis, last 2
+        let html = '';
+        path.forEach((n, i) => {
+            if (i > 0) {
+                html += '<span class="breadcrumb-separator">›</span>';
+            }
+
+            // Skip middle items, show ellipsis
+            if (path.length > 4 && i > 0 && i < path.length - 2) {
+                if (i === 1) {
+                    html += '<span class="breadcrumb-item" onclick="">...</span>';
+                }
+                return;
+            }
+
+            const isCurrent = i === path.length - 1;
+            const name = (n.name || n.title || 'Node').substring(0, 20);
+            html += '<span class="breadcrumb-item' + (isCurrent ? ' current' : '') + '" data-node-id="' + n.id + '">' + name + '</span>';
+        });
+
+        breadcrumbBar.innerHTML = html;
+
+        // Add click handlers
+        breadcrumbBar.querySelectorAll('.breadcrumb-item[data-node-id]').forEach(item => {
+            item.addEventListener('click', () => {
+                const nodeId = item.dataset.nodeId;
+                const targetNode = findNodeById(nodeId);
+                if (targetNode) {
+                    window.activeNode = targetNode;
+                    if (typeof render === 'function') render();
+                    updateActionBarVisibility();
+                    showToast('Jumped to: ' + (targetNode.name || 'node'), 'info');
+                }
+            });
+        });
+    }
+
+    // Find node by ID
+    function findNodeById(nodeId) {
+        function search(node) {
+            if (node.id === nodeId) return node;
+            const children = node.children || node.items || node.subtasks || [];
+            for (const child of children) {
+                const found = search(child);
+                if (found) return found;
+            }
+            return null;
+        }
+        return typeof capexTree !== 'undefined' ? search(capexTree) : null;
+    }
+
+    // Action handlers
+    document.getElementById('mob-add-child')?.addEventListener('click', () => {
+        if (!selectedNode) return;
+        if (typeof addNewChild === 'function') {
+            addNewChild(selectedNode);
+        } else if (typeof addChild === 'function') {
+            addChild(selectedNode.id);
+        }
+        triggerHaptic?.('light');
+    });
+
+    document.getElementById('mob-edit')?.addEventListener('click', () => {
+        if (!selectedNode) return;
+        const nodeEl = document.querySelector('[data-node-id="' + selectedNode.id + '"]');
+        const input = nodeEl?.querySelector('input, [contenteditable]');
+        if (input) {
+            input.focus();
+            if (input.select) input.select();
+        }
+        triggerHaptic?.('light');
+    });
+
+    document.getElementById('mob-focus')?.addEventListener('click', () => {
+        if (!selectedNode) return;
+        if (typeof setFocusRoot === 'function') {
+            setFocusRoot(selectedNode.id);
+        }
+        triggerHaptic?.('medium');
+    });
+
+    document.getElementById('mob-info')?.addEventListener('click', () => {
+        if (!selectedNode) return;
+        if (typeof showInfoPanel === 'function') {
+            showInfoPanel(selectedNode);
+        }
+        triggerHaptic?.('light');
+    });
+
+    document.getElementById('mob-more')?.addEventListener('click', () => {
+        if (!selectedNode) return;
+        const nodeEl = document.querySelector('[data-node-id="' + selectedNode.id + '"]');
+        if (nodeEl && typeof showContextMenu === 'function') {
+            const rect = nodeEl.getBoundingClientRect();
+            showContextMenu(selectedNode, rect.left + rect.width / 2, rect.top);
+        }
+        triggerHaptic?.('light');
+    });
+
+    // Listen for node selection events
+    document.addEventListener('nodeSelected', updateActionBarVisibility);
+    document.addEventListener('click', (e) => {
+        const nodeEl = e.target.closest('.tree-node, [data-node-id]');
+        if (nodeEl) {
+            setTimeout(updateActionBarVisibility, 50);
+        } else if (!e.target.closest('#mobile-action-bar')) {
+            document.body.classList.remove('node-selected');
+        }
+    });
+
+    // Hide action bar when keyboard opens
+    document.addEventListener('focusin', (e) => {
+        if (e.target.matches('input, textarea, [contenteditable]')) {
+            document.body.classList.remove('node-selected');
+        }
+    });
+
+    console.log('[Build 635] Mobile action bar initialized');
+})();
+
 </script>
 
 </body>

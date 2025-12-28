@@ -24,7 +24,7 @@ def test_mobile_p0_fixes():
         page = context.new_page()
 
         # Use local file for development, live site for CI
-        # url = 'file:///D:/OneDrive/Desktop/Production-Versions/treeplexity/treeplexity.html'
+        # url = 'https://treelisty.netlify.app'
         url = 'https://treelisty.netlify.app'
         print(f"Loading TreeListy from {url.split('/')[-1]}...")
         page.goto(url, wait_until='networkidle', timeout=60000)
