@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.60.0 | Build 620 | 2025-12-27
+    TreeListy v2.61.0 | Build 621 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 621): IMAGE SPATIAL COMMANDS - nearby/region/containing commands for bbox-based queries on image-analyzed trees
     Changelog (Build 620): SUB-AGENT ARCHITECTURE - Trigger detection for conversation patterns, silent dispatch via MCP, orchestrator for validation/research agents
     Changelog (Build 619): IMAGE PATTERN RECOGNITION - Gemini detects content type and suggests TreeListy pattern (filesystem, gmail, dialogue, roadmap, etc.)
     Changelog (Build 618): GMAIL LABEL MANAGEMENT - Add/remove labels UI in info panel, TreeBeard commands (gmail_add_label, gmail_remove_label, gmail_list_labels)
@@ -822,8 +823,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.60.0',
-            build: 620,
+            major: '2.61.0',
+            build: 621,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -66856,6 +66857,196 @@ The agent will run in the background and results will enrich my next response.`;
             'analyze_screenshot': () => COMMAND_REGISTRY['analyze_image'](),
             'image_to_tree': () => COMMAND_REGISTRY['analyze_image'](),
             'decompose_image': () => COMMAND_REGISTRY['analyze_image'](),
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 621: Image Spatial Commands
+            // ═══════════════════════════════════════════════════════════════
+
+            // Helper: Check if tree has image analysis data
+            '_has_image_analysis': () => {
+                return capexTree._imageAnalysis && capexTree._imageAnalysis.sourceImage;
+            },
+
+            // Helper: Get all nodes with bboxes
+            '_get_bbox_nodes': () => {
+                const nodes = [];
+                const traverse = (node, parentPhase = null) => {
+                    if (node._bbox) {
+                        nodes.push({ node, parentPhase });
+                    }
+                    if (node.children) node.children.forEach(c => traverse(c, null));
+                    if (node.items) node.items.forEach(i => traverse(i, node));
+                    if (node.subtasks) node.subtasks.forEach(s => traverse(s, parentPhase));
+                };
+                traverse(capexTree);
+                return nodes;
+            },
+
+            // Helper: Calculate distance between bbox centers
+            '_bbox_distance': (bbox1, bbox2) => {
+                const center1 = {
+                    x: (bbox1.xMin + bbox1.xMax) / 2,
+                    y: (bbox1.yMin + bbox1.yMax) / 2
+                };
+                const center2 = {
+                    x: (bbox2.xMin + bbox2.xMax) / 2,
+                    y: (bbox2.yMin + bbox2.yMax) / 2
+                };
+                return Math.sqrt(
+                    Math.pow(center1.x - center2.x, 2) +
+                    Math.pow(center1.y - center2.y, 2)
+                );
+            },
+
+            // Helper: Check if bbox1 contains bbox2
+            '_bbox_contains': (outer, inner) => {
+                return outer.xMin <= inner.xMin &&
+                       outer.yMin <= inner.yMin &&
+                       outer.xMax >= inner.xMax &&
+                       outer.yMax >= inner.yMax;
+            },
+
+            // Helper: Check if bbox is in a region quadrant
+            '_bbox_in_region': (bbox, region) => {
+                const centerX = (bbox.xMin + bbox.xMax) / 2;
+                const centerY = (bbox.yMin + bbox.yMax) / 2;
+
+                switch (region) {
+                    case 'top-left': return centerX < 0.33 && centerY < 0.33;
+                    case 'top': return centerY < 0.33;
+                    case 'top-right': return centerX > 0.66 && centerY < 0.33;
+                    case 'left': return centerX < 0.33;
+                    case 'center': return centerX >= 0.33 && centerX <= 0.66 && centerY >= 0.33 && centerY <= 0.66;
+                    case 'right': return centerX > 0.66;
+                    case 'bottom-left': return centerX < 0.33 && centerY > 0.66;
+                    case 'bottom': return centerY > 0.66;
+                    case 'bottom-right': return centerX > 0.66 && centerY > 0.66;
+                    default: return false;
+                }
+            },
+
+            // NEARBY: Find objects near the focused node
+            'nearby': (threshold = '0.15') => {
+                if (!COMMAND_REGISTRY['_has_image_analysis']()) {
+                    return '🖼️ No image analysis data. Use `analyze_image` first to decompose an image.';
+                }
+                if (!activeNode || !activeNode._bbox) {
+                    return '📍 Focus a node with a bounding box first. Use `find_node` or click a detected object.';
+                }
+
+                const dist = parseFloat(threshold) || 0.15;
+                const refBbox = activeNode._bbox;
+                const bboxNodes = COMMAND_REGISTRY['_get_bbox_nodes']();
+
+                const nearby = bboxNodes
+                    .filter(({ node }) => node.id !== activeNode.id && node._bbox)
+                    .map(({ node }) => ({
+                        node,
+                        distance: COMMAND_REGISTRY['_bbox_distance'](refBbox, node._bbox)
+                    }))
+                    .filter(item => item.distance <= dist)
+                    .sort((a, b) => a.distance - b.distance);
+
+                if (nearby.length === 0) {
+                    return `📍 No objects found within ${dist * 100}% distance of "${activeNode.name}". Try a larger threshold: \`nearby 0.25\``;
+                }
+
+                let result = `📍 **${nearby.length} objects near "${activeNode.name}"** (within ${Math.round(dist * 100)}%):\n\n`;
+                nearby.slice(0, 10).forEach((item, i) => {
+                    const pct = Math.round(item.distance * 100);
+                    result += `${i + 1}. **${item.node.name}** - ${pct}% away`;
+                    if (item.node._objectType) result += ` (${item.node._objectType})`;
+                    result += '\n';
+                });
+
+                if (nearby.length > 10) {
+                    result += `\n...and ${nearby.length - 10} more`;
+                }
+
+                return result;
+            },
+
+            // REGION: List objects in a specific region of the image
+            'region': (regionName = 'center') => {
+                if (!COMMAND_REGISTRY['_has_image_analysis']()) {
+                    return '🖼️ No image analysis data. Use `analyze_image` first to decompose an image.';
+                }
+
+                const validRegions = ['top-left', 'top', 'top-right', 'left', 'center', 'right', 'bottom-left', 'bottom', 'bottom-right'];
+                const region = regionName.toLowerCase().trim();
+
+                if (!validRegions.includes(region)) {
+                    return `📐 Invalid region. Use one of: ${validRegions.join(', ')}`;
+                }
+
+                const bboxNodes = COMMAND_REGISTRY['_get_bbox_nodes']();
+                const inRegion = bboxNodes.filter(({ node }) =>
+                    node._bbox && COMMAND_REGISTRY['_bbox_in_region'](node._bbox, region)
+                );
+
+                if (inRegion.length === 0) {
+                    return `📐 No objects found in the **${region}** region.`;
+                }
+
+                let result = `📐 **${inRegion.length} objects in ${region} region:**\n\n`;
+                inRegion.slice(0, 15).forEach((item, i) => {
+                    result += `${i + 1}. **${item.node.name}**`;
+                    if (item.node._objectType) result += ` (${item.node._objectType})`;
+                    if (item.node._confidence) result += ` - ${Math.round(item.node._confidence * 100)}% conf`;
+                    result += '\n';
+                });
+
+                if (inRegion.length > 15) {
+                    result += `\n...and ${inRegion.length - 15} more`;
+                }
+
+                return result;
+            },
+
+            // CONTAINING: Find objects that contain the focused node
+            'containing': () => {
+                if (!COMMAND_REGISTRY['_has_image_analysis']()) {
+                    return '🖼️ No image analysis data. Use `analyze_image` first to decompose an image.';
+                }
+                if (!activeNode || !activeNode._bbox) {
+                    return '📦 Focus a node with a bounding box first. Use `find_node` or click a detected object.';
+                }
+
+                const targetBbox = activeNode._bbox;
+                const bboxNodes = COMMAND_REGISTRY['_get_bbox_nodes']();
+
+                const containers = bboxNodes
+                    .filter(({ node }) =>
+                        node.id !== activeNode.id &&
+                        node._bbox &&
+                        COMMAND_REGISTRY['_bbox_contains'](node._bbox, targetBbox)
+                    )
+                    .map(({ node }) => ({
+                        node,
+                        area: (node._bbox.xMax - node._bbox.xMin) * (node._bbox.yMax - node._bbox.yMin)
+                    }))
+                    .sort((a, b) => a.area - b.area); // Smallest container first
+
+                if (containers.length === 0) {
+                    return `📦 No objects contain "${activeNode.name}". It may be a top-level object.`;
+                }
+
+                let result = `📦 **${containers.length} objects contain "${activeNode.name}":**\n\n`;
+                containers.forEach((item, i) => {
+                    result += `${i + 1}. **${item.node.name}**`;
+                    if (item.node._objectType) result += ` (${item.node._objectType})`;
+                    result += '\n';
+                });
+
+                return result;
+            },
+
+            // Aliases for spatial commands
+            'near': (t) => COMMAND_REGISTRY['nearby'](t),
+            'objects_near': (t) => COMMAND_REGISTRY['nearby'](t),
+            'in_region': (r) => COMMAND_REGISTRY['region'](r),
+            'quadrant': (r) => COMMAND_REGISTRY['region'](r),
+            'contains': () => COMMAND_REGISTRY['containing'](),
+            'parent_objects': () => COMMAND_REGISTRY['containing'](),
 
             // ═══════════════════════════════════════════════════════════════
             // BUILD 560: Gmail Single-Email Commands (for focused node)
@@ -76333,7 +76524,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 620; // Update this with each build
+                    const KNOWN_LATEST = 621; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
