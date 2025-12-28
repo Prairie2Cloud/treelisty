@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.54.0 | Build 613 | 2025-12-27
+    TreeListy v2.55.0 | Build 614 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 614): WORK STATUS PANEL - Dashboard for active/completed tasks, API tracking, session stats
     Changelog (Build 613): TOOL-USE API - TreeBeard uses Claude's tool_use for guaranteed structured responses, MCP fallback
     Changelog (Build 612): FAST-PATH EXPANSION - Edge visibility, expand/collapse, layout, search patterns + show_edges/hide_edges commands
     Changelog (Build 611): DIRECT HELP LOADING - Simplified help from iframe to direct tree load with Back button
@@ -815,8 +816,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.54.0',
-            build: 613,
+            major: '2.55.0',
+            build: 614,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -7051,7 +7052,11 @@
                 </div>
 
                 <button class="btn" id="live-sync-btn" onclick="document.getElementById('live-sync-modal').style.display='flex'; window.initFirebaseAuthIfNeeded && window.initFirebaseAuthIfNeeded();" style="background: linear-gradient(135deg, #f97316, #ea580c); padding: 6px 10px; font-size: 13px;" title="🔥 Firebase Live Sync">🔄 Live</button>
-                <button class="btn" id="mcp-bridge-btn" onclick="window.showMCPConnectModal && window.showMCPConnectModal();" style="background: linear-gradient(135deg, #6b7280, #4b5563); padding: 6px 10px; font-size: 13px;" title="Connect to Claude Code">🤖 MCP</button>
+                <button class="btn" id="mcp-bridge-btn" onclick="window.showMCPConnectModal && window.showMCPConnectModal();" style="background: linear-gradient(135deg, #6b7280, #4b5563); padding: 6px 10px; font-size: 13px;" title="Connect to Claude Code">🤖 Claude</button>
+                <button class="btn" id="work-status-btn" onclick="window.showWorkStatusModal && window.showWorkStatusModal();" style="background: linear-gradient(135deg, #6b7280, #4b5563); padding: 6px 10px; font-size: 13px; position: relative;" title="Work Status - Active Tasks & Inbox">
+                    📥 Inbox
+                    <span id="work-status-badge" style="position: absolute; top: -6px; right: -6px; background: #3b82f6; color: white; font-size: 10px; min-width: 16px; height: 16px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: 600;">0</span>
+                </button>
                 <button class="btn" id="inbox-btn" onclick="window.showInboxModal && window.showInboxModal();" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); padding: 6px 10px; font-size: 13px; position: relative; display: none;" title="Agent Inbox - Proposed Changes">
                     📥 Inbox
                     <span id="inbox-badge" style="position: absolute; top: -6px; right: -6px; background: #ef4444; color: white; font-size: 10px; min-width: 16px; height: 16px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: 600;">0</span>
@@ -9711,6 +9716,45 @@ The AI will analyze the structure and convert it to a tree."
                     <button onclick="window.disconnectMCPFromModal()" style="width: 100%; padding: 12px; background: linear-gradient(135deg, #ef4444, #dc2626); color: white; border: none; border-radius: 8px; font-weight: 600; font-size: 14px; cursor: pointer;">
                         ⏹️ Disconnect
                     </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 614: Work Status Panel -->
+    <div class="modal" id="work-status-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px; max-height: 80vh; display: flex; flex-direction: column;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">
+                <span>⚡ Work Status</span>
+                <button class="modal-close" onclick="document.getElementById('work-status-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body" style="flex: 1; overflow-y: auto; padding: 20px;">
+                <!-- Active Tasks -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        🔄 Active
+                    </h4>
+                    <div id="work-status-active-list">
+                        <div style="color: var(--text-secondary); font-style: italic; padding: 12px;">No active tasks</div>
+                    </div>
+                </div>
+
+                <!-- Completed & Inbox -->
+                <div style="margin-bottom: 20px;">
+                    <h4 style="margin: 0 0 12px 0; color: var(--text-primary); font-size: 14px; display: flex; align-items: center; gap: 8px;">
+                        ✅ Recent Activity
+                    </h4>
+                    <div id="work-status-completed-list">
+                        <div style="color: var(--text-secondary); font-style: italic; padding: 12px;">No recent activity</div>
+                    </div>
+                </div>
+
+                <!-- Session Stats -->
+                <div style="padding: 12px; background: var(--bg); border-radius: 8px; font-size: 12px; color: var(--text-secondary);">
+                    <div style="font-weight: 600; margin-bottom: 8px; color: var(--text-primary);">📊 Session Stats</div>
+                    <div id="work-status-stats">
+                        API Calls: 0 • Tokens: ~0k • Tasks: 0 • Avg: 0s
+                    </div>
                 </div>
             </div>
         </div>
@@ -13740,7 +13784,23 @@ For faces, ALWAYS include subItems for: eyes, nose, mouth, and other visible fac
 
             console.log(`🖼️ Starting image analysis with ${modelName} (${modelId})...`);
 
+            // BUILD 614: Track as active task
+            const taskId = 'img_' + Date.now();
+            workStatusAddActive({
+                id: taskId,
+                type: 'image_analysis',
+                title: 'Analyzing image...',
+                provider: modelName,
+                cancellable: false
+            });
+            updateWorkStatusUI();
+
             const responseText = await callGeminiVisionAPI(imageDataUrl, IMAGE_ANALYSIS_PROMPT, apiKey, modelId);
+
+            // BUILD 614: Track completion and API usage
+            workStatusComplete(taskId, true);
+            workStatusTrackAPI(modelName, 2000, 0.001); // Estimate tokens/cost
+            updateWorkStatusUI();
 
             // Parse JSON from response (handle potential markdown wrapping)
             let jsonStr = responseText.trim();
@@ -41476,6 +41536,250 @@ https://treelisty.netlify.app`;
             taskProgress: {}     // taskId -> { message, percent }
         };
 
+        // ════════════════════════════════════════════════════════════════════════════
+        // BUILD 614: Work Status Panel - Visibility into background work
+        // ════════════════════════════════════════════════════════════════════════════
+        const workStatusState = {
+            // Active operations
+            active: [],  // { id, type, title, provider, startedAt, progress, progressMessage, cancellable }
+
+            // Queued operations
+            queued: [],  // { id, type, title, queuedAt, dependsOn }
+
+            // Completed (recent, max 10)
+            completed: [],  // { id, type, title, completedAt, duration, hasResults, resultsSeen }
+
+            // Session statistics
+            stats: {
+                apiCalls: 0,
+                tokensUsed: 0,
+                estimatedCost: 0,
+                tasksCompleted: 0,
+                totalDuration: 0,
+                sessionStart: Date.now()
+            }
+        };
+
+        // Work Status: Add active task
+        function workStatusAddActive(task) {
+            const existing = workStatusState.active.find(t => t.id === task.id);
+            if (!existing) {
+                workStatusState.active.push({
+                    id: task.id,
+                    type: task.type || 'agent',
+                    title: task.title || 'Working...',
+                    provider: task.provider || 'mcp',
+                    startedAt: Date.now(),
+                    progress: 0,
+                    progressMessage: task.message || 'Starting...',
+                    cancellable: task.cancellable !== false
+                });
+            }
+            updateWorkStatusUI();
+        }
+
+        // Work Status: Update progress
+        function workStatusUpdateProgress(taskId, progress, message) {
+            const task = workStatusState.active.find(t => t.id === taskId);
+            if (task) {
+                task.progress = progress;
+                task.progressMessage = message || task.progressMessage;
+            }
+            updateWorkStatusUI();
+        }
+
+        // Work Status: Complete task
+        function workStatusComplete(taskId, hasResults = false) {
+            const task = workStatusState.active.find(t => t.id === taskId);
+            if (task) {
+                const duration = Date.now() - task.startedAt;
+                workStatusState.completed.unshift({
+                    id: taskId,
+                    type: task.type,
+                    title: task.title,
+                    completedAt: Date.now(),
+                    duration: duration,
+                    hasResults: hasResults,
+                    resultsSeen: false
+                });
+                // Keep max 10 completed
+                if (workStatusState.completed.length > 10) {
+                    workStatusState.completed.pop();
+                }
+                workStatusState.active = workStatusState.active.filter(t => t.id !== taskId);
+                workStatusState.stats.tasksCompleted++;
+                workStatusState.stats.totalDuration += duration;
+            }
+            updateWorkStatusUI();
+        }
+
+        // Work Status: Track API call
+        function workStatusTrackAPI(provider, tokens = 0, cost = 0) {
+            workStatusState.stats.apiCalls++;
+            workStatusState.stats.tokensUsed += tokens;
+            workStatusState.stats.estimatedCost += cost;
+            updateWorkStatusUI();
+        }
+
+        // Work Status: Update UI
+        function updateWorkStatusUI() {
+            const btn = document.getElementById('work-status-btn');
+            const badge = document.getElementById('work-status-badge');
+
+            if (!btn || !badge) return;
+
+            const activeCount = workStatusState.active.length;
+            const needsReview = workStatusState.completed.filter(t => t.hasResults && !t.resultsSeen).length;
+            const inboxCount = mcpBridgeState.inbox.length;
+
+            // Update badge
+            const totalCount = activeCount + inboxCount;
+            badge.textContent = totalCount;
+            badge.style.display = totalCount > 0 ? 'flex' : 'none';
+
+            // Update button style based on state
+            if (activeCount > 0) {
+                btn.style.background = 'linear-gradient(135deg, #3b82f6, #2563eb)';
+                btn.classList.add('pulse-animation');
+            } else if (inboxCount > 0) {
+                btn.style.background = 'linear-gradient(135deg, #f59e0b, #d97706)';
+                btn.classList.remove('pulse-animation');
+            } else {
+                btn.style.background = 'linear-gradient(135deg, #6b7280, #4b5563)';
+                btn.classList.remove('pulse-animation');
+            }
+
+            // Update panel if open
+            if (document.getElementById('work-status-modal')?.style.display === 'flex') {
+                renderWorkStatusPanel();
+            }
+        }
+
+        // Work Status: Render panel contents
+        function renderWorkStatusPanel() {
+            const activeList = document.getElementById('work-status-active-list');
+            const completedList = document.getElementById('work-status-completed-list');
+            const statsEl = document.getElementById('work-status-stats');
+
+            if (!activeList) return;
+
+            // Render active tasks
+            if (workStatusState.active.length === 0 && mcpBridgeState.activeTasks.length === 0) {
+                activeList.innerHTML = '<div style="color: var(--text-secondary); font-style: italic; padding: 12px;">No active tasks</div>';
+            } else {
+                let html = '';
+
+                // Include MCP active tasks
+                mcpBridgeState.activeTasks.forEach(taskId => {
+                    const progress = mcpBridgeState.taskProgress[taskId] || {};
+                    html += `
+                        <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #3b82f6;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="font-weight: 500;">🤖 ${escapeHtml(progress.message || 'Agent Task')}</span>
+                                <span style="font-size: 11px; color: var(--text-secondary);">MCP</span>
+                            </div>
+                            <div style="background: var(--border); border-radius: 4px; height: 6px; overflow: hidden;">
+                                <div style="background: #3b82f6; height: 100%; width: ${progress.percent || 0}%; transition: width 0.3s;"></div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${progress.percent || 0}% complete</div>
+                        </div>
+                    `;
+                });
+
+                // Include workStatusState active tasks
+                workStatusState.active.forEach(task => {
+                    const elapsed = Math.round((Date.now() - task.startedAt) / 1000);
+                    const icon = task.type === 'research' ? '🔍' : task.type === 'sync' ? '📧' : task.type === 'ai-call' ? '🧠' : '⚡';
+                    html += `
+                        <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #3b82f6;">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <span style="font-weight: 500;">${icon} ${escapeHtml(task.title)}</span>
+                                <span style="font-size: 11px; color: var(--text-secondary);">${elapsed}s</span>
+                            </div>
+                            <div style="background: var(--border); border-radius: 4px; height: 6px; overflow: hidden;">
+                                <div style="background: #3b82f6; height: 100%; width: ${task.progress}%; transition: width 0.3s;"></div>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">${escapeHtml(task.progressMessage)}</div>
+                        </div>
+                    `;
+                });
+
+                activeList.innerHTML = html;
+            }
+
+            // Render completed tasks + inbox items
+            if (completedList) {
+                let html = '';
+
+                // Show inbox items first (need approval)
+                mcpBridgeState.inbox.forEach((item, idx) => {
+                    const opsCount = item.result?.proposed_ops?.length || 0;
+                    const ago = formatTimeAgo(item.receivedAt);
+                    html += `
+                        <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #f59e0b;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 500;">📥 ${opsCount} proposed change${opsCount !== 1 ? 's' : ''}</span>
+                                <span style="font-size: 11px; color: var(--text-secondary);">${ago}</span>
+                            </div>
+                            <button onclick="showInboxModal()" style="margin-top: 8px; padding: 4px 12px; background: #f59e0b; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 12px;">Review in Inbox</button>
+                        </div>
+                    `;
+                });
+
+                // Show recent completed
+                workStatusState.completed.slice(0, 5).forEach(task => {
+                    const ago = formatTimeAgo(task.completedAt);
+                    const durationSec = Math.round(task.duration / 1000);
+                    html += `
+                        <div style="background: var(--bg); padding: 12px; border-radius: 8px; margin-bottom: 8px; border-left: 3px solid #22c55e;">
+                            <div style="display: flex; justify-content: space-between; align-items: center;">
+                                <span style="font-weight: 500;">✅ ${escapeHtml(task.title)}</span>
+                                <span style="font-size: 11px; color: var(--text-secondary);">${ago}</span>
+                            </div>
+                            <div style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Completed in ${durationSec}s</div>
+                        </div>
+                    `;
+                });
+
+                if (html === '') {
+                    html = '<div style="color: var(--text-secondary); font-style: italic; padding: 12px;">No recent activity</div>';
+                }
+
+                completedList.innerHTML = html;
+            }
+
+            // Render stats
+            if (statsEl) {
+                const avgTime = workStatusState.stats.tasksCompleted > 0
+                    ? Math.round(workStatusState.stats.totalDuration / workStatusState.stats.tasksCompleted / 1000)
+                    : 0;
+                statsEl.innerHTML = `
+                    API Calls: ${workStatusState.stats.apiCalls} •
+                    Tokens: ~${(workStatusState.stats.tokensUsed / 1000).toFixed(1)}k •
+                    Tasks: ${workStatusState.stats.tasksCompleted} •
+                    Avg: ${avgTime}s
+                `;
+            }
+        }
+
+        // Helper: Format time ago
+        function formatTimeAgo(timestamp) {
+            const seconds = Math.round((Date.now() - timestamp) / 1000);
+            if (seconds < 60) return 'just now';
+            if (seconds < 3600) return `${Math.round(seconds / 60)}m ago`;
+            if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
+            return `${Math.round(seconds / 86400)}d ago`;
+        }
+
+        // Show Work Status Modal
+        function showWorkStatusModal() {
+            const modal = document.getElementById('work-status-modal');
+            if (modal) {
+                modal.style.display = 'flex';
+                renderWorkStatusPanel();
+            }
+        }
+
         // Build 522: Handle task events from MCP bridge
         function handleMCPTaskEvent(event) {
             console.log('[MCP Task]', event.type, event);
@@ -41495,6 +41799,14 @@ https://treelisty.netlify.app`;
                         percent: 0,
                         type: event.taskType || 'unknown'
                     };
+                    // BUILD 614: Track in Work Status
+                    workStatusAddActive({
+                        id: event.taskId,
+                        type: event.taskType || 'mcp_task',
+                        title: event.taskSummary || 'MCP Task',
+                        provider: 'Claude Code',
+                        cancellable: false
+                    });
                     // Show descriptive toast for dev requests
                     if (event.taskType === 'dev_request') {
                         const summary = event.taskSummary || 'new capability';
@@ -41503,6 +41815,7 @@ https://treelisty.netlify.app`;
                         showToast('🤖 Claude Code is working...', 'info', 2000);
                     }
                     updateInboxUI();
+                    updateWorkStatusUI();
                     break;
 
                 case 'task_progress':
@@ -41511,7 +41824,10 @@ https://treelisty.netlify.app`;
                         message: event.message,
                         percent: event.percent || 0
                     };
+                    // BUILD 614: Track progress in Work Status
+                    workStatusUpdateProgress(event.taskId, event.percent || 0, event.message);
                     updateInboxUI();
+                    updateWorkStatusUI();
                     break;
 
                 case 'task_completed':
@@ -41519,6 +41835,10 @@ https://treelisty.netlify.app`;
                     mcpBridgeState.activeTasks = mcpBridgeState.activeTasks.filter(id => id !== event.taskId);
                     const completedTaskInfo = mcpBridgeState.taskProgress[event.taskId];
                     delete mcpBridgeState.taskProgress[event.taskId];
+
+                    // BUILD 614: Mark complete in Work Status
+                    const hasInboxResults = event.taskType !== 'dev_request' && event.result?.proposed_ops?.length > 0;
+                    workStatusComplete(event.taskId, hasInboxResults);
 
                     // Add to inbox (unless it's a dev_request which doesn't need inbox review)
                     if (event.taskType !== 'dev_request') {
@@ -41538,6 +41858,7 @@ https://treelisty.netlify.app`;
                         showToast(`📥 Task complete! ${opsCount} proposed change${opsCount !== 1 ? 's' : ''} in Inbox`, 'success');
                     }
                     updateInboxUI();
+                    updateWorkStatusUI();
                     break;
 
                 // BUILD 534: Handle file open result from MCP Bridge
@@ -70750,6 +71071,13 @@ Be concise and helpful. 🌳 is your signature.`;
                 const data = await response.json();
                 if (data.error) throw new Error(data.error.message);
 
+                // BUILD 614: Track API usage in Work Status
+                const inputTokens = data.usage?.input_tokens || 0;
+                const outputTokens = data.usage?.output_tokens || 0;
+                const estimatedCost = (inputTokens * 0.003 + outputTokens * 0.015) / 1000; // Sonnet pricing
+                workStatusTrackAPI('Claude (TreeBeard)', inputTokens + outputTokens, estimatedCost);
+                updateWorkStatusUI();
+
                 // Parse and execute tool calls
                 return executeToolCalls(data.content, userMessage);
 
@@ -74851,7 +75179,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 613; // Update this with each build
+                    const KNOWN_LATEST = 614; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
