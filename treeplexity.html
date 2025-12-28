@@ -2,11 +2,11 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.68.0 | Build 633 | 2025-12-28
+    TreeListy v2.69.0 | Build 634 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 634): MOBILE P0 FIXES - iOS auto-zoom prevention (16px inputs), 100dvh viewport fix, viewport-fit:cover, 44px tap targets
     Changelog (Build 633): WEB KEYBOARD FALLBACK - Keyboard accessory bar now works in mobile Safari/Chrome via input focus detection
     Changelog (Build 632): MOBILE KEYBOARD ACCESSORY BAR - Indent/outdent/move controls above keyboard for efficient tree editing on mobile
     Changelog (Build 631): UI THEME EXPANSION - 10 new themes: Obsidian Ember, Arctic Meridian, Terracotta Dusk, Nebula Drift, Coastal Chalk (light + dark variants)
@@ -835,8 +836,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.68.0',
-            build: 633,
+            major: '2.69.0',
+            build: 634,
             date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -5521,7 +5522,7 @@
             bottom: 0;
             width: 100vw;
             max-width: 100vw;
-            height: 100vh;
+            height: var(--app-height, 100vh);
             transform: none;
             border-radius: 0;
             animation: none;
@@ -5952,8 +5953,8 @@
             bottom: 0;
             width: 100vw;
             max-width: 100vw;
-            height: 100vh;
-            max-height: 100vh;
+            height: var(--app-height, 100vh);
+            max-height: var(--app-height, 100vh);
             border-radius: 0;
             animation: none;
         }
@@ -6386,8 +6387,8 @@
             bottom: 0;
             width: 100vw;
             max-width: 100vw;
-            height: 100vh;
-            max-height: 100vh;
+            height: var(--app-height, 100vh);
+            max-height: var(--app-height, 100vh);
             border-radius: 0;
             animation: none;
         }
@@ -6415,11 +6416,11 @@
             right: 0 !important;
             bottom: 0 !important;
             width: 100vw !important;
-            height: 100vh !important;
+            height: var(--app-height, 100vh) !important;
             max-width: 100vw !important;
-            max-height: 100vh !important;
+            max-height: var(--app-height, 100vh) !important;
             min-width: 100vw !important;
-            min-height: 100vh !important;
+            min-height: var(--app-height, 100vh) !important;
             border-radius: 0 !important;
             z-index: 10001 !important;
             resize: none !important;
@@ -6588,6 +6589,45 @@
 
     .keyboard-accessory-bar #kbd-ai:active {
         background: linear-gradient(135deg, #8b5cf6, #a78bfa);
+    }
+
+    /* =========================================================================
+       BUILD 634: P0 MOBILE CRITICAL FIXES
+       ========================================================================= */
+
+    /* P0 FIX 1: Prevent iOS auto-zoom on input focus (requires 16px minimum) */
+    @media (max-width: 768px), (pointer: coarse) {
+        input, textarea, select, [contenteditable="true"] {
+            font-size: 16px !important;
+        }
+    }
+
+    /* P0 FIX 2: iOS Safari dynamic viewport height (prevents address bar layout shift) */
+    :root {
+        --app-height: 100vh;
+    }
+    @supports (height: 100dvh) {
+        :root {
+            --app-height: 100dvh;
+        }
+    }
+
+    /* P1 FIX: Expand/collapse tap targets (44px minimum for iOS HIG) */
+    @media (max-width: 768px), (pointer: coarse) {
+        .expand-toggle {
+            padding: 12px;
+            margin: -12px;
+            min-width: 44px;
+            min-height: 44px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        /* Disable double-tap zoom on interactive elements */
+        .tree-node, .canvas-node, button, a, [role="button"] {
+            touch-action: manipulation;
+        }
     }
 
     /* Voice Capture Section in TreeBeard */
@@ -77753,7 +77793,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 633; // Update this with each build
+                    const KNOWN_LATEST = 634; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
