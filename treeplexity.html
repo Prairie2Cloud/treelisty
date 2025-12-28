@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.61.0 | Build 622 | 2025-12-27
+    TreeListy v2.62.0 | Build 623 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 623): ATLAS PHASE 1 - Cross-tree references: TreeRegistry, hyperedge nodeIds support treeId:nodeGuid, list_trees/search_trees/link_cross_tree commands
     Changelog (Build 622): SUB-AGENT PHASE 2 - Result integration: enrichments injected into TreeBeard context, collapsible insight UI, validation updates tree nodes, auto-retry
     Changelog (Build 621): IMAGE SPATIAL COMMANDS - nearby/region/containing commands for bbox-based queries on image-analyzed trees
     Changelog (Build 620): SUB-AGENT ARCHITECTURE - Trigger detection for conversation patterns, silent dispatch via MCP, orchestrator for validation/research agents
@@ -824,9 +825,9 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.61.0',
-            build: 622,
-            date: '2025-12-27',
+            major: '2.62.0',
+            build: 623,
+            date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
         };
@@ -16921,6 +16922,14 @@ Focus on logical structure and content organization best practices.`;
                 const aggregates = calculateHyperedgeAggregates(he);
                 const aggregateStr = formatHyperedgeAggregates(aggregates);
 
+                // BUILD 623: Get cross-tree status for hyperedge
+                const crossTreeInfo = (typeof getHyperedgeCrossTreeInfo === 'function')
+                    ? getHyperedgeCrossTreeInfo(he) : null;
+                const hasCrossTree = crossTreeInfo && crossTreeInfo.crossTreeCount > 0;
+                const crossTreeLabel = hasCrossTree
+                    ? ` • 🌐 ${crossTreeInfo.crossTreeCount} cross-tree`
+                    : '';
+
                 const item = document.createElement('div');
                 item.style.cssText = `
                     padding: 10px 12px;
@@ -16945,7 +16954,7 @@ Focus on logical structure and content organization best practices.`;
                             ${getHyperedgeDisplayLabel(he)}
                         </div>
                         <div style="font-size: 11px; color: var(--text-secondary);">
-                            ${he.nodeIds?.length || 0} nodes${aggregateStr ? ' • ' + aggregateStr : ''}
+                            ${he.nodeIds?.length || 0} nodes${crossTreeLabel}${aggregateStr ? ' • ' + aggregateStr : ''}
                         </div>
                     </div>
                     <button onclick="event.stopPropagation(); focusOnHyperedge('${he.id}'); document.getElementById('hyperedge-visibility-panel').remove();"
@@ -26116,6 +26125,363 @@ function escapeHtml(str) {
 // END ATLAS IDENTITY INFRASTRUCTURE
 // ============================================================================
 
+// ============================================================================
+// BUILD 623: ATLAS PHASE 1 - TREE REGISTRY & CROSS-TREE REFERENCES
+// ============================================================================
+
+/**
+ * TreeRegistry - Manages known trees for cross-tree linking
+ * Persisted to localStorage, keyed by treeId
+ */
+const TreeRegistry = {
+    STORAGE_KEY: 'atlas_tree_registry',
+
+    // In-memory cache of registered trees
+    _trees: new Map(),
+
+    /**
+     * Initialize registry from localStorage
+     */
+    init() {
+        try {
+            const stored = localStorage.getItem(this.STORAGE_KEY);
+            if (stored) {
+                const parsed = JSON.parse(stored);
+                this._trees = new Map(Object.entries(parsed));
+                console.log(`[Atlas] TreeRegistry loaded: ${this._trees.size} trees`);
+            }
+        } catch (e) {
+            console.warn('[Atlas] Failed to load TreeRegistry:', e);
+            this._trees = new Map();
+        }
+    },
+
+    /**
+     * Save registry to localStorage
+     */
+    _persist() {
+        try {
+            const obj = Object.fromEntries(this._trees);
+            localStorage.setItem(this.STORAGE_KEY, JSON.stringify(obj));
+        } catch (e) {
+            console.warn('[Atlas] Failed to persist TreeRegistry:', e);
+        }
+    },
+
+    /**
+     * Register or update a tree in the registry
+     * @param {Object} tree - The tree to register (must have treeId)
+     * @returns {boolean} True if registered successfully
+     */
+    register(tree) {
+        if (!tree || !tree.treeId) {
+            console.warn('[Atlas] Cannot register tree without treeId');
+            return false;
+        }
+
+        // Build summary of nodes for quick lookup
+        const nodes = this._extractNodeSummaries(tree);
+
+        const entry = {
+            treeId: tree.treeId,
+            name: tree.name || 'Unnamed Tree',
+            pattern: tree.pattern?.key || 'generic',
+            nodeCount: nodes.length,
+            nodes: nodes, // Array of {nodeGuid, name, type}
+            lastUpdated: new Date().toISOString()
+        };
+
+        this._trees.set(tree.treeId, entry);
+        this._persist();
+        console.log(`[Atlas] Registered tree: ${entry.name} (${entry.treeId})`);
+        return true;
+    },
+
+    /**
+     * Extract node summaries for cross-tree reference
+     */
+    _extractNodeSummaries(tree) {
+        const nodes = [];
+
+        const traverse = (node, depth = 0) => {
+            if (node.nodeGuid && node.name) {
+                nodes.push({
+                    nodeGuid: node.nodeGuid,
+                    name: node.name,
+                    type: node.type || 'unknown',
+                    id: node.id // Keep for backwards compat
+                });
+            }
+            if (node.children) node.children.forEach(c => traverse(c, depth + 1));
+            if (node.items) node.items.forEach(i => traverse(i, depth + 1));
+            if (node.subtasks) node.subtasks.forEach(s => traverse(s, depth + 1));
+        };
+
+        traverse(tree);
+        return nodes;
+    },
+
+    /**
+     * Get a registered tree by treeId
+     * @param {string} treeId - The tree's immutable ID
+     * @returns {Object|null} The registry entry or null
+     */
+    get(treeId) {
+        return this._trees.get(treeId) || null;
+    },
+
+    /**
+     * Get all registered trees
+     * @returns {Array} Array of registry entries
+     */
+    getAll() {
+        return Array.from(this._trees.values());
+    },
+
+    /**
+     * Remove a tree from the registry
+     * @param {string} treeId - The tree's immutable ID
+     * @returns {boolean} True if removed
+     */
+    unregister(treeId) {
+        const existed = this._trees.has(treeId);
+        this._trees.delete(treeId);
+        if (existed) this._persist();
+        return existed;
+    },
+
+    /**
+     * Find a node across all registered trees
+     * @param {string} nodeGuid - The node's stable GUID
+     * @returns {{treeId: string, node: Object}|null}
+     */
+    findNodeByGuid(nodeGuid) {
+        for (const [treeId, entry] of this._trees) {
+            const node = entry.nodes.find(n => n.nodeGuid === nodeGuid);
+            if (node) {
+                return { treeId, node, treeName: entry.name };
+            }
+        }
+        return null;
+    },
+
+    /**
+     * Search nodes across all registered trees
+     * @param {string} query - Search query
+     * @param {Object} options - {limit: number, excludeTreeId: string}
+     * @returns {Array} Matching nodes with tree context
+     */
+    search(query, options = {}) {
+        const { limit = 20, excludeTreeId = null } = options;
+        const results = [];
+        const lowerQuery = query.toLowerCase();
+
+        for (const [treeId, entry] of this._trees) {
+            if (excludeTreeId && treeId === excludeTreeId) continue;
+
+            for (const node of entry.nodes) {
+                if (node.name.toLowerCase().includes(lowerQuery)) {
+                    results.push({
+                        ...node,
+                        treeId,
+                        treeName: entry.name,
+                        uid: `${treeId}:${node.nodeGuid}`
+                    });
+                    if (results.length >= limit) break;
+                }
+            }
+            if (results.length >= limit) break;
+        }
+
+        return results;
+    },
+
+    /**
+     * Resolve a cross-tree UID to node info
+     * @param {string} uid - Format: treeId:nodeGuid
+     * @returns {Object|null} {treeId, nodeGuid, node, treeName, loaded}
+     */
+    resolveUid(uid) {
+        const { treeId, nodeGuid } = parseUid(uid);
+        if (!treeId || !nodeGuid) return null;
+
+        const entry = this._trees.get(treeId);
+        if (!entry) {
+            return { treeId, nodeGuid, node: null, treeName: null, loaded: false, error: 'Tree not registered' };
+        }
+
+        const node = entry.nodes.find(n => n.nodeGuid === nodeGuid);
+        if (!node) {
+            return { treeId, nodeGuid, node: null, treeName: entry.name, loaded: true, error: 'Node not found in registry' };
+        }
+
+        // Check if this is the currently loaded tree
+        const isCurrentTree = typeof capexTree !== 'undefined' && capexTree.treeId === treeId;
+
+        return {
+            treeId,
+            nodeGuid,
+            node,
+            treeName: entry.name,
+            loaded: isCurrentTree,
+            isCurrentTree
+        };
+    }
+};
+
+// Initialize TreeRegistry on load
+TreeRegistry.init();
+
+// Expose globally for debugging
+window.TreeRegistry = TreeRegistry;
+
+/**
+ * Create a cross-tree reference UID
+ * @param {string} treeId - Target tree's ID
+ * @param {string} nodeGuid - Target node's GUID
+ * @returns {string} The composite UID
+ */
+function createCrossTreeRef(treeId, nodeGuid) {
+    return `${treeId}:${nodeGuid}`;
+}
+
+/**
+ * Check if a node reference is cross-tree (contains :)
+ * @param {string} ref - The reference string
+ * @returns {boolean}
+ */
+function isCrossTreeRef(ref) {
+    return typeof ref === 'string' && ref.includes(':') && ref.startsWith('tree_');
+}
+
+/**
+ * Parse a cross-tree reference or local node ID
+ * @param {string} ref - Either a UID (treeId:nodeGuid) or local node ID
+ * @returns {{isCrossTree: boolean, treeId: string|null, nodeGuid: string|null, localId: string|null}}
+ */
+function parseNodeRef(ref) {
+    if (!ref) return { isCrossTree: false, treeId: null, nodeGuid: null, localId: null };
+
+    if (isCrossTreeRef(ref)) {
+        const { treeId, nodeGuid } = parseUid(ref);
+        return { isCrossTree: true, treeId, nodeGuid, localId: null };
+    }
+
+    return { isCrossTree: false, treeId: null, nodeGuid: null, localId: ref };
+}
+
+/**
+ * BUILD 623: Resolve a hyperedge node reference
+ * Handles both local node IDs and cross-tree references (treeId:nodeGuid)
+ * @param {string} ref - Node reference (local ID or cross-tree ref)
+ * @param {function} localLookup - Function to find local nodes by ID
+ * @returns {object} Resolved node info: { found: boolean, node?, isCrossTree, info? }
+ */
+function resolveHyperedgeNodeRef(ref, localLookup) {
+    const parsed = parseNodeRef(ref);
+
+    if (!parsed.isCrossTree) {
+        // Local node - use the provided lookup function
+        const node = localLookup ? localLookup(parsed.localId) : findNodeById(parsed.localId);
+        return {
+            found: !!node,
+            node: node,
+            isCrossTree: false,
+            localId: parsed.localId
+        };
+    }
+
+    // Cross-tree reference - resolve via TreeRegistry
+    const resolved = TreeRegistry.resolveUid(ref);
+    if (!resolved || resolved.error) {
+        return {
+            found: false,
+            isCrossTree: true,
+            treeId: parsed.treeId,
+            nodeGuid: parsed.nodeGuid,
+            error: resolved?.error || 'Resolution failed'
+        };
+    }
+
+    if (resolved.isCurrentTree) {
+        // It's a reference to the current tree - find the local node by nodeGuid
+        const localNode = findNodeByGuid(capexTree, parsed.nodeGuid);
+        return {
+            found: !!localNode,
+            node: localNode,
+            isCrossTree: true,
+            isCurrentTree: true,
+            treeId: parsed.treeId,
+            nodeGuid: parsed.nodeGuid
+        };
+    }
+
+    // Node is in a different tree
+    return {
+        found: !!resolved.node,
+        isCrossTree: true,
+        isCurrentTree: false,
+        treeId: parsed.treeId,
+        nodeGuid: parsed.nodeGuid,
+        treeName: resolved.treeName,
+        nodeSummary: resolved.node // { nodeGuid, name, type, id }
+    };
+}
+
+/**
+ * BUILD 623: Resolve all node references in a hyperedge
+ * @param {object} hyperedge - The hyperedge with nodeIds array
+ * @param {function} localLookup - Optional local lookup function
+ * @returns {object[]} Array of resolved node info objects
+ */
+function resolveHyperedgeNodes(hyperedge, localLookup) {
+    if (!hyperedge || !hyperedge.nodeIds || !Array.isArray(hyperedge.nodeIds)) {
+        return [];
+    }
+
+    return hyperedge.nodeIds.map(ref => resolveHyperedgeNodeRef(ref, localLookup));
+}
+
+/**
+ * BUILD 623: Get display info for a hyperedge showing cross-tree status
+ * @param {object} hyperedge - The hyperedge
+ * @returns {object} { localCount, crossTreeCount, unresolvedCount, treeNames }
+ */
+function getHyperedgeCrossTreeInfo(hyperedge) {
+    const resolved = resolveHyperedgeNodes(hyperedge);
+    const treeNames = new Set();
+    let localCount = 0;
+    let crossTreeCount = 0;
+    let unresolvedCount = 0;
+
+    resolved.forEach(r => {
+        if (!r.isCrossTree) {
+            if (r.found) localCount++;
+            else unresolvedCount++;
+        } else {
+            if (r.found && !r.isCurrentTree) {
+                crossTreeCount++;
+                if (r.treeName) treeNames.add(r.treeName);
+            } else if (r.isCurrentTree && r.found) {
+                localCount++;
+            } else {
+                unresolvedCount++;
+            }
+        }
+    });
+
+    return {
+        localCount,
+        crossTreeCount,
+        unresolvedCount,
+        treeNames: [...treeNames]
+    };
+}
+
+// ============================================================================
+// END ATLAS PHASE 1 - TREE REGISTRY
+// ============================================================================
+
 function normalizeNode(node, source = 'legacy') {
     if (!node) return;
 
@@ -32686,6 +33052,12 @@ Your response:`;
 
             render();
 
+            // BUILD 623: Register tree in Atlas TreeRegistry for cross-tree linking
+            if (capexTree.treeId && typeof TreeRegistry !== 'undefined') {
+                TreeRegistry.register(capexTree);
+                console.log(`📊 Tree registered in Atlas: ${capexTree.treeId}`);
+            }
+
             // BUILD 561: Update refresh button visibility for Gmail/GDrive trees
             updateTreeRefreshButton();
 
@@ -33460,6 +33832,12 @@ Your response:`;
                         // Render the tree
                         if (typeof render === 'function') {
                             render();
+                        }
+
+                        // BUILD 623: Register in Atlas TreeRegistry
+                        if (capexTree.treeId && typeof TreeRegistry !== 'undefined') {
+                            TreeRegistry.register(capexTree);
+                            console.log(`📊 Tree registered in Atlas: ${capexTree.treeId}`);
                         }
 
                         console.log('✅ Tree loaded from source:', source);
@@ -35510,6 +35888,13 @@ Return ONLY the JSON array.`
 
                 // Render the tree
                 render();
+
+                // BUILD 623: Register in Atlas TreeRegistry
+                if (capexTree.treeId && typeof TreeRegistry !== 'undefined') {
+                    TreeRegistry.register(capexTree);
+                    console.log(`📊 Tree registered in Atlas: ${capexTree.treeId}`);
+                }
+
                 showToast(`✅ Loaded: ${capexTree.name || 'Shared Project'}`, 'success');
 
                 // Clear the URL parameter (optional - keeps URL clean)
@@ -38044,9 +38429,10 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
         /**
          * Add a new hyperedge to the root-level hyperedges array
+         * BUILD 623: Supports cross-tree refs in format treeId:nodeGuid
          * @param {string} type - Type of hyperedge (e.g., 'montage', 'argument', 'theme', 'dependency-cluster')
          * @param {string} label - Human-readable label for the hyperedge
-         * @param {string[]} nodeIds - Array of global node IDs (2+ nodes)
+         * @param {string[]} nodeIds - Array of node refs: local IDs or cross-tree refs (treeId:nodeGuid)
          * @param {object} metadata - Optional metadata (color, pattern, created, etc.)
          * @returns {object} The created hyperedge
          */
@@ -38060,6 +38446,10 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 return null;
             }
 
+            // BUILD 623: Detect if hyperedge contains cross-tree refs
+            const hasCrossTreeRefs = nodeIds.some(id => isCrossTreeRef(id));
+            const crossTreeInfo = hasCrossTreeRefs ? getHyperedgeCrossTreeInfo({ nodeIds }) : null;
+
             const hyperedge = {
                 id: `hyperedge-${Date.now()}`,
                 type: type,
@@ -38067,12 +38457,19 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
                 nodeIds: nodeIds,
                 metadata: {
                     created: new Date().toISOString(),
+                    hasCrossTreeRefs: hasCrossTreeRefs,
+                    ...(crossTreeInfo && { crossTreeInfo }),
                     ...metadata
                 }
             };
 
             capexTree.hyperedges.push(hyperedge);
-            console.log(`✅ Created hyperedge: ${label} (${nodeIds.length} nodes)`);
+
+            if (hasCrossTreeRefs) {
+                console.log(`✅ Created cross-tree hyperedge: ${label} (${crossTreeInfo?.localCount} local, ${crossTreeInfo?.crossTreeCount} cross-tree)`);
+            } else {
+                console.log(`✅ Created hyperedge: ${label} (${nodeIds.length} nodes)`);
+            }
 
             return hyperedge;
         }
@@ -38113,15 +38510,30 @@ DO NOT build phases, items, or subtasks in Turn 1. Wait to understand the goal f
 
         /**
          * Find all hyperedges containing a specific node
+         * BUILD 623: Also matches by nodeGuid for cross-tree references
          * @param {string} nodeId - The node ID to search for
+         * @param {string} nodeGuid - Optional nodeGuid to also check
          * @returns {object[]} Array of hyperedges containing this node
          */
-        function findHyperedgesForNode(nodeId) {
+        function findHyperedgesForNode(nodeId, nodeGuid = null) {
             if (!capexTree.hyperedges) {
                 return [];
             }
 
-            return capexTree.hyperedges.filter(h => h.nodeIds.includes(nodeId));
+            return capexTree.hyperedges.filter(h => {
+                if (!h.nodeIds || !Array.isArray(h.nodeIds)) return false;
+
+                // Check for direct ID match
+                if (h.nodeIds.includes(nodeId)) return true;
+
+                // BUILD 623: Check for cross-tree ref by nodeGuid
+                if (nodeGuid && capexTree.treeId) {
+                    const crossTreeRef = `${capexTree.treeId}:${nodeGuid}`;
+                    if (h.nodeIds.includes(crossTreeRef)) return true;
+                }
+
+                return false;
+            });
         }
 
         /**
@@ -55162,6 +55574,12 @@ ${jsonText}`;
                     sessionStorage.removeItem('treelisty_help_history');
 
                     render();
+
+                    // BUILD 623: Re-register in Atlas TreeRegistry after help mode
+                    if (capexTree.treeId && typeof TreeRegistry !== 'undefined') {
+                        TreeRegistry.register(capexTree);
+                    }
+
                     showToast('Welcome back!', 'success');
                 } catch (e) {
                     console.error('Failed to restore tree:', e);
@@ -70146,6 +70564,135 @@ The agent will run in the background and results will enrich my next response.`;
             },
 
             // ═══════════════════════════════════════════════════════════════
+            // BUILD 623: ATLAS CROSS-TREE COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            'list_trees': () => {
+                if (typeof TreeRegistry === 'undefined') {
+                    return '⚠️ TreeRegistry not available.';
+                }
+                const trees = TreeRegistry.getAll();
+                if (trees.length === 0) {
+                    return '📋 No trees registered yet.\n\n💡 Trees are automatically registered when you load them.\nTry loading a tree from a JSON file.';
+                }
+
+                let response = `🌳 **Known Trees (${trees.length}):**\n\n`;
+                const currentTreeId = capexTree?.treeId;
+                trees.forEach((t, idx) => {
+                    const isCurrent = t.treeId === currentTreeId;
+                    const icon = isCurrent ? '📍' : '📁';
+                    response += `${idx + 1}. ${icon} **${t.name}** ${isCurrent ? '(current)' : ''}\n`;
+                    response += `   • ID: \`${t.treeId}\`\n`;
+                    response += `   • Pattern: ${t.pattern} | Nodes: ${t.nodeCount}\n`;
+                    response += `   • Updated: ${new Date(t.lastUpdated).toLocaleString()}\n\n`;
+                });
+                response += '💡 Commands: `search_trees:<query>`, `link_cross_tree:<nodeId>|<treeId:nodeGuid>`';
+                return response;
+            },
+
+            'search_trees': (query) => {
+                if (!query || query.trim().length === 0) {
+                    return '⚠️ Usage: `search_trees:<query>`\n\nSearches across all known trees for matching nodes.';
+                }
+
+                if (typeof TreeRegistry === 'undefined') {
+                    return '⚠️ TreeRegistry not available.';
+                }
+
+                const results = TreeRegistry.search(query.trim());
+                if (results.length === 0) {
+                    return `🔍 No matches found for "${query}" across known trees.`;
+                }
+
+                let response = `🔍 **Cross-Tree Search Results (${results.length}):**\n\n`;
+                results.slice(0, 10).forEach((r, idx) => {
+                    const ref = `${r.treeId}:${r.nodeGuid}`;
+                    response += `${idx + 1}. **${r.name}** (${r.type})\n`;
+                    response += `   • Tree: ${r.treeName}\n`;
+                    response += `   • Ref: \`${ref}\`\n\n`;
+                });
+                if (results.length > 10) {
+                    response += `...and ${results.length - 10} more matches.`;
+                }
+                response += '\n💡 Use the ref with `link_cross_tree` to create cross-tree hyperedges.';
+                return response;
+            },
+
+            'link_cross_tree': (args) => {
+                if (!args) {
+                    return '⚠️ Usage: `link_cross_tree:<localNodeId>|<treeId:nodeGuid>`\n\nCreates a hyperedge linking a local node to a node in another tree.';
+                }
+
+                const parts = args.split('|').map(s => s.trim());
+                if (parts.length < 2) {
+                    return '⚠️ Format: `link_cross_tree:<localNodeId>|<treeId:nodeGuid>`\n\nExample: `link_cross_tree:item_001|tree_abc123:node_xyz789`';
+                }
+
+                const [localNodeId, crossTreeRef] = parts;
+
+                // Validate local node exists
+                const localNode = findNodeById(localNodeId);
+                if (!localNode) {
+                    return `⚠️ Local node "${localNodeId}" not found in current tree.`;
+                }
+
+                // Validate cross-tree ref format
+                if (!isCrossTreeRef(crossTreeRef)) {
+                    return `⚠️ Invalid cross-tree reference "${crossTreeRef}".\n\nFormat should be: \`treeId:nodeGuid\``;
+                }
+
+                // Resolve the cross-tree reference
+                const resolved = TreeRegistry.resolveUid(crossTreeRef);
+                if (!resolved || resolved.error) {
+                    return `⚠️ Cannot resolve "${crossTreeRef}": ${resolved?.error || 'Tree not registered'}`;
+                }
+
+                // Create the hyperedge
+                const hyperedge = addHyperedge(
+                    'cross-tree',
+                    `Link: ${localNode.name || localNodeId} ↔ ${resolved.node?.name || 'External Node'}`,
+                    [localNodeId, crossTreeRef],
+                    {
+                        description: `Cross-tree link to ${resolved.treeName}`,
+                        crossTree: true
+                    }
+                );
+
+                if (hyperedge) {
+                    saveState('Create cross-tree link');
+                    return `🌐 Created cross-tree hyperedge:\n• Local: **${localNode.name || localNodeId}**\n• Remote: **${resolved.node?.name || crossTreeRef}** (${resolved.treeName})`;
+                }
+                return '⚠️ Failed to create cross-tree hyperedge.';
+            },
+
+            'tree_info': () => {
+                if (!capexTree.treeId) {
+                    return '⚠️ Current tree has no treeId. Load a tree file to see tree info.';
+                }
+
+                let response = `📊 **Current Tree Info:**\n\n`;
+                response += `• **Name:** ${capexTree.name || 'Unnamed'}\n`;
+                response += `• **Tree ID:** \`${capexTree.treeId}\`\n`;
+                response += `• **Pattern:** ${capexTree.pattern?.key || currentPattern || 'generic'}\n`;
+
+                const nodeCount = countNodes(capexTree);
+                response += `• **Nodes:** ${nodeCount}\n`;
+
+                if (capexTree.hyperedges) {
+                    const crossTreeHyperedges = capexTree.hyperedges.filter(h =>
+                        h.nodeIds?.some(id => isCrossTreeRef(id))
+                    );
+                    response += `• **Hyperedges:** ${capexTree.hyperedges.length}`;
+                    if (crossTreeHyperedges.length > 0) {
+                        response += ` (${crossTreeHyperedges.length} cross-tree)`;
+                    }
+                    response += '\n';
+                }
+
+                return response;
+            },
+
+            // ═══════════════════════════════════════════════════════════════
             // BUILD 615: CHROME CAPABILITY COMMANDS
             // ═══════════════════════════════════════════════════════════════
 
@@ -72525,6 +73072,11 @@ RESPONSE:
             { name: 'list_capabilities', description: 'List all capability nodes (Chrome web actions)', input_schema: { type: 'object', properties: {}, required: [] } },
             { name: 'create_capability', description: 'Create a new capability for web actions', input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Capability name (e.g., "Chase Balance")' }, site: { type: 'string', description: 'Website domain (e.g., "chase.com")' }, goal: { type: 'string', description: 'What the capability does' } }, required: ['name', 'site', 'goal'] } },
             { name: 'test_capability', description: 'Test if a capability still works', input_schema: { type: 'object', properties: { capability_name: { type: 'string', description: 'Name of capability to test' } }, required: ['capability_name'] } },
+            // BUILD 623: Atlas cross-tree commands
+            { name: 'list_trees', description: 'List all known trees in the Atlas registry', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'search_trees', description: 'Search for nodes across all known trees', input_schema: { type: 'object', properties: { query: { type: 'string', description: 'Search query' } }, required: ['query'] } },
+            { name: 'link_cross_tree', description: 'Create a hyperedge linking to a node in another tree', input_schema: { type: 'object', properties: { local_node_id: { type: 'string', description: 'Local node ID' }, cross_tree_ref: { type: 'string', description: 'Cross-tree reference (treeId:nodeGuid)' } }, required: ['local_node_id', 'cross_tree_ref'] } },
+            { name: 'tree_info', description: 'Show current tree info including treeId', input_schema: { type: 'object', properties: {}, required: [] } },
             // Conversational response (when no action needed)
             { name: 'respond', description: 'Respond conversationally without executing a command', input_schema: { type: 'object', properties: { message: { type: 'string', description: 'Response message to user' } }, required: ['message'] } }
         ];
@@ -74217,6 +74769,11 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 'browse_capabilities': 'view_capabilities', 'capability_registry': 'view_capabilities',
                 'open_capabilities': 'view_capabilities', 'manage_capabilities': 'view_capabilities',
                 'back': 'back_from_capabilities', 'return': 'back_from_capabilities', 'exit_capabilities': 'back_from_capabilities',
+                // BUILD 623: Atlas cross-tree intents
+                'trees': 'list_trees', 'show_trees': 'list_trees', 'known_trees': 'list_trees', 'registry': 'list_trees',
+                'find_in_trees': 'search_trees', 'cross_search': 'search_trees', 'atlas_search': 'search_trees',
+                'cross_tree_link': 'link_cross_tree', 'create_cross_link': 'link_cross_tree', 'atlas_link': 'link_cross_tree',
+                'current_tree': 'tree_info', 'this_tree': 'tree_info', 'tree_id': 'tree_info',
             };
 
             // Try exact match first, then intent routing
@@ -76708,7 +77265,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 622; // Update this with each build
+                    const KNOWN_LATEST = 623; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);

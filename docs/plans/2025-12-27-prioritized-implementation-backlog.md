@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
-**Date:** 2025-12-27
-**Current Build:** 622
+**Date:** 2025-12-28
+**Current Build:** 623
 **Status:** Living Document
-**Last Updated:** 2025-12-27 (Builds 610-622 shipped)
+**Last Updated:** 2025-12-28 (Build 623 shipped)
 
 ---
 
@@ -34,12 +34,13 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Recent Shipping Sprint (Builds 610-622)
+## Recent Shipping Sprint (Builds 610-623)
 
-*Massive progress from December 27, 2025*
+*Massive progress from December 27-28, 2025*
 
 | Build | Feature | Status |
 |-------|---------|--------|
+| 623 | Atlas Phase 1 - Cross-Tree References | **SHIPPED** |
 | 622 | Sub-Agent Phase 2 - Result Integration | **SHIPPED** |
 | 621 | Image Spatial Commands - nearby/region/containing | **SHIPPED** |
 | 620 | Sub-Agent Architecture - Trigger detection and dispatch | **SHIPPED** |
@@ -63,23 +64,26 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 *Max 3 items. Each delivers standalone value.*
 
-### 1. Atlas Phase 1: Cross-Tree References (Build 621+)
-**Status:** READY - Phase-0 validation complete
+### 1. ~~Atlas Phase 1: Cross-Tree References~~ → SHIPPED
+**Status:** SHIPPED (Build 623)
 **File:** `2025-12-25-atlas-cross-tree-intelligence-design.md`
-**Effort:** High (1-2 weeks)
-**Value:** Strategic - Enables knowledge graph across trees
 
-**What (Phase 1):**
-- Hyperedge targets can reference nodes in other trees via `treeId:nodeGuid`
-- Tree registry for loaded/known trees
-- Cross-tree link resolution
-- UI for creating cross-tree references
+**Implemented:**
+- ✅ TreeRegistry: localStorage-persisted registry of known trees
+- ✅ Hyperedge nodeIds support `treeId:nodeGuid` cross-tree references
+- ✅ Cross-tree link resolution via `resolveHyperedgeNodeRef()`
+- ✅ Hyperedge display shows 🌐 cross-tree indicator
+- ✅ TreeBeard commands: `list_trees`, `search_trees`, `link_cross_tree`, `tree_info`
+- ✅ Trees auto-registered on load
 
 **Acceptance Tests:**
 - [x] Phase-0: nodeGuid stable across move/export/import (VALIDATED)
-- [ ] Can create hyperedge pointing to node in different tree
-- [ ] Cross-tree links resolve when target tree is loaded
-- [ ] Broken links show graceful "tree not loaded" state
+- [x] Can create hyperedge pointing to node in different tree
+- [x] Cross-tree links resolve when target tree is loaded
+- [x] Broken links show graceful error state
+
+**Remaining for Phase 1.1:**
+- [ ] UI modal for browsing/selecting nodes from other trees
 
 **Dependencies:** Atlas Phase-0 (VALIDATED)
 **Blocks:** Phase 2-4 (cross-tree search, merge, sync)
