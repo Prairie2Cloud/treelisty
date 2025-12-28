@@ -33447,6 +33447,15 @@ Your response:`;
                 this.startAutoSave(120);
                 this.startIndicatorUpdates();
                 this.watchForChanges();
+
+                // BUILD 623: Register initial tree in Atlas TreeRegistry
+                // This catches the default welcome tree if no localStorage data
+                setTimeout(() => {
+                    if (capexTree.treeId && typeof TreeRegistry !== 'undefined') {
+                        TreeRegistry.register(capexTree);
+                        console.log(`📊 Initial tree registered in Atlas: ${capexTree.treeId}`);
+                    }
+                }, 100);
             }
 
             getTimestamp() {
@@ -33759,6 +33768,12 @@ Your response:`;
                         if (typeof render === 'function') {
                             console.log('🔄 Re-rendering after localStorage restore');
                             render();
+                        }
+
+                        // BUILD 623: Register in Atlas TreeRegistry
+                        if (capexTree.treeId && typeof TreeRegistry !== 'undefined') {
+                            TreeRegistry.register(capexTree);
+                            console.log(`📊 Tree registered in Atlas: ${capexTree.treeId}`);
                         }
                     } catch (error) {
                         console.error('❌ Failed to load tree from LocalStorage:', error);
