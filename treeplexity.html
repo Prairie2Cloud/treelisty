@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.63.0 | Build 624 | 2025-12-28
+    TreeListy v2.63.0 | Build 625 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 625): HEADER UPDATE CHECK - Subtle 🔄 button next to version display to check for updates
     Changelog (Build 624): TREEMAP VIEW - Squarified treemap visualization with drill-down navigation, hover tooltips, breadcrumbs, and size metrics toggle
     Changelog (Build 623): ATLAS PHASE 1 - Cross-tree references: TreeRegistry, hyperedge nodeIds support treeId:nodeGuid, list_trees/search_trees/link_cross_tree commands
     Changelog (Build 622): SUB-AGENT PHASE 2 - Result integration: enrichments injected into TreeBeard context, collapsible insight UI, validation updates tree nodes, auto-retry
@@ -827,7 +828,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.63.0',
-            build: 624,
+            build: 625,
             date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -7232,8 +7233,11 @@
 
             <div class="control-section" style="display: flex; flex-direction: column; align-items: flex-end; gap: 4px;">
                 <button class="btn" id="how-to-btn" title="How to use TreeListy" style="padding: 8px 16px; font-size: 14px; display: flex; align-items: center; gap: 6px;">❓ <span>Help</span></button>
-                <div id="version-display" style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;">
-                    <!-- Populated by TREELISTY_VERSION -->
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <div id="version-display" style="font-size: 10px; color: var(--text-secondary); opacity: 0.7; white-space: nowrap;">
+                        <!-- Populated by TREELISTY_VERSION -->
+                    </div>
+                    <button id="update-check-btn" title="Check for updates" style="background: transparent; border: none; cursor: pointer; padding: 2px 4px; font-size: 11px; opacity: 0.6; transition: opacity 0.2s;" onmouseover="this.style.opacity='1'" onmouseout="this.style.opacity='0.6'">🔄</button>
                 </div>
             </div>
         </div>
@@ -11208,6 +11212,35 @@ Do not ask permission—just provide the critique, then help.
             if (versionEl && window.TREELISTY_VERSION) {
                 versionEl.textContent = window.TREELISTY_VERSION.full;
                 versionEl.title = window.TREELISTY_VERSION.title;
+            }
+
+            // BUILD 625: Update check button in header
+            const updateBtn = document.getElementById('update-check-btn');
+            if (updateBtn) {
+                updateBtn.addEventListener('click', async () => {
+                    updateBtn.textContent = '⏳';
+                    updateBtn.disabled = true;
+                    try {
+                        const result = await window.checkForUpdates(true);
+                        if (result === 'latest') {
+                            updateBtn.textContent = '✅';
+                            showToast('You have the latest version!', 'success');
+                        } else if (result === 'update') {
+                            updateBtn.textContent = '🆕';
+                            // Toast already shown by checkForUpdates
+                        } else {
+                            updateBtn.textContent = '⚠️';
+                            showToast('Could not check for updates', 'info');
+                        }
+                    } catch (e) {
+                        updateBtn.textContent = '⚠️';
+                        showToast('Update check failed', 'error');
+                    }
+                    setTimeout(() => {
+                        updateBtn.textContent = '🔄';
+                        updateBtn.disabled = false;
+                    }, 3000);
+                });
             }
         });
 
@@ -77345,7 +77378,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 624; // Update this with each build
+                    const KNOWN_LATEST = 625; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
