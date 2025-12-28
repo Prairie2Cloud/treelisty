@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.57.1 | Build 617 | 2025-12-27
+    TreeListy v2.58.0 | Build 618 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 618): GMAIL LABEL MANAGEMENT - Add/remove labels UI in info panel, TreeBeard commands (gmail_add_label, gmail_remove_label, gmail_list_labels)
     Changelog (Build 617): EXPANDED DOMAIN CATEGORIZATION - Banking (paypal, venmo, coinbase), Work (asana, notion, linear), Research (wikipedia, arxiv, reddit, github)
     Changelog (Build 616): GLOBAL CAPABILITIES REGISTRY - Dedicated tree for capabilities (cross-project), auto-categorization, view/browse commands
     Changelog (Build 615): CHROME CAPABILITIES PHASE 1 - Create/list/test capability nodes, TreeBeard commands, modal UI
@@ -819,8 +820,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.57.1',
-            build: 617,
+            major: '2.58.0',
+            build: 618,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -29812,6 +29813,31 @@ function hidePatternDescription() {
                             ✓ Mark Read
                         </button>
                     </div>
+
+                    <!-- BUILD 618: Label Management -->
+                    <div style="margin-top: 12px; padding-top: 12px; border-top: 1px solid rgba(139, 92, 246, 0.15);">
+                        <div style="display: flex; align-items: center; gap: 8px; margin-bottom: 8px;">
+                            <span style="font-size: 14px;">🏷️</span>
+                            <span style="font-size: 11px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase;">Labels</span>
+                        </div>
+                        <div id="gmail-labels-${node.id}" style="display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px;">
+                            ${(node.labels || []).map(label => `
+                                <span class="gmail-label-tag" style="display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; background: rgba(139, 92, 246, 0.15); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 12px; font-size: 11px; color: #a78bfa;">
+                                    ${label}
+                                    <button onclick="gmailRemoveLabel('${node.threadId}', '${node.id}', '${label}', this)" style="background: none; border: none; color: #ef4444; cursor: pointer; font-size: 10px; padding: 0 2px; line-height: 1;" title="Remove label">×</button>
+                                </span>
+                            `).join('') || '<span style="font-size: 11px; color: var(--text-secondary); font-style: italic;">No labels</span>'}
+                        </div>
+                        <div style="display: flex; gap: 6px; align-items: center;">
+                            <select id="gmail-label-select-${node.id}" onchange="gmailAddLabelFromSelect('${node.threadId}', '${node.id}', this)" style="flex: 1; padding: 6px 10px; background: rgba(0,0,0,0.3); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; color: var(--text-primary); font-size: 12px; cursor: pointer;">
+                                <option value="">+ Add label...</option>
+                            </select>
+                            <button onclick="refreshGmailLabels('${node.id}')" style="padding: 6px 10px; background: rgba(139, 92, 246, 0.1); border: 1px solid rgba(139, 92, 246, 0.3); border-radius: 6px; color: #a78bfa; cursor: pointer; font-size: 11px;" title="Refresh labels from Gmail">
+                                🔄
+                            </button>
+                        </div>
+                    </div>
+
                     <div style="margin-top: 10px; font-size: 11px; color: var(--text-secondary);">
                         💡 Requires MCP Bridge running. Changes sync to Gmail with 10s undo window.
                     </div>
@@ -43495,6 +43521,224 @@ https://treelisty.netlify.app`;
             }, 10000);
         }
         window.gmailSyncMarkRead = gmailSyncMarkRead;
+
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 618: Label Management (Gmail Bidirectional Sync)
+        // ═══════════════════════════════════════════════════════════════
+
+        // Cache for Gmail labels (to avoid repeated API calls)
+        let gmailLabelsCache = null;
+        let gmailLabelsCacheTime = 0;
+        const GMAIL_LABELS_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+        /**
+         * Fetch Gmail labels from MCP Bridge
+         */
+        async function fetchGmailLabels(forceRefresh = false) {
+            // Check cache
+            if (!forceRefresh && gmailLabelsCache && (Date.now() - gmailLabelsCacheTime < GMAIL_LABELS_CACHE_TTL)) {
+                return gmailLabelsCache;
+            }
+
+            if (!isMCPBridgeConnected()) {
+                console.log('[Gmail Labels] MCP Bridge not connected');
+                return [];
+            }
+
+            try {
+                const result = await sendGmailAction('gmail_list_labels', {});
+                if (result.labels && Array.isArray(result.labels)) {
+                    // Filter out system labels and sort
+                    gmailLabelsCache = result.labels
+                        .filter(l => l.type === 'user' || !l.id.startsWith('CATEGORY_'))
+                        .sort((a, b) => (a.name || '').localeCompare(b.name || ''));
+                    gmailLabelsCacheTime = Date.now();
+                    return gmailLabelsCache;
+                }
+                return [];
+            } catch (error) {
+                console.error('[Gmail Labels] Fetch error:', error);
+                return [];
+            }
+        }
+        window.fetchGmailLabels = fetchGmailLabels;
+
+        /**
+         * Refresh Gmail labels dropdown for a node
+         */
+        async function refreshGmailLabels(nodeId) {
+            const selectEl = document.getElementById(`gmail-label-select-${nodeId}`);
+            if (!selectEl) return;
+
+            selectEl.disabled = true;
+            selectEl.innerHTML = '<option value="">Loading...</option>';
+
+            const labels = await fetchGmailLabels(true);
+
+            // Get current node labels to exclude
+            const node = findNodeByIdForGmail(nodeId);
+            const currentLabels = new Set((node?.labels || []).map(l => l.toLowerCase()));
+
+            // Populate dropdown
+            selectEl.innerHTML = '<option value="">+ Add label...</option>';
+            labels.forEach(label => {
+                // Skip if already applied or is a system label
+                if (currentLabels.has((label.name || '').toLowerCase())) return;
+                if (['INBOX', 'SENT', 'DRAFT', 'TRASH', 'SPAM', 'STARRED', 'IMPORTANT', 'UNREAD'].includes(label.id)) return;
+
+                const option = document.createElement('option');
+                option.value = label.id;
+                option.textContent = label.name;
+                selectEl.appendChild(option);
+            });
+
+            selectEl.disabled = false;
+            showToast('Labels refreshed', 'success', 2000);
+        }
+        window.refreshGmailLabels = refreshGmailLabels;
+
+        /**
+         * Add label from dropdown selection
+         */
+        async function gmailAddLabelFromSelect(threadId, nodeId, selectEl) {
+            const labelId = selectEl.value;
+            if (!labelId) return;
+
+            const labelName = selectEl.options[selectEl.selectedIndex].text;
+            selectEl.value = ''; // Reset dropdown
+
+            await gmailAddLabel(threadId, nodeId, labelId, labelName);
+        }
+        window.gmailAddLabelFromSelect = gmailAddLabelFromSelect;
+
+        /**
+         * Add label to Gmail thread
+         */
+        async function gmailAddLabel(threadId, nodeId, labelId, labelName) {
+            if (!isMCPBridgeConnected()) {
+                showToast('MCP Bridge not connected', 'error');
+                return;
+            }
+
+            const node = findNodeByIdForGmail(nodeId);
+            if (!node) {
+                showToast('Node not found', 'error');
+                return;
+            }
+
+            showToast(`Adding label "${labelName}"...`, 'info', 2000);
+
+            try {
+                const result = await sendGmailAction('gmail_add_label', {
+                    thread_id: threadId,
+                    label_id: labelId
+                });
+
+                if (result.success) {
+                    // Update local node
+                    if (!node.labels) node.labels = [];
+                    if (!node.labels.includes(labelName)) {
+                        node.labels.push(labelName);
+                    }
+
+                    showToast(`Added label "${labelName}"`, 'success');
+                    render(); // Re-render to show updated labels
+                } else {
+                    showToast(`Failed to add label: ${result.error || result.message}`, 'error');
+                }
+            } catch (error) {
+                showToast(`Label error: ${error.message}`, 'error');
+            }
+        }
+        window.gmailAddLabel = gmailAddLabel;
+
+        /**
+         * Remove label from Gmail thread
+         */
+        async function gmailRemoveLabel(threadId, nodeId, labelName, buttonEl) {
+            if (!isMCPBridgeConnected()) {
+                showToast('MCP Bridge not connected', 'error');
+                return;
+            }
+
+            const node = findNodeByIdForGmail(nodeId);
+            if (!node) {
+                showToast('Node not found', 'error');
+                return;
+            }
+
+            // Disable button
+            if (buttonEl) {
+                buttonEl.disabled = true;
+                buttonEl.style.opacity = '0.5';
+            }
+
+            // Find label ID from cache
+            const labels = await fetchGmailLabels();
+            const labelInfo = labels.find(l => l.name === labelName);
+            const labelId = labelInfo?.id || labelName;
+
+            showToast(`Removing label "${labelName}"...`, 'info', 2000);
+
+            try {
+                const result = await sendGmailAction('gmail_remove_label', {
+                    thread_id: threadId,
+                    label_id: labelId
+                });
+
+                if (result.success) {
+                    // Update local node
+                    if (node.labels) {
+                        node.labels = node.labels.filter(l => l !== labelName);
+                    }
+
+                    showToast(`Removed label "${labelName}"`, 'success');
+                    render(); // Re-render to show updated labels
+                } else {
+                    showToast(`Failed to remove label: ${result.error || result.message}`, 'error');
+                    if (buttonEl) {
+                        buttonEl.disabled = false;
+                        buttonEl.style.opacity = '1';
+                    }
+                }
+            } catch (error) {
+                showToast(`Label error: ${error.message}`, 'error');
+                if (buttonEl) {
+                    buttonEl.disabled = false;
+                    buttonEl.style.opacity = '1';
+                }
+            }
+        }
+        window.gmailRemoveLabel = gmailRemoveLabel;
+
+        /**
+         * Auto-populate label dropdown when info panel opens
+         */
+        async function initGmailLabelsForNode(nodeId) {
+            if (!isMCPBridgeConnected()) return;
+
+            const selectEl = document.getElementById(`gmail-label-select-${nodeId}`);
+            if (!selectEl) return;
+
+            // Load labels in background
+            const labels = await fetchGmailLabels();
+            if (labels.length === 0) return;
+
+            const node = findNodeByIdForGmail(nodeId);
+            const currentLabels = new Set((node?.labels || []).map(l => l.toLowerCase()));
+
+            selectEl.innerHTML = '<option value="">+ Add label...</option>';
+            labels.forEach(label => {
+                if (currentLabels.has((label.name || '').toLowerCase())) return;
+                if (['INBOX', 'SENT', 'DRAFT', 'TRASH', 'SPAM', 'STARRED', 'IMPORTANT', 'UNREAD'].includes(label.id)) return;
+
+                const option = document.createElement('option');
+                option.value = label.id;
+                option.textContent = label.name;
+                selectEl.appendChild(option);
+            });
+        }
+        window.initGmailLabelsForNode = initGmailLabelsForNode;
 
         // ═══════════════════════════════════════════════════════════════
         // BUILD 551: Draft Composition (Gmail Bidirectional Sync Phase 2)
@@ -66319,6 +66563,108 @@ Slack data not available. To calculate slack:
                 }
             },
 
+            // BUILD 618: Label Management Commands
+            'gmail_add_label': async (labelName) => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!labelName) return '⚠️ Specify label name. Example: `gmail_add_label:Important`';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+
+                try {
+                    // Get labels to find ID
+                    const labels = await fetchGmailLabels();
+                    const labelInfo = labels.find(l => l.name.toLowerCase() === labelName.toLowerCase());
+                    const labelId = labelInfo?.id || labelName;
+
+                    const result = await sendGmailAction('gmail_add_label', {
+                        thread_id: email.threadId,
+                        label_id: labelId
+                    });
+                    if (result?.success) {
+                        if (!email.labels) email.labels = [];
+                        if (!email.labels.includes(labelInfo?.name || labelName)) {
+                            email.labels.push(labelInfo?.name || labelName);
+                        }
+                        render();
+                        return `🏷️ Added label "${labelInfo?.name || labelName}" to "${email.name}"`;
+                    }
+                    return `❌ Failed: ${result?.error || 'Unknown error'}`;
+                } catch (e) {
+                    return `❌ Error: ${e.message}`;
+                }
+            },
+
+            'gmail_remove_label': async (labelName) => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+                if (!labelName) return '⚠️ Specify label name. Example: `gmail_remove_label:Important`';
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+
+                try {
+                    const labels = await fetchGmailLabels();
+                    const labelInfo = labels.find(l => l.name.toLowerCase() === labelName.toLowerCase());
+                    const labelId = labelInfo?.id || labelName;
+
+                    const result = await sendGmailAction('gmail_remove_label', {
+                        thread_id: email.threadId,
+                        label_id: labelId
+                    });
+                    if (result?.success) {
+                        if (email.labels) {
+                            email.labels = email.labels.filter(l => l.toLowerCase() !== labelName.toLowerCase());
+                        }
+                        render();
+                        return `🏷️ Removed label "${labelInfo?.name || labelName}" from "${email.name}"`;
+                    }
+                    return `❌ Failed: ${result?.error || 'Unknown error'}`;
+                } catch (e) {
+                    return `❌ Error: ${e.message}`;
+                }
+            },
+
+            'gmail_list_labels': async () => {
+                if (!isMCPBridgeConnected()) return '🔴 MCP Bridge not connected.';
+
+                try {
+                    const labels = await fetchGmailLabels(true);
+                    if (labels.length === 0) {
+                        return '📭 No labels found or unable to fetch labels.';
+                    }
+
+                    const userLabels = labels.filter(l => l.type === 'user');
+                    const systemLabels = labels.filter(l => l.type !== 'user' && !l.id.startsWith('CATEGORY_'));
+
+                    let response = `🏷️ **Gmail Labels (${labels.length} total)**\n\n`;
+
+                    if (userLabels.length > 0) {
+                        response += `**User Labels (${userLabels.length}):**\n`;
+                        response += userLabels.map(l => `• ${l.name}`).join('\n');
+                        response += '\n\n';
+                    }
+
+                    if (systemLabels.length > 0) {
+                        response += `**System Labels (${systemLabels.length}):**\n`;
+                        response += systemLabels.slice(0, 10).map(l => `• ${l.name || l.id}`).join('\n');
+                        if (systemLabels.length > 10) response += `\n• ... and ${systemLabels.length - 10} more`;
+                    }
+
+                    return response;
+                } catch (e) {
+                    return `❌ Error: ${e.message}`;
+                }
+            },
+
+            'gmail_show_labels': async () => {
+                const email = COMMAND_REGISTRY['_get_focused_email']();
+                if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
+
+                const labels = email.labels || [];
+                if (labels.length === 0) {
+                    return `📭 "${email.name}" has no labels.`;
+                }
+                return `🏷️ **Labels for "${email.name}":**\n${labels.map(l => `• ${l}`).join('\n')}`;
+            },
+
             'gmail_open': () => {
                 const email = COMMAND_REGISTRY['_get_focused_email']();
                 if (!email) return '📭 No email focused. Use `find_node` to select an email first.';
@@ -71076,6 +71422,10 @@ GMAIL ACTIONS (for email nodes - requires MCP Bridge):
 • gmail_unstar - Remove star from email
 • gmail_mark_read - Mark focused email as read
 • gmail_mark_unread - Mark email as unread
+• gmail_add_label:{name} - Add label to focused email (e.g., "gmail_add_label:Important")
+• gmail_remove_label:{name} - Remove label from focused email
+• gmail_list_labels - List all available Gmail labels
+• gmail_show_labels - Show labels on focused email
 • gmail_open - Open email in Gmail (browser tab)
 • gmail_reply - Open reply composer for focused email
 • gmail_forward - Open forward composer for focused email
@@ -75563,7 +75913,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 617; // Update this with each build
+                    const KNOWN_LATEST = 618; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
