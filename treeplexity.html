@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.61.0 | Build 621 | 2025-12-27
+    TreeListy v2.61.0 | Build 622 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 622): SUB-AGENT PHASE 2 - Result integration: enrichments injected into TreeBeard context, collapsible insight UI, validation updates tree nodes, auto-retry
     Changelog (Build 621): IMAGE SPATIAL COMMANDS - nearby/region/containing commands for bbox-based queries on image-analyzed trees
     Changelog (Build 620): SUB-AGENT ARCHITECTURE - Trigger detection for conversation patterns, silent dispatch via MCP, orchestrator for validation/research agents
     Changelog (Build 619): IMAGE PATTERN RECOGNITION - Gemini detects content type and suggests TreeListy pattern (filesystem, gmail, dialogue, roadmap, etc.)
@@ -824,7 +825,7 @@
     <script>
         window.TREELISTY_VERSION = {
             major: '2.61.0',
-            build: 621,
+            build: 622,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -4620,6 +4621,57 @@
     }
 
     /* Chat messages area */
+    /* BUILD 622: Sub-agent insight display */
+    .sub-agent-insight {
+        margin: 8px 12px;
+        background: rgba(59, 130, 246, 0.1);
+        border-radius: 8px;
+        border-left: 3px solid var(--treeplex-primary, #3b82f6);
+        overflow: hidden;
+        font-size: 12px;
+    }
+    .sub-agent-insight .insight-header {
+        padding: 8px 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+    .sub-agent-insight .insight-header:hover {
+        background: rgba(59, 130, 246, 0.15);
+    }
+    .sub-agent-insight .insight-icon {
+        font-size: 14px;
+    }
+    .sub-agent-insight .insight-label {
+        flex: 1;
+        color: var(--treeplex-text, #e2e8f0);
+    }
+    .sub-agent-insight .insight-toggle {
+        transition: transform 0.2s;
+    }
+    .sub-agent-insight.collapsed .insight-toggle {
+        transform: rotate(0deg);
+    }
+    .sub-agent-insight:not(.collapsed) .insight-toggle {
+        transform: rotate(90deg);
+    }
+    .sub-agent-insight .insight-body {
+        max-height: 200px;
+        overflow: auto;
+        padding: 0 12px 12px;
+        display: none;
+    }
+    .sub-agent-insight:not(.collapsed) .insight-body {
+        display: block;
+    }
+    .sub-agent-insight .insight-body pre {
+        margin: 0;
+        font-size: 11px;
+        white-space: pre-wrap;
+        color: var(--treeplex-text-secondary, #94a3b8);
+    }
+
     #chat-assistant-messages {
         flex: 1;
         overflow-y: auto;
@@ -63596,15 +63648,37 @@ ${fullTranscript}`;
                         id: taskId,
                         type: agentType,
                         dispatchTime: Date.now(),
-                        context
+                        context,
+                        retryCount: context.retryCount || 0  // BUILD 622: Track retries
                     });
                     this.state.lastDispatchTime = Date.now();
-                    console.log(`🤖 Sub-agent dispatched: ${agentType} (${taskId})`);
+                    console.log(`🤖 Sub-agent dispatched: ${agentType} (${taskId})${context.retryCount ? ` [retry ${context.retryCount}]` : ''}`);
                     return taskId;
                 } catch (err) {
                     console.error('Sub-agent dispatch failed:', err);
                     return null;
                 }
+            },
+
+            /**
+             * BUILD 622: Retry a failed validation with modified prompt
+             */
+            async retryValidation(originalContext, failureReason) {
+                const MAX_RETRIES = 1;
+                const retryCount = (originalContext.retryCount || 0) + 1;
+
+                if (retryCount > MAX_RETRIES) {
+                    console.log('🤖 Max retries reached for validation');
+                    return null;
+                }
+
+                const modifiedContext = {
+                    ...originalContext,
+                    retryCount,
+                    message: `RETRY: ${originalContext.message}. Previous attempt failed: ${failureReason}. Try a different approach.`
+                };
+
+                return this.dispatchSubAgent('validator', modifiedContext);
             },
 
             /**
@@ -63631,6 +63705,88 @@ ${fullTranscript}`;
                 }
 
                 console.log(`🤖 Sub-agent result received: ${agent.type}`);
+
+                // BUILD 622: Show enrichment notification and update UI
+                this._showEnrichmentNotification(agent.type, result);
+
+                // BUILD 622: If validator, update confidence in tree
+                if (agent.type === 'validator' && result.result?.validated !== undefined) {
+                    this._updateTreeConfidence(agent.context, result.result);
+                }
+            },
+
+            /**
+             * BUILD 622: Show collapsible enrichment notification in chat
+             */
+            _showEnrichmentNotification(agentType, result) {
+                const icons = { validator: '✓', researcher: '📚', contrarian: '💡' };
+                const labels = { validator: 'Validated', researcher: 'Research found', contrarian: 'Alternative view' };
+
+                const icon = icons[agentType] || '🤖';
+                const label = labels[agentType] || 'Insight';
+
+                // Create collapsible insight element
+                const messagesContainer = document.getElementById('chat-assistant-messages');
+                if (!messagesContainer) return;
+
+                const insightDiv = document.createElement('div');
+                insightDiv.className = 'sub-agent-insight collapsed';
+                insightDiv.innerHTML = `
+                    <div class="insight-header" onclick="this.parentElement.classList.toggle('collapsed')">
+                        <span class="insight-icon">${icon}</span>
+                        <span class="insight-label">${label}</span>
+                        <span class="insight-toggle">▶</span>
+                    </div>
+                    <div class="insight-body">
+                        <pre>${JSON.stringify(result.result, null, 2)}</pre>
+                    </div>
+                `;
+
+                // Insert before last assistant message or at end
+                const lastAssistant = messagesContainer.querySelector('.chat-message.assistant:last-of-type');
+                if (lastAssistant) {
+                    lastAssistant.after(insightDiv);
+                } else {
+                    messagesContainer.appendChild(insightDiv);
+                }
+
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            },
+
+            /**
+             * BUILD 622: Update tree node confidence from validator result
+             */
+            _updateTreeConfidence(context, validationResult) {
+                if (!context?.message) return;
+
+                // Try to find the relevant node
+                const searchTerm = context.message.substring(0, 50);
+                let targetNode = null;
+
+                const traverse = (node) => {
+                    if ((node.name && node.name.includes(searchTerm)) ||
+                        (node.description && node.description.includes(searchTerm))) {
+                        targetNode = node;
+                        return;
+                    }
+                    (node.children || []).forEach(traverse);
+                    (node.items || []).forEach(traverse);
+                    (node.subtasks || []).forEach(traverse);
+                };
+
+                if (typeof capexTree !== 'undefined') {
+                    traverse(capexTree);
+                }
+
+                if (targetNode) {
+                    targetNode._validation = {
+                        validated: validationResult.validated,
+                        confidence: validationResult.confidence || 0,
+                        evidence: validationResult.evidence,
+                        checkedAt: new Date().toISOString()
+                    };
+                    console.log(`🤖 Updated validation on node: ${targetNode.name}`);
+                }
             },
 
             /**
@@ -71040,6 +71196,19 @@ NATURAL LANGUAGE: "the 60s" = 1960s, "build out" = add_child, navigate FIRST the
                 systemPrompt += getFeatureGuide();
             }
 
+            // BUILD 622: Inject sub-agent enrichments into context
+            const enrichments = SubAgentOrchestrator.getEnrichments();
+            if (enrichments && enrichments.hasEnrichments) {
+                const enrichmentText = enrichments.results.map(r => {
+                    if (r.type === 'validator') return '- Validation: ' + (r.data?.evidence || 'No evidence found');
+                    if (r.type === 'researcher') return '- Research: ' + (r.data?.findings || []).slice(0, 2).join('; ');
+                    if (r.type === 'contrarian') return '- Alternative view: ' + ((r.data?.alternatives || [])[0] || 'Consider other approaches');
+                    return '- ' + r.type + ': ' + JSON.stringify(r.data).substring(0, 100);
+                }).join('\n');
+                systemPrompt += '\n\nSUB-AGENT INSIGHTS (use naturally, do not mention sub-agents to user):\n' + enrichmentText;
+                console.log('Sub-agent enrichments injected:', enrichments.results.length);
+            }
+
 	            systemPrompt += `
 
 	Be warm, insightful, concise. Ask at most one follow-up question only if needed. End with [ACTION: x] if taking action.`;
@@ -71181,6 +71350,21 @@ NATURAL LANGUAGE: "the 60s" = 1960s, "build out" = add_child, navigate FIRST the
 
             if (intent.needsFeatureHelp) {
                 systemPrompt += getFeatureGuide();
+            }
+
+            // BUILD 622: Inject sub-agent enrichments into context
+            const enrichments = SubAgentOrchestrator.getEnrichments();
+            if (enrichments && enrichments.hasEnrichments) {
+                systemPrompt += `
+
+SUB-AGENT INSIGHTS (use naturally, don't mention sub-agents to user):
+${enrichments.results.map(r => {
+    if (r.type === 'validator') return `• Validation: ${r.data?.evidence || 'No evidence found'}`;
+    if (r.type === 'researcher') return `• Research: ${(r.data?.findings || []).slice(0, 2).join('; ')}`;
+    if (r.type === 'contrarian') return `• Alternative view: ${(r.data?.alternatives || [])[0] || 'Consider other approaches'}`;
+    return `• ${r.type}: ${JSON.stringify(r.data).substring(0, 100)}`;
+}).join('\n')}`;
+                console.log('🤖 Enrichments injected:', enrichments.results.length);
             }
 
             systemPrompt += `
@@ -76524,7 +76708,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 621; // Update this with each build
+                    const KNOWN_LATEST = 622; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
