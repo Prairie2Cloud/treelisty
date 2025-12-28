@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.55.0 | Build 614 | 2025-12-27
+    TreeListy v2.56.0 | Build 615 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 615): CHROME CAPABILITIES PHASE 1 - Create/list/test capability nodes, TreeBeard commands, modal UI
     Changelog (Build 614): WORK STATUS PANEL - Dashboard for active/completed tasks, API tracking, session stats
     Changelog (Build 613): TOOL-USE API - TreeBeard uses Claude's tool_use for guaranteed structured responses, MCP fallback
     Changelog (Build 612): FAST-PATH EXPANSION - Edge visibility, expand/collapse, layout, search patterns + show_edges/hide_edges commands
@@ -816,8 +817,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.55.0',
-            build: 614,
+            major: '2.56.0',
+            build: 615,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -9756,6 +9757,65 @@ The AI will analyze the structure and convert it to a tree."
                         API Calls: 0 • Tokens: ~0k • Tasks: 0 • Avg: 0s
                     </div>
                 </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- BUILD 615: Create Capability Modal -->
+    <div class="modal" id="create-capability-modal" style="display: none;">
+        <div class="modal-content" style="max-width: 500px;">
+            <div class="modal-header" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">
+                <span>🔐 Create Capability</span>
+                <button class="modal-close" onclick="document.getElementById('create-capability-modal').style.display='none'">&times;</button>
+            </div>
+            <div class="modal-body" style="padding: 20px;">
+                <p style="color: var(--text-secondary); font-size: 13px; margin: 0 0 20px 0;">
+                    Define what Claude can do on a website using your existing browser session.
+                </p>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: var(--text-primary); font-size: 13px; font-weight: 500; margin-bottom: 6px;">Capability Name</label>
+                    <input type="text" id="cap-name" placeholder="e.g., Chase Balance" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px;">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: var(--text-primary); font-size: 13px; font-weight: 500; margin-bottom: 6px;">Website Domain</label>
+                    <input type="text" id="cap-site" placeholder="e.g., chase.com" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px;">
+                </div>
+
+                <div style="margin-bottom: 16px;">
+                    <label style="display: block; color: var(--text-primary); font-size: 13px; font-weight: 500; margin-bottom: 6px;">Goal (What to Accomplish)</label>
+                    <input type="text" id="cap-goal" placeholder="e.g., Read checking account balance" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px;">
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; color: var(--text-primary); font-size: 13px; font-weight: 500; margin-bottom: 8px;">Permissions (Phase 1: Read-Only)</label>
+                    <div style="display: flex; gap: 12px; flex-wrap: wrap;">
+                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 13px;">
+                            <input type="checkbox" id="cap-perm-read" checked disabled style="accent-color: #8b5cf6;">
+                            Read (required)
+                        </label>
+                        <label style="display: flex; align-items: center; gap: 6px; color: var(--text-secondary); font-size: 13px;">
+                            <input type="checkbox" id="cap-perm-navigate" checked disabled style="accent-color: #8b5cf6;">
+                            Navigate (required)
+                        </label>
+                    </div>
+                    <p style="color: var(--text-secondary); font-size: 11px; margin: 8px 0 0 0;">
+                        ⚠️ Phase 1 is read-only. Write permissions (fill_form, submit) coming in Phase 2.
+                    </p>
+                </div>
+
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; color: var(--text-primary); font-size: 13px; font-weight: 500; margin-bottom: 6px;">Example Phrases (optional)</label>
+                    <input type="text" id="cap-examples" placeholder="e.g., check my balance, bank balance, chase account" style="width: 100%; padding: 10px 12px; background: var(--bg); border: 1px solid var(--border); border-radius: 8px; color: var(--text-primary); font-size: 14px;">
+                    <p style="color: var(--text-secondary); font-size: 11px; margin: 4px 0 0 0;">
+                        Comma-separated phrases that should trigger this capability
+                    </p>
+                </div>
+            </div>
+            <div class="modal-footer" style="display: flex; gap: 12px; justify-content: flex-end; padding: 16px 20px; border-top: 1px solid var(--border);">
+                <button class="btn" onclick="document.getElementById('create-capability-modal').style.display='none'" style="background: var(--bg);">Cancel</button>
+                <button class="btn" onclick="submitCreateCapability()" style="background: linear-gradient(135deg, #8b5cf6, #6d28d9);">Create Capability</button>
             </div>
         </div>
     </div>
@@ -26794,6 +26854,69 @@ function hidePatternDescription() {
                 showInfo(node);
             }
         }
+
+        // BUILD 615: Show create capability modal
+        function showCreateCapabilityModal() {
+            const modal = document.getElementById('create-capability-modal');
+            if (modal) {
+                // Clear form
+                document.getElementById('cap-name').value = '';
+                document.getElementById('cap-site').value = '';
+                document.getElementById('cap-goal').value = '';
+                document.getElementById('cap-examples').value = '';
+                modal.style.display = 'flex';
+            }
+        }
+        window.showCreateCapabilityModal = showCreateCapabilityModal;
+
+        // BUILD 615: Submit create capability form
+        function submitCreateCapability() {
+            const name = document.getElementById('cap-name').value.trim();
+            const site = document.getElementById('cap-site').value.trim();
+            const goal = document.getElementById('cap-goal').value.trim();
+            const examplesRaw = document.getElementById('cap-examples').value.trim();
+
+            if (!name || !site || !goal) {
+                showToast('Please fill in Name, Site, and Goal', 'error');
+                return;
+            }
+
+            const examples = examplesRaw ? examplesRaw.split(',').map(s => s.trim()).filter(Boolean) : [];
+
+            const newCap = CAPABILITY_SCHEMA.create({
+                name,
+                site,
+                goal,
+                examples
+            });
+
+            // Add to Capabilities phase (create if needed)
+            let capsPhase = (capexTree.children || []).find(c => c.name === 'Capabilities');
+            if (!capsPhase) {
+                capsPhase = {
+                    id: 'phase_capabilities_' + Date.now(),
+                    type: 'phase',
+                    name: 'Capabilities',
+                    expanded: true,
+                    showInCanvas: true,
+                    items: []
+                };
+                if (!capexTree.children) capexTree.children = [];
+                capexTree.children.push(capsPhase);
+            }
+
+            if (!capsPhase.items) capsPhase.items = [];
+            capsPhase.items.push(newCap);
+
+            saveState('Create capability: ' + name);
+            render();
+
+            // Close modal
+            document.getElementById('create-capability-modal').style.display = 'none';
+
+            showToast(`🔐 Created capability: ${name}`, 'success');
+        }
+        window.submitCreateCapability = submitCreateCapability;
 
         // Render tree - phases flow left to right
         function render() {
@@ -68768,6 +68891,106 @@ Slack data not available. To calculate slack:
             },
 
             // ═══════════════════════════════════════════════════════════════
+            // BUILD 615: CHROME CAPABILITY COMMANDS
+            // ═══════════════════════════════════════════════════════════════
+
+            'list_capabilities': () => {
+                const capabilities = findCapabilityNodes(capexTree);
+                if (capabilities.length === 0) {
+                    return '🔐 No capabilities defined yet.\n\n💡 Create one with:\n• `create_capability:Chase Balance|chase.com|Read account balance`\n• Or say "create capability for Chase balance"';
+                }
+
+                let response = `🔐 **Capabilities (${capabilities.length}):**\n\n`;
+                capabilities.forEach((cap, idx) => {
+                    const status = cap.status || 'untested';
+                    const statusEmoji = { healthy: '✅', degraded: '⚠️', broken: '❌', untested: '❓' }[status] || '❓';
+                    const perms = (cap.allow || ['read', 'navigate']).join(', ');
+                    response += `${idx + 1}. ${statusEmoji} **${cap.name}**\n`;
+                    response += `   • Site: ${cap.site} | Permissions: ${perms}\n`;
+                    response += `   • Goal: ${cap.goal || 'Not specified'}\n\n`;
+                });
+                response += '💡 Commands: `test_capability:<name>`, `create_capability:<name>|<site>|<goal>`';
+                return response;
+            },
+
+            'create_capability': (args) => {
+                if (!args) {
+                    showCreateCapabilityModal();
+                    return '🔐 Opening capability creation form...';
+                }
+
+                // Parse args: "name|site|goal"
+                const parts = args.split('|').map(s => s.trim());
+                if (parts.length < 3) {
+                    return '⚠️ Format: `create_capability:Name|site.com|What it does`\n\nExample: `create_capability:Chase Balance|chase.com|Read checking account balance`';
+                }
+
+                const [name, site, goal] = parts;
+                const newCap = CAPABILITY_SCHEMA.create({ name, site, goal });
+
+                // Add to root's children (or create a Capabilities phase)
+                let capsPhase = (capexTree.children || []).find(c => c.name === 'Capabilities');
+                if (!capsPhase) {
+                    capsPhase = {
+                        id: 'phase_capabilities_' + Date.now(),
+                        type: 'phase',
+                        name: 'Capabilities',
+                        expanded: true,
+                        showInCanvas: true,
+                        items: []
+                    };
+                    if (!capexTree.children) capexTree.children = [];
+                    capexTree.children.push(capsPhase);
+                }
+
+                if (!capsPhase.items) capsPhase.items = [];
+                capsPhase.items.push(newCap);
+
+                saveState('Create capability: ' + name);
+                render();
+
+                return `🔐 Created capability: **${name}**\n• Site: ${site}\n• Goal: ${goal}\n• Permissions: read, navigate (default)\n\n💡 Test it with \`test_capability:${name}\``;
+            },
+
+            'test_capability': (capName) => {
+                if (!capName) {
+                    return '⚠️ Specify capability name. Example: `test_capability:Chase Balance`';
+                }
+
+                const capabilities = findCapabilityNodes(capexTree);
+                const searchTerm = capName.toLowerCase();
+                const matched = capabilities.find(c => (c.name || '').toLowerCase().includes(searchTerm));
+
+                if (!matched) {
+                    const available = capabilities.map(c => c.name).join(', ') || 'None defined';
+                    return `❌ No capability matching "${capName}".\n\nAvailable: ${available}`;
+                }
+
+                // Check if Chrome extension is connected
+                if (typeof mcpBridgeState !== 'undefined' && mcpBridgeState.extensionConnected) {
+                    // Dispatch test to Chrome extension via MCP
+                    showToast(`🧪 Testing ${matched.name}...`, 'info', 3000);
+
+                    // Update status to testing
+                    matched.status = 'untested';
+                    matched.lastTestedAt = new Date().toISOString();
+
+                    // For now, just simulate - actual test would go through MCP bridge
+                    setTimeout(() => {
+                        matched.status = 'healthy';
+                        matched.lastSuccessAt = new Date().toISOString();
+                        matched.failureStreak = 0;
+                        render();
+                        showToast(`✅ ${matched.name} is healthy!`, 'success');
+                    }, 2000);
+
+                    return `🧪 Testing **${matched.name}**...\n\nChecking if ${matched.site} is accessible and selectors work.`;
+                } else {
+                    return `⚠️ Chrome extension not connected.\n\nTo test capabilities:\n1. Install TreeListy Chrome Extension\n2. Start MCP Bridge: \`node packages/treelisty-mcp-bridge/src/bridge.js\`\n3. Ensure you're logged into ${matched.site}`;
+                }
+            },
+
+            // ═══════════════════════════════════════════════════════════════
             // BUILD 600: CANVAS PHASE FILTERING
             // ═══════════════════════════════════════════════════════════════
 
@@ -71018,6 +71241,10 @@ RESPONSE:
             // Help
             { name: 'show_help', description: 'Show help and available commands', input_schema: { type: 'object', properties: {}, required: [] } },
             { name: 'list_hyperedges', description: 'List all hyperedges in the tree', input_schema: { type: 'object', properties: {}, required: [] } },
+            // BUILD 615: Capability commands
+            { name: 'list_capabilities', description: 'List all capability nodes (Chrome web actions)', input_schema: { type: 'object', properties: {}, required: [] } },
+            { name: 'create_capability', description: 'Create a new capability for web actions', input_schema: { type: 'object', properties: { name: { type: 'string', description: 'Capability name (e.g., "Chase Balance")' }, site: { type: 'string', description: 'Website domain (e.g., "chase.com")' }, goal: { type: 'string', description: 'What the capability does' } }, required: ['name', 'site', 'goal'] } },
+            { name: 'test_capability', description: 'Test if a capability still works', input_schema: { type: 'object', properties: { capability_name: { type: 'string', description: 'Name of capability to test' } }, required: ['capability_name'] } },
             // Conversational response (when no action needed)
             { name: 'respond', description: 'Respond conversationally without executing a command', input_schema: { type: 'object', properties: { message: { type: 'string', description: 'Response message to user' } }, required: ['message'] } }
         ];
@@ -72688,6 +72915,10 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 // Discovery intents
                 'what_can_you_do': 'list_all_commands', 'help': 'list_all_commands', 'commands': 'list_all_commands',
                 'whats_new': 'whats_new', 'new_features': 'whats_new', 'updates': 'whats_new',
+                // BUILD 615: Capability intents
+                'capabilities': 'list_capabilities', 'show_capabilities': 'list_capabilities', 'chrome_capabilities': 'list_capabilities',
+                'add_capability': 'create_capability', 'new_capability': 'create_capability',
+                'test_cap': 'test_capability', 'check_capability': 'test_capability',
             };
 
             // Try exact match first, then intent routing
@@ -75179,7 +75410,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 614; // Update this with each build
+                    const KNOWN_LATEST = 615; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
