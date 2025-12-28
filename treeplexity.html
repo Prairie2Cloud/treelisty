@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.63.0 | Build 625 | 2025-12-28
+    TreeListy v2.64.0 | Build 626 | 2025-12-28
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 626): MERGED INBOX BUTTON - Removed duplicate Inbox button; Work Status now serves as unified inbox entry point
     Changelog (Build 625): HEADER UPDATE CHECK - Subtle 🔄 button next to version display to check for updates
     Changelog (Build 624): TREEMAP VIEW - Squarified treemap visualization with drill-down navigation, hover tooltips, breadcrumbs, and size metrics toggle
     Changelog (Build 623): ATLAS PHASE 1 - Cross-tree references: TreeRegistry, hyperedge nodeIds support treeId:nodeGuid, list_trees/search_trees/link_cross_tree commands
@@ -827,8 +828,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.63.0',
-            build: 625,
+            major: '2.64.0',
+            build: 626,
             date: '2025-12-28',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -7123,10 +7124,6 @@
                 <button class="btn" id="work-status-btn" onclick="window.showWorkStatusModal && window.showWorkStatusModal();" style="background: linear-gradient(135deg, #6b7280, #4b5563); padding: 6px 10px; font-size: 13px; position: relative;" title="Work Status - Active Tasks & Inbox">
                     📥 Inbox
                     <span id="work-status-badge" style="position: absolute; top: -6px; right: -6px; background: #3b82f6; color: white; font-size: 10px; min-width: 16px; height: 16px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: 600;">0</span>
-                </button>
-                <button class="btn" id="inbox-btn" onclick="window.showInboxModal && window.showInboxModal();" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed); padding: 6px 10px; font-size: 13px; position: relative; display: none;" title="Agent Inbox - Proposed Changes">
-                    📥 Inbox
-                    <span id="inbox-badge" style="position: absolute; top: -6px; right: -6px; background: #ef4444; color: white; font-size: 10px; min-width: 16px; height: 16px; border-radius: 50%; display: none; align-items: center; justify-content: center; font-weight: 600;">0</span>
                 </button>
             </div>
 
@@ -42811,19 +42808,8 @@ https://treelisty.netlify.app`;
 
         // Build 522: Update Inbox UI
         function updateInboxUI() {
-            // BUILD 553: Local escapeHtml helper (main one is defined later in file)
-            const escapeHtml = (text) => {
-                const div = document.createElement('div');
-                div.textContent = text || '';
-                return div.innerHTML;
-            };
-
-            const badge = document.getElementById('inbox-badge');
-            if (badge) {
-                const count = mcpBridgeState.inbox.length;
-                badge.textContent = count;
-                badge.style.display = count > 0 ? 'flex' : 'none';
-            }
+            // BUILD 626: Merged inbox into Work Status - update that badge instead
+            updateWorkStatusUI();
 
             // Update active task indicator
             const activeIndicator = document.getElementById('active-task-indicator');
@@ -46915,7 +46901,6 @@ https://treelisty.netlify.app`;
             const startSection = document.getElementById('mcp-start-section');
             const connectedSection = document.getElementById('mcp-connected-section');
             const connectBtn = document.getElementById('mcp-connect-btn');
-            const inboxBtn = document.getElementById('inbox-btn'); // Build 522
 
             const status = mcpBridgeState.status;
 
@@ -46936,11 +46921,8 @@ https://treelisty.netlify.app`;
                 }
             }
 
-            // Build 522: Show/hide Inbox button based on connection
-            if (inboxBtn) {
-                inboxBtn.style.display = (status === 'connected') ? 'inline-flex' : 'none';
-                updateInboxUI();
-            }
+            // BUILD 626: Merged inbox button into Work Status - just update that UI
+            updateWorkStatusUI();
 
             // Update modal sections
             if (startSection && connectedSection) {
@@ -77378,7 +77360,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 625; // Update this with each build
+                    const KNOWN_LATEST = 626; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
