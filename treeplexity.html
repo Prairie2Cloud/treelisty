@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.56.0 | Build 615 | 2025-12-27
+    TreeListy v2.57.0 | Build 616 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 616): GLOBAL CAPABILITIES REGISTRY - Dedicated tree for capabilities (cross-project), auto-categorization, view/browse commands
     Changelog (Build 615): CHROME CAPABILITIES PHASE 1 - Create/list/test capability nodes, TreeBeard commands, modal UI
     Changelog (Build 614): WORK STATUS PANEL - Dashboard for active/completed tasks, API tracking, session stats
     Changelog (Build 613): TOOL-USE API - TreeBeard uses Claude's tool_use for guaranteed structured responses, MCP fallback
@@ -817,8 +818,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.56.0',
-            build: 615,
+            major: '2.57.0',
+            build: 616,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -24100,14 +24101,183 @@ function isCapabilityNode(node) {
     return node && node.type === 'capability';
 }
 
-// Helper to find all capability nodes in tree
-function findCapabilityNodes(node, results = []) {
+// ============================================================================
+// BUILD 616: DEDICATED CAPABILITIES TREE (Global, Cross-Project)
+// ============================================================================
+// Capabilities are stored in a separate tree that persists across all projects.
+// This allows "check my Chase balance" to work regardless of which tree is open.
+
+const CAPABILITIES_TREE_KEY = 'treelisty_capabilities_tree';
+
+// Default capabilities tree structure
+function createDefaultCapabilitiesTree() {
+    return {
+        id: 'capabilities_root',
+        treeId: 'tree_capabilities_registry',
+        name: 'Capabilities Registry',
+        type: 'root',
+        pattern: { key: 'generic' },
+        expanded: true,
+        children: [
+            {
+                id: 'phase_banking',
+                type: 'phase',
+                name: 'Banking & Finance',
+                expanded: true,
+                showInCanvas: true,
+                items: []
+            },
+            {
+                id: 'phase_work',
+                type: 'phase',
+                name: 'Work & Productivity',
+                expanded: true,
+                showInCanvas: true,
+                items: []
+            },
+            {
+                id: 'phase_research',
+                type: 'phase',
+                name: 'Research & Reading',
+                expanded: true,
+                showInCanvas: true,
+                items: []
+            },
+            {
+                id: 'phase_other',
+                type: 'phase',
+                name: 'Other',
+                expanded: true,
+                showInCanvas: true,
+                items: []
+            }
+        ],
+        hyperedges: []
+    };
+}
+
+// Global capabilities tree (loaded on startup)
+let capabilitiesTree = null;
+
+// Load capabilities tree from localStorage
+function loadCapabilitiesTree() {
+    try {
+        const stored = localStorage.getItem(CAPABILITIES_TREE_KEY);
+        if (stored) {
+            capabilitiesTree = JSON.parse(stored);
+            console.log(`🔐 Loaded ${getCapabilityCount()} capabilities from registry`);
+        } else {
+            capabilitiesTree = createDefaultCapabilitiesTree();
+            saveCapabilitiesTree();
+            console.log('🔐 Created new capabilities registry');
+        }
+    } catch (e) {
+        console.error('Failed to load capabilities tree:', e);
+        capabilitiesTree = createDefaultCapabilitiesTree();
+    }
+    return capabilitiesTree;
+}
+
+// Save capabilities tree to localStorage
+function saveCapabilitiesTree() {
+    try {
+        localStorage.setItem(CAPABILITIES_TREE_KEY, JSON.stringify(capabilitiesTree));
+    } catch (e) {
+        console.error('Failed to save capabilities tree:', e);
+    }
+}
+
+// Get count of capabilities
+function getCapabilityCount() {
+    if (!capabilitiesTree) return 0;
+    return findCapabilityNodesInTree(capabilitiesTree).length;
+}
+
+// Find all capability nodes in a tree (recursive helper)
+function findCapabilityNodesInTree(node, results = []) {
     if (!node) return results;
     if (isCapabilityNode(node)) results.push(node);
     const children = node.children || node.items || node.subItems || [];
-    children.forEach(child => findCapabilityNodes(child, results));
+    children.forEach(child => findCapabilityNodesInTree(child, results));
     return results;
 }
+
+// Helper to find all capability nodes (uses global capabilities tree)
+function findCapabilityNodes(nodeOrTree, results = []) {
+    // If called with no args or capexTree, use global capabilities tree
+    const tree = (nodeOrTree === capexTree || !nodeOrTree) ? capabilitiesTree : nodeOrTree;
+    if (!tree) {
+        loadCapabilitiesTree();
+        return findCapabilityNodesInTree(capabilitiesTree, results);
+    }
+    return findCapabilityNodesInTree(tree, results);
+}
+
+// Add capability to the global registry
+function addCapabilityToRegistry(capability, category = 'other') {
+    if (!capabilitiesTree) loadCapabilitiesTree();
+
+    // Find the appropriate phase based on category or site
+    const site = (capability.site || '').toLowerCase();
+    let targetPhase;
+
+    if (category === 'banking' || site.includes('chase') || site.includes('bank') || site.includes('fidelity') || site.includes('schwab')) {
+        targetPhase = capabilitiesTree.children.find(p => p.id === 'phase_banking');
+    } else if (category === 'work' || site.includes('concur') || site.includes('workday') || site.includes('slack') || site.includes('jira')) {
+        targetPhase = capabilitiesTree.children.find(p => p.id === 'phase_work');
+    } else if (category === 'research' || site.includes('wsj') || site.includes('nytimes') || site.includes('medium')) {
+        targetPhase = capabilitiesTree.children.find(p => p.id === 'phase_research');
+    } else {
+        targetPhase = capabilitiesTree.children.find(p => p.id === 'phase_other');
+    }
+
+    if (!targetPhase) {
+        targetPhase = capabilitiesTree.children[capabilitiesTree.children.length - 1]; // Fallback to last phase
+    }
+
+    if (!targetPhase.items) targetPhase.items = [];
+    targetPhase.items.push(capability);
+    saveCapabilitiesTree();
+
+    return targetPhase.name;
+}
+
+// View the capabilities tree (switch to it)
+function viewCapabilitiesTree() {
+    if (!capabilitiesTree) loadCapabilitiesTree();
+
+    // Store current tree for "back" functionality
+    window._previousTree = JSON.parse(JSON.stringify(capexTree));
+    window._previousTreeName = capexTree.name;
+
+    // Load capabilities tree into main view
+    Object.assign(capexTree, JSON.parse(JSON.stringify(capabilitiesTree)));
+
+    render();
+    showToast('🔐 Viewing Capabilities Registry', 'info');
+
+    return '🔐 Switched to Capabilities Registry. Use `back` to return to your project.';
+}
+
+// Return to previous tree
+function returnFromCapabilitiesTree() {
+    if (window._previousTree) {
+        Object.assign(capexTree, window._previousTree);
+        render();
+        showToast(`📂 Returned to: ${window._previousTreeName}`, 'info');
+        window._previousTree = null;
+        window._previousTreeName = null;
+        return `📂 Returned to your project.`;
+    }
+    return '⚠️ No previous tree to return to.';
+}
+
+// Initialize capabilities tree on page load
+document.addEventListener('DOMContentLoaded', () => {
+    setTimeout(() => {
+        loadCapabilitiesTree();
+    }, 100);
+});
 
 // Helper to match intent to capability
 function matchIntentToCapability(intent, capabilities) {
@@ -26890,31 +27060,13 @@ function hidePatternDescription() {
                 examples
             });
 
-            // Add to Capabilities phase (create if needed)
-            let capsPhase = (capexTree.children || []).find(c => c.name === 'Capabilities');
-            if (!capsPhase) {
-                capsPhase = {
-                    id: 'phase_capabilities_' + Date.now(),
-                    type: 'phase',
-                    name: 'Capabilities',
-                    expanded: true,
-                    showInCanvas: true,
-                    items: []
-                };
-                if (!capexTree.children) capexTree.children = [];
-                capexTree.children.push(capsPhase);
-            }
-
-            if (!capsPhase.items) capsPhase.items = [];
-            capsPhase.items.push(newCap);
-
-            saveState('Create capability: ' + name);
-            render();
+            // BUILD 616: Add to global capabilities registry (not current project tree)
+            const category = addCapabilityToRegistry(newCap);
 
             // Close modal
             document.getElementById('create-capability-modal').style.display = 'none';
 
-            showToast(`🔐 Created capability: ${name}`, 'success');
+            showToast(`🔐 Created capability: ${name} (${category})`, 'success');
         }
         window.submitCreateCapability = submitCreateCapability;
 
@@ -68928,28 +69080,10 @@ Slack data not available. To calculate slack:
                 const [name, site, goal] = parts;
                 const newCap = CAPABILITY_SCHEMA.create({ name, site, goal });
 
-                // Add to root's children (or create a Capabilities phase)
-                let capsPhase = (capexTree.children || []).find(c => c.name === 'Capabilities');
-                if (!capsPhase) {
-                    capsPhase = {
-                        id: 'phase_capabilities_' + Date.now(),
-                        type: 'phase',
-                        name: 'Capabilities',
-                        expanded: true,
-                        showInCanvas: true,
-                        items: []
-                    };
-                    if (!capexTree.children) capexTree.children = [];
-                    capexTree.children.push(capsPhase);
-                }
+                // BUILD 616: Add to global capabilities registry (not current tree)
+                const category = addCapabilityToRegistry(newCap);
 
-                if (!capsPhase.items) capsPhase.items = [];
-                capsPhase.items.push(newCap);
-
-                saveState('Create capability: ' + name);
-                render();
-
-                return `🔐 Created capability: **${name}**\n• Site: ${site}\n• Goal: ${goal}\n• Permissions: read, navigate (default)\n\n💡 Test it with \`test_capability:${name}\``;
+                return `🔐 Created capability: **${name}**\n• Site: ${site}\n• Goal: ${goal}\n• Category: ${category}\n• Permissions: read, navigate (default)\n\n💡 View with \`view_capabilities\` or test with \`test_capability:${name}\``;
             },
 
             'test_capability': (capName) => {
@@ -68957,7 +69091,8 @@ Slack data not available. To calculate slack:
                     return '⚠️ Specify capability name. Example: `test_capability:Chase Balance`';
                 }
 
-                const capabilities = findCapabilityNodes(capexTree);
+                // BUILD 616: Use global capabilities registry
+                const capabilities = findCapabilityNodes();
                 const searchTerm = capName.toLowerCase();
                 const matched = capabilities.find(c => (c.name || '').toLowerCase().includes(searchTerm));
 
@@ -68980,7 +69115,7 @@ Slack data not available. To calculate slack:
                         matched.status = 'healthy';
                         matched.lastSuccessAt = new Date().toISOString();
                         matched.failureStreak = 0;
-                        render();
+                        saveCapabilitiesTree(); // Save status update
                         showToast(`✅ ${matched.name} is healthy!`, 'success');
                     }, 2000);
 
@@ -68988,6 +69123,16 @@ Slack data not available. To calculate slack:
                 } else {
                     return `⚠️ Chrome extension not connected.\n\nTo test capabilities:\n1. Install TreeListy Chrome Extension\n2. Start MCP Bridge: \`node packages/treelisty-mcp-bridge/src/bridge.js\`\n3. Ensure you're logged into ${matched.site}`;
                 }
+            },
+
+            // BUILD 616: View capabilities registry tree
+            'view_capabilities': () => {
+                return viewCapabilitiesTree();
+            },
+
+            // BUILD 616: Return from capabilities tree
+            'back_from_capabilities': () => {
+                return returnFromCapabilitiesTree();
             },
 
             // ═══════════════════════════════════════════════════════════════
@@ -72919,6 +73064,10 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                 'capabilities': 'list_capabilities', 'show_capabilities': 'list_capabilities', 'chrome_capabilities': 'list_capabilities',
                 'add_capability': 'create_capability', 'new_capability': 'create_capability',
                 'test_cap': 'test_capability', 'check_capability': 'test_capability',
+                // BUILD 616: View/browse capabilities registry
+                'browse_capabilities': 'view_capabilities', 'capability_registry': 'view_capabilities',
+                'open_capabilities': 'view_capabilities', 'manage_capabilities': 'view_capabilities',
+                'back': 'back_from_capabilities', 'return': 'back_from_capabilities', 'exit_capabilities': 'back_from_capabilities',
             };
 
             // Try exact match first, then intent routing
@@ -75410,7 +75559,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 615; // Update this with each build
+                    const KNOWN_LATEST = 616; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
