@@ -1329,6 +1329,20 @@ async function ensureMiniSearchLoaded() {
 - Move a node → Links to it still work
 - Title collision → Disambiguation picker appears
 
+**Phase-0 Validation Results (2025-12-27):**
+
+All identity stability tests passed. Validated via `test/atlas-phase0-validation.py`:
+
+| Test | Result | Evidence |
+|------|--------|----------|
+| Move node preserves nodeGuid | ✅ PASS | Item moved between phases, nodeGuid unchanged |
+| Export/import preserves treeId | ✅ PASS | Tree exported to JSON, reimported, treeId preserved |
+| Duplicate creates new nodeGuid | ✅ PASS | Copy of node gets new unique nodeGuid |
+| Migration adds IDs to legacy trees | ✅ PASS | Legacy tree (no IDs) gets treeId + nodeGuids after migration |
+| Tree rename preserves IDs | ✅ PASS | Renaming tree name doesn't affect treeId or nodeGuids |
+
+**Phase-0 Status:** ✅ **COMPLETE** - Identity foundation is solid. Ready for Phase-1.
+
 **Why This Must Be First:**
 > "If you ship backlinks on title-based resolution → users rename stuff → trust collapses ('your graph lies')."
 
