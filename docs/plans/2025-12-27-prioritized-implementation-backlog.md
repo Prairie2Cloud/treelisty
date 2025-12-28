@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
 **Date:** 2025-12-27
-**Current Build:** 621
+**Current Build:** 622
 **Status:** Living Document
-**Last Updated:** 2025-12-27 (Builds 610-621 shipped)
+**Last Updated:** 2025-12-27 (Builds 610-622 shipped)
 
 ---
 
@@ -34,12 +34,13 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Recent Shipping Sprint (Builds 610-621)
+## Recent Shipping Sprint (Builds 610-622)
 
 *Massive progress from December 27, 2025*
 
 | Build | Feature | Status |
 |-------|---------|--------|
+| 622 | Sub-Agent Phase 2 - Result Integration | **SHIPPED** |
 | 621 | Image Spatial Commands - nearby/region/containing | **SHIPPED** |
 | 620 | Sub-Agent Architecture - Trigger detection and dispatch | **SHIPPED** |
 | 619 | Image Pattern Recognition - Gemini detects content type | **SHIPPED** |
@@ -143,25 +144,20 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-### 5. Sub-Agent Phase 2: Result Integration
-**Status:** READY - Phase 1 shipped
+### 5. ~~Sub-Agent Phase 2: Result Integration~~ → SHIPPED
+**Status:** SHIPPED (Build 622)
 **File:** `2025-12-22-sub-agent-architecture-design.md`
-**Effort:** Medium (1 week)
-**Value:** Strategic - Enables self-improving TreeBeard
 
-**What (Phase 2):**
-- Sub-agent results inject into TreeBeard context
-- Enrichment display in chat (collapsed by default)
-- Validation results update confidence scores
-- Auto-retry on failed validations
+**Implemented:**
+- ✅ Sub-agent results injected into TreeBeard system prompt
+- ✅ Collapsible insight UI shows sub-agent findings
+- ✅ Validation results update tree node `_validation` field
+- ✅ Auto-retry for failed validations (max 1 retry)
 
 **Acceptance Tests:**
-- [ ] Domain researcher results appear in TB response
-- [ ] Validator corrects speculated claims
-- [ ] User can expand to see sub-agent work
-
-**Dependencies:** Sub-Agent Architecture Phase 1 (SHIPPED Build 620)
-**Blocks:** Self-tree live wiring
+- [x] Domain researcher results appear in TB response
+- [x] Validator results update tree confidence
+- [x] User can expand/collapse sub-agent insights
 
 ---
 
@@ -240,6 +236,7 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 | Build | Feature | File |
 |-------|---------|------|
+| 622 | Sub-Agent Phase 2 | `2025-12-22-sub-agent-architecture-design.md` |
 | 621 | Image Spatial Commands | `2025-12-24-image-analysis-pattern-design.md` |
 | 620 | Sub-Agent Architecture | `2025-12-22-sub-agent-architecture-design.md` |
 | 619 | Image Pattern Recognition | `2025-12-24-image-analysis-pattern-design.md` |
