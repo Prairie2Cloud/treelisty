@@ -6,7 +6,7 @@
     <title>TreeListy - Universal Project Decomposition by geej</title>
     <!--
     ═══════════════════════════════════════════════════════════════════════════
-    TreeListy v2.59.0 | Build 619 | 2025-12-27
+    TreeListy v2.60.0 | Build 620 | 2025-12-27
     Copyright (c) 2024-2025 Garnet Brown (geej)
     ═══════════════════════════════════════════════════════════════════════════
     Universal Project Decomposition Tool
@@ -19,6 +19,7 @@
     - 50-state undo system
     - PWA-ready (installable on desktop & mobile)
 
+    Changelog (Build 620): SUB-AGENT ARCHITECTURE - Trigger detection for conversation patterns, silent dispatch via MCP, orchestrator for validation/research agents
     Changelog (Build 619): IMAGE PATTERN RECOGNITION - Gemini detects content type and suggests TreeListy pattern (filesystem, gmail, dialogue, roadmap, etc.)
     Changelog (Build 618): GMAIL LABEL MANAGEMENT - Add/remove labels UI in info panel, TreeBeard commands (gmail_add_label, gmail_remove_label, gmail_list_labels)
     Changelog (Build 617): EXPANDED DOMAIN CATEGORIZATION - Banking (paypal, venmo, coinbase), Work (asana, notion, linear), Research (wikipedia, arxiv, reddit, github)
@@ -821,8 +822,8 @@
     <!-- BUILD 328: Single source of truth for version info -->
     <script>
         window.TREELISTY_VERSION = {
-            major: '2.59.0',
-            build: 619,
+            major: '2.60.0',
+            build: 620,
             date: '2025-12-27',
             get full() { return `v${this.major} • Build ${this.build}`; },
             get title() { return `TreeListy v${this.major} | Build ${this.build} | ${this.date}`; }
@@ -63398,6 +63399,288 @@ ${fullTranscript}`;
             }
         }
 
+        // ═══════════════════════════════════════════════════════════════
+        // BUILD 620: SUB-AGENT ORCHESTRATOR
+        // Silent trigger detection and dispatch for validation/research
+        // ═══════════════════════════════════════════════════════════════
+
+        const SubAgentOrchestrator = {
+            // Configuration
+            config: {
+                enabled: true,
+                repetitionThreshold: 3,      // Same phrase 3x = stuck
+                speculationKeywords: ['probably', 'might', 'could be', 'I think', 'assume', 'guess'],
+                domainTriggers: {
+                    finance: ['budget', 'cost', 'revenue', 'price', 'investment'],
+                    research: ['study', 'paper', 'research', 'academic', 'citation'],
+                    technical: ['api', 'code', 'function', 'bug', 'error', 'implementation']
+                },
+                debounceMs: 5000,            // Min time between sub-agent dispatches
+                maxPendingAgents: 2          // Don't overwhelm with agents
+            },
+
+            // State tracking
+            state: {
+                lastDispatchTime: 0,
+                pendingAgents: [],
+                completedResults: [],
+                phraseHistory: [],           // Track recent phrases for repetition
+                triggerLog: []               // Log of detected triggers
+            },
+
+            // Trigger types
+            TRIGGERS: {
+                REPETITION: 'repetition',
+                SPECULATION: 'speculation',
+                DOMAIN_QUESTION: 'domain_question',
+                CREATIVE_BLOCK: 'creative_block',
+                VALIDATION_NEEDED: 'validation_needed'
+            },
+
+            /**
+             * Analyze message for trigger conditions
+             * @param {string} message - User or assistant message
+             * @param {string} role - 'user' or 'assistant'
+             * @returns {Object|null} - Trigger info or null
+             */
+            detectTriggers(message, role) {
+                if (!this.config.enabled) return null;
+                const triggers = [];
+                const lowerMsg = message.toLowerCase();
+
+                // 1. Repetition Detection
+                const phraseKey = this._extractPhraseKey(lowerMsg);
+                this.state.phraseHistory.push({ phrase: phraseKey, role, time: Date.now() });
+                // Keep last 20 phrases
+                if (this.state.phraseHistory.length > 20) {
+                    this.state.phraseHistory.shift();
+                }
+                const repetitionCount = this.state.phraseHistory
+                    .filter(p => p.phrase === phraseKey).length;
+                if (repetitionCount >= this.config.repetitionThreshold) {
+                    triggers.push({
+                        type: this.TRIGGERS.REPETITION,
+                        severity: 'medium',
+                        detail: `Phrase repeated ${repetitionCount}x: "${phraseKey.substring(0, 30)}..."`,
+                        agentType: 'contrarian'
+                    });
+                }
+
+                // 2. Speculation Detection (assistant messages)
+                if (role === 'assistant') {
+                    const speculationScore = this.config.speculationKeywords
+                        .filter(kw => lowerMsg.includes(kw)).length;
+                    if (speculationScore >= 2) {
+                        triggers.push({
+                            type: this.TRIGGERS.SPECULATION,
+                            severity: 'high',
+                            detail: `High speculation detected (${speculationScore} markers)`,
+                            agentType: 'validator'
+                        });
+                    }
+                }
+
+                // 3. Domain Question Detection (user messages)
+                if (role === 'user') {
+                    for (const [domain, keywords] of Object.entries(this.config.domainTriggers)) {
+                        const matches = keywords.filter(kw => lowerMsg.includes(kw));
+                        if (matches.length >= 2) {
+                            triggers.push({
+                                type: this.TRIGGERS.DOMAIN_QUESTION,
+                                severity: 'low',
+                                detail: `${domain} domain detected: ${matches.join(', ')}`,
+                                agentType: 'researcher',
+                                domain
+                            });
+                        }
+                    }
+                }
+
+                // 4. Validation Needed (claims without evidence)
+                if (role === 'assistant' && (
+                    lowerMsg.includes('always') ||
+                    lowerMsg.includes('never') ||
+                    lowerMsg.includes('100%') ||
+                    lowerMsg.includes('definitely')
+                )) {
+                    triggers.push({
+                        type: this.TRIGGERS.VALIDATION_NEEDED,
+                        severity: 'medium',
+                        detail: 'Strong claim without evidence markers',
+                        agentType: 'validator'
+                    });
+                }
+
+                // Log triggers
+                if (triggers.length > 0) {
+                    this.state.triggerLog.push({
+                        time: Date.now(),
+                        triggers,
+                        messagePreview: message.substring(0, 50)
+                    });
+                    // Keep last 50 trigger logs
+                    if (this.state.triggerLog.length > 50) {
+                        this.state.triggerLog.shift();
+                    }
+                }
+
+                return triggers.length > 0 ? triggers : null;
+            },
+
+            /**
+             * Extract key phrase for repetition detection
+             */
+            _extractPhraseKey(message) {
+                // Remove common words and normalize
+                const stopWords = ['the', 'a', 'an', 'is', 'are', 'was', 'were', 'to', 'of', 'and', 'or'];
+                return message
+                    .split(/\s+/)
+                    .filter(w => w.length > 2 && !stopWords.includes(w))
+                    .slice(0, 5)
+                    .join(' ');
+            },
+
+            /**
+             * Dispatch sub-agent via MCP Bridge
+             * @param {string} agentType - 'validator', 'researcher', 'contrarian'
+             * @param {Object} context - Task context
+             * @returns {Promise<string|null>} - Task ID or null if not dispatched
+             */
+            async dispatchSubAgent(agentType, context) {
+                // Debounce check
+                if (Date.now() - this.state.lastDispatchTime < this.config.debounceMs) {
+                    console.log(`🤖 Sub-agent dispatch debounced (${agentType})`);
+                    return null;
+                }
+
+                // Max pending check
+                if (this.state.pendingAgents.length >= this.config.maxPendingAgents) {
+                    console.log(`🤖 Max pending agents reached (${this.state.pendingAgents.length})`);
+                    return null;
+                }
+
+                // Check MCP Bridge connection
+                if (!mcpBridgeState?.client?.isConnected) {
+                    console.log('🤖 Sub-agent dispatch skipped: MCP Bridge not connected');
+                    return null;
+                }
+
+                const prompts = {
+                    validator: `VALIDATION TASK: Check if this claim is accurate. Context: "${context.claim || context.message}". Return: { validated: boolean, evidence: string, confidence: 0-1 }`,
+                    researcher: `RESEARCH TASK: Find relevant context for this ${context.domain || 'topic'} question: "${context.message}". Return: { findings: string[], sources: string[] }`,
+                    contrarian: `CONTRARIAN TASK: The conversation may be stuck in a loop. Original direction: "${context.message}". Generate 2-3 alternative perspectives or approaches. Return: { alternatives: string[] }`
+                };
+
+                const taskData = {
+                    type: 'sub-agent',
+                    agentType,
+                    prompt: prompts[agentType] || prompts.validator,
+                    context: {
+                        treeName: capexTree?.name,
+                        pattern: capexTree?.pattern?.key,
+                        trigger: context.trigger
+                    },
+                    requestedCapabilities: ['webSearch', 'reasoning'],
+                    options: {
+                        source: 'sub-agent-orchestrator',
+                        silent: true,
+                        priority: 'background'
+                    }
+                };
+
+                try {
+                    mcpBridgeState.client.submitTask(taskData);
+                    const taskId = `subagent-${Date.now()}`;
+                    this.state.pendingAgents.push({
+                        id: taskId,
+                        type: agentType,
+                        dispatchTime: Date.now(),
+                        context
+                    });
+                    this.state.lastDispatchTime = Date.now();
+                    console.log(`🤖 Sub-agent dispatched: ${agentType} (${taskId})`);
+                    return taskId;
+                } catch (err) {
+                    console.error('Sub-agent dispatch failed:', err);
+                    return null;
+                }
+            },
+
+            /**
+             * Process incoming sub-agent result
+             * @param {Object} result - Result from MCP Bridge
+             */
+            processResult(result) {
+                const agent = this.state.pendingAgents.find(a => a.id === result.taskId);
+                if (!agent) return;
+
+                // Remove from pending
+                this.state.pendingAgents = this.state.pendingAgents.filter(a => a.id !== result.taskId);
+
+                // Store result
+                this.state.completedResults.push({
+                    ...result,
+                    agentType: agent.type,
+                    processedTime: Date.now()
+                });
+
+                // Keep last 20 results
+                if (this.state.completedResults.length > 20) {
+                    this.state.completedResults.shift();
+                }
+
+                console.log(`🤖 Sub-agent result received: ${agent.type}`);
+            },
+
+            /**
+             * Get pending enrichments for next response
+             * @returns {Object|null} - Enrichment context or null
+             */
+            getEnrichments() {
+                if (this.state.completedResults.length === 0) return null;
+
+                // Get most recent unprocessed results
+                const results = this.state.completedResults.splice(0, 3);
+                if (results.length === 0) return null;
+
+                return {
+                    hasEnrichments: true,
+                    results: results.map(r => ({
+                        type: r.agentType,
+                        data: r.result,
+                        source: 'sub-agent'
+                    }))
+                };
+            },
+
+            /**
+             * Get orchestrator status for debugging
+             */
+            getStatus() {
+                return {
+                    enabled: this.config.enabled,
+                    pendingAgents: this.state.pendingAgents.length,
+                    completedResults: this.state.completedResults.length,
+                    recentTriggers: this.state.triggerLog.slice(-5),
+                    lastDispatch: this.state.lastDispatchTime
+                        ? new Date(this.state.lastDispatchTime).toISOString()
+                        : 'never'
+                };
+            },
+
+            /**
+             * Toggle orchestrator on/off
+             */
+            toggle(enabled) {
+                this.config.enabled = enabled !== undefined ? enabled : !this.config.enabled;
+                console.log(`🤖 Sub-Agent Orchestrator: ${this.config.enabled ? 'ENABLED' : 'DISABLED'}`);
+                return this.config.enabled;
+            }
+        };
+
+        // Expose globally for debugging
+        window.SubAgentOrchestrator = SubAgentOrchestrator;
+
         // BUILD 355: Restore conversation UI from memory
         function restoreConversationUI() {
             if (chatState.conversationHistory.length === 0) return;
@@ -66327,6 +66610,77 @@ Slack data not available. To calculate slack:
             // Legacy aliases for backwards compatibility
             'refresh_drive': () => COMMAND_REGISTRY['sync_drive'](),
             'refresh_gmail': () => COMMAND_REGISTRY['sync_gmail'](),
+
+            // ═══════════════════════════════════════════════════════════════
+            // BUILD 620: Sub-Agent Orchestrator Commands
+            // Silent background agents for validation, research, and pattern-breaking
+            // ═══════════════════════════════════════════════════════════════
+
+            'subagent_status': () => {
+                const status = SubAgentOrchestrator.getStatus();
+                const triggersText = status.recentTriggers.length > 0
+                    ? status.recentTriggers.map(t =>
+                        `• ${t.triggers[0]?.type}: ${t.triggers[0]?.detail?.substring(0, 40)}...`
+                    ).join('\n')
+                    : '(none)';
+
+                return `🤖 **Sub-Agent Orchestrator**
+
+**Status:** ${status.enabled ? '✅ Enabled' : '❌ Disabled'}
+**Pending Agents:** ${status.pendingAgents}
+**Completed Results:** ${status.completedResults}
+**Last Dispatch:** ${status.lastDispatch}
+
+**Recent Triggers:**
+${triggersText}
+
+Use \`toggle_subagents\` to enable/disable.`;
+            },
+
+            'toggle_subagents': (onOff) => {
+                const enable = onOff?.toLowerCase() === 'on' || onOff?.toLowerCase() === 'enable';
+                const disable = onOff?.toLowerCase() === 'off' || onOff?.toLowerCase() === 'disable';
+
+                let newState;
+                if (enable) newState = SubAgentOrchestrator.toggle(true);
+                else if (disable) newState = SubAgentOrchestrator.toggle(false);
+                else newState = SubAgentOrchestrator.toggle();
+
+                return `🤖 Sub-Agent Orchestrator is now **${newState ? 'ENABLED' : 'DISABLED'}**
+
+When enabled, I silently dispatch helper agents when:
+• Conversation patterns repeat (contrarian agent)
+• High speculation detected (validator agent)
+• Domain-specific questions (researcher agent)
+
+Results enrich my responses without interrupting you.`;
+            },
+
+            'force_subagent': async (agentType) => {
+                const validTypes = ['validator', 'researcher', 'contrarian'];
+                const type = agentType?.toLowerCase() || 'researcher';
+
+                if (!validTypes.includes(type)) {
+                    return `❌ Invalid agent type. Use: ${validTypes.join(', ')}`;
+                }
+
+                const lastUserMsg = chatState.conversationHistory
+                    .filter(m => m.role === 'user')
+                    .pop()?.content || 'general inquiry';
+
+                const taskId = await SubAgentOrchestrator.dispatchSubAgent(type, {
+                    message: lastUserMsg,
+                    trigger: { type: 'manual', detail: 'User requested' }
+                });
+
+                if (taskId) {
+                    return `🤖 Dispatched **${type}** sub-agent (${taskId})
+
+The agent will run in the background and results will enrich my next response.`;
+                } else {
+                    return `⚠️ Could not dispatch ${type} agent. Check MCP Bridge connection or wait for debounce (5s).`;
+                }
+            },
 
             // ═══════════════════════════════════════════════════════════════
             // BUILD 564: Chrome Extension Screen Awareness Commands
@@ -73198,6 +73552,20 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
 
             // BUILD 355: Persist conversation memory
             saveConversationMemory();
+
+            // BUILD 620: Sub-agent trigger detection
+            if (SubAgentOrchestrator.config.enabled && (type === 'user' || type === 'assistant')) {
+                const triggers = SubAgentOrchestrator.detectTriggers(content, type);
+                if (triggers && triggers.length > 0) {
+                    // Dispatch highest priority trigger's agent
+                    const highPriorityTrigger = triggers.find(t => t.severity === 'high') || triggers[0];
+                    SubAgentOrchestrator.dispatchSubAgent(highPriorityTrigger.agentType, {
+                        message: content,
+                        trigger: highPriorityTrigger,
+                        domain: highPriorityTrigger.domain
+                    });
+                }
+            }
         }
 
         function showTypingIndicator() {
@@ -75965,7 +76333,7 @@ RULES: Be concise (2-3 sentences). 🌳 is your signature. Show personality.`;
                     console.log('📦 Running locally - visit https://treelisty.netlify.app to check for updates');
                     // Still show toast if we're significantly behind (hard-coded known version)
                     // This gets updated with each release
-                    const KNOWN_LATEST = 619; // Update this with each build
+                    const KNOWN_LATEST = 620; // Update this with each build
                     if (KNOWN_LATEST > CURRENT_BUILD) {
                         console.log(`🚀 New version likely available: Build ${KNOWN_LATEST}+ (you have ${CURRENT_BUILD})`);
                         showUpdateToast(KNOWN_LATEST);
