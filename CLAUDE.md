@@ -158,3 +158,83 @@ Bidirectional communication between TreeListy and Claude Code CLI:
 - Inbox UI - Review proposed operations before applying
 
 Design Pattern: When facing limitations (e.g., can't read cloud files locally), dispatch task to Claude Code which uses Chrome extension to interact with web services.
+
+## Tree Building Recipe: The Semantic Onion Model
+
+**IMPORTANT**: This is the proper methodology for building comprehensive TreeListy trees. Follow these principles whenever helping users build trees from scratch.
+
+### The Process
+
+**Layer 1: Find the Accepted Semantic Map**
+Start with the canonical structure that experts agree on:
+- Book → Table of Contents
+- Movie → Scene breakdown
+- Biography/LifeTree → Decades or life phases
+- Philosophy → Major divisions and arguments
+- Project → Phases and deliverables
+- Software → Modules and components
+
+**Layer 2-N: Peel the Onion (Research Each Generation)**
+Systematically research and add each layer of children:
+- Chapters → Sub-chapters → Sections → Paragraphs
+- Scenes → Beats → Moments
+- Decades → Years → Key Events
+- Each generation adds granularity until you reach atomic units
+
+**Atomic Layer: Claims & Arguments**
+The deepest level contains actual assertions:
+- What is being claimed or argued?
+- What evidence or reasoning supports it?
+- This is where knowledge lives
+
+**Enrichment Layer: Context**
+Add context to each claim/argument:
+- Why does this claim appear here in the structure?
+- Historical backdrop - what came before?
+- Philosophical backdrop - what assumptions?
+- What problem is this trying to solve?
+
+**Evaluation Layer: Significance**
+Assess the importance of each element:
+- **Pivotal**: Keystone to the entire narrative?
+- **Novel**: New argument or innovation?
+- **Historical**: Influenced later thinkers/events?
+- **Foundational**: Required to understand what follows?
+
+**Dialectic Layer: Counter-Arguments**
+Map the intellectual landscape:
+- Group counter-arguments by school of thought
+- Empiricists say X, Rationalists say Y, Pragmatists say Z
+- Follow each thread to its conclusion
+- Note where schools agree and disagree
+
+### Example: Kant's Critique of Pure Reason
+
+```
+Critique of Pure Reason (1781)
+  └─ Transcendental Dialectic
+       └─ Antinomies
+            └─ Third Antinomy: Freedom vs Determinism
+                 └─ Thesis: Causality through freedom exists
+                      └─ Kant's Argument
+                           └─ Context: Newton's deterministic physics
+                           └─ Context: Leibniz's pre-established harmony
+                           └─ Significance: PIVOTAL - enables Kant's ethics
+                           └─ Counter (Hume): Compatibilist freedom
+                           └─ Counter (Spinoza): Freedom is illusion
+                           └─ Counter (Modern): Quantum indeterminacy
+```
+
+### TreeBeard Commands for Tree Building
+
+```
+create_tree:Title           # Start with semantic map root
+add_child:Name              # Add next layer nodes
+focus_node:Name             # Navigate to add children
+expand_all                  # View full structure
+set_description:Text        # Add context/claims
+```
+
+### Key Principle
+
+Don't just dump content - systematically decompose knowledge layer by layer until you reach atomic claims, then enrich those claims with context, significance, and counter-arguments. This transforms TreeListy from note-taking into **systematic knowledge decomposition**.

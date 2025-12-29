@@ -212,7 +212,41 @@ MCP SYNC (Build 523+):
 • sync calendar - Sync Google Calendar events
 • sync all - Sync all connected services
 • open file {name} - Open file by name (local or cloud)
+
+TREE BUILDING (Build 653+):
+• create_tree:{title} - Start new tree with semantic map root
+• add_child:{name} - Add child to focused node
+• focus_node:{name} - Navigate to node for adding children
+• focus_root - Return to root node
+• expand_all - Expand entire tree
+• set_description:{text} - Add context/claims to focused node
 ```
+
+### Tree Building Recipe: The Semantic Onion Model
+
+**IMPORTANT**: Follow this methodology when building comprehensive trees from scratch.
+
+**Layer 1: Accepted Semantic Map** - Start with canonical structure (TOC, scene list, timeline)
+**Layer 2-N: Peel the Onion** - Research each layer's children systematically
+**Atomic Layer: Claims & Arguments** - Deepest level contains actual assertions
+**Enrichment Layer: Context** - Why this claim? Historical/philosophical backdrop
+**Evaluation Layer: Significance** - Pivotal? Novel? Historical? Foundational?
+**Dialectic Layer: Counter-Arguments** - Group by school, follow each thread
+
+Example depth for Kant's Critique:
+```
+Critique of Pure Reason
+  └─ Transcendental Dialectic
+       └─ Third Antinomy: Freedom vs Determinism
+            └─ Thesis: Causality through freedom exists
+                 └─ Kant's Argument
+                      └─ Context: Newton's deterministic physics
+                      └─ Significance: PIVOTAL - enables Kant's ethics
+                      └─ Counter (Hume): Compatibilist freedom
+                      └─ Counter (Spinoza): Freedom is illusion
+```
+
+**Key Principle**: Don't dump content - systematically decompose layer by layer until reaching atomic claims, then enrich with context, significance, and counter-arguments.
 
 ### Chat Builder / Tree Agent
 Conversational tree building with floating frame:
