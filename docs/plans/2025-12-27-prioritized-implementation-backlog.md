@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
-**Date:** 2025-12-28
-**Current Build:** 623
+**Date:** 2025-12-29
+**Current Build:** 658
 **Status:** Living Document
-**Last Updated:** 2025-12-28 (Build 623 shipped)
+**Last Updated:** 2025-12-29 (Build 658 shipped - TB Structured Tool Use)
 
 ---
 
@@ -16,6 +16,10 @@ This document synthesizes all pending design documents and plans into a prioriti
 4. **Strategic Alignment** - Platform vision fit
 
 **Principle:** Ship incrementally. Each build should deliver standalone value.
+
+**Key Decisions:**
+- **Mobile UX:** PWA (decided 2025-12-29)
+- **TB Architecture:** Structured Tool Use via Claude API (Build 658)
 
 ---
 
@@ -34,100 +38,90 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Recent Shipping Sprint (Builds 610-623)
+## Recent Shipping Sprint (Builds 624-658)
 
-*Massive progress from December 27-28, 2025*
+*35 builds shipped December 27-29, 2025*
 
+### TB Architecture Evolution (Builds 649-658)
 | Build | Feature | Status |
 |-------|---------|--------|
-| 623 | Atlas Phase 1 - Cross-Tree References | **SHIPPED** |
-| 622 | Sub-Agent Phase 2 - Result Integration | **SHIPPED** |
-| 621 | Image Spatial Commands - nearby/region/containing | **SHIPPED** |
-| 620 | Sub-Agent Architecture - Trigger detection and dispatch | **SHIPPED** |
-| 619 | Image Pattern Recognition - Gemini detects content type | **SHIPPED** |
-| 618 | Gmail Label Management UI | **SHIPPED** |
-| 617 | Expanded Domain Categorization for Capabilities | **SHIPPED** |
-| 616 | Global Capabilities Registry | **SHIPPED** |
-| 615 | Chrome Capabilities Phase 1 - Read-Only MVP | **SHIPPED** |
-| 614 | Work Status Panel - Dashboard for background work | **SHIPPED** |
-| 613 | Tool-use API for TreeBeard | **SHIPPED** |
-| 612 | Fast-Path Expansion - More Deterministic Commands | **SHIPPED** |
-| 611 | Direct Help Loading - Simplified UX | **SHIPPED** |
-| 610 | Help as Tree + Embed Mode | **SHIPPED** |
+| 658 | **TB Structured Tool Use Phase 1** - Action mode triggers, tiered tools, multi-param handling, telemetry | **SHIPPED** |
+| 657 | TB Batch Add + Fallback Parsing | **SHIPPED** |
+| 656 | build_tree_from_topic Command | **SHIPPED** |
+| 655 | TB Tree Building Recipe - Semantic Onion Model | **SHIPPED** |
+| 654 | Branding Update - "The Shape of Information" | **SHIPPED** |
+| 653 | Multi-word Command Params Fix | **SHIPPED** |
+| 652 | Complete Tree Building Fix | **SHIPPED** |
+| 651 | Generic Pattern Tree Building Fix | **SHIPPED** |
+| 650 | Confidence-Based Intent Verification | **SHIPPED** |
+| 649 | TB Command Routing Fix | **SHIPPED** |
 
-**Validation Complete:**
-- Atlas Phase-0: All 5 identity stability tests passing
+### Hyperedge & TTS (Builds 642-648)
+| Build | Feature | Status |
+|-------|---------|--------|
+| 648 | Auto-Update Hyperedges + AI Suggest Fix | **SHIPPED** |
+| 647 | Mic Check + Hyperedge Commands + TB Screen Awareness | **SHIPPED** |
+| 646 | iOS Voice Recording Fix | **SHIPPED** |
+| 645 | Smart Voice Selection (TTS quality) | **SHIPPED** |
+| 644 | Hyperedge Narrate Button | **SHIPPED** |
+| 643 | TTS Wake Lock | **SHIPPED** |
+| 642 | AI Narrative TTS for Hyperedges | **SHIPPED** |
+
+### PWA & Mobile (Builds 632-641)
+| Build | Feature | Status |
+|-------|---------|--------|
+| 641 | PWA paste banner | **SHIPPED** |
+| 640 | Paste Share Link button for iOS | **SHIPPED** |
+| 639 | PWA clipboard share detection | **SHIPPED** |
+| 638 | Open in App banner for shared URLs | **SHIPPED** |
+| 637 | Prevent pull-to-refresh on mobile | **SHIPPED** |
+| 636 | Hyperedge narrative TTS loop | **SHIPPED** |
+| 635 | P1 Mobile UX fixes | **SHIPPED** |
+| 634 | Fix iOS auto-zoom | **SHIPPED** |
+| 633 | Web keyboard fallback for mobile | **SHIPPED** |
+| 632 | Mobile keyboard accessory bar | **SHIPPED** |
+
+### UI Enhancements (Builds 625-631)
+| Build | Feature | Status |
+|-------|---------|--------|
+| 631 | UI Theme Expansion - 10 new themes | **SHIPPED** |
+| 630 | Treemap info panel on click | **SHIPPED** |
+| 629 | Fix treemap layout | **SHIPPED** |
+| 628 | Fix treemap toolbar truncation | **SHIPPED** |
+| 627 | Treemap color palettes - 5 themes | **SHIPPED** |
+| 626 | Merge duplicate Inbox buttons | **SHIPPED** |
+| 625 | Header Update Check Button | **SHIPPED** |
 
 ---
 
-## Tier 1: NOW (Next 1-2 Weeks)
+## Tier 1: NOW (Next Sprint)
 
 *Max 3 items. Each delivers standalone value.*
 
-### 1. ~~Atlas Phase 1: Cross-Tree References~~ → SHIPPED
-**Status:** SHIPPED (Build 623)
-**File:** `2025-12-25-atlas-cross-tree-intelligence-design.md`
+### 1. Mobile UX Phase 2: PWA Polish
+**Status:** READY
+**Decision:** PWA (not native) - confirmed 2025-12-29
+**Effort:** Medium (1 week)
+**Value:** High - Mobile is primary use case for many users
 
-**Implemented:**
-- ✅ TreeRegistry: localStorage-persisted registry of known trees
-- ✅ Hyperedge nodeIds support `treeId:nodeGuid` cross-tree references
-- ✅ Cross-tree link resolution via `resolveHyperedgeNodeRef()`
-- ✅ Hyperedge display shows 🌐 cross-tree indicator
-- ✅ TreeBeard commands: `list_trees`, `search_trees`, `link_cross_tree`, `tree_info`
-- ✅ Trees auto-registered on load
-
-**Acceptance Tests:**
-- [x] Phase-0: nodeGuid stable across move/export/import (VALIDATED)
-- [x] Can create hyperedge pointing to node in different tree
-- [x] Cross-tree links resolve when target tree is loaded
-- [x] Broken links show graceful error state
-
-**Remaining for Phase 1.1:**
-- [ ] UI modal for browsing/selecting nodes from other trees
-
-**Dependencies:** Atlas Phase-0 (VALIDATED)
-**Blocks:** Phase 2-4 (cross-tree search, merge, sync)
-
----
-
-### 2. ~~Image Analysis Spatial Commands~~ → SHIPPED
-**Status:** SHIPPED (Build 621)
-**File:** `2025-12-24-image-analysis-pattern-design.md`
-
-**Implemented:**
-- ✅ `nearby [threshold]` - returns spatially proximate nodes by bbox distance
-- ✅ `region [quadrant]` - lists objects in image quadrant (top-left, center, bottom-right, etc.)
-- ✅ `containing` - finds parent objects that contain focused node by bbox
-- ✅ Helper functions: `_bbox_distance`, `_bbox_contains`, `_bbox_in_region`
-- ✅ Aliases: `near`, `objects_near`, `in_region`, `quadrant`, `contains`, `parent_objects`
+**What:**
+- Keyboard accessory bar refinements
+- Better visible affordances for swipe gestures
+- Performance optimization for large trees on mobile
+- PWA install prompt improvements
 
 **Acceptance Tests:**
-- [x] `nearby 0.15` returns nodes within distance threshold
-- [x] `region top-left` lists objects in that quadrant
-- [x] Spatial commands only available for image-analyzed trees
+- [ ] Swipe gestures discoverable without instruction
+- [ ] Large trees (500+ nodes) scroll smoothly on mobile
+- [ ] PWA install prompt appears at optimal time
+
+**Dependencies:** None (P1 shipped in Build 635)
+**Blocks:** Nothing
 
 ---
 
-### 3. ~~Gmail Bidirectional Actions UI~~ → SHIPPED
-**Status:** SHIPPED (Build 550-551, enhanced Build 618)
-**File:** `2025-12-22-gmail-bidirectional-sync-design.md`
-
-**Already implemented:**
-- ✅ Archive/Trash/Star/Mark Read buttons in info panel
-- ✅ Label management UI (Build 618)
-- ✅ Quick Reply box with Expand to compose modal
-- ✅ Draft auto-save
-
-**Next unshipped item:** TreeBeard batch commands for Gmail (Phase 3)
-
----
-
-## Tier 2: NEXT (Next 1-2 Months)
-
-*Max 5 items. May require validation.*
-
-### 4. Capability Nodes Phase 2: Execution
-**Status:** BLOCKED - Needs Phase 1 validation
+### 2. Capability Nodes Phase 2: Execution
+**Status:** BLOCKED - Needs Phase 1 validation in real use
 **File:** `2025-12-22-chrome-capability-nodes-design.md`
 **Effort:** High (2 weeks)
 **Value:** High - Enables authenticated web actions
@@ -143,30 +137,43 @@ This document synthesizes all pending design documents and plans into a prioriti
 - [ ] Result appears in tree node
 - [ ] Execution logged with timestamp
 
-**Dependencies:** Capability Nodes Phase 1 (SHIPPED Build 615-617)
+**Dependencies:** Capability Nodes Phase 1 (SHIPPED Build 615-617), Chrome Extension (SHIPPED Build 564)
 **Blocks:** Teaching flow, Community registry
 
 ---
 
-### 5. ~~Sub-Agent Phase 2: Result Integration~~ → SHIPPED
-**Status:** SHIPPED (Build 622)
-**File:** `2025-12-22-sub-agent-architecture-design.md`
+### 3. Atlas Phase 1.1: Cross-Tree Browser UI
+**Status:** READY
+**File:** `2025-12-25-atlas-cross-tree-intelligence-design.md`
+**Effort:** Medium (3-5 days)
+**Value:** Medium - Completes Atlas P1 UX
 
-**Implemented:**
-- ✅ Sub-agent results injected into TreeBeard system prompt
-- ✅ Collapsible insight UI shows sub-agent findings
-- ✅ Validation results update tree node `_validation` field
-- ✅ Auto-retry for failed validations (max 1 retry)
+**What:**
+- UI modal for browsing/selecting nodes from other trees
+- Tree switcher in sidebar
+- Visual indicators for cross-tree links
+
+**Already Shipped (Build 623):**
+- ✅ TreeRegistry: localStorage-persisted registry
+- ✅ Cross-tree hyperedge references (`treeId:nodeGuid`)
+- ✅ TreeBeard commands: `list_trees`, `search_trees`, `link_cross_tree`
 
 **Acceptance Tests:**
-- [x] Domain researcher results appear in TB response
-- [x] Validator results update tree confidence
-- [x] User can expand/collapse sub-agent insights
+- [ ] Can browse nodes from other trees in modal
+- [ ] Cross-tree links show visual indicator
+- [ ] Tree switcher shows all known trees
+
+**Dependencies:** Atlas Phase 1 (SHIPPED Build 623)
+**Blocks:** Atlas Phase 2-4
 
 ---
 
-### 6. Self-Tree Live Wiring
-**Status:** FUTURE - Waiting on sub-agent foundation
+## Tier 2: NEXT (Next 1-2 Months)
+
+*Max 5 items. May require validation.*
+
+### 4. Self-Tree Live Wiring
+**Status:** FUTURE - Waiting on validation strategy
 **File:** `self-trees/next-prompt.md`
 **Effort:** Medium (1 week)
 **Value:** Strategic - Auto-updating self-assessment
@@ -181,27 +188,79 @@ This document synthesizes all pending design documents and plans into a prioriti
 - [ ] Lighthouse scores update automatically
 - [ ] Stale measurements flagged
 
-**Dependencies:** Sub-Agent Result Integration
+**Dependencies:** Sub-Agent Result Integration (SHIPPED Build 622)
 **Blocks:** Shadow Tree concept
 
 ---
 
-### 7. Canvas GoJS Migration (Re-audit Required)
-**Status:** STALE - Needs architecture review
+### 5. TB Structured Tool Use Phase 2: Multi-Step Execution
+**Status:** READY
+**File:** `2025-12-29-tb-structured-tool-use-design.md`
+**Effort:** Medium (1 week)
+**Value:** High - Better tree building UX
+
+**What:**
+- Result feedback loop for chained operations
+- "Continue building" flow after batch add
+- Context preservation across tool calls
+- Build progress visualization
+
+**Already Shipped (Build 658):**
+- ✅ Tier 0/1 tool tiering with dynamic loading
+- ✅ Multi-param handling for rename, move, etc.
+- ✅ Action mode triggers ("go", "build it")
+- ✅ Telemetry tracking
+
+**Acceptance Tests:**
+- [ ] Multi-step tree building works without user re-prompting
+- [ ] TB can build 10+ node tree in single flow
+- [ ] Progress shown during build
+
+**Dependencies:** TB Structured Tool Use Phase 1 (SHIPPED Build 658)
+**Blocks:** More complex tree building workflows
+
+---
+
+### 6. Canvas GoJS Migration
+**Status:** STALE - Needs architecture re-audit
 **File:** `2025-12-17-canvas-gojs-enhancements-design.md`
 **Effort:** High (2+ weeks)
-**Value:** Medium - Better canvas performance and features
+**Value:** Medium - Better canvas performance
 
 **What:**
 - Replace custom canvas with GoJS library
 - Improved layout algorithms
 - Better touch/mobile support
-- Animation and transition polish
 
-**Note:** Line numbers in design doc are ~300 builds out of date. Full re-audit required before implementation.
+**Note:** Design doc line numbers are ~300 builds out of date. Full re-audit required.
 
 **Dependencies:** None
 **Blocks:** Nothing critical
+
+---
+
+### 7. Email Workflow Improvements Phase 2
+**Status:** READY
+**File:** `2025-12-22-email-workflow-improvements-design.md`
+**Effort:** Medium (1 week)
+**Value:** Medium - Better Gmail integration
+
+**What:**
+- TreeBeard batch commands for Gmail
+- Auto-categorization of email threads
+- Quick reply templates
+
+**Already Shipped:**
+- ✅ Archive/Trash/Star/Mark Read buttons (Build 550-551)
+- ✅ Label management UI (Build 618)
+- ✅ Draft auto-save
+
+**Acceptance Tests:**
+- [ ] "Archive all read emails" works via TB
+- [ ] Email threads auto-categorized by topic
+
+**Dependencies:** Gmail Actions UI (SHIPPED)
+**Blocks:** Nothing
 
 ---
 
@@ -213,7 +272,7 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 | Feature | File | Status | Notes |
 |---------|------|--------|-------|
-| Atlas Phase 2-4 | `2025-12-25-atlas-cross-tree-intelligence-design.md` | BLOCKED | Needs Phase 1 |
+| Atlas Phase 2-4 | `2025-12-25-atlas-cross-tree-intelligence-design.md` | BLOCKED | Needs Phase 1.1 |
 | Capability Teaching Flow | Part of capability nodes | FUTURE | After execution works |
 | Capability Community Registry | Part of capability nodes | FUTURE | After teaching works |
 | Shadow Tree (Telemetry) | `self-trees/next-prompt.md` | FUTURE | v1.6+ aspiration |
@@ -222,97 +281,107 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 | Feature | File | Status | Notes |
 |---------|------|--------|-------|
-| Mobile Single-Pane Polish | `2025-12-18-mobile-single-pane-architecture.md` | PARTIAL | Core shipped, refinement needed |
-| Pivot Hyperedges | `2025-12-06-pivot-hyperedges-design.md` | **STALE** | Target Build 361, 260 builds behind |
+| Pivot Hyperedges | `2025-12-06-pivot-hyperedges-design.md` | **STALE** | Target Build 361, 297 builds behind |
 | RAG Deep Integration | `2025-12-20-treelisty-rag-design.md` | PARTIAL | Document import works |
 
 ### Maintenance
 
 | Item | Notes |
 |------|-------|
-| Self-Tree v1.4 | Trust + Cognitive lens analysis |
-| Test Coverage | Maintain 400+ tests passing |
+| Self-Tree v1.5 | Needs update for Build 658 capabilities |
+| Test Coverage | 469 tests passing |
 | Performance Profiling | Lighthouse improvements |
 
 ---
 
 ## Shipped Reference (December 2025)
 
-| Build | Feature | File |
-|-------|---------|------|
-| 622 | Sub-Agent Phase 2 | `2025-12-22-sub-agent-architecture-design.md` |
-| 621 | Image Spatial Commands | `2025-12-24-image-analysis-pattern-design.md` |
-| 620 | Sub-Agent Architecture | `2025-12-22-sub-agent-architecture-design.md` |
-| 619 | Image Pattern Recognition | `2025-12-24-image-analysis-pattern-design.md` |
-| 618 | Gmail Label Management UI | `2025-12-22-gmail-bidirectional-sync-design.md` |
-| 617 | Expanded Domain Categorization | `2025-12-22-chrome-capability-nodes-design.md` |
-| 616 | Global Capabilities Registry | `2025-12-22-chrome-capability-nodes-design.md` |
-| 615 | Chrome Capabilities Phase 1 | `2025-12-22-chrome-capability-nodes-design.md` |
-| 614 | Work Status Panel | `2025-12-21-work-status-panel-design.md` |
-| 613 | Tool-use API for TreeBeard | `2025-12-26-tb-architecture-review.md` |
-| 612 | Fast-Path Expansion | `2025-12-26-tb-architecture-review.md` |
-| 611 | Direct Help Loading | `2025-12-27-help-as-tree-embed-mode-design.md` |
-| 610 | Help as Tree + Embed Mode | `2025-12-27-help-as-tree-embed-mode-design.md` |
-| 609 | Smart JSON Normalization | (inline) |
-| 574 | treeId/nodeGuid Identity | `2025-12-25-atlas-cross-tree-intelligence-design.md` |
-| 572 | BBox Clear on Import | (inline) |
-| 571 | Model Selector for Image Analysis | (inline) |
-| 570 | Gemini 2.5 Flash Integration | (inline) |
-| 565 | Image Analysis to Tree | `2025-12-24-bbox-repurposing-design.md` |
-| 564 | Chrome Extension Screen Awareness | `2025-12-23-chrome-screen-awareness-design.md` |
-| 541 | Keyboard Shortcut Panel | (inline) |
+### Build 658 - TB Structured Tool Use
+- Action mode triggers ("go", "build it", "execute")
+- Tier 0 tools (~25 always available)
+- Tier 1 tools (context-triggered: Canvas, Gantt, Gmail, Atlas, Hyperedge, Image)
+- Multi-param handling for rename_node, move_node, etc.
+- Error suggestions and similar command hints
+- Telemetry: `window.getToolUseTelemetry()`
+
+### Builds 624-657 Summary
+| Category | Builds | Key Features |
+|----------|--------|--------------|
+| TB Architecture | 649-657 | Confidence verification, tree building, command routing |
+| TTS/Hyperedge | 642-648 | AI narrative, wake lock, voice selection, mic check |
+| PWA/Mobile | 632-641 | Keyboard bar, iOS fixes, clipboard, paste banner |
+| UI Polish | 625-631 | Treemap, themes, update button |
+
+### Builds 610-623 (Previous Sprint)
+| Build | Feature |
+|-------|---------|
+| 623 | Atlas Phase 1 - Cross-Tree References |
+| 622 | Sub-Agent Phase 2 - Result Integration |
+| 621 | Image Spatial Commands |
+| 620 | Sub-Agent Architecture |
+| 619 | Image Pattern Recognition |
+| 618 | Gmail Label Management UI |
+| 617 | Expanded Domain Categorization |
+| 616 | Global Capabilities Registry |
+| 615 | Chrome Capabilities Phase 1 |
+| 614 | Work Status Panel |
+| 613 | Tool-use API for TreeBeard |
+| 612 | Fast-Path Expansion |
+| 611 | Direct Help Loading |
+| 610 | Help as Tree + Embed Mode |
 
 ---
 
-## Dependency Graph (Updated)
+## Dependency Graph (Updated Build 658)
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    SHIPPED (Build 610-620)                   │
-├─────────────────────────────────────────────────────────────┤
-│ Help as Tree │ TB Fast-Path │ Work Status │ Capabilities P1 │
-│ Sub-Agent P1 │ Image Pattern│ Gmail Labels│ Atlas Phase-0   │
-└─────────────────────────────────────────────────────────────┘
-                              │
-         ┌────────────────────┼────────────────────┐
-         ▼                    ▼                    ▼
-┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
-│ Atlas Phase 1   │  │ Image Spatial   │  │ Gmail Actions   │
-│ Cross-Tree Refs │  │ Commands        │  │ UI              │
-│ (Build 621+)    │  │ (Build 622)     │  │ (Build 623)     │
-└─────────────────┘  └─────────────────┘  └─────────────────┘
-         │
-         ▼
-┌─────────────────┐  ┌─────────────────┐
-│ Capabilities    │  │ Sub-Agent P2    │
-│ Phase 2         │  │ Result Inject   │
-│ Execution       │  │                 │
-└─────────────────┘  └─────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │ Self-Tree Live  │
-                    │ Wiring          │
-                    └─────────────────┘
-                              │
-                              ▼
-                    ┌─────────────────┐
-                    │ Atlas Phase 2-4 │
-                    │ (Future)        │
-                    └─────────────────┘
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        SHIPPED (Build 610-658)                           │
+├─────────────────────────────────────────────────────────────────────────┤
+│ TB Structured Tool Use │ Atlas P1 │ Capabilities P1 │ Sub-Agent P2      │
+│ Image Analysis         │ Gmail UI │ PWA Mobile      │ TTS/Hyperedge     │
+│ Tree Building Recipe   │ Themes   │ Treemap         │ Voice             │
+└─────────────────────────────────────────────────────────────────────────┘
+                                    │
+              ┌─────────────────────┼─────────────────────┐
+              ▼                     ▼                     ▼
+    ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
+    │ Mobile UX P2    │   │ Atlas P1.1      │   │ Capabilities    │
+    │ PWA Polish      │   │ Browser UI      │   │ Phase 2         │
+    │ (READY)         │   │ (READY)         │   │ (BLOCKED)       │
+    └─────────────────┘   └─────────────────┘   └─────────────────┘
+                                    │
+                                    ▼
+                          ┌─────────────────┐
+                          │ TB Structured   │
+                          │ Tool Use P2     │
+                          │ Multi-Step      │
+                          └─────────────────┘
+                                    │
+                                    ▼
+                          ┌─────────────────┐
+                          │ Self-Tree Live  │
+                          │ Wiring          │
+                          └─────────────────┘
+                                    │
+                                    ▼
+                          ┌─────────────────┐
+                          │ Atlas Phase 2-4 │
+                          │ (Future)        │
+                          └─────────────────┘
 ```
 
 ---
 
 ## Quick Reference: What to Build Next
 
-**If you have 2 hours:** Image Spatial Commands (add `nearby` command)
+**If you have 2 hours:** Mobile UX P2 - keyboard accessory refinements
 
-**If you have 1 day:** Gmail Actions UI (context menu integration)
+**If you have 1 day:** Atlas P1.1 - cross-tree browser UI
 
-**If you have 3 days:** Atlas Phase 1 cross-tree references
+**If you have 3 days:** Capabilities Phase 2 - execution framework
 
-**If you have 1 week:** All Tier 1 items
+**If you have 1 week:** TB Structured Tool Use Phase 2 - multi-step execution
 
 ---
 
@@ -326,9 +395,10 @@ This document synthesizes all pending design documents and plans into a prioriti
 | Treebeard Research Mode | `2025-12-17-treebeard-research-design.md` | SHIPPED Build 442 |
 | Voice Capture | `2025-12-07-voice-capture-artifacts-design.md` | SHIPPED Build 511 |
 | LifeTree Pattern | `2025-12-07-lifetree-pattern-design.md` | SHIPPED as pattern |
+| TB Structured Tool Use P1 | `2025-12-29-tb-structured-tool-use-design.md` | SHIPPED Build 658 |
 
 ---
 
 *Document created: 2025-12-27*
-*Major update: 2025-12-27 (Builds 610-620 shipped)*
-*Next review: 2025-01-03*
+*Major update: 2025-12-29 (Builds 624-658 shipped, TB Structured Tool Use complete)*
+*Next review: 2025-01-05*
