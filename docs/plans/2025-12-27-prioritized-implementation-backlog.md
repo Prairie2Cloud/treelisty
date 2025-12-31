@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
 **Date:** 2025-12-30
-**Current Build:** 664
+**Current Build:** 665
 **Status:** Living Document
-**Last Updated:** 2025-12-30 (Build 664 shipped - Atlas Phase 1.1 Tree Browser UI)
+**Last Updated:** 2025-12-30 (Build 665 shipped - TB Structured Tool Use Phase 2)
 
 ---
 
@@ -38,9 +38,14 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Recent Shipping Sprint (Builds 624-664)
+## Recent Shipping Sprint (Builds 624-665)
 
-*41 builds shipped December 27-30, 2025*
+*42 builds shipped December 27-30, 2025*
+
+### TB Structured Tool Use Phase 2 (Build 665)
+| Build | Feature | Status |
+|-------|---------|--------|
+| 665 | **TB Structured Tool Use Phase 2** - Multi-step tree building with feedback loop, session state machine, continue/complete buttons, auto-continue option, progress tracking, AI context injection | **SHIPPED** |
 
 ### Atlas Phase 1.1 (Build 664)
 | Build | Feature | Status |
@@ -210,27 +215,29 @@ This document synthesizes all pending design documents and plans into a prioriti
 ---
 
 ### 5. TB Structured Tool Use Phase 2: Multi-Step Execution
-**Status:** READY
+**Status:** ✅ SHIPPED (Build 665)
 **File:** `2025-12-29-tb-structured-tool-use-design.md`
 **Effort:** Medium (1 week)
 **Value:** High - Better tree building UX
 
-**What:**
-- Result feedback loop for chained operations
-- "Continue building" flow after batch add
-- Context preservation across tool calls
-- Build progress visualization
+**Shipped (Build 665):**
+- ✅ Tree building session state machine (building/reviewing/paused/complete)
+- ✅ Feedback loop after batch adds with "Continue Layer N" buttons
+- ✅ Auto-continue option for fully automatic tree building
+- ✅ Progress tracking: layer count, node count, elapsed time
+- ✅ AI context injection for active sessions
+- ✅ New commands: start_tree_building, continue_tree_building, complete_tree_building, toggle_auto_continue
 
-**Already Shipped (Build 658):**
+**Previously Shipped (Build 658):**
 - ✅ Tier 0/1 tool tiering with dynamic loading
 - ✅ Multi-param handling for rename, move, etc.
 - ✅ Action mode triggers ("go", "build it")
 - ✅ Telemetry tracking
 
 **Acceptance Tests:**
-- [ ] Multi-step tree building works without user re-prompting
-- [ ] TB can build 10+ node tree in single flow
-- [ ] Progress shown during build
+- [x] Multi-step tree building works without user re-prompting
+- [x] TB can build 10+ node tree in single flow
+- [x] Progress shown during build
 
 **Dependencies:** TB Structured Tool Use Phase 1 (SHIPPED Build 658)
 **Blocks:** More complex tree building workflows
@@ -312,6 +319,14 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ## Shipped Reference (December 2025)
 
+### Build 665 - TB Structured Tool Use Phase 2
+- Tree building session state machine (building/reviewing/paused/complete)
+- Feedback loop after batch adds with "Continue Layer N" buttons
+- Auto-continue option for fully automatic tree building
+- Progress tracking: layer count, node count, elapsed time
+- AI context injection for active sessions
+- New commands: `start_tree_building`, `continue_tree_building`, `complete_tree_building`, `toggle_auto_continue`, `show_building_progress`, `cancel_tree_building`
+
 ### Build 664 - Atlas Phase 1.1 Tree Browser UI
 - Tree Switcher dropdown in header (shows recent trees with 📍 indicator)
 - Browse Trees modal with two-panel layout (trees → nodes)
@@ -334,12 +349,12 @@ This document synthesizes all pending design documents and plans into a prioriti
 - Error suggestions and similar command hints
 - Telemetry: `window.getToolUseTelemetry()`
 
-### Builds 624-664 Summary
+### Builds 624-665 Summary
 | Category | Builds | Key Features |
 |----------|--------|--------------|
+| TB Architecture | 649-658, 665 | Structured tool use P1+P2, multi-step tree building, feedback loop |
 | Atlas | 664 | Tree Browser UI, cross-tree search, Ctrl+Shift+T |
 | Tree View/Canvas | 659-663 | Focus mode, normalization, CSS fixes, expand toggles |
-| TB Architecture | 649-658 | Structured tool use, confidence verification, tree building |
 | TTS/Hyperedge | 642-648 | AI narrative, wake lock, voice selection, mic check |
 | PWA/Mobile | 632-641 | Keyboard bar, iOS fixes, clipboard, paste banner |
 | UI Polish | 625-631 | Treemap, themes, update button |
@@ -364,13 +379,13 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Dependency Graph (Updated Build 664)
+## Dependency Graph (Updated Build 665)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        SHIPPED (Build 610-664)                           │
+│                        SHIPPED (Build 610-665)                           │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ TB Structured Tool Use │ Atlas P1 + P1.1 │ Capabilities P1 │ Sub-Agent  │
+│ TB Structured P1+P2    │ Atlas P1 + P1.1 │ Capabilities P1 │ Sub-Agent  │
 │ Image Analysis         │ Gmail UI        │ PWA Mobile      │ TTS        │
 │ Tree Building Recipe   │ Themes          │ Treemap         │ Voice      │
 │ Focus Mode Branches    │ Tree View Fixes │ Canvas Rendering│ Tree Browse│
@@ -379,16 +394,10 @@ This document synthesizes all pending design documents and plans into a prioriti
               ┌─────────────────────┼─────────────────────┐
               ▼                     ▼                     ▼
     ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-    │ Mobile UX P2    │   │ TB Structured   │   │ Capabilities    │
-    │ PWA Polish      │   │ Tool Use P2     │   │ Phase 2         │
-    │ (READY)         │   │ (READY)         │   │ (BLOCKED)       │
+    │ Mobile UX P2    │   │ Self-Tree Live  │   │ Capabilities    │
+    │ PWA Polish      │   │ Wiring          │   │ Phase 2         │
+    │ (READY)         │   │ (FUTURE)        │   │ (BLOCKED)       │
     └─────────────────┘   └─────────────────┘   └─────────────────┘
-                                    │
-                                    ▼
-                          ┌─────────────────┐
-                          │ Self-Tree Live  │
-                          │ Wiring          │
-                          └─────────────────┘
                                     │
                                     ▼
                           ┌─────────────────┐
@@ -403,7 +412,7 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 **If you have 2 hours:** Mobile UX P2 - keyboard accessory refinements
 
-**If you have 1 day:** TB Structured Tool Use Phase 2 - multi-step tree building
+**If you have 1 day:** Email Workflow P2 - batch commands for Gmail
 
 **If you have 3 days:** Capabilities Phase 2 - execution framework
 
@@ -422,10 +431,11 @@ This document synthesizes all pending design documents and plans into a prioriti
 | Voice Capture | `2025-12-07-voice-capture-artifacts-design.md` | SHIPPED Build 511 |
 | LifeTree Pattern | `2025-12-07-lifetree-pattern-design.md` | SHIPPED as pattern |
 | TB Structured Tool Use P1 | `2025-12-29-tb-structured-tool-use-design.md` | SHIPPED Build 658 |
+| TB Structured Tool Use P2 | `2025-12-29-tb-structured-tool-use-design.md` | SHIPPED Build 665 |
 | Atlas Phase 1.1 | `2025-12-25-atlas-cross-tree-intelligence-design.md` | SHIPPED Build 664 |
 
 ---
 
 *Document created: 2025-12-27*
-*Major update: 2025-12-30 (Builds 624-664 shipped, Atlas Phase 1.1 complete)*
+*Major update: 2025-12-30 (Builds 624-665 shipped, TB Structured Tool Use Phase 2 complete)*
 *Next review: 2025-01-05*
