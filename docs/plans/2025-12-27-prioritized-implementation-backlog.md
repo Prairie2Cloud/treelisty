@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
-**Date:** 2025-12-29
-**Current Build:** 658
+**Date:** 2025-12-30
+**Current Build:** 664
 **Status:** Living Document
-**Last Updated:** 2025-12-29 (Build 658 shipped - TB Structured Tool Use)
+**Last Updated:** 2025-12-30 (Build 664 shipped - Atlas Phase 1.1 Tree Browser UI)
 
 ---
 
@@ -38,9 +38,23 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Recent Shipping Sprint (Builds 624-658)
+## Recent Shipping Sprint (Builds 624-664)
 
-*35 builds shipped December 27-29, 2025*
+*41 builds shipped December 27-30, 2025*
+
+### Atlas Phase 1.1 (Build 664)
+| Build | Feature | Status |
+|-------|---------|--------|
+| 664 | **Atlas Phase 1.1 - Tree Browser UI** - Tree Switcher dropdown, Browse Trees modal, cross-tree search, Ctrl+Shift+T shortcut | **SHIPPED** |
+
+### Tree View & Canvas Fixes (Builds 659-663)
+| Build | Feature | Status |
+|-------|---------|--------|
+| 663 | **LocalStorage Normalization Fix** - Trees loaded from cache now properly normalized | **SHIPPED** |
+| 662 | **normalizeTreeStructure Fix** - Used 'subItems' not 'subtasks', removed depth limit | **SHIPPED** |
+| 661 | **Canvas Recursion Fix** - Added `items` check, was rendering only 19 nodes | **SHIPPED** |
+| 660 | **Tree View CSS Fix** - align-items: flex-start fixes off-screen rendering | **SHIPPED** |
+| 659 | **Focus Mode for Branches** - enterFocusMode(nodeId) isolates subtree in Canvas | **SHIPPED** |
 
 ### TB Architecture Evolution (Builds 649-658)
 | Build | Feature | Status |
@@ -143,25 +157,27 @@ This document synthesizes all pending design documents and plans into a prioriti
 ---
 
 ### 3. Atlas Phase 1.1: Cross-Tree Browser UI
-**Status:** READY
+**Status:** ✅ SHIPPED (Build 664)
 **File:** `2025-12-25-atlas-cross-tree-intelligence-design.md`
 **Effort:** Medium (3-5 days)
 **Value:** Medium - Completes Atlas P1 UX
 
-**What:**
-- UI modal for browsing/selecting nodes from other trees
-- Tree switcher in sidebar
-- Visual indicators for cross-tree links
+**Shipped (Build 664):**
+- ✅ Tree Switcher dropdown in header (shows recent trees with 📍 current indicator)
+- ✅ Browse Trees modal with two-panel layout (trees → nodes)
+- ✅ Cross-tree search across all registered trees
+- ✅ Ctrl+Shift+T keyboard shortcut
+- ✅ CSS classes for cross-tree hyperedge indicators
 
-**Already Shipped (Build 623):**
+**Previously Shipped (Build 623):**
 - ✅ TreeRegistry: localStorage-persisted registry
 - ✅ Cross-tree hyperedge references (`treeId:nodeGuid`)
 - ✅ TreeBeard commands: `list_trees`, `search_trees`, `link_cross_tree`
 
 **Acceptance Tests:**
-- [ ] Can browse nodes from other trees in modal
-- [ ] Cross-tree links show visual indicator
-- [ ] Tree switcher shows all known trees
+- [x] Can browse nodes from other trees in modal
+- [x] Cross-tree links show visual indicator
+- [x] Tree switcher shows all known trees
 
 **Dependencies:** Atlas Phase 1 (SHIPPED Build 623)
 **Blocks:** Atlas Phase 2-4
@@ -296,6 +312,20 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ## Shipped Reference (December 2025)
 
+### Build 664 - Atlas Phase 1.1 Tree Browser UI
+- Tree Switcher dropdown in header (shows recent trees with 📍 indicator)
+- Browse Trees modal with two-panel layout (trees → nodes)
+- Cross-tree search across all registered trees
+- `Ctrl+Shift+T` keyboard shortcut
+- CSS classes for cross-tree hyperedge indicators
+
+### Builds 659-663 - Tree View & Canvas Fixes
+- **663**: LocalStorage load path now calls `normalizeTreeStructure()`
+- **662**: Fixed `normalizeTreeStructure` to use `subItems` (not `subtasks`), removed depth limit
+- **661**: Canvas recursion now checks `items` array - fixed 19-node rendering bug
+- **660**: Tree view CSS fix - `align-items: flex-start` prevents off-screen rendering
+- **659**: Focus Mode for Branches - `enterFocusMode(nodeId)`, `focus_branch:{name}` command
+
 ### Build 658 - TB Structured Tool Use
 - Action mode triggers ("go", "build it", "execute")
 - Tier 0 tools (~25 always available)
@@ -304,10 +334,12 @@ This document synthesizes all pending design documents and plans into a prioriti
 - Error suggestions and similar command hints
 - Telemetry: `window.getToolUseTelemetry()`
 
-### Builds 624-657 Summary
+### Builds 624-664 Summary
 | Category | Builds | Key Features |
 |----------|--------|--------------|
-| TB Architecture | 649-657 | Confidence verification, tree building, command routing |
+| Atlas | 664 | Tree Browser UI, cross-tree search, Ctrl+Shift+T |
+| Tree View/Canvas | 659-663 | Focus mode, normalization, CSS fixes, expand toggles |
+| TB Architecture | 649-658 | Structured tool use, confidence verification, tree building |
 | TTS/Hyperedge | 642-648 | AI narrative, wake lock, voice selection, mic check |
 | PWA/Mobile | 632-641 | Keyboard bar, iOS fixes, clipboard, paste banner |
 | UI Polish | 625-631 | Treemap, themes, update button |
@@ -332,31 +364,25 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Dependency Graph (Updated Build 658)
+## Dependency Graph (Updated Build 664)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        SHIPPED (Build 610-658)                           │
+│                        SHIPPED (Build 610-664)                           │
 ├─────────────────────────────────────────────────────────────────────────┤
-│ TB Structured Tool Use │ Atlas P1 │ Capabilities P1 │ Sub-Agent P2      │
-│ Image Analysis         │ Gmail UI │ PWA Mobile      │ TTS/Hyperedge     │
-│ Tree Building Recipe   │ Themes   │ Treemap         │ Voice             │
+│ TB Structured Tool Use │ Atlas P1 + P1.1 │ Capabilities P1 │ Sub-Agent  │
+│ Image Analysis         │ Gmail UI        │ PWA Mobile      │ TTS        │
+│ Tree Building Recipe   │ Themes          │ Treemap         │ Voice      │
+│ Focus Mode Branches    │ Tree View Fixes │ Canvas Rendering│ Tree Browse│
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
               ▼                     ▼                     ▼
     ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
-    │ Mobile UX P2    │   │ Atlas P1.1      │   │ Capabilities    │
-    │ PWA Polish      │   │ Browser UI      │   │ Phase 2         │
+    │ Mobile UX P2    │   │ TB Structured   │   │ Capabilities    │
+    │ PWA Polish      │   │ Tool Use P2     │   │ Phase 2         │
     │ (READY)         │   │ (READY)         │   │ (BLOCKED)       │
     └─────────────────┘   └─────────────────┘   └─────────────────┘
-                                    │
-                                    ▼
-                          ┌─────────────────┐
-                          │ TB Structured   │
-                          │ Tool Use P2     │
-                          │ Multi-Step      │
-                          └─────────────────┘
                                     │
                                     ▼
                           ┌─────────────────┐
@@ -377,11 +403,11 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 **If you have 2 hours:** Mobile UX P2 - keyboard accessory refinements
 
-**If you have 1 day:** Atlas P1.1 - cross-tree browser UI
+**If you have 1 day:** TB Structured Tool Use Phase 2 - multi-step tree building
 
 **If you have 3 days:** Capabilities Phase 2 - execution framework
 
-**If you have 1 week:** TB Structured Tool Use Phase 2 - multi-step execution
+**If you have 1 week:** Self-Tree Live Wiring - auto-updating measurements
 
 ---
 
@@ -396,9 +422,10 @@ This document synthesizes all pending design documents and plans into a prioriti
 | Voice Capture | `2025-12-07-voice-capture-artifacts-design.md` | SHIPPED Build 511 |
 | LifeTree Pattern | `2025-12-07-lifetree-pattern-design.md` | SHIPPED as pattern |
 | TB Structured Tool Use P1 | `2025-12-29-tb-structured-tool-use-design.md` | SHIPPED Build 658 |
+| Atlas Phase 1.1 | `2025-12-25-atlas-cross-tree-intelligence-design.md` | SHIPPED Build 664 |
 
 ---
 
 *Document created: 2025-12-27*
-*Major update: 2025-12-29 (Builds 624-658 shipped, TB Structured Tool Use complete)*
+*Major update: 2025-12-30 (Builds 624-664 shipped, Atlas Phase 1.1 complete)*
 *Next review: 2025-01-05*
