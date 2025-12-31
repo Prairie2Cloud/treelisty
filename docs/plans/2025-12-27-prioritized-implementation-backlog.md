@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
-**Date:** 2025-12-30
-**Current Build:** 665
+**Date:** 2025-12-31
+**Current Build:** 666
 **Status:** Living Document
-**Last Updated:** 2025-12-30 (Build 665 shipped - TB Structured Tool Use Phase 2)
+**Last Updated:** 2025-12-31 (Build 666 shipped - Hyperedge Modal Redesign)
 
 ---
 
@@ -38,9 +38,14 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Recent Shipping Sprint (Builds 624-665)
+## Recent Shipping Sprint (Builds 624-666)
 
-*42 builds shipped December 27-30, 2025*
+*43 builds shipped December 27-31, 2025*
+
+### Hyperedge Modal Redesign (Build 666)
+| Build | Feature | Status |
+|-------|---------|--------|
+| 666 | **Hyperedge Modal Redesign** - Centered floating modal with solid background, full text display (no truncation), delete hyperedge function with confirmation, improved visual design | **SHIPPED** |
 
 ### TB Structured Tool Use Phase 2 (Build 665)
 | Build | Feature | Status |
