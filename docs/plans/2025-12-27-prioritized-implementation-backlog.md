@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
 **Date:** 2025-12-31
-**Current Build:** 695
+**Current Build:** 700
 **Status:** Living Document
-**Last Updated:** 2026-01-02 (Gallery of Trees promoted to Priority 1)
+**Last Updated:** 2026-01-02 (Gallery of Trees SHIPPED Builds 696-700, Mobile strategy: Safari browser)
 
 ---
 
@@ -18,7 +18,7 @@ This document synthesizes all pending design documents and plans into a prioriti
 **Principle:** Ship incrementally. Each build should deliver standalone value.
 
 **Key Decisions:**
-- **Mobile UX:** PWA (decided 2025-12-29)
+- **Mobile UX:** Safari browser preferred over PWA (updated 2026-01-02) - better live recording performance
 - **TB Architecture:** Structured Tool Use via Claude API (Build 658)
 
 ---
@@ -123,38 +123,37 @@ This document synthesizes all pending design documents and plans into a prioriti
 *Max 3 items. Each delivers standalone value.*
 
 ### 1. Gallery of Trees: Public Tree Discovery
-**Status:** READY
+**Status:** ✅ SHIPPED (Builds 696-700)
 **File:** `2026-01-02-gallery-of-trees-design.md`
 **Effort:** Medium (3-5 days for Phase 1)
 **Value:** High - Solves cold start, enables cross-device testing
 
-**What (Phase 1 - MVP):**
-- Gallery index format and seed file with curated trees
-- Gallery browser modal UI with categories and search
-- Tree preview in embedded readonly mode
-- Clone with fresh identities → registers in local Atlas
-- Sidebar icon integration
+**Shipped (Builds 696-700):**
+- **696**: Clone Banner - Visual "Cloned" indicator with provenance
+- **697**: Atlas Provenance - Tracks source/version for cloned trees
+- **698**: IndexedDB NodeIndex - Fast node lookup with 50ms target
+- **699**: CloneAudit - Validation utilities for clone integrity
+- **700**: SubmissionInbox - Firestore-backed gallery submissions with modal UI
 
-**Why Priority 1:**
-- Unblocks mobile UX testing (share trees from desktop → test on mobile)
-- Solves new user cold start problem
-- Leverages existing Cloud Share infrastructure (low risk)
-- First step toward TreeListy community ecosystem
+**Firestore Integration:**
+- Security rules deployed for `gallery_submissions` collection
+- Composite indexes for submitterId+submittedAt queries
+- Anonymous auth support for submissions
 
 **Acceptance Tests:**
-- [ ] User can browse gallery from sidebar
-- [ ] User can preview tree in readonly mode
-- [ ] User can clone tree to edit locally
-- [ ] Cloned tree works on mobile (cross-device validation)
+- [x] User can submit tree to gallery via modal
+- [x] Submissions stored in Firestore with status tracking
+- [x] User can view/withdraw their submissions
+- [x] Cloned trees have provenance tracked in Atlas
 
 **Dependencies:** Cloud Share (Build 425), Embed Mode (Build 610)
-**Blocks:** Community features, cross-device testing workflows
+**Enables:** Community features, cross-device testing workflows
 
 ---
 
-### 2. Mobile UX Phase 2: PWA Polish
+### 2. Mobile UX Phase 2: Safari Browser Optimization
 **Status:** READY
-**Decision:** PWA (not native) - confirmed 2025-12-29
+**Decision:** Safari browser preferred (updated 2026-01-02) - better live recording performance than PWA
 **Effort:** Medium (1 week)
 **Value:** High - Mobile is primary use case for many users
 
@@ -162,14 +161,17 @@ This document synthesizes all pending design documents and plans into a prioriti
 - Keyboard accessory bar refinements
 - Better visible affordances for swipe gestures
 - Performance optimization for large trees on mobile
-- PWA install prompt improvements
+- Safari-specific optimizations for voice capture
+- Live recording quality improvements
+
+**Note:** PWA approach deprecated - Safari browser provides better voice recording and playback performance.
 
 **Acceptance Tests:**
 - [ ] Swipe gestures discoverable without instruction
 - [ ] Large trees (500+ nodes) scroll smoothly on mobile
-- [ ] PWA install prompt appears at optimal time
+- [ ] Voice capture works reliably in Safari
 
-**Dependencies:** Gallery of Trees (for cross-device test trees)
+**Dependencies:** Gallery of Trees (SHIPPED Builds 696-700)
 **Blocks:** Nothing
 
 ---
@@ -352,7 +354,14 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Shipped Reference (December 2025)
+## Shipped Reference (December 2025 - January 2026)
+
+### Builds 696-700 - Gallery of Trees (January 2026)
+- **700**: SubmissionInbox - Firestore-backed gallery submissions with modal UI, withdraw/status tracking
+- **699**: CloneAudit - Validation utilities (translateMap, hyperedge integrity, content hash, duplicates)
+- **698**: IndexedDB NodeIndex - Fast node lookup with 50ms target, background indexing
+- **697**: Atlas Provenance - Tracks sourceTreeId, sourceVersion, clonedAt for cloned trees
+- **696**: Clone Banner - Visual "Cloned from X" indicator with link to source
 
 ### Build 665 - TB Structured Tool Use Phase 2
 - Tree building session state machine (building/reviewing/paused/complete)
@@ -414,23 +423,24 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ---
 
-## Dependency Graph (Updated Build 665)
+## Dependency Graph (Updated Build 700)
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
-│                        SHIPPED (Build 610-665)                           │
+│                        SHIPPED (Build 610-700)                           │
 ├─────────────────────────────────────────────────────────────────────────┤
 │ TB Structured P1+P2    │ Atlas P1 + P1.1 │ Capabilities P1 │ Sub-Agent  │
-│ Image Analysis         │ Gmail UI        │ PWA Mobile      │ TTS        │
+│ Image Analysis         │ Gmail UI        │ Mobile Safari   │ TTS        │
 │ Tree Building Recipe   │ Themes          │ Treemap         │ Voice      │
 │ Focus Mode Branches    │ Tree View Fixes │ Canvas Rendering│ Tree Browse│
+│ Gallery of Trees       │ Clone + Audit   │ SubmissionInbox │ Firestore  │
 └─────────────────────────────────────────────────────────────────────────┘
                                     │
               ┌─────────────────────┼─────────────────────┐
               ▼                     ▼                     ▼
     ┌─────────────────┐   ┌─────────────────┐   ┌─────────────────┐
     │ Mobile UX P2    │   │ Self-Tree Live  │   │ Capabilities    │
-    │ PWA Polish      │   │ Wiring          │   │ Phase 2         │
+    │ Safari Optimize │   │ Wiring          │   │ Phase 2         │
     │ (READY)         │   │ (FUTURE)        │   │ (BLOCKED)       │
     └─────────────────┘   └─────────────────┘   └─────────────────┘
                                     │
@@ -445,13 +455,13 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ## Quick Reference: What to Build Next
 
-**If you have 2 hours:** Gallery seed trees - create 3-5 curated example trees
+**If you have 2 hours:** Mobile Safari voice capture testing - verify live recording quality
 
-**If you have 1 day:** Gallery Phase 1 MVP - index format, browser UI, clone flow
+**If you have 1 day:** Mobile UX swipe gesture refinements
 
-**If you have 3 days:** Gallery + Mobile UX testing workflow validation
+**If you have 3 days:** Mobile UX Phase 2 - Safari optimization, performance tuning
 
-**If you have 1 week:** Full Gallery Phase 1 + Publish flow (Phase 2)
+**If you have 1 week:** Full Mobile UX Phase 2 + Gallery browser UI for end users
 
 ---
 
@@ -468,9 +478,11 @@ This document synthesizes all pending design documents and plans into a prioriti
 | TB Structured Tool Use P1 | `2025-12-29-tb-structured-tool-use-design.md` | SHIPPED Build 658 |
 | TB Structured Tool Use P2 | `2025-12-29-tb-structured-tool-use-design.md` | SHIPPED Build 665 |
 | Atlas Phase 1.1 | `2025-12-25-atlas-cross-tree-intelligence-design.md` | SHIPPED Build 664 |
+| Gallery of Trees P1 | `2026-01-02-gallery-of-trees-design.md` | SHIPPED Builds 696-700 |
 
 ---
 
 *Document created: 2025-12-27*
 *Major update: 2025-12-30 (Builds 624-665 shipped, TB Structured Tool Use Phase 2 complete)*
-*Next review: 2025-01-05*
+*Major update: 2026-01-02 (Gallery of Trees SHIPPED Builds 696-700, Mobile strategy: Safari browser)*
+*Next review: 2026-01-10*
