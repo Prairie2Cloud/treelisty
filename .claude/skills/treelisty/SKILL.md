@@ -5,7 +5,7 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 # TreeListy - Hierarchical Project Management Skill
 
-**Version**: 2.20.0 (Build 540)
+**Version**: 2.101.10 (Build 700)
 **Repository**: https://github.com/Prairie2Cloud/treelisty
 **Live Site**: https://treelisty.netlify.app
 
@@ -25,128 +25,321 @@ description: Work with TreeListy hierarchical project trees. Use when developing
 
 ---
 
-## What's New (Builds 529-540)
+## What's New (Builds 666-700)
 
-### Build 540: Performance & Lazy Loading
-- **Lazy-load third-party libraries** - Three.js, FullCalendar, SheetJS, html2canvas, JSZip, LZ-String load on demand
-- **FCP improved** - 10.8s → 8.1s (25% faster initial render)
-- **TBT eliminated** - 90ms → 0ms (no main thread blocking)
-- Key function: `loadLibrary(name)` in lazy loader utility
+### Gallery of Trees (Builds 696-700)
+Public tree discovery and community sharing system:
+- **700**: SubmissionInbox - Firestore-backed gallery submissions
+  - `SubmissionInbox.submit(tree, metadata)` - submit tree to gallery
+  - `SubmissionInbox.getMySubmissions()` - list user's submissions
+  - `SubmissionInbox.withdraw(submissionId)` - cancel pending submission
+  - Status: pending → approved/rejected/withdrawn
+- **699**: CloneAudit - Validation utilities for clone integrity
+  - `CloneAudit.validateTranslationMap(clone, idMap)`
+  - `CloneAudit.checkHyperedgeIntegrity(tree)`
+  - `CloneAudit.fullAudit(source, clone, idMap)`
+- **698**: IndexedDB NodeIndex - Fast node lookup with 50ms target
+- **697**: Atlas Provenance - Tracks sourceTreeId, sourceVersion for clones
+- **696**: Clone Banner - Visual "Cloned from X" indicator with source link
 
-### Builds 536-539: MCP & View Improvements
-- **MCP node operations** - Use snake_case params (node_id, parent_id, node_data)
-- **TreeBeard tree building** - `focus_root`, `create_tree`, auto-focus on `add_child`
-- **3D/Canvas view state** - Respect expand/collapse state from tree view
-- **Incremental collapse** - One level at a time instead of all-at-once
+### Hyperedge Modal Redesign (Build 666)
+- Centered floating modal with solid background
+- Full text display (no truncation)
+- Delete hyperedge with confirmation dialog
+- Improved visual design
 
-### Builds 529-535: PWA & Pattern Fixes
-- **PWA localStorage restore** - Re-render after loading saved tree
-- **Pattern restore** - Filesystem pattern now applied correctly on tree load
-- **MCP file open** - Use client.socket, add debug logging
+### TB Structured Tool Use Phase 2 (Build 665)
+Multi-step tree building with feedback loop:
+- Session state machine: building → reviewing → paused → complete
+- "Continue Layer N" buttons after batch adds
+- Auto-continue option for fully automatic tree building
+- Progress tracking: layer count, node count, elapsed time
+- Commands: `start_tree_building`, `continue_tree_building`, `complete_tree_building`
 
----
-
-## Previous Features (Builds 518-528)
-
-### Builds 523-528: MCP Bridge & Claude Chrome Integration
-- **MCP Task Dispatch** - Bidirectional communication with Claude Code CLI
-- **Sync commands** - `sync gmail`, `sync drive`, `sync calendar` via TreeBeard
-- **Claude Chrome file opening** - Open Google Drive files via Claude Chrome extension
-- **Direct command matching** - Bypasses AI for instant response on sync/file commands
-- **Inbox UI** - Review and approve/reject proposed operations from Claude Code
-- Key functions: `submitMcpTask()`, `mcpBridgeState`, `COMMAND_REGISTRY['open_gdrive_via_mcp']`
-- Architecture: TreeListy dispatches intent → Claude Code executes via Chrome → Results return via MCP Inbox
-
-### Builds 519-522: RAG & Research Enhancements
-- **RAG Phase 1** - Enhanced document import with PDF text extraction
-- **Hyperedge query fix** - Proper routing to tree analysis vs web research
-- **Research bullet parsing** - Better formatting of research results
-- **MCP set_view fix** - Proper view switching via button clicks
-
-### Build 518: MCP Bridge Foundation
-- **MCP Bridge package** - Node.js server for TreeListy ↔ Claude Code communication
-- **Auto-connect** - Optional auto-reconnect on page load
-- **Task queue** - Claim, progress, complete pattern for async tasks
+### Atlas Phase 1.1 - Tree Browser (Build 664)
+- Tree Switcher dropdown in header (shows recent trees with 📍 indicator)
+- Browse Trees modal with two-panel layout (trees → nodes)
+- Cross-tree search across all registered trees
+- `Ctrl+Shift+T` keyboard shortcut for quick access
 
 ---
 
-## Previous Features (Builds 494-517)
+## Previous Features (Builds 624-665)
 
-### Builds 516-517: Mobile Canvas View UX
-- **Canvas View works on mobile** - was previously broken (display:none override)
-- **Scrollable compact toolbar** - horizontally scrollable with touch
-- **Minimap** - 100x75px positioned bottom-left
-- **Context menu** - bottom-sheet style for touch
-- CSS: `#canvas-container.active`, `#view-3d.active` overrides in mobile media query
+### Tree View & Canvas Fixes (Builds 659-663)
+- **663**: LocalStorage normalization fix
+- **662**: normalizeTreeStructure uses 'subItems' not 'subtasks'
+- **661**: Canvas recursion fix (was only rendering 19 nodes)
+- **660**: Tree view CSS fix (align-items: flex-start)
+- **659**: Focus Mode for Branches - `enterFocusMode(nodeId)`, `focus_branch:{name}` command
 
-### Builds 514-515: Info Panel Redesign
-- **Separate reader nav row** - controls grouped logically
-- **Better typography** - 16px font, 1.8 line height for readability
-- **Visible close button** - red background, always accessible
-- **Compact metadata** - type, ID, cost in footer row
+### TB Structured Tool Use Phase 1 (Build 658)
+- Action mode triggers: "go", "build it", "execute"
+- Tier 0 tools (~25 always available)
+- Tier 1 tools (context-triggered: Canvas, Gantt, Gmail, Atlas, Hyperedge, Image)
+- Multi-param handling for rename_node, move_node, etc.
+- Telemetry: `window.getToolUseTelemetry()`
 
-### Builds 512-513: TTS Read Aloud
-- **Text-to-speech** for node descriptions via Web Speech API
-- **Auto-Play mode** - sequential reading through tree
-- **autoPlayNavigating flag** - prevents self-interruption during navigation
-- Functions: `speakNode()`, `toggleTTS()`, `toggleAutoPlay()`
+### Tree Building Commands (Builds 649-657)
+- **657**: TB Batch Add + Fallback Parsing
+- **656**: `build_tree_from_topic` command
+- **655**: Tree Building Recipe - Semantic Onion Model
+- **653**: Multi-word command params fix
+- **650**: Confidence-based intent verification
 
-### Builds 507-508: Reader Navigation
-- **Prev/Next buttons** - sequential node traversal
-- **Group iteration** - navigate hyperedge members or dependency chains
-- **Position indicator** - "3 of 12" display
-- Functions: `navigatePrev()`, `navigateNext()`, `navigateToNode()`
+### Hyperedge & TTS Enhancements (Builds 642-648)
+- **648**: Auto-update hyperedges + AI suggest fix
+- **647**: Mic check + hyperedge commands + TB screen awareness
+- **646**: iOS voice recording fix
+- **645**: Smart voice selection (TTS quality)
+- **644**: Hyperedge narrate button
+- **643**: TTS wake lock
+- **642**: AI narrative TTS for hyperedges
 
-### Build 510: Dependency Display Controls
-- **Toggle deps on/off** - `toggleDependencyDisplay()`
-- **Filter to selected** - `toggleDepsSelectedOnly()`
-- Canvas toolbar buttons for both
+### Mobile UX (Builds 632-641)
+- **641**: PWA paste banner
+- **640**: Paste Share Link button for iOS
+- **639**: PWA clipboard share detection
+- **638**: Open in App banner for shared URLs
+- **637**: Prevent pull-to-refresh
+- **635**: P1 Mobile UX fixes
+- **634**: Fix iOS auto-zoom
+- **632**: Mobile keyboard accessory bar
 
-### Build 511: Voice Input for Import
-- **Mic button** on import modal paste field
-- **toggleImportVoiceCapture()** - speech recognition to text
+**Note**: Safari browser is now preferred over PWA for better live recording performance.
 
-## Previous Major Features (Builds 457-493)
+### UI Themes & Treemap (Builds 625-631)
+- **631**: UI Theme Expansion - 10 new themes
+- **630**: Treemap info panel on click
+- **627**: Treemap color palettes - 5 themes
+- **625**: Header update check button
 
-### Gantt View (457-484)
-- **Frappe Gantt integration** - professional scheduling view
-- **Critical path visualization** - highlight 0-slack tasks
-- **Zoom/pan controls** - day/week/month/year views
-- **Minimap** - overview navigation
-- Key functions: `renderGantt()`, `toggleCriticalPath()`, `updateGanttTask()`
+### Atlas Phase 1 - Cross-Tree Intelligence (Build 623)
+- TreeRegistry: localStorage-persisted registry of all trees
+- Cross-tree hyperedge references: `treeId:nodeGuid` format
+- Commands: `list_trees`, `search_trees`, `link_cross_tree`, `switch_tree`
 
-### TreeBeard PM Assistant (485-490)
-- **27 Gantt commands** - navigation, analysis, editing
-- **Context injection** - tree structure in prompts
-- **Proactive nudges** - suggestions based on tree state
-- Commands: `gantt_summary`, `gantt_critical_path`, `gantt_set_dates`, etc.
+### Sub-Agent Architecture (Builds 620-622)
+- **622**: Sub-agent result integration
+- **621**: Image spatial commands
+- **620**: Sub-agent dispatcher
 
-### Mobile UX (491-493)
-- **Single-pane navigation** - swipe between views
-- **Pinch-to-zoom** - Canvas, 3D, Gantt all support touch
-- **All views enabled** - no mobile restrictions
-- **Swipe gestures** - edge swipes navigate panels
+### Capability Nodes Phase 1 (Builds 615-617)
+Chrome capability nodes for authenticated web actions:
+- Capability matching: `window.CapabilityMatcher.match(intent)`
+- Status tracking: healthy/degraded/broken
+- Commands: `list_capabilities`, `test_capability`
+
+### Gmail Enhancements (Build 618)
+- Label management UI with create, apply, remove
+- Full Gmail action toolbar: archive, trash, star, mark read
+
+---
+
+## Previous Features (Builds 541-623)
+
+### Image Analysis to Tree (Build 565)
+- TreeBeard commands: `analyze_image`, `analyze_screenshot`, `image_to_tree`
+- Gemini Vision creates hierarchical tree with bounding boxes
+- Canvas view: source image background, colored bbox overlays
+
+### Chrome Extension (Build 564)
+- `packages/treelisty-chrome-extension/` - Load via chrome://extensions
+- MCP tools: `ext_capture_screen`, `ext_extract_dom`, `ext_list_tabs`
+- TreeBeard: `capture_screen`, `extract_page`, `list_tabs`
+
+### Performance & Lazy Loading (Build 540)
+- Third-party libraries lazy-load on demand
+- FCP: 10.8s → 8.1s (25% faster)
+- Key function: `loadLibrary(name)`
+
+### MCP Bridge Foundation (Build 518)
+- Bidirectional TreeListy ↔ Claude Code communication
+- Task queue: claim, progress, complete pattern
+- Sync commands: `sync gmail`, `sync drive`, `sync calendar`
 
 ---
 
 ## TreeListy Architecture
 
 ### Single-File Application
-`treeplexity.html` (~1.3MB) contains everything:
+`treeplexity.html` (~1.3MB) contains:
 - HTML structure (~2000 lines)
-- CSS styles (~4000 lines)
-- JavaScript (~55000+ lines)
+- CSS styles (~8000 lines)
+- JavaScript (~68000+ lines)
 - All patterns, AI prompts, collaboration logic
+
+### Supporting Packages
+- `packages/treelisty-mcp-bridge/` - MCP server for Claude Code
+- `packages/treelisty-chrome-extension/` - Chrome screen capture
+- `netlify/functions/claude-proxy.js` - Server proxy
 
 ### Tree Structure (4 Levels)
 ```
 Root (capexTree)
 ├── Phase (children array)
 │   ├── Item (items array)
-│   │   └── Subtask (subItems array)
+│   │   └── Subtask (subtasks array)
 ```
 
-Each node has: `id`, `name`, `type`, `icon`, `expanded`, `description`, plus pattern-specific fields.
+### CRITICAL: Node Type Constraints
+
+**The `type` field MUST be one of exactly 4 values:**
+- `root` - Top-level tree node (only one per tree)
+- `phase` - Top-level categories (in root's `children` array)
+- `item` - Items within phases (in phase's `items` array)
+- `subtask` - Sub-items (in item's `subtasks` array)
+
+**For semantic categorization**, use:
+- `subtitle` - Short label like `[commentary]` or `[objection]`
+- `tags` - Array for categorization
+- `description` - Longer text
+
+---
+
+## TreeBeard Commands (100+)
+
+### Navigation
+```
+focus_node:{name}       Navigate to node by name
+focus_root              Return to root
+focus_parent            Go to parent
+focus_first_child       Go to first child
+focus_branch:{name}     Focus Mode - isolate subtree (Build 659)
+expand_all              Expand entire tree
+collapse_all            Collapse entire tree
+```
+
+### Tree Building
+```
+create_tree:{title}              Start new tree
+add_child:{name}                 Add child to focused node
+add_sibling:{name}               Add sibling
+build_tree_from_topic:{topic}    Auto-build from topic (Build 656)
+start_tree_building              Begin multi-step build session (Build 665)
+continue_tree_building           Continue to next layer
+complete_tree_building           Finish build session
+toggle_auto_continue             Toggle automatic continuation
+```
+
+### Editing
+```
+rename_node:{old}, {new}         Rename node
+set_description:{text}           Set node description
+move_node:{node}, {parent}       Move to new parent
+delete_node:{name}               Delete node
+duplicate_node:{name}            Duplicate with children
+```
+
+### Views
+```
+switch_view:tree         Switch to tree view
+switch_view:canvas       Switch to canvas view
+switch_view:3d           Switch to 3D view
+switch_view:gantt        Switch to Gantt view
+switch_view:calendar     Switch to calendar view
+switch_view:mindmap      Switch to mind map view
+```
+
+### Hyperedges
+```
+create_hyperedge:{name}          Create new hyperedge
+list_hyperedges                  Show all hyperedges
+narrate_hyperedge:{name}         TTS narrative for hyperedge (Build 642)
+delete_hyperedge:{name}          Delete hyperedge (Build 666)
+add_to_hyperedge:{node},{he}     Add node to hyperedge
+```
+
+### Atlas (Build 623+)
+```
+list_trees                       Show all registered trees
+search_trees:{query}             Search across all trees
+switch_tree:{id}                 Switch to different tree
+link_cross_tree:{treeId:nodeId}  Create cross-tree hyperedge
+```
+
+### Gmail (Build 618+)
+```
+list_emails                      Show inbox threads
+read_email:{subject}             Open email in modal
+archive_email:{id}               Archive thread
+star_email:{id}                  Star thread
+draft_reply:{id}                 Create draft reply
+```
+
+### Image Analysis (Build 565+)
+```
+analyze_image                    Analyze current image
+capture_screen                   Capture browser tab (via extension)
+image_to_tree                    Convert analysis to tree
+```
+
+### Gantt (Build 457+)
+```
+gantt_summary                    Schedule overview
+gantt_critical_path              Show critical path
+gantt_overdue                    List overdue tasks
+gantt_set_dates:{task},{start},{end}
+gantt_set_progress:{task},{percent}
+gantt_mark_done:{task}
+```
+
+### Sync Commands (Build 523+)
+```
+sync gmail                       Sync Gmail via Claude Chrome
+sync drive                       Sync Google Drive
+sync calendar                    Sync Google Calendar
+open file {name}                 Open file by name
+```
+
+---
+
+## Key Functions Reference
+
+### Core Operations
+```javascript
+saveState(description)           // Save undo state
+render()                         // Re-render tree view
+renderCanvas()                   // Re-render canvas view
+render3D()                       // Re-render 3D view
+renderGantt()                    // Re-render Gantt view
+showToast(message, type)         // Show notification
+normalizeTreeStructure(tree)     // Ensure consistent format
+```
+
+### Gallery of Trees (Build 700)
+```javascript
+SubmissionInbox.submit(tree, metadata)    // Submit to gallery
+SubmissionInbox.getMySubmissions()        // Get user's submissions
+SubmissionInbox.withdraw(submissionId)    // Cancel submission
+showSubmitToGalleryModal()                // Open submit modal
+```
+
+### Clone Audit (Build 699)
+```javascript
+CloneAudit.validateTranslationMap(clone, idMap)  // Verify GUID mapping
+CloneAudit.checkHyperedgeIntegrity(tree)         // Check hyperedge refs
+CloneAudit.fullAudit(source, clone, idMap)       // Complete audit
+```
+
+### Atlas (Build 623+)
+```javascript
+TreeRegistry.register(tree)              // Register tree
+TreeRegistry.getAll()                    // Get all trees
+TreeRegistry.search(query)               // Search trees
+```
+
+### Focus Mode (Build 659)
+```javascript
+enterFocusMode(nodeId)           // Isolate subtree in canvas
+exitFocusMode()                  // Return to full tree
+```
+
+### MCP Bridge (Build 518+)
+```javascript
+mcpBridgeState.client.isConnected       // Check connection
+mcpBridgeState.client.submitTask({...}) // Dispatch task
+```
 
 ---
 
@@ -154,257 +347,66 @@ Each node has: `id`, `name`, `type`, `icon`, `expanded`, `description`, plus pat
 
 | Pattern | Key Fields | Use Case |
 |---------|------------|----------|
-| **generic** | cost, leadTime, dependencies | General project planning |
-| **philosophy** | speaker, premises, objections, dialectics | Philosophical analysis |
-| **sales** | dealValue, probability, closeDate, contacts | Sales pipeline |
-| **thesis** | wordCount, citations, keyArgument | Academic writing |
-| **roadmap** | storyPoints, userImpact, technicalRisk | Product planning |
-| **prompting** | systemPrompt, userPrompt, examples | Prompt engineering |
-| **book** | chapters, scenes, plotPoints | Book writing |
-| **film** | camera, lighting, videoPrompt | Traditional film |
-| **veo3** | videoPrompt, duration, aspectRatio | Google Veo3 AI video |
-| **sora2** | videoPrompt, duration, aspectRatio | OpenAI Sora2 AI video |
-| **course** | learningObjectives, exercises | Course design |
-| **fitness** | sets, reps, intensity, equipment | Fitness programs |
-| **event** | budget, vendors, bookingDeadline | Event planning |
-| **strategy** | investment, metrics, riskLevel | Strategic planning |
-| **familytree** | birthDate, deathDate, dnaInfo | Genealogy |
-| **dialogue** | speaker, rhetoricalDevice, fallacies | Rhetoric analysis |
-| **gmail** | recipientEmail, threadId, messageCount | Email workflow |
-| **filesystem** | fileSize, fileExtension, dateModified | File organization |
-| **freespeech** | legalFramework, rights, restrictions | Legal analysis |
-| **lifetree** | eventDate, age, location, people, emotion | Biographical timeline |
-| **custom** | User-defined fields | Custom patterns |
+| **generic** | cost, leadTime, dependencies | General planning |
+| **knowledge-base** | sources, citations | Research docs |
+| **philosophy** | premises, objections, dialectics | Analysis |
+| **debate** | speaker, stance, evidence | Arguments |
+| **lifetree** | eventDate, age, location, emotion | Biography |
+| **capability** | site, selectors, permissions | Chrome automation |
+| **email** | threadId, messageCount | Gmail workflow |
+| **image-analysis** | boundingBox, objectType | Visual decomposition |
+| **sales** | dealValue, probability | Pipeline |
+| **thesis** | wordCount, citations | Academic |
+| **roadmap** | storyPoints, userImpact | Product |
+| **book** | chapters, scenes | Writing |
+| **course** | learningObjectives | Education |
+| **fitness** | sets, reps, intensity | Exercise |
+| **event** | budget, vendors | Planning |
+| **gantt** | startDate, endDate, progress | Scheduling |
 
 ---
 
-## AI Features
-
-### TreeBeard Chat Assistant
-Two modes in sidebar chat:
-
-**Quick Command Mode** (lightning): JSON action responses
-**Deep Conversation Mode** (brain): Full natural language, pattern-aware persona
-
-### TreeBeard Commands
-```
-VIEW: switch_to_canvas, switch_to_tree, switch_to_3d, view_gantt, toggle_view, zoom_fit
-NAVIGATE: find_node:{query}, expand_node, collapse_node, first_child, parent_node
-EDIT: set_title:{text}, set_description:{text}, add_child:{name}, delete_node
-AI: ai_enhance_field:{field}, deep_dive, find_redundancies, open_wizard
-FILE: new_project, import_text, export_json, live_sync
-
-GANTT (Build 485+):
-• gantt_view_mode:{day|week|month|year} - Change time scale
-• gantt_zoom_in / gantt_zoom_out / gantt_fit_all - Zoom controls
-• gantt_today - Scroll to today
-• gantt_toggle_critical_path - Highlight critical path
-• gantt_summary - Schedule health overview
-• gantt_critical_path - Critical path breakdown
-• gantt_overdue - List overdue tasks
-• gantt_set_dates:{task}, {start}, {end} - Update dates
-• gantt_set_progress:{task}, {0-100} - Update progress
-• gantt_mark_done:{task} - Complete a task
-
-MCP SYNC (Build 523+):
-• sync gmail - Sync Gmail inbox via Claude Chrome
-• sync drive - Sync Google Drive files
-• sync calendar - Sync Google Calendar events
-• sync all - Sync all connected services
-• open file {name} - Open file by name (local or cloud)
-
-TREE BUILDING (Build 653+):
-• create_tree:{title} - Start new tree with semantic map root
-• add_child:{name} - Add child to focused node
-• focus_node:{name} - Navigate to node for adding children
-• focus_root - Return to root node
-• expand_all - Expand entire tree
-• set_description:{text} - Add context/claims to focused node
-```
-
-### Tree Building Recipe: The Semantic Onion Model
-
-**IMPORTANT**: Follow this methodology when building comprehensive trees from scratch.
-
-**Layer 1: Accepted Semantic Map** - Start with canonical structure (TOC, scene list, timeline)
-**Layer 2-N: Peel the Onion** - Research each layer's children systematically
-**Atomic Layer: Claims & Arguments** - Deepest level contains actual assertions
-**Enrichment Layer: Context** - Why this claim? Historical/philosophical backdrop
-**Evaluation Layer: Significance** - Pivotal? Novel? Historical? Foundational?
-**Dialectic Layer: Counter-Arguments** - Group by school, follow each thread
-
-Example depth for Kant's Critique:
-```
-Critique of Pure Reason
-  └─ Transcendental Dialectic
-       └─ Third Antinomy: Freedom vs Determinism
-            └─ Thesis: Causality through freedom exists
-                 └─ Kant's Argument
-                      └─ Context: Newton's deterministic physics
-                      └─ Significance: PIVOTAL - enables Kant's ethics
-                      └─ Counter (Hume): Compatibilist freedom
-                      └─ Counter (Spinoza): Freedom is illusion
-```
-
-**Key Principle**: Don't dump content - systematically decompose layer by layer until reaching atomic claims, then enrich with context, significance, and counter-arguments.
-
-### Chat Builder / Tree Agent
-Conversational tree building with floating frame:
-- User describes project
-- AI asks clarifying questions
-- Generates tree incrementally with visual highlighting
-- Smart Merge preserves existing data
-
-### Debate Mode (Build 427+)
-Right-click any node -> "Debate This Topic":
-1. Select two AI personas (Scholar, Socratic, Passionate, Pragmatist)
-2. One defends, one challenges the topic
-3. Watch AI-vs-AI debate unfold
-4. Extract structured insights to tree
-5. Pro/con/tension/question categorization
-
----
-
-## Collaboration System
-
-### Firebase Live Sync
-```javascript
-window.createFirebaseSyncRoom()  // Create session
-window.joinFirebaseSyncRoom(id)  // Join session
-window.leaveFirebaseSyncRoom()   // Leave session
-window.startVoiceChat()          // Open Jitsi Meet
-```
-
-### Cloud Share (Build 425)
-- Trees > 8KB use Firebase short URLs
-- Format: `?s=shortcode`
-- Automatic fallback from URL encoding
-
-### Voice Chat (Build 322)
-- Jitsi Meet integration
-- Uses session ID for room: `treelisty-{roomId}`
-
----
-
-## MCP Bridge (Build 518+)
-
-### Overview
-Bidirectional communication between TreeListy and Claude Code CLI, enabling:
-- **Task dispatch** - TreeListy sends intent, Claude Code executes
-- **Chrome automation** - Access Gmail, Drive, Calendar via browser session
-- **Inbox review** - Approve/reject proposed changes before applying
-
-### Architecture
-```
-┌─────────────────┐         ┌─────────────────┐         ┌─────────────────┐
-│    TreeListy    │   MCP   │   Claude Code   │  Chrome │   Web Services  │
-│    (Browser)    │ ──────► │     (CLI)       │ ──────► │                 │
-│                 │         │                 │         │  Gmail.com      │
-│  Dashboard UI   │         │  Task executor  │         │  Drive.google   │
-│  Inbox review   │ ◄────── │  Data structurer│ ◄────── │  Calendar.google│
-└─────────────────┘ results └─────────────────┘  data   └─────────────────┘
-```
-
-### Key Functions
-```javascript
-// MCP Bridge State
-mcpBridgeState.client.isConnected       // Check connection
-mcpBridgeState.client.submitTask({...}) // Dispatch task
-
-// Sync Commands (via COMMAND_REGISTRY)
-COMMAND_REGISTRY['sync_gmail']()        // Sync Gmail
-COMMAND_REGISTRY['sync_drive']()        // Sync Drive
-COMMAND_REGISTRY['open_gdrive_via_mcp'](fileName) // Open via Chrome
-```
-
-### MCP Design Pattern
-When solving problems in TreeListy, consider the MCP + Chrome lens:
-1. **Instead of** trying to read/parse cloud files locally
-2. **Dispatch task** to Claude Code with intent
-3. **Claude Code** uses Chrome extension to interact with web services
-4. **Results return** via MCP Inbox for user approval
-5. **TreeListy applies** approved operations to tree
-
-This pattern enables TreeListy to integrate with any web service the user is logged into.
-
----
-
-## Views (5 Total)
+## Views (6 Total)
 
 ### Tree View
 - Hierarchical list for editing
 - PM tracking (status, progress, priority)
-- Expandable nodes
-- Reader navigation mode (prev/next)
+- Reader navigation (prev/next buttons)
 
 ### Canvas View
 - Infinite 2D canvas with drag & drop
-- 5 layouts: Hierarchical, Timeline, Force-Directed, Radial, Grid
-- Hyperedge visualization
+- 5 layouts: Hierarchical, Timeline, Force, Radial, Grid
+- Focus Mode for branch isolation (Build 659)
 - Dependency lines with types (FS/SS/FF/SF)
-- Zoom to cursor, minimap, search overlay (Ctrl+F)
 - Mobile: scrollable toolbar, touch gestures
 
 ### 3D View
 - Three.js WebGL visualization
-- Interactive nodes (hover, click)
-- Orbit controls
+- Interactive orbit controls
 - Cinematic splash on shared links
 
-### Gantt View (Build 457+)
+### Gantt View
 - Frappe Gantt integration
-- Day/week/month/year zoom levels
 - Critical path highlighting
-- Task drag-to-reschedule
-- Minimap navigation
+- Day/week/month/year zoom
 
 ### Calendar View
-- Monthly calendar display
-- Events from nodes with dates
-- Click to navigate to source node
+- Monthly event display
+- Click to navigate to source
+
+### Mind Map View
+- Radial node layout
+- Expand/collapse branches
 
 ---
 
-## Key Functions Reference
+## Firestore Collections
 
-### Tree Operations
-```javascript
-saveState(description)           // Save undo state
-render()                         // Re-render tree view
-renderCanvas()                   // Re-render canvas view
-render3D()                       // Re-render 3D view
-showToast(message, type)         // Show notification
-```
-
-### Node Highlighting (Build 406)
-```javascript
-trackNodeChange(nodeId, 'new')      // Mark node as new (green)
-trackNodeChange(nodeId, 'modified') // Mark as modified (yellow)
-hasRecentChange(nodeId)             // Check if recently changed
-```
-
-### Debate Mode (Build 427+)
-```javascript
-handleDebate()                   // Start debate from selected node
-startDebate()                    // Begin debate with personas
-getNextDebateTurn(role)          // Get AI response for role
-addInsightsToTree()              // Extract insights to tree
-closeDebatePanel()               // Close debate UI
-```
-
-### Hyperedges
-```javascript
-detectSuggestedHyperedges()      // Find auto-groupings
-calculateHyperedgeAggregates(he) // Get totals
-showQueryBuilderModal()          // Open filter builder
-```
-
-### LifeTree
-```javascript
-showLifeTreeInitModal()          // Initialize LifeTree
-createLifeTree()                 // Create with decades
-runLifeTreeHealthCheck()         // Diagnose issues (Build 392)
-```
+| Collection | Purpose |
+|------------|---------|
+| `shared/` | Cloud share links |
+| `syncRooms/` | Live collaboration rooms |
+| `gallery_submissions/` | Gallery of Trees submissions |
 
 ---
 
@@ -412,61 +414,40 @@ runLifeTreeHealthCheck()         // Diagnose issues (Build 392)
 
 When releasing a new build, update these 4 locations:
 
-1. **Header comment** (~line 9): `TreeListy v2.19.0 | Build XXX | YYYY-MM-DD`
-2. **Changelog** (~lines 21-28): Add new entry at top
+1. **Header comment** (~line 9): `TreeListy v2.X.Y | Build XXX | YYYY-MM-DD`
+2. **Changelog** (~lines 21-28): Add new entry
 3. **TREELISTY_VERSION object** (~line 740): `build: XXX`
-4. **KNOWN_LATEST** (~line 60687): `const KNOWN_LATEST = XXX;`
+4. **KNOWN_LATEST**: Search for `const KNOWN_LATEST`
 
 Use the `treelisty-release` skill to automate this.
 
 ---
 
-## Data Model
+## Testing
 
-### capexTree Structure
-```javascript
-{
-  id: "root",
-  name: "Project Name",
-  type: "root",
-  icon: "emoji",
-  expanded: true,
-  pattern: { key: "generic", labels: {...} },
-  schemaVersion: 1,
-  hyperedges: [...],
-  children: [{ type: "phase", items: [...] }]
-}
+Run unit tests before committing:
+```bash
+cd test/treelisty-test
+npm run test:unit
 ```
 
-### Debate State (Build 427+)
-```javascript
-{
-  topic: "string",
-  sourceNodeId: "node-id",
-  personas: { a: {...}, b: {...} },
-  turns: [{ role: "a"|"b"|"user", text: "...", timestamp: ... }],
-  status: "setup"|"active"|"extracting"|"completed",
-  extractedInsights: [{ type: "pro"|"con"|"tension"|"question", text: "..." }]
-}
-```
+All 469+ tests should pass.
 
 ---
 
 ## Troubleshooting
 
-### Debate Mode Issues
-- Debate panel not opening: Check `initDebatePanel()` ran
-- Add to Tree not showing location: Fixed in Build 431 (highlights + scrolls)
+### Common Issues
+- **Context menu not working**: Ensure node `type` is one of: root, phase, item, subtask
+- **Canvas empty**: Check `normalizeTreeStructure()` called on load
+- **MCP not connecting**: Run `node packages/treelisty-mcp-bridge/src/bridge.js`
+- **Chrome extension not working**: Load unpacked from `packages/treelisty-chrome-extension/`
 
-### AI Features Not Working
+### AI Features
 - Check AI mode selector (Claude/Gemini/ChatGPT)
 - Verify API key if using user key
-- Server key has 200 req/hr limit
-
-### Share Links Too Long
-- Use Cloud Share for large trees (Build 425)
-- Use "Lite Share" to strip descriptions (Build 424)
+- Server key has rate limits
 
 ---
 
-**End of TreeListy Skill v2.20.0 (Build 540)**
+**End of TreeListy Skill v2.101.10 (Build 700)**
