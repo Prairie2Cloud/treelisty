@@ -170,52 +170,56 @@ Feature detection via regex pattern matching.
                     subtasks: [
                         {
                             id: "now-1",
-                            name: "1. Complete Self-Tree Bootstrap Loop",
-                            description: `**Status:** ✅ In Progress
-**Acceptance Test:** TB analyzes self-tree and provides actionable feedback.
-
-| Task | Status |
-|------|--------|
-| Create measure-self-tree.js | ✅ Done |
-| Create generate-self-tree.js | ✅ Done |
-| Create bootstrap-self-tree.py | ✅ Done |
-| Run TB analysis on v1.6 | ✅ Done |
-| Implement v1.7 improvements | 🔄 In Progress |
-| Verify v1.7 via bootstrap | ⏳ Pending |
-
-**Blocker:** None`
-                        },
-                        {
-                            id: "now-2",
-                            name: "2. Whisper API Integration",
-                            description: `**Status:** 🔄 Ready to Implement
-**Acceptance Test:** 10-min debate produces clean, punctuated transcript.
-
-| Task | Status |
-|------|--------|
-| Design plan | ✅ docs/plans/whisper-api.md |
-| Add OpenAI key storage | ⏳ Pending |
-| Add MediaRecorder capture | ⏳ Pending |
-| Add Whisper transcription | ⏳ Pending |
-| Integration test | ⏳ Pending |
-
-**Why Now:** User hit pain point with garbled debate transcripts.`
-                        },
-                        {
-                            id: "now-3",
-                            name: "3. E2E Test Coverage",
-                            description: `**Status:** ⏳ Planning
-**Acceptance Test:** 10 critical paths have Playwright e2e tests.
+                            name: "1. E2E Test Coverage in CI",
+                            description: `**Status:** ✅ Complete
+**Acceptance Test:** 15 critical paths have Playwright e2e tests in GitHub Actions.
 
 | Path | Status |
 |------|--------|
-| Tree import/export | ⏳ Pending |
-| Canvas view operations | ⏳ Pending |
-| TreeBeard commands | ⏳ Pending |
-| Firebase sync | ⏳ Pending |
-| Mobile viewport | ⏳ Pending |
+| App loading (3 tests) | ✅ Complete |
+| Tree import (2 tests) | ✅ Complete |
+| View switching (3 tests) | ✅ Complete |
+| TreeBeard commands (3 tests) | ✅ Complete |
+| Export (2 tests) | ✅ Complete |
+| Mobile viewport (2 tests) | ✅ Complete |
 
-**Why Now:** Unit tests (469) pass but no e2e coverage in CI.`
+**Completed:** 2026-01-03. GitHub Actions workflow at \`.github/workflows/e2e-tests.yml\`.`
+                        },
+                        {
+                            id: "now-2",
+                            name: "2. Keyboard Shortcut Overlay",
+                            description: `**Status:** ⏳ Ready to Implement
+**Acceptance Test:** Shift+? shows categorized shortcut reference.
+
+| Task | Status |
+|------|--------|
+| Create overlay HTML | ⏳ Pending |
+| Populate from handlers | ⏳ Pending |
+| Add Shift+? trigger | ⏳ Pending |
+| Style like GitHub | ⏳ Pending |
+
+**Why Now:** 44 shortcuts exist but no discoverability.`
+                        },
+                        {
+                            id: "now-3",
+                            name: "3. CLAUDE.md Documentation Audit",
+                            description: `**Status:** ✅ Complete
+**Acceptance Test:** All major features documented in CLAUDE.md.
+
+| Feature | Status |
+|---------|--------|
+| Jitsi Voice Chat (322-325) | ✅ Documented |
+| Voice & Audio System | ✅ Documented |
+| Whisper API (691) | ✅ Documented |
+| TTS Read Aloud | ✅ Documented |
+| Telemetry System (542) | ✅ Documented |
+| AI Configuration | ✅ Documented |
+| View State System | ✅ Documented |
+| Mobile UX | ✅ Documented |
+| Treemap View | ✅ Documented |
+| URL Parameter API | ✅ Documented |
+
+**Completed:** 2026-01-03. Self-eval identified 17 missing features, all now documented.`
                         }
                     ]
                 },
