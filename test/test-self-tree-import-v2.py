@@ -11,7 +11,7 @@ sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 TREELISTY_URL = "https://treelisty.netlify.app"
 SCREENSHOT_DIR = r"D:\OneDrive\Desktop\Production-Versions\treeplexity\test\screenshots"
-SELF_TREE_PATH = r"D:\OneDrive\Desktop\Production-Versions\treeplexity\self-trees\treelisty-self-tree-v15-build700.json"
+SELF_TREE_PATH = r"D:\OneDrive\Desktop\Production-Versions\treeplexity\self-trees\treelisty-self-tree-v16-build700.json"
 
 os.makedirs(SCREENSHOT_DIR, exist_ok=True)
 

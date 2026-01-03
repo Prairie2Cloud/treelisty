@@ -17,8 +17,8 @@ const today = new Date().toISOString().split('T')[0];
 
 // Generate self-tree structure
 const selfTree = {
-    id: "self-tree-v15",
-    name: "TreeListy Self-Tree v1.5",
+    id: "self-tree-v16",
+    name: "TreeListy Self-Tree v1.6",
     description: `**Lens Selection**
 - Primary: Capability (What can I do?)
 - Secondary: Gap (What's missing?)
@@ -26,7 +26,14 @@ const selfTree = {
 
 **Build:** ${measurements.build}
 **Date:** ${today}
-**Evidence Standard:** v1.5 (automated measurement + gap detection)`,
+**Evidence Standard:** v1.6 (automated measurement + TB-validated architecture)
+
+**v1.6 Improvements:**
+- Added Entry Points & Command System
+- Added Data Flow & State Management
+- Added AI Integration Points
+- Added Development Setup
+- Added Key Code Locations`,
     pattern: "knowledge-base",
     children: [
         // ============================================================
@@ -249,18 +256,19 @@ When Claude Code reads self-tree:
         {
             id: "architecture",
             name: "Architecture Quick Reference",
-            description: "Key facts for AI development context",
+            description: "Key facts for AI development context. Framework: **Vanilla JS** (no React/Vue/Angular).",
             items: [
                 {
                     id: "arch-structure",
                     name: "Single-File Structure",
-                    description: `**treeplexity.html** (~4.4MB)
+                    description: `**treeplexity.html** (~4.4MB, ~94,000 lines)
 
-- HTML: ~2,000 lines
-- CSS: ~10,000 lines
-- JavaScript: ~80,000+ lines
+- HTML: ~2,000 lines (structure, modals, views)
+- CSS: ~10,000 lines (themes, responsive, animations)
+- JavaScript: ~80,000+ lines (all logic inline)
 
-All patterns, AI prompts, collaboration logic in one file.`
+**Framework:** Vanilla JavaScript - no build step required.
+**Why single-file:** Portability, offline use, no bundler complexity.`
                 },
                 {
                     id: "arch-tree",
@@ -274,18 +282,146 @@ Root (capexTree)
 │   │   └── Subtask (subtasks[])
 \`\`\`
 
-Node types: root, phase, item, subtask
-Use subtitle/tags for semantic categorization.`
+**Key Variable:** \`window.capexTree\` - the entire tree state
+**Node types:** root, phase, item, subtask (MUST be one of these)
+**Semantic fields:** subtitle, tags, description (for categorization)`
+                },
+                {
+                    id: "arch-entry-points",
+                    name: "Entry Points & Command System",
+                    description: `**Command Registration:**
+- \`COMMAND_REGISTRY\` object (~line 56000) - maps command names to handlers
+- \`handlers\` object in TreeBeard scope - individual command implementations
+- \`routeToCapability()\` - routes user intent to commands
+
+**Key Entry Functions:**
+- \`render()\` - re-render tree view
+- \`renderCanvas()\` - re-render canvas (GoJS)
+- \`renderGantt()\` - re-render Gantt (Frappe)
+- \`saveState(desc)\` - push to undo stack
+- \`showToast(msg, type)\` - user notifications
+
+**Event Handlers:**
+- DOMContentLoaded (~line 17000) - main initialization
+- Keyboard: \`e.key\` checks throughout for shortcuts
+- Context menus: right-click handlers per view`
+                },
+                {
+                    id: "arch-data-flow",
+                    name: "Data Flow & State",
+                    description: `**State Management:** Direct mutation + re-render (no Redux/Vuex)
+
+\`\`\`
+User Action → Modify capexTree → saveState() → render*()
+\`\`\`
+
+**View Sync Pattern:**
+1. \`capexTree\` is the single source of truth
+2. Each view has its own render function
+3. Views read from capexTree, never store separate state
+4. \`normalizeTreeStructure()\` ensures consistent format
+
+**Persistence:**
+- LocalStorage: \`localStorage.getItem('capexTree')\`
+- Cloud: Firebase Firestore (\`shared/\`, \`syncRooms/\`)
+- Export: JSON, Excel (SheetJS), MS Project XML`
+                },
+                {
+                    id: "arch-ai-integration",
+                    name: "AI Integration Points",
+                    description: `**LLM Providers:**
+- Claude (Anthropic) - via Netlify proxy or direct
+- Gemini (Google) - direct browser calls
+- ChatGPT (OpenAI) - direct browser calls
+
+**Key AI Functions:**
+- \`callClaudeAPI()\` / \`callClaudeStreamingAPI()\` (~line 16000)
+- \`callGeminiAPI()\` (~line 16500)
+- \`handleConversationWithStreaming()\` - TreeBeard chat handler
+
+**API Key Management:**
+- \`getLocalAPIKey(provider)\` - reads from localStorage
+- Keys stored: \`anthropic_api_key\`, \`gemini_api_key\`, \`openai_api_key\`
+- Server key fallback via Netlify proxy (rate limited)
+
+**AI Response → Tree Operations:**
+- TreeBeard parses response for commands (add_child, focus_node, etc.)
+- \`executeToolCall()\` - structured tool use (Build 658+)
+- Commands modify capexTree directly`
+                },
+                {
+                    id: "arch-dev-setup",
+                    name: "Development Setup",
+                    description: `**No Build Required** - just open treeplexity.html in browser
+
+**Local Development:**
+\`\`\`bash
+# Option 1: Direct file
+open treeplexity.html
+
+# Option 2: Local server (for some features)
+npx serve .
+\`\`\`
+
+**Testing:**
+\`\`\`bash
+cd test/treelisty-test
+npm install
+npm run test:unit    # 469 Mocha tests
+\`\`\`
+
+**Deployment:**
+\`\`\`bash
+git add treeplexity.html
+git commit -m "Build XXX: Description"
+git push  # Netlify auto-deploys
+\`\`\`
+
+**MCP Bridge (for Claude Code):**
+\`\`\`bash
+node packages/treelisty-mcp-bridge/src/bridge.js
+\`\`\``
+                },
+                {
+                    id: "arch-key-locations",
+                    name: "Key Code Locations",
+                    description: `**By Line Number (approximate):**
+
+| Section | Lines | What's There |
+|---------|-------|--------------|
+| Header/Changelog | 1-1000 | Version history |
+| CSS Styles | 1000-11000 | All styling |
+| HTML Structure | 11000-14000 | Modals, views, layout |
+| Core Functions | 14000-20000 | render, save, load |
+| AI Integration | 15000-18000 | LLM calls, streaming |
+| TreeBeard | 55000-85000 | Chat, commands, tool use |
+| Canvas (GoJS) | 40000-50000 | 2D visualization |
+| Gantt (Frappe) | 50000-55000 | Timeline view |
+| Firebase Sync | 30000-35000 | Collaboration |
+
+**Key Searchable Patterns:**
+- \`function render()\` - tree view rendering
+- \`COMMAND_REGISTRY\` - all TB commands
+- \`PATTERNS =\` - pattern definitions
+- \`TREELISTY_VERSION\` - version info`
                 },
                 {
                     id: "arch-packages",
                     name: "Supporting Packages",
                     description: `**packages/**
-- treelisty-mcp-bridge/ - Claude Code integration
-- treelisty-chrome-extension/ - Screen capture
+- \`treelisty-mcp-bridge/\` - Node.js MCP server for Claude Code
+- \`treelisty-chrome-extension/\` - Screen capture extension
 
 **netlify/functions/**
-- claude-proxy.js - API proxy`
+- \`claude-proxy.js\` - Server-side API proxy (avoids CORS)
+
+**scripts/**
+- \`measure-self-tree.js\` - Gather codebase metrics
+- \`generate-self-tree.js\` - Create self-tree from measurements
+
+**test/**
+- \`treelisty-test/\` - Mocha unit tests (469)
+- \`*.py\` - Playwright e2e tests`
                 }
             ]
         }
@@ -293,11 +429,11 @@ Use subtitle/tags for semantic categorization.`
 };
 
 // Write the self-tree
-const outputPath = path.join(__dirname, '..', 'self-trees', `treelisty-self-tree-v15-build${measurements.build}.json`);
+const outputPath = path.join(__dirname, '..', 'self-trees', `treelisty-self-tree-v16-build${measurements.build}.json`);
 fs.writeFileSync(outputPath, JSON.stringify(selfTree, null, 2));
 
 console.log('=' .repeat(70));
-console.log('SELF-TREE v1.5 GENERATED');
+console.log('SELF-TREE v1.6 GENERATED');
 console.log('=' .repeat(70));
 console.log(`Build: ${measurements.build}`);
 console.log(`Date: ${today}`);
