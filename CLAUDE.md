@@ -308,6 +308,15 @@ Cloud Share (Build 425+): Large trees use Firebase short URLs with `?s=shortcode
 
 ### Voice & Audio System
 
+**Camera Snapshot (Build 701)**:
+- Real-time webcam capture for analysis
+- `captureCameraSnapshot({ quality, facingMode })` - Core capture function
+- TreeBeard commands: `capture_camera`, `snapshot`, `selfie`, `take_photo`, `analyze_camera`
+- Natural language triggers: "how do I look?", "take a photo", "can you see me?"
+- MCP tool: `capture_camera` - Claude Code can request camera snapshots
+- Integrates with `analyze_image` for immediate Gemini Vision analysis
+- `window._lastCameraCapture` stores last capture for MCP access
+
 **Voice Capture (Build 370+)**:
 - `?capture=1` URL parameter for instant recording mode
 - Records via Web Speech API with live transcript preview
@@ -494,4 +503,4 @@ TreeListy supports 21 patterns including:
 
 ---
 
-*Last updated: 2026-01-03 (Build 700)*
+*Last updated: 2026-01-03 (Build 701)*

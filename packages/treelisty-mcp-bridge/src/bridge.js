@@ -46,12 +46,18 @@ const CONFIG = {
   ],
   // Allow connections without origin header in debug mode
   debug: process.env.TREELISTY_DEBUG === '1',
-  // Heartbeat interval (ms)
-  heartbeatInterval: 30000,
+  // Heartbeat interval (ms) - Build 573: reduced for faster stale detection
+  heartbeatInterval: 10000,
   // Connection considered stale after this many ms without pong
-  staleTimeout: 90000,
+  staleTimeout: 30000,
   // MCP protocol version
-  mcpProtocolVersion: '2024-11-05'
+  mcpProtocolVersion: '2024-11-05',
+  // Build 573: Operation timeout (ms) - prevents hanging requests
+  operationTimeout: 15000,
+  // Build 573: Max image size in bytes before compression (10KB)
+  maxImageSize: 10240,
+  // Build 573: Extension ping interval (ms)
+  extensionPingInterval: 5000
 };
 
 // =============================================================================
@@ -227,6 +233,99 @@ function broadcastToBrowser(message) {
 }
 
 // =============================================================================
+// Build 573: Operation Timeout & Health Check Utilities
+// =============================================================================
+
+/**
+ * Wrap an async operation with a timeout using Promise.race
+ * Prevents hanging requests that never resolve
+ */
+function withTimeout(promise, ms = CONFIG.operationTimeout, label = 'Operation') {
+  return Promise.race([
+    promise,
+    new Promise((_, reject) =>
+      setTimeout(() => reject(new Error(`${label} timed out after ${ms}ms`)), ms)
+    )
+  ]);
+}
+
+/**
+ * Compress base64 image data to reduce payload size
+ * Returns original if already small enough or compression not possible
+ */
+function compressImageIfNeeded(base64Data, maxSize = CONFIG.maxImageSize) {
+  if (!base64Data) return base64Data;
+
+  // Calculate size (base64 is ~4/3 of binary)
+  const estimatedSize = (base64Data.length * 3) / 4;
+
+  if (estimatedSize <= maxSize) {
+    return base64Data;
+  }
+
+  // Log compression need - actual compression would require sharp/canvas
+  // For now, truncate with metadata about original size
+  log('warn', `Image too large: ${Math.round(estimatedSize / 1024)}KB > ${Math.round(maxSize / 1024)}KB limit`);
+
+  // Return metadata about the image instead of the full data
+  return JSON.stringify({
+    _compressed: true,
+    _originalSizeKB: Math.round(estimatedSize / 1024),
+    _message: 'Image too large for context. Use ext_capture_screen with smaller max_width or quality params.',
+    _preview: base64Data.substring(0, 200) + '...[truncated]'
+  });
+}
+
+/**
+ * Check if we have a healthy connection to extension
+ * Returns { healthy: boolean, reason?: string }
+ */
+function checkExtensionHealth() {
+  const clients = [...extensionClients.values()];
+
+  if (clients.length === 0) {
+    return { healthy: false, reason: 'No extension connected' };
+  }
+
+  const openClients = clients.filter(c => c.ws.readyState === WebSocket.OPEN);
+  if (openClients.length === 0) {
+    return { healthy: false, reason: 'Extension disconnected (WebSocket not open)' };
+  }
+
+  // Check for stale connections (no pong in staleTimeout)
+  const now = Date.now();
+  const freshClients = openClients.filter(c =>
+    (now - (c.lastSeen || c.connectedAt.getTime())) < CONFIG.staleTimeout
+  );
+
+  if (freshClients.length === 0) {
+    return { healthy: false, reason: 'Extension connection stale (no recent pong)' };
+  }
+
+  return { healthy: true };
+}
+
+/**
+ * Check if we have a healthy connection to browser
+ * Returns { healthy: boolean, reason?: string }
+ */
+function checkBrowserHealth() {
+  if (connections.size === 0) {
+    return { healthy: false, reason: 'No browser connected' };
+  }
+
+  const openConnections = [...connections.values()].filter(
+    ws => ws.readyState === WebSocket.OPEN
+  );
+
+  if (openConnections.length === 0) {
+    return { healthy: false, reason: 'Browser disconnected (WebSocket not open)' };
+  }
+
+  return { healthy: true };
+}
+
+// =============================================================================
 // Chrome Extension Client Handling (Build 564)
 // =============================================================================
 
@@ -281,6 +380,7 @@ function handleExtensionPing(clientId) {
 
 /**
  * Handle response from extension
+ * Build 573: Added image compression for large screen captures
  */
 function handleExtensionResponse(message) {
   const { id, result, error } = message;
@@ -293,6 +393,19 @@ function handleExtensionResponse(message) {
   const request = pendingExtensionRequests.get(id);
   pendingExtensionRequests.delete(id);
 
+  // Build 573: Compress screen capture images if too large
+  let processedResult = result;
+  if (result && request.action === 'capture_screen' && result.image) {
+    const originalSize = result.image.length;
+    processedResult = {
+      ...result,
+      image: compressImageIfNeeded(result.image)
+    };
+    if (processedResult.image !== result.image) {
+      log('info', `Compressed screen capture from ${Math.round(originalSize * 0.75 / 1024)}KB`);
+    }
+  }
+
   // If this was an MCP request, send response via MCP
   if (request.mcpId) {
     if (error) {
@@ -304,7 +417,7 @@ function handleExtensionResponse(message) {
         result: {
           content: [{
             type: 'text',
-            text: JSON.stringify(result, null, 2)
+            text: JSON.stringify(processedResult, null, 2)
           }]
         }
       });
@@ -318,7 +431,7 @@ function handleExtensionResponse(message) {
       ws.send(JSON.stringify({
         type: 'extension_result',
         requestId: request.browserRequestId,
-        result,
+        result: processedResult,
         error
       }));
     }
@@ -342,8 +455,16 @@ function handleManualCapture(clientId, result) {
 
 /**
  * Route request to extension
+ * Build 573: Added health check before routing
  */
 function routeToExtension(action, params, options = {}) {
+  // Build 573: Health check before attempting route
+  const health = checkExtensionHealth();
+  if (!health.healthy) {
+    log('warn', `Extension health check failed: ${health.reason}`);
+    return { error: health.reason };
+  }
+
   // Find an available extension client
   const client = [...extensionClients.values()].find(c =>
     c.ws.readyState === WebSocket.OPEN &&
@@ -356,7 +477,7 @@ function routeToExtension(action, params, options = {}) {
 
   const requestId = `ext-req-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
 
-  // Store pending request
+  // Store pending request with timeout info
   pendingExtensionRequests.set(requestId, {
     mcpId: options.mcpId,
     browserTabId: options.browserTabId,
@@ -364,6 +485,30 @@ function routeToExtension(action, params, options = {}) {
     action,
     timestamp: Date.now()
   });
+
+  // Build 573: Set up timeout for this request
+  setTimeout(() => {
+    if (pendingExtensionRequests.has(requestId)) {
+      log('warn', `Extension request ${requestId} timed out after ${CONFIG.operationTimeout}ms`);
+      const request = pendingExtensionRequests.get(requestId);
+      pendingExtensionRequests.delete(requestId);
+
+      // Send timeout error via appropriate channel
+      if (request.mcpId) {
+        sendMCPError(request.mcpId, -32000, `Extension ${action} timed out after ${CONFIG.operationTimeout}ms`);
+      }
+      if (request.browserTabId) {
+        const ws = connections.get(request.browserTabId);
+        if (ws && ws.readyState === WebSocket.OPEN) {
+          ws.send(JSON.stringify({
+            type: 'extension_result',
+            requestId: request.browserRequestId,
+            error: `Extension ${action} timed out`
+          }));
+        }
+      }
+    }
+  }, CONFIG.operationTimeout);
 
   // Send request to extension
   client.ws.send(JSON.stringify({
@@ -598,23 +743,52 @@ wss.on('connection', (ws, req) => {
 });
 
 // =============================================================================
-// Heartbeat: Detect stale connections
+// Heartbeat: Detect stale connections (Build 573: Enhanced)
 // =============================================================================
 
 setInterval(() => {
   const now = Date.now();
 
+  // Check browser connections
   for (const [tabId, ws] of connections) {
     const lastPong = lastPongTimes.get(tabId) || 0;
 
     if (now - lastPong > CONFIG.staleTimeout) {
-      log('warn', `Connection stale, closing (tabId: ${tabId})`);
+      log('warn', `Browser connection stale, closing (tabId: ${tabId})`);
       ws.terminate();
       connections.delete(tabId);
       lastPongTimes.delete(tabId);
     } else if (ws.readyState === WebSocket.OPEN) {
       ws.ping();
     }
+  }
+
+  // Build 573: Check extension connections for staleness
+  for (const [clientId, client] of extensionClients) {
+    const lastSeen = client.lastSeen || client.connectedAt.getTime();
+
+    if (now - lastSeen > CONFIG.staleTimeout) {
+      log('warn', `Extension connection stale, closing (clientId: ${clientId})`);
+      client.ws.terminate();
+      extensionClients.delete(clientId);
+
+      // Notify browsers
+      broadcastToBrowser({
+        type: 'extension_disconnected',
+        clientId,
+        reason: 'stale'
+      });
+    } else if (client.ws.readyState === WebSocket.OPEN) {
+      // Ping extension to keep alive
+      client.ws.ping();
+    }
+  }
+
+  // Build 573: Log connection status periodically
+  const browserCount = [...connections.values()].filter(ws => ws.readyState === WebSocket.OPEN).length;
+  const extensionCount = [...extensionClients.values()].filter(c => c.ws.readyState === WebSocket.OPEN).length;
+  if (browserCount > 0 || extensionCount > 0) {
+    log('info', `Heartbeat: ${browserCount} browser(s), ${extensionCount} extension(s) connected`);
   }
 }, CONFIG.heartbeatInterval);
 
@@ -1261,6 +1435,20 @@ function handleToolsList(id) {
       }
     },
     // ═══════════════════════════════════════════════════════════════
+    // Camera Capture (Build 701)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'capture_camera',
+      description: 'Capture a snapshot from the device camera/webcam. Returns JPEG image ready for analysis. Use for "how do I look?" type queries.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          quality: { type: 'number', description: 'JPEG quality 0-1 (default: 0.85)' },
+          facingMode: { type: 'string', description: 'Camera to use: "user" (front) or "environment" (back). Default: user' }
+        }
+      }
+    },
+    // ═══════════════════════════════════════════════════════════════
     // Gmail Sync Operations (Build 550 - Bidirectional Gmail Sync)
     // ═══════════════════════════════════════════════════════════════
     {
@@ -1464,6 +1652,7 @@ function handleResourcesList(id) {
 
 /**
  * Handle tool call - task tools handled locally, others forwarded to browser
+ * Build 573: Added health checks and operation timeouts
  */
 function handleToolCall(id, params) {
   const { name, arguments: args } = params;
@@ -1492,6 +1681,13 @@ function handleToolCall(id, params) {
     return;
   }
 
+  // Build 573: Health check before forwarding to browser
+  const browserHealth = checkBrowserHealth();
+  if (!browserHealth.healthy) {
+    sendMCPError(id, -32000, browserHealth.reason);
+    return;
+  }
+
   // Forward other tools to browser
   const tabId = args?.tabId || 'default';
   const ws = connections.get(tabId) || connections.values().next().value;
@@ -1501,8 +1697,17 @@ function handleToolCall(id, params) {
     return;
   }
 
-  // Store pending request
-  pendingRequests.set(id, { timestamp: Date.now() });
+  // Store pending request with timestamp
+  pendingRequests.set(id, { timestamp: Date.now(), name });
+
+  // Build 573: Set up timeout for browser operations
+  setTimeout(() => {
+    if (pendingRequests.has(id)) {
+      log('warn', `Browser request ${name} (${id}) timed out after ${CONFIG.operationTimeout}ms`);
+      pendingRequests.delete(id);
+      sendMCPError(id, -32000, `Browser operation ${name} timed out after ${CONFIG.operationTimeout}ms`);
+    }
+  }, CONFIG.operationTimeout);
 
   // Forward to browser
   const browserRequest = {
