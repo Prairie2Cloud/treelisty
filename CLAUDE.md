@@ -1,10 +1,10 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.28.0 (Build 566)
+Current Version: v2.101.10 (Build 700)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
-CRITICAL: Deployment Process
+## CRITICAL: Deployment Process
 
 TreeListy deploys via GitHub to Netlify (auto-deploy on push).
 DO NOT use netlify deploy directly. Changes won't persist.
@@ -16,225 +16,328 @@ After making changes to treeplexity.html:
 
 Netlify auto-deploys within 1-2 minutes of push to main.
 
-Project Overview
+## Project Overview
 
-TreeListy is a single-file HTML application (~1.3MB) for hierarchical project decomposition with AI integration.
+TreeListy is a single-file HTML application (~1.3MB) for hierarchical project decomposition with AI integration. It supports 6 view modes, 21 patterns, real-time collaboration, and bidirectional communication with Claude Code via MCP.
 
 Key files:
-- treeplexity.html - Main production file (edit this)
-- welcome-to-treelisty.json - Default welcome tree
-- netlify/functions/claude-proxy.js - Server proxy for Claude API
-- .claude/skills/treelisty/SKILL.md - Skill definition
+- `treeplexity.html` - Main production file (edit this)
+- `welcome-to-treelisty.json` - Default welcome tree
+- `netlify/functions/claude-proxy.js` - Server proxy for Claude API
+- `.claude/skills/treelisty/SKILL.md` - Skill definition for Claude Code
+- `packages/treelisty-mcp-bridge/` - MCP server for Claude Code integration
+- `packages/treelisty-chrome-extension/` - Chrome extension for screen capture
 
-Build Versioning
+## Build Versioning
 
 When making changes, update these 4 locations:
-1. Header comment (line ~9): TreeListy v2.19.0 | Build XXX | YYYY-MM-DD
+1. Header comment (line ~9): `TreeListy v2.X.Y | Build XXX | YYYY-MM-DD`
 2. Changelog in header (lines ~21-28)
-3. TREELISTY_VERSION object (line ~740): build: XXX
-4. KNOWN_LATEST (line ~60687): const KNOWN_LATEST = XXX
+3. TREELISTY_VERSION object (line ~740): `build: XXX`
+4. KNOWN_LATEST (search for `const KNOWN_LATEST`): update to match
 
-Use the treelisty-release skill to automate this.
+Use the `treelisty-release` skill to automate this.
 
-Testing
+## Testing
 
 Run unit tests before committing:
+```bash
 cd test/treelisty-test
 npm run test:unit
+```
 
-All 404+ tests should pass.
+All 469+ tests should pass.
 
-Architecture
+## Architecture
 
+```
 treeplexity.html (single file ~1.3MB)
-- HTML structure (~2000 lines)
-- CSS styles (~8000 lines)
-- JavaScript (~60000+ lines)
-  - Data model (capexTree object)
-  - Rendering (Tree, Canvas, 3D, Gantt, Calendar views)
-  - AI integration (Claude, Gemini, ChatGPT)
-  - Pattern system (21 patterns)
-  - Collaboration (Firebase Live Sync)
-  - Import/Export (JSON, Excel, MS Project XML)
-- Netlify function (claude-proxy.js)
+├── HTML structure (~2000 lines)
+├── CSS styles (~8000 lines)
+└── JavaScript (~68000+ lines)
+    ├── Data model (capexTree object)
+    ├── Rendering (Tree, Canvas, 3D, Gantt, Calendar, Mind Map views)
+    ├── AI integration (Claude, Gemini, ChatGPT)
+    ├── TreeBeard assistant with 100+ commands
+    ├── Pattern system (21 patterns)
+    ├── Collaboration (Firebase Live Sync)
+    ├── Atlas (cross-tree intelligence)
+    ├── MCP Bridge (Claude Code integration)
+    └── Import/Export (JSON, Excel, MS Project XML)
+```
 
-Key Variables
-- viewMode - current view state (tree/canvas/3d/gantt/calendar)
-- capexTree - main tree data structure
-- PATTERNS - pattern definitions object
-- firebaseSyncState - collaboration session state
+### Key Variables
+- `viewMode` - current view state (tree/canvas/3d/gantt/calendar/mindmap)
+- `capexTree` - main tree data structure
+- `PATTERNS` - pattern definitions object
+- `firebaseSyncState` - collaboration session state
+- `mcpBridgeState` - MCP bridge connection state
+- `TreeRegistry` - Atlas cross-tree registry
+- `tbState` - TreeBeard session state
 
-Key Functions
-- render() - re-render tree view
-- renderCanvas() - re-render canvas view
-- render3D() - re-render 3D view
-- renderGantt() - re-render Gantt view
-- renderCalendar() - re-render Calendar view
-- saveState(description) - save undo state
-- showToast(message, type) - show notification
+### Key Functions
+- `render()` - re-render tree view
+- `renderCanvas()` - re-render canvas view
+- `render3D()` - re-render 3D view
+- `renderGantt()` - re-render Gantt view
+- `renderCalendar()` - re-render Calendar view
+- `saveState(description)` - save undo state
+- `showToast(message, type)` - show notification
+- `normalizeTreeStructure(tree)` - ensure consistent tree format
 
-Recent Features (Builds 541-565)
+---
 
-Image Analysis to Tree (565): Decompose any image into a manipulable node tree!
-- TreeBeard commands: `analyze_image`, `analyze`, `analyze_screenshot`, `image_to_tree`
-- Flow: Capture screenshot → Gemini Vision analyzes → Creates hierarchical tree with bounding boxes
-- Canvas view shows: Source image as background, colored bbox overlays, lines connecting boxes to nodes
-- Toolbar controls: Toggle background image, opacity slider, toggle bounding boxes
-- Object types color-coded: primary (green), secondary (blue), background (gray), text (amber), UI (purple)
+## Recent Features (Builds 666-700)
 
-Chrome Extension Screen Awareness (564): Claude Code can now see your browser tab!
-- Extension: `packages/treelisty-chrome-extension/` - Load in Chrome via chrome://extensions
-- MCP tools: `ext_capture_screen`, `ext_extract_dom`, `ext_list_tabs`, `ext_get_status`
-- TreeBeard commands: `capture_screen`, `extract_page`, `list_tabs`, `extension_status`
-- Flow: Claude Code → MCP → Bridge → Extension → Chrome Tab capture
-- To use: Ensure MCP Bridge running (`node packages/treelisty-mcp-bridge/src/bridge.js`)
-- Settings: `.claude/settings.local.json` has ext_* tools allowed
+### Gallery of Trees (Builds 696-700)
+Public tree discovery and sharing system:
+- **700**: SubmissionInbox - Firestore-backed gallery submissions
+  - `SubmissionInbox.submit(tree, metadata)` - submit tree to gallery
+  - `SubmissionInbox.getMySubmissions()` - list user's submissions
+  - `SubmissionInbox.withdraw(submissionId)` - cancel submission
+  - Status tracking: pending → approved/rejected/withdrawn
+- **699**: CloneAudit - Validation utilities for clone integrity
+  - `CloneAudit.validateTranslationMap(clone, idMap)`
+  - `CloneAudit.checkHyperedgeIntegrity(tree)`
+  - `CloneAudit.fullAudit(source, clone, idMap)`
+- **698**: IndexedDB NodeIndex - Fast node lookup with 50ms target
+- **697**: Atlas Provenance - Tracks sourceTreeId, sourceVersion for clones
+- **696**: Clone Banner - Visual "Cloned from X" indicator
 
-Analyze with Vision (564): After capture_screen, click "Analyze with Vision" link to send screenshot to Claude for analysis.
+### Hyperedge Modal Redesign (Build 666)
+- Centered floating modal with solid background
+- Full text display (no truncation)
+- Delete hyperedge with confirmation
+- Improved visual design
 
-Previous Features (Builds 529-540)
+### TB Structured Tool Use Phase 2 (Build 665)
+Multi-step tree building with feedback loop:
+- Session state machine: building → reviewing → paused → complete
+- "Continue Layer N" buttons after batch adds
+- Auto-continue option for automatic tree building
+- Progress tracking: layer count, node count, elapsed time
+- Commands: `start_tree_building`, `continue_tree_building`, `complete_tree_building`
 
-Performance & Lazy Loading (540): Third-party libraries (Three.js, FullCalendar, SheetJS, html2canvas, JSZip, LZ-String) now lazy-load on demand. FCP improved from 10.8s to 8.1s. Lighthouse score improved.
+### Atlas Phase 1.1 - Tree Browser UI (Build 664)
+- Tree Switcher dropdown in header (shows recent trees)
+- Browse Trees modal with two-panel layout
+- Cross-tree search across all registered trees
+- `Ctrl+Shift+T` keyboard shortcut
 
-MCP Node Operations Fix (539): Use snake_case params (node_id, parent_id, node_data) for MCP bridge operations.
+---
 
-TreeBeard Tree Building (538): TreeBeard can now build trees from scratch with focus_root, create_tree, and auto-focus on add_child.
+## Previous Features (Builds 624-665)
 
-View State Improvements (536-537): 3D and Canvas views respect expand/collapse state. Incremental expand/collapse (one level at a time).
+### Tree View & Canvas Fixes (Builds 659-663)
+- **663**: LocalStorage normalization fix
+- **662**: normalizeTreeStructure uses 'subItems' not 'subtasks'
+- **661**: Canvas recursion fix (was only rendering 19 nodes)
+- **660**: Tree view CSS fix (align-items: flex-start)
+- **659**: Focus Mode for Branches - `enterFocusMode(nodeId)`, `focus_branch:{name}` command
 
-PWA & Pattern Fixes (529-530): Fix PWA localStorage restore, fix pattern restore on tree load.
+### TB Structured Tool Use Phase 1 (Build 658)
+- Action mode triggers: "go", "build it", "execute"
+- Tier 0 tools (~25 always available)
+- Tier 1 tools (context-triggered: Canvas, Gantt, Gmail, Atlas, Hyperedge, Image)
+- Multi-param handling for rename_node, move_node, etc.
+- Telemetry: `window.getToolUseTelemetry()`
 
-Previous Features (Builds 518-528)
+### Tree Building Commands (Builds 649-657)
+- **657**: TB Batch Add + Fallback Parsing
+- **656**: `build_tree_from_topic` command
+- **655**: Tree Building Recipe - Semantic Onion Model
+- **653**: Multi-word command params fix
+- **650**: Confidence-based intent verification
 
-MCP Bridge & Chrome Integration (523-528): Bidirectional communication with Claude Code CLI. Sync commands (sync gmail/drive/calendar) dispatch tasks to Claude Code, which uses Chrome extension to access web services. Open Google Drive files via Chrome. Inbox UI for reviewing proposed operations.
+### Hyperedge & TTS (Builds 642-648)
+- **648**: Auto-update hyperedges + AI suggest fix
+- **647**: Mic check + hyperedge commands + TB screen awareness
+- **646**: iOS voice recording fix
+- **645**: Smart voice selection (TTS quality)
+- **644**: Hyperedge narrate button
+- **643**: TTS wake lock
+- **642**: AI narrative TTS for hyperedges
 
-RAG & Research (519-522): Enhanced document import with PDF extraction. Hyperedge query routing fix. Research bullet parsing improvements.
+### Mobile UX (Builds 632-641)
+- **641**: PWA paste banner
+- **640**: Paste Share Link button for iOS
+- **639**: PWA clipboard share detection
+- **638**: Open in App banner for shared URLs
+- **637**: Prevent pull-to-refresh on mobile
+- **635**: P1 Mobile UX fixes
+- **634**: Fix iOS auto-zoom
+- **632**: Mobile keyboard accessory bar
 
-MCP Bridge Foundation (518): Node.js MCP server for TreeListy ↔ Claude Code communication. Task queue with claim/progress/complete pattern.
+Note: Safari browser now preferred over PWA for better live recording performance.
 
-Key Architecture: TreeListy dispatches intent → Claude Code executes via Chrome → Results return via MCP Inbox
+### UI Enhancements (Builds 625-631)
+- **631**: UI Theme Expansion - 10 new themes
+- **630**: Treemap info panel on click
+- **627**: Treemap color palettes - 5 themes
+- **625**: Header update check button
 
-Previous Features (Builds 494-517)
+---
 
-Mobile Canvas UX (516-517): Canvas View now works on mobile with scrollable compact toolbar, minimap (bottom-left), bottom-sheet context menu, and touch gestures.
+## Previous Features (Builds 566-623)
 
-Info Panel Redesign (514-515): Separate reader nav row, improved typography (16px, 1.8 line height), compact metadata footer, visible close button.
+### Atlas Phase 1 - Cross-Tree Intelligence (Build 623)
+- TreeRegistry: localStorage-persisted registry of all trees
+- Cross-tree hyperedge references: `treeId:nodeGuid` format
+- Commands: `list_trees`, `search_trees`, `link_cross_tree`
 
-TTS Read Aloud (512-513): Text-to-speech for node descriptions with Auto-Play mode for sequential reading through tree.
+### Sub-Agent Architecture (Builds 620-622)
+- **622**: Sub-agent result integration
+- **621**: Image spatial commands
+- **620**: Sub-agent dispatcher
 
-Voice Input (511): Microphone button on import modal paste field for voice-to-text input.
+### Image Pattern Recognition (Build 619)
+Enhanced image analysis with pattern-based tree generation.
 
-Dependency Controls (510): Toggle dependency display on/off, filter to show only selected node's dependencies.
+### Gmail Label Management (Build 618)
+Full label UI with create, apply, remove operations.
 
-Reader Navigation (507-508): Sequential prev/next navigation through nodes, group iteration for hyperedges and dependency chains.
+### Capability Nodes Phase 1 (Builds 615-617)
+Chrome capability nodes for authenticated web actions:
+- **617**: Expanded domain categorization
+- **616**: Global capabilities registry
+- **615**: Capability node pattern
 
-Quick Capture (504): URL parameter ?capture=1 for instant voice recording mode.
+### Work Status Panel (Build 614)
+Visual work status tracking in UI.
 
-Previous Features (Builds 457-493)
+### Tool-use API for TreeBeard (Build 613)
+Structured tool use via Claude API.
 
-Gantt View (457-484): Frappe Gantt integration, critical path visualization, zoom/pan, minimap, color design system for task status.
+### Help as Tree + Embed Mode (Build 610)
+- Help documentation as navigable tree
+- `?embed=1` URL parameter for readonly embedded view
 
-Treebeard PM Assistant (485-490): 27 Gantt commands for navigation, analysis, and editing. Context injection and proactive nudges.
+---
 
-Mobile UX (491-493): Single-pane navigation with swipe gestures. All views (Tree, Canvas, 3D, Gantt, Calendar) enabled on mobile with pinch-to-zoom.
+## Core Systems
 
-Canvas Enhancements (444-449): Animation system, typed dependencies (FS/SS/FF/SF), dependency creation UI, critical path visualization.
+### TreeBeard AI Assistant
 
-Collaboration System
+TreeBeard is the AI assistant with 100+ commands organized by category:
+
+**Navigation**: `focus_node`, `focus_root`, `focus_parent`, `focus_first_child`, `expand_all`, `collapse_all`, `focus_branch`
+
+**Tree Building**: `add_child`, `add_sibling`, `create_tree`, `build_tree_from_topic`, `start_tree_building`, `continue_tree_building`
+
+**Editing**: `rename_node`, `set_description`, `move_node`, `delete_node`, `duplicate_node`
+
+**Views**: `switch_view:canvas`, `switch_view:3d`, `switch_view:gantt`, `switch_view:mindmap`
+
+**Hyperedges**: `create_hyperedge`, `list_hyperedges`, `narrate_hyperedge`, `delete_hyperedge`
+
+**Atlas**: `list_trees`, `search_trees`, `switch_tree`, `link_cross_tree`
+
+**Gmail**: `list_emails`, `read_email`, `archive_email`, `star_email`, `draft_reply`
+
+**Image**: `analyze_image`, `capture_screen`, `image_to_tree`
+
+### MCP Bridge
+
+Bidirectional communication between TreeListy and Claude Code:
+```
+TreeListy UI → MCP Bridge → Claude Code CLI
+              ← Task Queue ←
+```
+
+- Location: `packages/treelisty-mcp-bridge/`
+- Start: `node packages/treelisty-mcp-bridge/src/bridge.js`
+- Tools: Tree CRUD, task queue, Gmail actions, Chrome extension relay
+
+### Chrome Extension
+
+Screen capture and DOM extraction:
+- Location: `packages/treelisty-chrome-extension/`
+- Load via `chrome://extensions` (Developer mode)
+- MCP tools: `ext_capture_screen`, `ext_extract_dom`, `ext_list_tabs`
+
+### Collaboration System
 
 Firebase Live Sync:
-- window.createFirebaseSyncRoom() - create session
-- window.joinFirebaseSyncRoom(roomId) - join session
-- window.leaveFirebaseSyncRoom() - leave session
+```javascript
+window.createFirebaseSyncRoom()     // Create session
+window.joinFirebaseSyncRoom(roomId) // Join session
+window.leaveFirebaseSyncRoom()      // Leave session
+```
 
-Cloud Share (Build 425): Large trees use Firebase short URLs with ?s=shortcode format.
+Cloud Share (Build 425+): Large trees use Firebase short URLs with `?s=shortcode` format.
 
-MCP Bridge (Build 518+)
+### Firestore Collections
 
-Bidirectional communication between TreeListy and Claude Code CLI:
-- packages/treelisty-mcp-bridge/ - MCP server package
-- mcpBridgeState.client - Connection state and methods
-- COMMAND_REGISTRY - Sync commands (sync_gmail, sync_drive, open_gdrive_via_mcp)
-- Inbox UI - Review proposed operations before applying
+- `shared/` - Cloud share links
+- `syncRooms/` - Live collaboration rooms
+- `gallery_submissions/` - Gallery of Trees submissions
 
-Design Pattern: When facing limitations (e.g., can't read cloud files locally), dispatch task to Claude Code which uses Chrome extension to interact with web services.
+---
 
 ## Tree Building Recipe: The Semantic Onion Model
 
-**IMPORTANT**: This is the proper methodology for building comprehensive TreeListy trees. Follow these principles whenever helping users build trees from scratch.
+**IMPORTANT**: Follow this methodology when building comprehensive trees.
 
 ### The Process
 
-**Layer 1: Find the Accepted Semantic Map**
-Start with the canonical structure that experts agree on:
+**Layer 1: Find the Semantic Map**
+Start with canonical structure:
 - Book → Table of Contents
-- Movie → Scene breakdown
-- Biography/LifeTree → Decades or life phases
 - Philosophy → Major divisions and arguments
 - Project → Phases and deliverables
-- Software → Modules and components
 
-**Layer 2-N: Peel the Onion (Research Each Generation)**
-Systematically research and add each layer of children:
-- Chapters → Sub-chapters → Sections → Paragraphs
-- Scenes → Beats → Moments
-- Decades → Years → Key Events
-- Each generation adds granularity until you reach atomic units
+**Layer 2-N: Peel the Onion**
+Add each layer of children systematically:
+- Chapters → Sub-chapters → Sections
+- Each generation adds granularity
 
-**Atomic Layer: Claims & Arguments**
-The deepest level contains actual assertions:
-- What is being claimed or argued?
-- What evidence or reasoning supports it?
-- This is where knowledge lives
+**Atomic Layer: Claims**
+Deepest level contains assertions:
+- What is being claimed?
+- What evidence supports it?
 
-**Enrichment Layer: Context**
-Add context to each claim/argument:
-- Why does this claim appear here in the structure?
-- Historical backdrop - what came before?
-- Philosophical backdrop - what assumptions?
-- What problem is this trying to solve?
-
-**Evaluation Layer: Significance**
-Assess the importance of each element:
-- **Pivotal**: Keystone to the entire narrative?
-- **Novel**: New argument or innovation?
-- **Historical**: Influenced later thinkers/events?
-- **Foundational**: Required to understand what follows?
-
-**Dialectic Layer: Counter-Arguments**
-Map the intellectual landscape:
-- Group counter-arguments by school of thought
-- Empiricists say X, Rationalists say Y, Pragmatists say Z
-- Follow each thread to its conclusion
-- Note where schools agree and disagree
-
-### Example: Kant's Critique of Pure Reason
-
-```
-Critique of Pure Reason (1781)
-  └─ Transcendental Dialectic
-       └─ Antinomies
-            └─ Third Antinomy: Freedom vs Determinism
-                 └─ Thesis: Causality through freedom exists
-                      └─ Kant's Argument
-                           └─ Context: Newton's deterministic physics
-                           └─ Context: Leibniz's pre-established harmony
-                           └─ Significance: PIVOTAL - enables Kant's ethics
-                           └─ Counter (Hume): Compatibilist freedom
-                           └─ Counter (Spinoza): Freedom is illusion
-                           └─ Counter (Modern): Quantum indeterminacy
-```
+**Enrichment: Context & Counter-Arguments**
+- Historical/philosophical backdrop
+- Significance markers (Pivotal/Novel/Foundational)
+- Counter-arguments by school of thought
 
 ### TreeBeard Commands for Tree Building
 
 ```
-create_tree:Title           # Start with semantic map root
-add_child:Name              # Add next layer nodes
+create_tree:Title           # Start with root
+add_child:Name              # Add next layer
 focus_node:Name             # Navigate to add children
-expand_all                  # View full structure
-set_description:Text        # Add context/claims
+set_description:Text        # Add context
+build_tree_from_topic:X     # Auto-build from topic
 ```
 
-### Key Principle
+---
 
-Don't just dump content - systematically decompose knowledge layer by layer until you reach atomic claims, then enrich those claims with context, significance, and counter-arguments. This transforms TreeListy from note-taking into **systematic knowledge decomposition**.
+## Key Patterns
+
+TreeListy supports 21 patterns including:
+- `generic` - Default hierarchical decomposition
+- `knowledge-base` - Research and documentation
+- `lifetree` - Biography and timeline
+- `debate` - Arguments and counter-arguments
+- `capability` - Chrome automation capabilities
+- `email` - Gmail thread structure
+- `image-analysis` - Visual decomposition with bounding boxes
+
+---
+
+## Quick Reference
+
+| Task | Command/Action |
+|------|----------------|
+| Switch view | `switch_view:canvas`, toolbar buttons |
+| Build tree | `build_tree_from_topic:Philosophy of Mind` |
+| Focus branch | `focus_branch:NodeName` or Canvas right-click |
+| Cross-tree link | `link_cross_tree:treeId:nodeGuid` |
+| Submit to gallery | Export dropdown → Submit to Gallery |
+| Clone tree | Share link → Clone button |
+| Start MCP | `node packages/treelisty-mcp-bridge/src/bridge.js` |
+
+---
+
+*Last updated: 2026-01-02 (Build 700)*
