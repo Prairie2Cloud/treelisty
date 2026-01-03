@@ -1,9 +1,9 @@
 # TreeListy Prioritized Implementation Backlog
 
 **Date:** 2025-12-31
-**Current Build:** 666
+**Current Build:** 695
 **Status:** Living Document
-**Last Updated:** 2025-12-31 (Build 666 shipped - Hyperedge Modal Redesign)
+**Last Updated:** 2026-01-02 (Gallery of Trees promoted to Priority 1)
 
 ---
 
@@ -122,7 +122,37 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 *Max 3 items. Each delivers standalone value.*
 
-### 1. Mobile UX Phase 2: PWA Polish
+### 1. Gallery of Trees: Public Tree Discovery
+**Status:** READY
+**File:** `2026-01-02-gallery-of-trees-design.md`
+**Effort:** Medium (3-5 days for Phase 1)
+**Value:** High - Solves cold start, enables cross-device testing
+
+**What (Phase 1 - MVP):**
+- Gallery index format and seed file with curated trees
+- Gallery browser modal UI with categories and search
+- Tree preview in embedded readonly mode
+- Clone with fresh identities → registers in local Atlas
+- Sidebar icon integration
+
+**Why Priority 1:**
+- Unblocks mobile UX testing (share trees from desktop → test on mobile)
+- Solves new user cold start problem
+- Leverages existing Cloud Share infrastructure (low risk)
+- First step toward TreeListy community ecosystem
+
+**Acceptance Tests:**
+- [ ] User can browse gallery from sidebar
+- [ ] User can preview tree in readonly mode
+- [ ] User can clone tree to edit locally
+- [ ] Cloned tree works on mobile (cross-device validation)
+
+**Dependencies:** Cloud Share (Build 425), Embed Mode (Build 610)
+**Blocks:** Community features, cross-device testing workflows
+
+---
+
+### 2. Mobile UX Phase 2: PWA Polish
 **Status:** READY
 **Decision:** PWA (not native) - confirmed 2025-12-29
 **Effort:** Medium (1 week)
@@ -139,12 +169,12 @@ This document synthesizes all pending design documents and plans into a prioriti
 - [ ] Large trees (500+ nodes) scroll smoothly on mobile
 - [ ] PWA install prompt appears at optimal time
 
-**Dependencies:** None (P1 shipped in Build 635)
+**Dependencies:** Gallery of Trees (for cross-device test trees)
 **Blocks:** Nothing
 
 ---
 
-### 2. Capability Nodes Phase 2: Execution
+### 3. Capability Nodes Phase 2: Execution
 **Status:** BLOCKED - Needs Phase 1 validation in real use
 **File:** `2025-12-22-chrome-capability-nodes-design.md`
 **Effort:** High (2 weeks)
@@ -415,13 +445,13 @@ This document synthesizes all pending design documents and plans into a prioriti
 
 ## Quick Reference: What to Build Next
 
-**If you have 2 hours:** Mobile UX P2 - keyboard accessory refinements
+**If you have 2 hours:** Gallery seed trees - create 3-5 curated example trees
 
-**If you have 1 day:** Email Workflow P2 - batch commands for Gmail
+**If you have 1 day:** Gallery Phase 1 MVP - index format, browser UI, clone flow
 
-**If you have 3 days:** Capabilities Phase 2 - execution framework
+**If you have 3 days:** Gallery + Mobile UX testing workflow validation
 
-**If you have 1 week:** Self-Tree Live Wiring - auto-updating measurements
+**If you have 1 week:** Full Gallery Phase 1 + Publish flow (Phase 2)
 
 ---
 
