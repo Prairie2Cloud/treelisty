@@ -4,6 +4,18 @@ Current Version: v2.101.10 (Build 700)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
+## Self-Tree Bootstrap
+
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build700.json`
+
+The self-tree contains:
+- **Measured Signals**: 4.42 MB, 93,770 lines, 469 tests, 9 views, 44 keyboard shortcuts
+- **Now/Next/Later**: Current priorities with task tables
+- **Architecture Reference**: Code locations, entry points, data flow
+- **Improvement Suggestions**: TB-identified gaps and solutions
+
+Use the self-tree to understand capabilities, priorities, and architecture before making changes.
+
 ## CRITICAL: Deployment Process
 
 TreeListy deploys via GitHub to Netlify (auto-deploy on push).

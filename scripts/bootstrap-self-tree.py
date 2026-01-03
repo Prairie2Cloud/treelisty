@@ -14,7 +14,7 @@ from playwright.sync_api import sync_playwright
 sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 TREELISTY_URL = "https://treelisty.netlify.app"
-SELF_TREE_PATH = r"D:\OneDrive\Desktop\Production-Versions\treeplexity\self-trees\treelisty-self-tree-v15-build700.json"
+SELF_TREE_PATH = r"D:\OneDrive\Desktop\Production-Versions\treeplexity\self-trees\treelisty-self-tree-v17-build700.json"
 SCREENSHOT_DIR = r"D:\OneDrive\Desktop\Production-Versions\treeplexity\test\screenshots"
 OUTPUT_DIR = r"D:\OneDrive\Desktop\Production-Versions\treeplexity\self-trees"
 
