@@ -224,6 +224,22 @@ Structured tool use via Claude API.
 - Help documentation as navigable tree
 - `?embed=1` URL parameter for readonly embedded view
 
+### URL Parameter API (Build 610)
+
+Query parameters for controlling TreeListy behavior:
+- `?embed=1` - Readonly embedded view (no toolbar)
+- `?readonly=1` - View-only mode
+- `?capture=1` - Instant voice capture mode (Build 504)
+- `?s=shortcode` - Load shared tree from Firebase
+- `?tree=url` - Load tree from external URL
+
+### LifeTree Contextual Research (Build 381)
+
+Biographical research mode for LifeTree pattern:
+- Automatic context gathering for life events
+- Historical backdrop enrichment
+- Source citation integration
+
 ---
 
 ## Core Systems
@@ -278,11 +294,133 @@ window.leaveFirebaseSyncRoom()      // Leave session
 
 Cloud Share (Build 425+): Large trees use Firebase short URLs with `?s=shortcode` format.
 
+**Jitsi Voice Chat (Build 322-325)**:
+- Click 🎙️ Voice button after joining a sync room
+- Opens Jitsi Meet in popup window using same room ID
+- `window.startVoiceChat()` - Start/join voice session
+- Audio-only by default (video muted for bandwidth)
+- Prejoin screen skipped for immediate connection
+- Display name carries over from collaboration session
+
+**Scheduled Meetings (Build 325)**:
+- Create meeting links for future sessions
+- Meeting state persisted for scheduled collaboration
+
+### Voice & Audio System
+
+**Voice Capture (Build 370+)**:
+- `?capture=1` URL parameter for instant recording mode
+- Records via Web Speech API with live transcript preview
+- Pattern selection after recording (Meeting Notes, Debate, etc.)
+- Process captured audio with Claude for structured output
+
+**Whisper API (Build 691)**:
+- High-quality transcription via OpenAI Whisper API
+- Requires OpenAI API key in Settings
+- Toggle in Settings: "Use Whisper for transcription"
+- Falls back to Web Speech API if no key or disabled
+- MediaRecorder captures audio parallel to Web Speech preview
+- `transcribeWithWhisper(audioBlob)` - Core function
+- `shouldUseWhisper()` - Check if Whisper enabled
+
+**TTS Read Aloud (Builds 512-513, 642-645)**:
+- Text-to-speech for node descriptions
+- Smart voice selection (Build 645) - picks highest quality voice
+- Auto-Play mode for sequential reading through tree
+- Wake lock (Build 643) prevents screen sleep during playback
+- Hyperedge narrative narration (Build 644)
+- `speakTreeBranch(nodeId)` - Narrate branch
+- `speakHyperedgeNarrative(hyperedgeId)` - Narrate hyperedge
+
+**Narrative Caching (Build 695)**:
+- Whole-tree narratives saved to `capexTree.narrative`
+- Hyperedge narratives cached per hyperedge
+- Staleness detection based on node count changes
+- `forceRegenerateNarrative()` - Clear cache and regenerate
+
+### Reader Navigation (Builds 507-508)
+
+Sequential navigation through nodes:
+- Prev/Next buttons in info panel
+- Group iteration for hyperedges and dependency chains
+- Keyboard shortcuts for navigation
+
+### Dependency System (Build 510)
+
+Canvas dependency visualization:
+- Toggle dependency display on/off
+- Filter to show only selected node's dependencies
+- Typed dependencies: FS (Finish-Start), SS, FF, SF
+- Critical path visualization
+
 ### Firestore Collections
 
 - `shared/` - Cloud share links
 - `syncRooms/` - Live collaboration rooms
 - `gallery_submissions/` - Gallery of Trees submissions
+
+### Telemetry System (Build 542)
+
+Opt-in, privacy-safe, local-first analytics:
+- Toggle in Settings: "Enable anonymous telemetry"
+- Tracks: command usage, view switches, feature adoption
+- Data stored locally, aggregated before any transmission
+- `window.getTelemetryData()` - View local telemetry
+- Never tracks: tree content, API keys, personal data
+
+### AI Configuration
+
+**Creativity Slider (Build 693)**:
+- Temperature control for AI responses (0.0 - 1.0)
+- Available in Settings modal
+- Affects Claude, Gemini, and ChatGPT calls
+- Lower = more focused, Higher = more creative
+
+**Tree-Level AI Settings (Build 694)**:
+- Per-tree AI configuration stored in tree metadata
+- Notification when loading tree with custom AI settings
+- Overrides global settings for specific trees
+
+### View State System (Builds 414, 670-671)
+
+Preserves view configuration across sessions and shares:
+- **Captured state**: viewMode, zoom level, pan position, selected node, expanded nodes
+- **Save triggers**: Before export, before share, on tree save
+- **Restore**: On load, on import, from share links
+- `captureViewState()` - Get current view state
+- `restoreViewState(state)` - Apply saved state
+- Share links include view state for exact reproduction
+
+### Mobile UX (Builds 491-493, 632-641)
+
+**Pinch-to-Zoom (Build 491-493)**:
+- All views support pinch gestures on mobile
+- Tree, Canvas, 3D, Gantt, Calendar enabled
+
+**Fullscreen Mode (Build 491)**:
+- Toggle for immersive mobile experience
+- Hides browser chrome
+
+**Single-Pane Navigation (Build 493)**:
+- Tree ↔ Info ↔ Chat pane switching
+- Swipe gestures between panes
+
+**Keyboard Accessory Bar (Build 632)**:
+- Quick actions above mobile keyboard
+
+**PWA Considerations (Build 680)**:
+- Safari browser preferred over PWA for live recording
+- iOS PWA blocks Speech Recognition - auto-redirect to Safari
+- `?capture=1` works best in browser, not PWA
+
+### Treemap View (Builds 624-630)
+
+Hierarchical area visualization:
+- **624**: Treemap View button in view dropdown
+- **627**: 5 color palette themes
+- **630**: Click node to show info panel
+- Squarified layout algorithm
+- Node size based on child count or custom weight
 
 ---
 
@@ -349,7 +487,11 @@ TreeListy supports 21 patterns including:
 | Submit to gallery | Export dropdown → Submit to Gallery |
 | Clone tree | Share link → Clone button |
 | Start MCP | `node packages/treelisty-mcp-bridge/src/bridge.js` |
+| Voice chat | Join sync room → Click 🎙️ Voice button |
+| Quick capture | `?capture=1` URL or TreeBeard voice commands |
+| Read aloud | Info panel → Read Aloud button |
+| Embed view | `?embed=1` URL parameter |
 
 ---
 
-*Last updated: 2026-01-02 (Build 700)*
+*Last updated: 2026-01-03 (Build 700)*
