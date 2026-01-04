@@ -64,15 +64,26 @@ A central `tbAwareness` object populated by lightweight monitors, used **primari
 ```javascript
 window.tbAwareness = {
     // ═══════════════════════════════════════════════════════
+    // CONFIG: User preferences (PERSISTED to localStorage)
+    // ═══════════════════════════════════════════════════════
+    config: {
+        quietMode: false,           // Disable proactive suggestions
+        verbosity: 'normal',        // 'brief' | 'normal' | 'detailed'
+        persistSession: true,       // Remember session across reloads
+        enableCostTracking: true,   // Show token/cost estimates
+    },
+
+    // ═══════════════════════════════════════════════════════
     // TIER 1: PROACTIVE HELPER (Priority A)
     // ═══════════════════════════════════════════════════════
-    session: {
+    session: {                      // PARTIALLY PERSISTED
         startTime: Date.now(),
         messageCount: 0,
         commandsExecuted: [],       // History for pattern detection
         lastActivity: Date.now(),
         tokensUsed: 0,
-        estimatedCost: 0            // ~$3/1M tokens
+        estimatedCost: 0,           // ~$3/1M tokens (this session)
+        cumulativeCost: 0,          // PERSISTED: monthly budgeting
     },
     tree: {
         nodeCount: 0,
@@ -90,8 +101,9 @@ window.tbAwareness = {
     // ═══════════════════════════════════════════════════════
     // TIER 2: SELF-DEBUGGING (Priority B)
     // ═══════════════════════════════════════════════════════
-    confidence: {
-        lastResponseConfidence: 0.8, // 0-1 based on hedging language
+    confidence: {                   // NOT PERSISTED (resets each session)
+        lastResponseConfidence: 0.8, // 0-1 based on tool-grounded signals
+        confidenceSignals: {},       // Debug: toolsRun, toolsSucceeded, etc.
         knowledgeGaps: [],           // ["haven't read transcript node"]
         recentFailures: [],          // Last 10 tool failures
         hallucinationRisk: 'low'     // low/medium/high
@@ -106,11 +118,11 @@ window.tbAwareness = {
     // ═══════════════════════════════════════════════════════
     // TIER 3: PERSONALIZATION (Priority C)
     // ═══════════════════════════════════════════════════════
-    user: {
-        expertiseLevel: 'intermediate', // beginner/intermediate/expert
+    user: {                              // PERSISTED to localStorage
+        expertiseLevel: 'intermediate',  // beginner/intermediate/expert
         preferredResponseLength: 'medium',
-        frustrationSignals: 0,          // Increments on "??", repeats
-        communicationStyle: 'neutral'   // brief/detailed/technical
+        frustrationSignals: 0,           // Increments on "??", repeats (decays)
+        communicationStyle: 'neutral'    // brief/detailed/technical
     },
     device: {
         isMobile: false,
@@ -139,33 +151,70 @@ updateSession(message, response) {
     s.estimatedCost = s.tokensUsed * 0.000003;
 }
 
-// Tree health uses DIRTY FLAGS + DEBOUNCING for performance at 1k+ nodes
+// Tree health uses DIRTY SET + requestIdleCallback for performance at 1k+ nodes
 // Full scans on every mutation would stutter the UI
 
-let treeHealthDirty = false;
-let treeHealthDebounceTimer = null;
+let dirtyNodes = new Set();  // Track specific dirty nodes, not just boolean
+let treeHealthScheduled = false;
 
 // Runs: After tree mutations (add/delete/edit node)
-// Marks dirty and schedules debounced update
-function markTreeHealthDirty() {
-    treeHealthDirty = true;
-    if (treeHealthDebounceTimer) clearTimeout(treeHealthDebounceTimer);
-    treeHealthDebounceTimer = setTimeout(updateTreeHealth, 500); // 500ms debounce
+// Marks specific node dirty and schedules idle update
+function markNodeDirty(nodeId) {
+    dirtyNodes.add(nodeId);
+    if (!treeHealthScheduled) {
+        treeHealthScheduled = true;
+        // Use requestIdleCallback to avoid frame drops during typing
+        if (window.requestIdleCallback) {
+            window.requestIdleCallback(updateTreeHealth, { timeout: 2000 });
+        } else {
+            setTimeout(updateTreeHealth, 500); // Fallback for Safari
+        }
+    }
 }
 
-// Incremental update: Only recalculate if dirty
+// Incremental update: O(k) for small edits, O(n) sampled for large
 function updateTreeHealth() {
-    if (!treeHealthDirty) return;
-    treeHealthDirty = false;
+    treeHealthScheduled = false;
+    if (dirtyNodes.size === 0) return;
 
     const t = tbAwareness.tree;
     const nodes = getAllNodes(capexTree);
     t.nodeCount = nodes.length;
 
-    // For large trees (1k+), sample instead of full scan
+    // Small edit: Only check specific dirty nodes
+    if (dirtyNodes.size > 0 && dirtyNodes.size < 50) {
+        // O(k) - just update stats for changed nodes
+        for (const nodeId of dirtyNodes) {
+            const node = findNodeById(nodeId);
+            if (node && !node.description?.trim()) {
+                t.nodesWithoutDescription++;
+            }
+        }
+        dirtyNodes.clear();
+        return;
+    }
+
+    // Large tree: Use SPATIAL LOCALITY sampling (not head/tail!)
+    // User is most likely to act on what they're currently looking at
     if (nodes.length > 1000) {
-        // Sample-based health check for performance
-        const sample = nodes.slice(0, 100).concat(nodes.slice(-100));
+        const sample = [];
+        // Sample 1: Currently selected node and siblings (high priority)
+        const selected = getSelectedNode();
+        if (selected) {
+            sample.push(selected);
+            const siblings = getSiblings(selected);
+            sample.push(...siblings.slice(0, 10));
+        }
+        // Sample 2: Recently edited nodes (high priority)
+        const recent = nodes.filter(n => Date.now() - (n.lastModified || 0) < 300000);
+        sample.push(...recent.slice(0, 20));
+        // Sample 3: Random distribution from the rest
+        const remaining = nodes.filter(n => !sample.includes(n));
+        for (let i = 0; i < 50 && remaining.length > 0; i++) {
+            const idx = Math.floor(Math.random() * remaining.length);
+            sample.push(remaining.splice(idx, 1)[0]);
+        }
+
         const sampleMissingDesc = sample.filter(n => !n.description?.trim()).length;
         t.nodesWithoutDescription = Math.round((sampleMissingDesc / sample.length) * nodes.length);
         t.completenessScore = Math.round(100 - (sampleMissingDesc / sample.length) * 100);
@@ -175,13 +224,11 @@ function updateTreeHealth() {
         t.completenessScore = calculateCompleteness(capexTree);
     }
 
-    // Orphan detection: Only on explicit request, not every mutation
-    // t.orphanNodes populated by separate requestOrphanScan()
-
     t.recentlyEdited = nodes.filter(n =>
         Date.now() - (n.lastModified || 0) < 300000
-    ).slice(0, 20); // Cap at 20 for memory
+    ).slice(0, 20);
     t.lastHealthCheck = Date.now();
+    dirtyNodes.clear();
 }
 
 // Expensive orphan scan: Only run on user request
@@ -247,12 +294,19 @@ assessConfidence(response, toolResults, context) {
 }
 
 // Deterministic hallucination risk assessment
-function assessHallucinationRisk(signals, context) {
-    // High risk: No tools run, no citations, claiming specific facts
-    if (!signals.toolsRun && signals.citedSources === 0) return 'high';
+function assessHallucinationRisk(signals, context, response) {
+    // Check if response contains specific entities (dates, proper nouns, numbers)
+    const hasEntities = /\b\d{4}\b|\b[A-Z][a-z]+\s[A-Z][a-z]+\b|\$[\d,]+|\b\d+%/.test(response);
+    const isChitChat = /^(hi|hello|hey|thanks|ok|sure|got it)/i.test(context.userMessage);
+
+    // Don't flag chit-chat as high risk even if no tools ran
+    if (isChitChat) return 'low';
+
+    // High risk: No tools run, no citations, AND claiming specific facts
+    if (!signals.toolsRun && signals.citedSources === 0 && hasEntities) return 'high';
     // Medium risk: Tools failed, or mixed results
     if (signals.toolsFailed > 0) return 'medium';
-    // Low risk: Tools succeeded, has citations
+    // Low risk: Tools succeeded, has citations, or just conversational
     return 'low';
 }
 
@@ -269,19 +323,35 @@ updateIntegrations() {
 ### Tier 3: Personalization Monitors
 
 ```javascript
+let lastUserMessages = []; // Track for repetition detection
+
 // Runs: After each user message
 detectUserState(message) {
     const u = tbAwareness.user;
+    const normalized = message.toLowerCase().trim().replace(/[^\w\s]/g, '');
 
-    // Frustration signals
-    if (/^\?+$|^what\?|you (said|told)|again|already|still|why (isn't|won't|can't)/i.test(message)) {
+    // Frustration signal 1: Explicit frustration patterns
+    const explicitFrustration = /^\?+$|you (said|told)|again|already|still|why (isn't|won't|can't)/i.test(message);
+
+    // Frustration signal 2: Repetition (same command twice = frustrated)
+    // But exclude enthusiastic "What?? That's amazing!" via sentiment
+    const isRepeat = lastUserMessages.slice(-3).some(prev =>
+        prev === normalized || levenshteinSimilarity(prev, normalized) > 0.8
+    );
+    const isPositive = /amazing|great|awesome|thanks|perfect|love/i.test(message);
+
+    if (explicitFrustration || (isRepeat && !isPositive)) {
         u.frustrationSignals++;
     } else if (u.frustrationSignals > 0) {
         u.frustrationSignals -= 0.5; // Decay over time
     }
 
+    // Track message history for repetition detection
+    lastUserMessages.push(normalized);
+    if (lastUserMessages.length > 10) lastUserMessages.shift();
+
     // Expertise detection
-    if (/\b(API|regex|JSON|schema|webhook|MCP)\b/i.test(message)) {
+    if (/\b(API|regex|JSON|schema|webhook|MCP|CLI|SDK)\b/i.test(message)) {
         u.expertiseLevel = 'expert';
     }
 }
@@ -301,13 +371,13 @@ detectDevice() {
 | Monitor | Trigger | Frequency | Notes |
 |---------|---------|-----------|-------|
 | `updateSession` | After TB send | Every message | Lightweight |
-| `markTreeHealthDirty` | After tree mutation | On change | Just sets flag |
-| `updateTreeHealth` | Debounced (500ms) | Coalesced | Samples for 1k+ nodes |
+| `markNodeDirty(nodeId)` | After tree mutation | On change | Adds to dirty Set |
+| `updateTreeHealth` | `requestIdleCallback` | Coalesced | O(k) for small edits, O(n) sampled for large |
 | `requestOrphanScan` | User request only | Manual | Expensive, not automatic |
 | `predictNextAction` | Before AI call | Every message | Pattern matching |
 | `assessConfidence` | After AI response | Every response | Tool-grounded signals |
-| `updateIntegrations` | Page load, connection change | Rare | |
-| `detectUserState` | After user message | Every message | Regex-based |
+| `updateIntegrations` | Page load, connection change | Rare | PERSISTED |
+| `detectUserState` | After user message | Every message | Repetition + regex |
 | `detectDevice` | Page load | Once | |
 
 ---
@@ -508,15 +578,22 @@ Optional status bar below TB input showing awareness state.
 
 ---
 
-## Open Questions
+## Open Questions (Resolved)
 
-1. Should awareness persist across sessions (localStorage)?
-2. Should users be able to disable specific awareness features?
-3. ~~How to handle awareness when tree is very large (1000+ nodes)?~~ **RESOLVED:** Sampling + debouncing
+1. ~~Should awareness persist across sessions (localStorage)?~~
+   **RESOLVED:** Yes, partially. Persist: `user`, `config`, `session.cumulativeCost`, `integrations`. Reset: `confidence`, `predictions`, `tree` (tree file might change).
+
+2. ~~Should users be able to disable specific awareness features?~~
+   **RESOLVED:** Yes. Added `config.quietMode` to disable proactive suggestions. Power users hate unsolicited advice.
+
+3. ~~How to handle awareness when tree is very large (1000+ nodes)?~~
+   **RESOLVED:** Spatial locality sampling (selected node + siblings, recently edited, random) + `requestIdleCallback` + dirty Set pattern.
 
 ---
 
 ## Review Feedback (2026-01-03)
+
+### GPT Review
 
 GPT review identified three critical issues, now addressed:
 
@@ -525,6 +602,26 @@ GPT review identified three critical issues, now addressed:
 | **Over-trusts prompts as control plane** | Inject awareness into every prompt | App-side decision engine first; inject only when it materially changes behavior |
 | **Hedging-based confidence is noisy** | Count "maybe/perhaps/might" words | Tool-grounded signals: did tools run? succeed? cite sources? |
 | **Tree health full scans stutter** | `updateTreeHealth()` on every mutation | Dirty flags + 500ms debounce + sampling for 1k+ nodes |
+
+### Gemini Review
+
+Gemini validated the design as "Green Light" and provided refinements:
+
+| Issue | Original Design | Fix Applied |
+|-------|-----------------|-------------|
+| **Sampling trap (head/tail)** | Sample first/last 100 nodes | Spatial locality: selected node + siblings, recently edited, random |
+| **setTimeout blocks main thread** | 500ms debounce with setTimeout | `requestIdleCallback` with fallback for Safari |
+| **Frustration false positives** | Regex only ("What??" = frustrated) | Add repetition detection + positive sentiment filter |
+| **Hallucination risk for chit-chat** | "Hi" with no tools = High risk | Check for entity types; chit-chat = Low risk |
+| **No persistence** | All state resets on reload | Persist: user, config, cumulativeCost. Reset: confidence, tree |
+| **No user control** | No way to disable features | Added `config.quietMode` for power users |
+| **Dirty boolean inefficient** | Boolean flag triggers full scan | Dirty Set of node IDs → O(k) for small edits |
+
+### Priority Adjustment (Gemini)
+
+Consider swapping Phase 3 ↔ Phase 4:
+- **Personalization** (expertise-based verbosity) may be higher value than **Self-Debugging** (confidence tracking)
+- Rationale: "Don't explain JSON to me, I know it" is immediate user value
 
 ### Key Architectural Change
 
