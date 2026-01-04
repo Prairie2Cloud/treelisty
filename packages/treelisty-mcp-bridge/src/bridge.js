@@ -2295,12 +2295,26 @@ async function handleGmailFromBrowser(tabId, requestId, method, params) {
                 const filename = fileMatch ? fileMatch[1] : null;
                 const statsMatch = stdout.match(/Total threads: (\d+)/);
                 const threadCount = statsMatch ? parseInt(statsMatch[1]) : 0;
+                const filePath = filename ? path.join(treeplexityRoot, filename) : null;
+
+                // BUILD 718: Read file content for auto-import
+                let fileContent = null;
+                if (filePath) {
+                  try {
+                    const fs = require('fs');
+                    fileContent = fs.readFileSync(filePath, 'utf8');
+                    log('info', `[Gmail] Read ${fileContent.length} bytes for auto-import`);
+                  } catch (readErr) {
+                    log('warn', `[Gmail] Could not read exported file: ${readErr.message}`);
+                  }
+                }
 
                 resolve({
                   success: true,
                   action: 'refresh',
                   filename,
-                  filePath: filename ? path.join(treeplexityRoot, filename) : null,
+                  filePath,
+                  fileContent, // BUILD 718: Include content for auto-import
                   threadCount,
                   message: `Exported ${threadCount} threads to ${filename}`
                 });
