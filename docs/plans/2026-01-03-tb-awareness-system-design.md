@@ -19,7 +19,17 @@ TreeBeard has access to 340+ commands, multiple AI models, MCP integration, came
 
 ## Solution: Unified Awareness Architecture
 
-A central `tbAwareness` object populated by lightweight monitors, with selective injection into system prompts based on relevance.
+A central `tbAwareness` object populated by lightweight monitors, used **primarily as an app-side decision engine**. Prompt injection is selective and minimal—only when awareness materially changes the next action.
+
+### Design Principle: App-Side First, Prompts Second
+
+**Anti-pattern:** Injecting all awareness into every prompt (token tax + behavioral coupling)
+
+**Correct pattern:**
+- `tbAwareness` drives **app-side decisions** (UI state, tool selection, routing)
+- Prompt injection **only when** it changes TB's response behavior
+- Example: Inject frustration context only when frustration >= 2 (changes tone)
+- Example: DON'T inject session duration (doesn't change behavior)
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
@@ -129,17 +139,56 @@ updateSession(message, response) {
     s.estimatedCost = s.tokensUsed * 0.000003;
 }
 
+// Tree health uses DIRTY FLAGS + DEBOUNCING for performance at 1k+ nodes
+// Full scans on every mutation would stutter the UI
+
+let treeHealthDirty = false;
+let treeHealthDebounceTimer = null;
+
 // Runs: After tree mutations (add/delete/edit node)
-updateTreeHealth() {
+// Marks dirty and schedules debounced update
+function markTreeHealthDirty() {
+    treeHealthDirty = true;
+    if (treeHealthDebounceTimer) clearTimeout(treeHealthDebounceTimer);
+    treeHealthDebounceTimer = setTimeout(updateTreeHealth, 500); // 500ms debounce
+}
+
+// Incremental update: Only recalculate if dirty
+function updateTreeHealth() {
+    if (!treeHealthDirty) return;
+    treeHealthDirty = false;
+
     const t = tbAwareness.tree;
     const nodes = getAllNodes(capexTree);
     t.nodeCount = nodes.length;
-    t.nodesWithoutDescription = nodes.filter(n => !n.description?.trim());
-    t.orphanNodes = findOrphanNodes(capexTree);
-    t.completenessScore = calculateCompleteness(capexTree);
+
+    // For large trees (1k+), sample instead of full scan
+    if (nodes.length > 1000) {
+        // Sample-based health check for performance
+        const sample = nodes.slice(0, 100).concat(nodes.slice(-100));
+        const sampleMissingDesc = sample.filter(n => !n.description?.trim()).length;
+        t.nodesWithoutDescription = Math.round((sampleMissingDesc / sample.length) * nodes.length);
+        t.completenessScore = Math.round(100 - (sampleMissingDesc / sample.length) * 100);
+    } else {
+        // Full scan OK for smaller trees
+        t.nodesWithoutDescription = nodes.filter(n => !n.description?.trim()).length;
+        t.completenessScore = calculateCompleteness(capexTree);
+    }
+
+    // Orphan detection: Only on explicit request, not every mutation
+    // t.orphanNodes populated by separate requestOrphanScan()
+
     t.recentlyEdited = nodes.filter(n =>
         Date.now() - (n.lastModified || 0) < 300000
-    );
+    ).slice(0, 20); // Cap at 20 for memory
+    t.lastHealthCheck = Date.now();
+}
+
+// Expensive orphan scan: Only run on user request
+function requestOrphanScan() {
+    const t = tbAwareness.tree;
+    t.orphanNodes = findOrphanNodes(capexTree);
+    return t.orphanNodes;
 }
 
 // Runs: After each user message, before AI call
@@ -158,12 +207,29 @@ predictNextAction(message, context) {
 
 ```javascript
 // Runs: After AI response received
-assessConfidence(response, toolResults) {
+// NOTE: Confidence is TOOL-GROUNDED, not hedging-language-based
+// Hedging detection is noisy, model-dependent, and punishes honest uncertainty
+assessConfidence(response, toolResults, context) {
     const c = tbAwareness.confidence;
 
-    // Check for hedging language
-    const hedges = (response.match(/maybe|perhaps|might|not sure|I think/gi) || []).length;
-    c.lastResponseConfidence = Math.max(0.3, 1 - (hedges * 0.15));
+    // Tool-grounded confidence signals (deterministic)
+    const signals = {
+        toolsRun: toolResults?.length > 0,
+        toolsSucceeded: toolResults?.filter(r => !r.error).length || 0,
+        toolsFailed: toolResults?.filter(r => r.error).length || 0,
+        citedSources: (response.match(/\[source:|according to|from node|verified:/gi) || []).length,
+        usedTreeData: /capexTree|node\s+\d+|children\[/i.test(response),
+    };
+
+    // Confidence = weighted sum of grounded signals
+    let confidence = 0.5; // baseline
+    if (signals.toolsRun) confidence += 0.2;
+    if (signals.toolsSucceeded > 0) confidence += 0.15;
+    if (signals.toolsFailed > 0) confidence -= 0.2;
+    if (signals.citedSources > 0) confidence += 0.1;
+    if (signals.usedTreeData) confidence += 0.1;
+    c.lastResponseConfidence = Math.max(0.1, Math.min(1.0, confidence));
+    c.confidenceSignals = signals; // Store for debugging
 
     // Track failures
     const failures = toolResults?.filter(r => r.error);
@@ -176,7 +242,18 @@ assessConfidence(response, toolResults) {
         c.recentFailures = c.recentFailures.slice(-10);
     }
 
-    c.hallucinationRisk = assessHallucinationRisk(response, context);
+    // Hallucination risk based on deterministic heuristics
+    c.hallucinationRisk = assessHallucinationRisk(signals, context);
+}
+
+// Deterministic hallucination risk assessment
+function assessHallucinationRisk(signals, context) {
+    // High risk: No tools run, no citations, claiming specific facts
+    if (!signals.toolsRun && signals.citedSources === 0) return 'high';
+    // Medium risk: Tools failed, or mixed results
+    if (signals.toolsFailed > 0) return 'medium';
+    // Low risk: Tools succeeded, has citations
+    return 'low';
 }
 
 // Runs: On page load and when connections change
@@ -221,15 +298,17 @@ detectDevice() {
 
 ### Monitor Trigger Points
 
-| Monitor | Trigger | Frequency |
-|---------|---------|-----------|
-| `updateSession` | After TB send | Every message |
-| `updateTreeHealth` | After tree mutation | On change |
-| `predictNextAction` | Before AI call | Every message |
-| `assessConfidence` | After AI response | Every response |
-| `updateIntegrations` | Page load, connection change | Rare |
-| `detectUserState` | After user message | Every message |
-| `detectDevice` | Page load | Once |
+| Monitor | Trigger | Frequency | Notes |
+|---------|---------|-----------|-------|
+| `updateSession` | After TB send | Every message | Lightweight |
+| `markTreeHealthDirty` | After tree mutation | On change | Just sets flag |
+| `updateTreeHealth` | Debounced (500ms) | Coalesced | Samples for 1k+ nodes |
+| `requestOrphanScan` | User request only | Manual | Expensive, not automatic |
+| `predictNextAction` | Before AI call | Every message | Pattern matching |
+| `assessConfidence` | After AI response | Every response | Tool-grounded signals |
+| `updateIntegrations` | Page load, connection change | Rare | |
+| `detectUserState` | After user message | Every message | Regex-based |
+| `detectDevice` | Page load | Once | |
 
 ---
 
@@ -433,7 +512,27 @@ Optional status bar below TB input showing awareness state.
 
 1. Should awareness persist across sessions (localStorage)?
 2. Should users be able to disable specific awareness features?
-3. How to handle awareness when tree is very large (1000+ nodes)?
+3. ~~How to handle awareness when tree is very large (1000+ nodes)?~~ **RESOLVED:** Sampling + debouncing
+
+---
+
+## Review Feedback (2026-01-03)
+
+GPT review identified three critical issues, now addressed:
+
+| Issue | Original Design | Fix Applied |
+|-------|-----------------|-------------|
+| **Over-trusts prompts as control plane** | Inject awareness into every prompt | App-side decision engine first; inject only when it materially changes behavior |
+| **Hedging-based confidence is noisy** | Count "maybe/perhaps/might" words | Tool-grounded signals: did tools run? succeed? cite sources? |
+| **Tree health full scans stutter** | `updateTreeHealth()` on every mutation | Dirty flags + 500ms debounce + sampling for 1k+ nodes |
+
+### Key Architectural Change
+
+```
+BEFORE: tbAwareness → Always inject → System prompt → Token tax
+AFTER:  tbAwareness → App-side decisions (UI, routing, tool selection)
+                    → Inject ONLY when it changes response behavior
+```
 
 ---
 
