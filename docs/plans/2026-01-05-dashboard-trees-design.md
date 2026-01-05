@@ -1,9 +1,10 @@
 # Dashboard Trees: Cross-Tree Agentic Workflows
 
 **Date:** 2026-01-05
-**Status:** Approved Design
+**Status:** Approved Design (Revised with GPT Feedback)
 **Priority:** Strategic Feature
 **Extends:** Atlas Cross-Tree Intelligence
+**Revision:** v2 - Incorporates architectural constraints
 
 ---
 
@@ -17,6 +18,93 @@ Dashboard Trees are external data source trees (Gmail, Drive, Calendar) that ser
 
 **Key Use Case:**
 > AI notices a founders meeting on Calendar, waits for meeting notes to appear in Drive, then 3 days later drafts an investor brief email for user approval.
+
+---
+
+## Critical Architectural Constraints
+
+Three architectural issues must be addressed before implementation:
+
+### Constraint A: Refresh Runtime
+
+**Problem:** TreeListy is a static single-file web app. It cannot spawn Python scripts like `scripts/export-gmail.py` directly.
+
+**Solution:** Introduce a `DashboardConnector` abstraction:
+
+```javascript
+const DashboardConnectors = {
+  gmail: { refresh: async () => { /* via MCP or direct */ } },
+  drive: { refresh: async () => { /* via MCP or direct */ } },
+  calendar: { refresh: async () => { /* via MCP or direct */ } },
+};
+
+async function refreshDashboardRole(role) {
+  const connector = DashboardConnectors[role];
+  if (!connector) throw new Error(`No connector for ${role}`);
+  return await connector.refresh(); // returns { treePatch | fullTree, meta }
+}
+```
+
+**Implementation priority:**
+1. **MCP Bridge** (primary) - Local Node daemon runs scripts + returns JSON
+2. **Netlify Functions** (future) - Server-side refresh for auth'd sources
+3. **Direct browser API** (future) - OAuth in-browser
+
+The `refreshScript` field becomes metadata for MCP Bridge to execute, not for the UI.
+
+### Constraint B: Stable Identifiers Across Refreshes
+
+**Problem:** "Replace active tree" on refresh breaks workflows if they reference `treeId/nodeId` that change every import.
+
+**Solution:** Dashboard nodes must carry stable **external keys**:
+
+```javascript
+// Dashboard node identity
+{
+  nodeGuid: "n_abc123",           // TreeListy internal (stable)
+  external: {
+    type: "gmail:thread",         // external system + type
+    id: "18d4f2a3b5c6d7e8"        // external ID (threadId, fileId, eventId)
+  }
+}
+```
+
+**Merge semantics on refresh:**
+- Match by `{dashboardRole, external.type, external.id}`
+- Existing match → update node, preserve `nodeGuid`
+- No match → insert new node with new `nodeGuid`
+- Missing in refresh → soft-delete or mark stale
+
+**Workflow references use external IDs:**
+```javascript
+trigger: {
+  sourceRole: "drive",
+  match: {
+    externalType: "gdrive:file",
+    nameContains: "founders meeting"
+  }
+}
+```
+
+### Constraint C: "Approve & Send" Realism
+
+**Problem:** TreeListy supports Gmail draft creation but may not have "Send" capability yet.
+
+**Solution:** Rename actions to match actual capability:
+- **Approve & Send** → **Approve & Create Draft**
+- Or: **Approve & Queue** (if MCP can send later)
+
+Don't ship buttons that promise more than the system delivers.
+
+### Constraint D: Background Polling Limitations
+
+**Problem:** Browsers throttle timers in background tabs. "15-minute polling" is unreliable.
+
+**Solution:** Clarify two modes:
+- **Foreground polling:** While TreeListy tab is active, poll every N minutes
+- **Background polling:** Only via MCP Bridge (Node daemon stays awake)
+
+Agents that need reliable background execution live next to the bridge, not in the browser.
 
 ---
 
@@ -235,13 +323,13 @@ When drafts are ready, they appear in the AI Summary section:
 │                                                         │
 │  Sources: [Founders Meeting Notes] [Calendar Event]     │
 │                                                         │
-│  [Approve & Send]  [Edit]  [Reject]                     │
+│  [Approve & Create Draft]  [Edit]  [Reject]             │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Actions
 
-- **Approve & Send**: Execute immediately (send email, create event)
+- **Approve & Create Draft**: Create draft in Gmail (user sends manually)
 - **Edit**: Open in compose modal, user modifies, then sends
 - **Reject**: Discard draft, optionally cancel the workflow
 
@@ -422,22 +510,44 @@ Dashboard trees store their refresh command:
 - `dashboardRole` property on trees
 - Auto-detect on import (Gmail, Drive, Calendar)
 - `TreeRegistry.getDashboardTrees()` API
-- Dashboard button in header → simple launcher (links to each tree)
+- `DashboardConnector` abstraction (MCP-first)
+- Dashboard button in header → modal launcher
 - Storage: `treelisty:dashboard:{role}` keys
+- `Ctrl+D` shortcut (verify no conflicts)
 
-*Deliverable: Quick Access buttons become role-based, not name-based*
+*Deliverable: Role-based Quick Access, dashboard modal shows each tree*
+
+**Acceptance test:** Import Gmail/Drive trees → Dashboard modal shows each role + counts + "Open" jumps to correct tree.
 
 ### Phase 2: Morning Dashboard UI (Builds 751-758)
 
-- Dashboard modal/view with 3-column layout
-- Preview cards showing top items per source
-- Auto-refresh on open
-- Unread/recent counts
-- `Ctrl+D` shortcut
+- Dashboard modal with 3-column layout (not a new view mode)
+- Preview cards showing top 3-5 items per source
+- Auto-refresh on open via MCP Bridge
+- Unread/recent counts from `dashboardMeta`
+- Agent badge placeholder (even if workflows not live)
 
 *Deliverable: Unified morning view of all dashboard trees*
 
-### Phase 3: AI Summary (Builds 759-765)
+**Acceptance test:** Dashboard shows counts and previews are clickable.
+
+### Phase 3: External IDs + Merge Refresh (Builds 759-765)
+
+**CRITICAL: Must complete before workflows**
+
+- Add `external: { type, id }` to dashboard nodes
+- Export scripts emit external IDs (threadId, fileId, eventId)
+- Implement merge refresh (not replace):
+  - Match by external identity → preserve nodeGuid
+  - New external ID → insert new node
+  - Missing → soft-delete or mark stale
+- Refresh via MCP Bridge returns patch, not full tree
+
+*Deliverable: Dashboard refresh preserves node identity*
+
+**Acceptance test:** Refresh Gmail twice → same threads keep same nodeGuids.
+
+### Phase 4: AI Summary (Builds 766-772)
 
 - Cross-tree context gathering
 - AI prompt for daily summary generation
@@ -446,28 +556,34 @@ Dashboard trees store their refresh command:
 
 *Deliverable: "Good morning" AI briefing*
 
-### Phase 4: Agent Infrastructure (Builds 766-775)
+### Phase 5: Agent Infrastructure (Builds 773-782)
 
 - Workflow data model and storage
 - AgentManager core (register, cancel, checkTriggers)
-- Background polling mechanism
+- Trigger matching uses `sourceRole` + `externalType` (not raw nodeId)
+- **Foreground polling only** (while tab active)
 - Agent status badge and panel
+- `Ctrl+Shift+A` shortcut
 
 *Deliverable: Workflows can be defined and monitored*
 
-### Phase 5: Draft & Approval (Builds 776-785)
+**Acceptance test:** Simulate drive update → matching workflow flips to `triggered`.
+
+### Phase 6: Draft & Approval (Builds 783-792)
 
 - Draft creation from workflow actions
 - Approval UI in dashboard
-- Email draft integration with Gmail
-- Provenance tracking (sources used)
+- **Approve & Create Draft** (not "Send")
+- Provenance tracking (sources used with external IDs)
 
 *Deliverable: End-to-end workflow execution with approval*
 
-### Phase 6: Workflow Creation (Builds 786-795)
+**Acceptance test:** Workflow produces draft → user can edit and approve → draft created in Gmail.
+
+### Phase 7: Workflow Creation (Builds 793-800)
 
 - TreeBeard natural language parsing
-- Workflow builder UI
+- Workflow builder UI (power users)
 - Template system for common patterns
 
 *Deliverable: Users can create their own workflows*
@@ -489,13 +605,59 @@ Dashboard Trees is the **first major consumer** of the Atlas infrastructure, pro
 
 ---
 
-## Open Questions
+## Assumptions
 
-1. **Calendar tree**: Export script TBD - Google Calendar API integration
-2. **Polling frequency**: 15 min default, but should this be user-configurable?
-3. **Workflow limits**: Max active workflows? Storage limits?
-4. **Offline behavior**: What happens when dashboard refresh fails?
+1. Gmail/Drive exports already exist (or can be produced) with external IDs (threadId, fileId).
+2. MCP Bridge can be extended to run refresh commands locally and return results.
+3. Dashboard trees are "read-mostly" (users don't hand-edit them much).
+4. Node objects can tolerate an added `external` metadata field without breaking existing renderers.
+5. Workflows are local-first (localStorage) for V1, not cross-device synced.
+6. Export scripts will be updated to emit `external: { type, id }` on each node.
 
 ---
 
-*Last updated: 2026-01-05*
+## Risks & Mitigations
+
+### Risk 1: ID Instability Breaks Workflows
+
+**Failure path:** Ship "replace tree on refresh", build workflows, everything breaks when next import changes IDs.
+
+**Mitigation:** Phase 3 (External IDs + Merge) is marked CRITICAL and must complete before Phase 5 (Agent Infrastructure).
+
+### Risk 2: Background Agents Don't Run Reliably
+
+**Failure path:** "Background agents" don't run reliably in browser, users lose trust.
+
+**Mitigation:** Foreground-only language in UI. True background execution only via MCP Bridge (documented as optional enhancement).
+
+### Risk 3: Dashboard Becomes Second Product
+
+**Failure path:** Dashboard becomes a "second product UI" with endless edge cases.
+
+**Mitigation:** V1 is a modal (not a view mode) + three preview columns + single draft review surface. Resist scope creep.
+
+### Risk 4: Refresh Failures Break Trust
+
+**Failure path:** MCP Bridge not running, refresh fails silently, user sees stale data.
+
+**Mitigation:** Show toast on refresh failure + keep last known dashboard content + visual "stale" indicator.
+
+---
+
+## Success Benchmark
+
+> In <10 seconds, user opens Dashboard, sees "3 things that matter today," and can approve a prepared draft without hunting across trees.
+
+---
+
+## Open Questions
+
+1. **Calendar tree**: Export script TBD - Google Calendar API integration
+2. **Polling frequency**: 15 min default while tab active, configurable?
+3. **Workflow limits**: Max active workflows? localStorage size limits?
+4. **Offline behavior**: What happens when dashboard refresh fails? (See Risk 4)
+5. **MCP Bridge required?**: Can dashboard work at all without MCP, or is it MCP-required?
+
+---
+
+*Last updated: 2026-01-05 (v2 - GPT feedback incorporated)*
