@@ -4,7 +4,7 @@
 **Status:** Approved Design (Revised with GPT Feedback)
 **Priority:** Strategic Feature
 **Extends:** Atlas Cross-Tree Intelligence
-**Revision:** v2 - Incorporates architectural constraints
+**Revision:** v3 - Incorporates GPT + Gemini architectural feedback
 
 ---
 
@@ -105,6 +105,65 @@ Don't ship buttons that promise more than the system delivers.
 - **Background polling:** Only via MCP Bridge (Node daemon stays awake)
 
 Agents that need reliable background execution live next to the bridge, not in the browser.
+
+### Constraint E: Storage Quota Wall (Gemini)
+
+**Problem:** localStorage limit is ~5MB total. A single Gmail tree can exceed 5MB. Storing three dashboard trees in localStorage will hit `QuotaExceededError`.
+
+**Solution:** Dashboard tree payloads must use **IndexedDB**, not localStorage:
+
+```javascript
+// Storage strategy
+localStorage:
+  - treelisty:dashboard:gmail → treeId (reference only)
+  - treelisty:dashboard:drive → treeId (reference only)
+  - TreeRegistry metadata (small)
+
+IndexedDB (via AtlasDB/NodeIndex):
+  - Full dashboard tree JSON payloads
+  - NodeIndex entries for search
+```
+
+**Implementation:** Extend `NodeIndex` (Build 698) infrastructure to store dashboard tree content. `TreeStorageAdapter` routes:
+- Small trees (<1MB) → localStorage
+- Large/Dashboard trees → IndexedDB
+
+### Constraint F: Memory Bloat in Dashboard View (Gemini)
+
+**Problem:** Loading three full `capexTree` objects into JavaScript heap for the Dashboard UI could cause stuttering/crashes.
+
+**Solution:** Dashboard reads from **NodeIndex metadata**, not full tree hydration:
+
+```javascript
+// Dashboard preview - lightweight
+const preview = await NodeIndex.getTopNodes('gmail', {
+  limit: 5,
+  fields: ['name', 'external.id', 'unread']
+});
+
+// Full tree - only on explicit "Open"
+const fullTree = await TreeStorageAdapter.load(treeId);
+```
+
+Only hydrate full tree when user clicks "Open Gmail".
+
+### Constraint G: Reuse Existing Infrastructure (Gemini)
+
+**Problem:** Temptation to build new execution engines, storage systems, action schemas.
+
+**Solution:** Reuse what exists:
+
+| Need | Reuse |
+|------|-------|
+| Workflow actions | TreeBeard Tool Calls (Build 658) - serialize as JSON |
+| Trigger checks | Hook into existing `render()` cycle or `setInterval` |
+| Storage | NodeIndex + AtlasDB (Build 698) |
+| Script execution | MCP Bridge tools, not hardcoded paths |
+
+**Do NOT:**
+- Invent new action schemas (use tool call JSON)
+- Create web workers unless necessary
+- Hardcode script paths in HTML (use MCP tool `refresh_dashboard_source(role)`)
 
 ---
 
@@ -485,14 +544,25 @@ mcp__treelisty__get_pending_drafts()
 
 ### Storage
 
+**Hybrid Storage Strategy** (addresses quota limits):
+
 ```
-localStorage
-├── treelisty:dashboard:gmail     -> treeId of active Gmail tree
-├── treelisty:dashboard:drive     -> treeId of active Drive tree
-├── treelisty:dashboard:calendar  -> treeId of active Calendar tree
-├── treelisty:workflows           -> JSON array of workflow definitions
-└── treelisty:drafts              -> JSON array of pending drafts
+localStorage (references + small data only)
+├── treelisty:dashboard:gmail     → treeId reference
+├── treelisty:dashboard:drive     → treeId reference
+├── treelisty:dashboard:calendar  → treeId reference
+├── treelisty:workflows           → JSON array of workflow definitions
+├── treelisty:drafts              → JSON array of pending drafts
+└── TreeRegistry                  → metadata only (no payloads)
+
+IndexedDB (via AtlasDB - large payloads)
+├── trees/{treeId}                → full tree JSON for dashboard trees
+└── nodeIndex/{treeId}/*          → NodeIndex entries for search/preview
 ```
+
+**TreeStorageAdapter** routes automatically:
+- Trees <1MB → localStorage (existing behavior)
+- Trees >1MB or dashboardRole set → IndexedDB
 
 ### Refresh Scripts
 
@@ -505,33 +575,49 @@ Dashboard trees store their refresh command:
 
 ## Section 8: Implementation Phases
 
-### Phase 1: Dashboard Foundation (Builds 745-750)
+### Phase 0: Storage Layer Prerequisite (Builds 745-748)
+
+**CRITICAL: Must complete before dashboard trees**
+
+- Implement `TreeStorageAdapter` interface:
+  - Routes small trees (<1MB) → localStorage
+  - Routes large/dashboard trees → IndexedDB
+- Extend `AtlasDB` to store full tree payloads (not just NodeIndex)
+- Update `TreeRegistry.getDashboardTrees()` to return metadata without loading content
+- Add `NodeIndex.getTopNodes(role, options)` for lightweight preview queries
+
+*Deliverable: Storage infrastructure that won't hit quota limits*
+
+**Acceptance test:** Import 10MB Gmail tree → no QuotaExceededError, tree loads correctly.
+
+### Phase 1: Dashboard Foundation (Builds 749-754)
 
 - `dashboardRole` property on trees
 - Auto-detect on import (Gmail, Drive, Calendar)
-- `TreeRegistry.getDashboardTrees()` API
+- `TreeRegistry.getDashboardTrees()` API (metadata only)
 - `DashboardConnector` abstraction (MCP-first)
 - Dashboard button in header → modal launcher
-- Storage: `treelisty:dashboard:{role}` keys
+- Storage: `treelisty:dashboard:{role}` → treeId reference only
 - `Ctrl+D` shortcut (verify no conflicts)
 
 *Deliverable: Role-based Quick Access, dashboard modal shows each tree*
 
 **Acceptance test:** Import Gmail/Drive trees → Dashboard modal shows each role + counts + "Open" jumps to correct tree.
 
-### Phase 2: Morning Dashboard UI (Builds 751-758)
+### Phase 2: Morning Dashboard UI (Builds 755-762)
 
 - Dashboard modal with 3-column layout (not a new view mode)
-- Preview cards showing top 3-5 items per source
+- Preview cards via `NodeIndex.getTopNodes()` (**not full tree hydration**)
 - Auto-refresh on open via MCP Bridge
 - Unread/recent counts from `dashboardMeta`
 - Agent badge placeholder (even if workflows not live)
+- Handle "MCP Disconnected" gracefully ("Last updated: 3 days ago")
 
 *Deliverable: Unified morning view of all dashboard trees*
 
-**Acceptance test:** Dashboard shows counts and previews are clickable.
+**Acceptance test:** Dashboard shows counts and previews without loading full trees into memory.
 
-### Phase 3: External IDs + Merge Refresh (Builds 759-765)
+### Phase 3: External IDs + Merge Refresh (Builds 763-770)
 
 **CRITICAL: Must complete before workflows**
 
@@ -541,26 +627,28 @@ Dashboard trees store their refresh command:
   - Match by external identity → preserve nodeGuid
   - New external ID → insert new node
   - Missing → soft-delete or mark stale
-- Refresh via MCP Bridge returns patch, not full tree
+- Refresh via MCP tool `refresh_dashboard_source(role)` (not hardcoded paths)
+- MCP returns patch, not full tree
 
 *Deliverable: Dashboard refresh preserves node identity*
 
 **Acceptance test:** Refresh Gmail twice → same threads keep same nodeGuids.
 
-### Phase 4: AI Summary (Builds 766-772)
+### Phase 4: AI Summary (Builds 771-778)
 
-- Cross-tree context gathering
+- Cross-tree context gathering (via NodeIndex, not full trees)
 - AI prompt for daily summary generation
 - Actionable suggestion extraction
 - Summary display in dashboard header
 
 *Deliverable: "Good morning" AI briefing*
 
-### Phase 5: Agent Infrastructure (Builds 773-782)
+### Phase 5: Agent Infrastructure (Builds 779-788)
 
-- Workflow data model and storage
+- Workflow data model (reuse TreeBeard Tool Call JSON for actions)
 - AgentManager core (register, cancel, checkTriggers)
 - Trigger matching uses `sourceRole` + `externalType` (not raw nodeId)
+- Hook into `setInterval` for trigger checks (**no web workers**)
 - **Foreground polling only** (while tab active)
 - Agent status badge and panel
 - `Ctrl+Shift+A` shortcut
@@ -569,7 +657,7 @@ Dashboard trees store their refresh command:
 
 **Acceptance test:** Simulate drive update → matching workflow flips to `triggered`.
 
-### Phase 6: Draft & Approval (Builds 783-792)
+### Phase 6: Draft & Approval (Builds 789-796)
 
 - Draft creation from workflow actions
 - Approval UI in dashboard
@@ -580,7 +668,7 @@ Dashboard trees store their refresh command:
 
 **Acceptance test:** Workflow produces draft → user can edit and approve → draft created in Gmail.
 
-### Phase 7: Workflow Creation (Builds 793-800)
+### Phase 7: Workflow Creation (Builds 797-805)
 
 - TreeBeard natural language parsing
 - Workflow builder UI (power users)
@@ -613,6 +701,8 @@ Dashboard Trees is the **first major consumer** of the Atlas infrastructure, pro
 4. Node objects can tolerate an added `external` metadata field without breaking existing renderers.
 5. Workflows are local-first (localStorage) for V1, not cross-device synced.
 6. Export scripts will be updated to emit `external: { type, id }` on each node.
+7. IndexedDB is available in target browsers (all modern browsers support it).
+8. AtlasDB/NodeIndex (Build 698) can be extended to store full tree payloads.
 
 ---
 
@@ -642,6 +732,18 @@ Dashboard Trees is the **first major consumer** of the Atlas infrastructure, pro
 
 **Mitigation:** Show toast on refresh failure + keep last known dashboard content + visual "stale" indicator.
 
+### Risk 5: Storage Quota Exceeded (Gemini)
+
+**Failure path:** Large Gmail trees exceed localStorage 5MB limit, causing data loss.
+
+**Mitigation:** Phase 0 implements TreeStorageAdapter routing large trees to IndexedDB. Dashboard trees always use IndexedDB regardless of size.
+
+### Risk 6: Memory Bloat Crashes Browser (Gemini)
+
+**Failure path:** Dashboard loads three full trees into memory, causing OOM on low-end devices.
+
+**Mitigation:** Dashboard UI reads from NodeIndex metadata only. Full tree hydration only on explicit "Open" action.
+
 ---
 
 ## Success Benchmark
@@ -660,4 +762,4 @@ Dashboard Trees is the **first major consumer** of the Atlas infrastructure, pro
 
 ---
 
-*Last updated: 2026-01-05 (v2 - GPT feedback incorporated)*
+*Last updated: 2026-01-05 (v3 - GPT + Gemini feedback incorporated)*
