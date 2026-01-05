@@ -1,0 +1,67 @@
+name: Self-Tree Auto-Update
+
+on:
+  schedule:
+    # Run every Sunday at midnight UTC
+    - cron: '0 0 * * 0'
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  update-self-tree:
+    name: Update Self-Tree Measurements
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run measurements
+        run: node scripts/measure-self-tree.js
+
+      - name: Generate self-tree
+        run: node scripts/generate-self-tree.js
+
+      - name: Check for changes
+        id: check-changes
+        run: |
+          if git diff --quiet self-trees/; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit and push
+        if: steps.check-changes.outputs.changed == 'true'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+
+          # Get current build number from latest measurements file
+          MEASUREMENTS_FILE=$(ls -t self-trees/measurements-build*.json 2>/dev/null | head -1)
+          BUILD=$(node -e "console.log(require('./${MEASUREMENTS_FILE}').build)" 2>/dev/null || echo "unknown")
+
+          git add self-trees/
+          git commit -m "chore: Auto-update self-tree measurements (Build ${BUILD})"
+          git push
+
+      - name: Summary
+        run: |
+          echo "### Self-Tree Update Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ steps.check-changes.outputs.changed }}" == "true" ]; then
+            echo "✅ Self-tree updated and committed" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "ℹ️ No changes detected - self-tree is current" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Latest measurements:**" >> $GITHUB_STEP_SUMMARY
+          ls -la self-trees/measurements-*.json | tail -1 >> $GITHUB_STEP_SUMMARY
