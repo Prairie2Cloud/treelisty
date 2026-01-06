@@ -71,16 +71,24 @@ console.log(`   Status: ${testStatus}`);
 // ============================================================
 // SIGNAL 3: Command Count
 // ============================================================
-const commandMatches = source.match(/COMMAND_REGISTRY\s*=\s*\{[\s\S]*?\n\s*\}/);
+// Find COMMAND_REGISTRY block by locating start and end markers
+const registryStartMatch = source.match(/const COMMAND_REGISTRY\s*=\s*\{/);
+const registryEndMatch = source.match(/window\.COMMAND_REGISTRY\s*=\s*COMMAND_REGISTRY/);
+
 let commandCount = 0;
-if (commandMatches) {
-    // Count command entries
-    const commandSection = commandMatches[0];
-    const commands = commandSection.match(/'[a-z_]+'\s*:/g) || [];
+if (registryStartMatch && registryEndMatch) {
+    // Extract the section between start and end
+    const startIdx = registryStartMatch.index;
+    const endIdx = registryEndMatch.index;
+    const commandSection = source.substring(startIdx, endIdx);
+
+    // Count command entries: 'command_name': () => or 'command_name': async () =>
+    // Pattern: quoted string followed by colon, optional async, arrow function
+    const commands = commandSection.match(/^\s+'[a-z_]+'\s*:\s*(?:async\s*)?\(/gm) || [];
     commandCount = commands.length;
 }
 
-// Also count TB command handlers
+// Also count TB command handlers (handlers['name'] or handlers["name"])
 const tbHandlerMatches = source.match(/handlers\[['"]([a-z_]+)['"]\]/g) || [];
 const tbCommandCount = new Set(tbHandlerMatches.map(m => m.match(/['"]([a-z_]+)['"]/)[1])).size;
 
@@ -103,13 +111,20 @@ console.log(`   Types: ${Array.from(views).join(', ')}`);
 // ============================================================
 // SIGNAL 5: Patterns
 // ============================================================
-const patternMatches = source.match(/PATTERNS\s*=\s*\{[\s\S]*?\n\s*\};/);
+// Pattern names are unquoted identifiers like: generic: {, sales: {, thesis: {
+// Find the PATTERNS block and count top-level pattern definitions (4-space indent)
+const patternsStartMatch = source.match(/const PATTERNS\s*=\s*\{/);
 let patternCount = 0;
 let patternNames = [];
-if (patternMatches) {
-    const patternSection = patternMatches[0];
-    const patterns = patternSection.match(/'([a-z-]+)'\s*:\s*\{/g) || [];
-    patternNames = patterns.map(p => p.match(/'([a-z-]+)'/)[1]);
+if (patternsStartMatch) {
+    // Extract ~2000 lines after PATTERNS start (patterns block is large)
+    const startIdx = patternsStartMatch.index;
+    const patternSection = source.substring(startIdx, startIdx + 100000);
+
+    // Match pattern definitions: 4 spaces + identifier + colon + space + {
+    // This catches: "    generic: {", "    sales: {", etc.
+    const patterns = patternSection.match(/^    [a-z_-]+:\s*\{/gm) || [];
+    patternNames = patterns.map(p => p.match(/([a-z_-]+):/)[1]);
     patternCount = patternNames.length;
 }
 
