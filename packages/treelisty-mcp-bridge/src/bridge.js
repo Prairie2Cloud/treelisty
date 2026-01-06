@@ -119,6 +119,82 @@ const activeTasks = new Map();
 // Task results waiting for browser to fetch
 const taskResults = new Map();
 
+// =============================================================================
+// CC ↔ TB Message Channel (Build 753 - Direct Communication)
+// =============================================================================
+
+// Messages from Claude Code to TreeBeard (pending delivery)
+const ccToTbMessages = [];
+
+// Messages from TreeBeard to Claude Code (pending pickup)
+const tbToCcMessages = [];
+
+/**
+ * Generate unique message ID
+ */
+function generateMessageId() {
+  return `msg-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+}
+
+/**
+ * Send message from Claude Code to TreeBeard
+ * Called via MCP tool
+ */
+function sendToTB(message, context = {}) {
+  const msg = {
+    id: generateMessageId(),
+    from: 'claude_code',
+    to: 'treebeard',
+    message,
+    context,
+    timestamp: Date.now(),
+    delivered: false
+  };
+  ccToTbMessages.push(msg);
+  log('info', `[CC→TB] Message queued: ${msg.id}`);
+
+  // Immediately broadcast to browser
+  broadcastToBrowser({
+    type: 'cc_message',
+    ...msg
+  });
+
+  return { success: true, messageId: msg.id };
+}
+
+/**
+ * Get messages from TreeBeard for Claude Code
+ * Called via MCP tool
+ */
+function getFromTB(markAsRead = true) {
+  const messages = [...tbToCcMessages];
+  if (markAsRead) {
+    tbToCcMessages.length = 0; // Clear the queue
+  }
+  return {
+    success: true,
+    messages,
+    count: messages.length
+  };
+}
+
+/**
+ * Receive message from TreeBeard (called via WebSocket from browser)
+ */
+function receiveFromTB(message, context = {}) {
+  const msg = {
+    id: generateMessageId(),
+    from: 'treebeard',
+    to: 'claude_code',
+    message,
+    context,
+    timestamp: Date.now()
+  };
+  tbToCcMessages.push(msg);
+  log('info', `[TB→CC] Message received: ${msg.id}`);
+  return { success: true, messageId: msg.id };
+}
+
 /**
  * Generate unique task ID
  */
@@ -1811,6 +1887,37 @@ function handleToolsList(id) {
           monitors: { type: 'object', description: 'Enable/disable specific monitors (github, etc.)' }
         }
       }
+    },
+    // CC ↔ TB Communication tools (Build 753)
+    {
+      name: 'cc_send_to_tb',
+      description: 'Send a message from Claude Code to TreeBeard. TB will receive this in the chat UI.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          message: { type: 'string', description: 'The message to send to TreeBeard' },
+          context: { type: 'object', description: 'Optional context data (e.g., email content, task details)' }
+        },
+        required: ['message']
+      }
+    },
+    {
+      name: 'cc_get_from_tb',
+      description: 'Get any pending messages from TreeBeard to Claude Code.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          mark_as_read: { type: 'boolean', description: 'Clear messages after reading (default: true)' }
+        }
+      }
+    },
+    {
+      name: 'cc_channel_status',
+      description: 'Get status of the CC ↔ TB communication channel.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
     }
   ];
 
@@ -1881,6 +1988,12 @@ function handleToolCall(id, params) {
   // Handle Triage Agent operations (Build 751)
   if (name.startsWith('triage_')) {
     handleTriageTool(id, name, args || {});
+    return;
+  }
+
+  // Handle CC ↔ TB Communication (Build 753)
+  if (name.startsWith('cc_')) {
+    handleCCTool(id, name, args || {});
     return;
   }
 
@@ -2533,6 +2646,73 @@ async function handleTriageTool(id, name, args) {
 }
 
 /**
+ * Handle CC ↔ TB Communication tools (Build 753 - Direct Communication)
+ */
+function handleCCTool(id, name, args) {
+  let result;
+
+  try {
+    switch (name) {
+      case 'cc_send_to_tb':
+        if (!args.message) {
+          sendMCPError(id, -32602, 'Missing required parameter: message');
+          return;
+        }
+        result = sendToTB(args.message, args.context || {});
+        break;
+
+      case 'cc_get_from_tb':
+        const markAsRead = args.mark_as_read !== false; // default true
+        result = getFromTB(markAsRead);
+        break;
+
+      case 'cc_channel_status':
+        result = {
+          success: true,
+          ccToTbPending: ccToTbMessages.length,
+          tbToCcPending: tbToCcMessages.length,
+          browserConnected: connections.size > 0,
+          browserCount: connections.size
+        };
+        break;
+
+      default:
+        sendMCPError(id, -32601, `Unknown CC tool: ${name}`);
+        return;
+    }
+
+    // Send result
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }]
+      }
+    });
+
+  } catch (err) {
+    log('error', `CC tool error: ${err.message}`);
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'cc_error',
+            message: err.message
+          }, null, 2)
+        }]
+      }
+    });
+  }
+}
+
+/**
  * Broadcast message to all connected browsers
  * Used by triage agent to send updates
  */
@@ -2956,6 +3136,22 @@ function handleBrowserMessage(tabId, message) {
       ws.send(JSON.stringify({
         type: 'task.submitted',
         ...taskResult
+      }));
+    }
+    return;
+  }
+
+  // Handle TB → CC message (Build 753 - Direct Communication)
+  if (type === 'tb_message') {
+    const msgResult = receiveFromTB(message.message, message.context || {});
+    log('info', `[TB→CC] Received message from TreeBeard: ${msgResult.messageId}`);
+
+    // Send confirmation back to browser
+    const ws = connections.get(tabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'tb_message_received',
+        ...msgResult
       }));
     }
     return;
