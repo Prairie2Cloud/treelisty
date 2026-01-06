@@ -3,8 +3,8 @@
  * Enables offline PWA functionality and .treelisty file handling
  */
 
-// BUILD 743: Update cache version to force PWA refresh
-const CACHE_NAME = 'treelisty-v2.101.49-b742';
+// BUILD 747: Update cache version to force PWA refresh
+const CACHE_NAME = 'treelisty-v2.101.54-b747';
 const urlsToCache = [
   '/treeplexity.html',
   '/manifest.json'
