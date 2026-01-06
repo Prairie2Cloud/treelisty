@@ -2832,7 +2832,7 @@ async function handleTriageTool(id, name, args) {
 /**
  * Handle CC ↔ TB Communication tools (Build 753 - Direct Communication)
  */
-function handleCCTool(id, name, args) {
+async function handleCCTool(id, name, args) {
   let result;
 
   try {
