@@ -2851,9 +2851,12 @@ async function handleCCTool(id, name, args) {
         break;
 
       case 'cc_channel_status':
+        // BUILD 759: Show undelivered count (not total)
+        const undeliveredCount = ccToTbMessages.filter(m => !m.delivered).length;
         result = {
           success: true,
-          ccToTbPending: ccToTbMessages.length,
+          ccToTbPending: undeliveredCount,
+          ccToTbTotal: ccToTbMessages.length,
           tbToCcPending: tbToCcMessages.length,
           browserConnected: connections.size > 0,
           browserCount: connections.size
@@ -3398,6 +3401,36 @@ function handleBrowserMessage(tabId, message) {
     }).catch(err => {
       log('error', `[CC Capabilities] Error: ${err.message}`);
     });
+    return;
+  }
+
+  // BUILD 759: Handle CC message acknowledgment from browser
+  if (type === 'cc_message_ack') {
+    const { messageId } = message;
+    const idx = ccToTbMessages.findIndex(m => m.id === messageId);
+    if (idx !== -1) {
+      ccToTbMessages[idx].delivered = true;
+      ccToTbMessages[idx].deliveredAt = Date.now();
+      // Remove delivered messages older than 1 hour
+      const oneHourAgo = Date.now() - 3600000;
+      const before = ccToTbMessages.length;
+      ccToTbMessages.splice(0, ccToTbMessages.length, ...ccToTbMessages.filter(m => !m.delivered || m.deliveredAt > oneHourAgo));
+      log('info', `[CC→TB] Acknowledged message ${messageId}, cleaned ${before - ccToTbMessages.length} old messages`);
+    }
+    return;
+  }
+
+  // BUILD 759: Send pending CC messages to browser on request
+  if (type === 'get_pending_cc_messages') {
+    const pendingMessages = ccToTbMessages.filter(m => !m.delivered);
+    log('info', `[CC→TB] Sending ${pendingMessages.length} pending messages to browser`);
+    const ws = connections.get(tabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'cc_pending_messages',
+        messages: pendingMessages
+      }));
+    }
     return;
   }
 
