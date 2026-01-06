@@ -33,6 +33,15 @@ try {
   // Will return helpful error when Gmail tools are called
 }
 
+// GitHub handler for notifications and repo operations (Build 750)
+let githubHandler = null;
+try {
+  githubHandler = require('./github-handler');
+} catch (err) {
+  // GitHub handler not available
+  // Will return helpful error when GitHub tools are called
+}
+
 // =============================================================================
 // Configuration
 // =============================================================================
@@ -1614,6 +1623,122 @@ function handleToolsList(id) {
         },
         required: ['draft_id']
       }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // GitHub Operations (Build 750 - Notifications & Triage)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'github_check_auth',
+      description: 'Check GitHub CLI authentication status.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'github_list_notifications',
+      description: 'List GitHub notifications with filtering and categorization.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          participating: { type: 'boolean', description: 'Only show notifications you participate in' },
+          all: { type: 'boolean', description: 'Include read notifications' },
+          per_page: { type: 'number', description: 'Results per page (max 100)' },
+          repo: { type: 'string', description: 'Filter by repo (owner/name)' }
+        }
+      }
+    },
+    {
+      name: 'github_get_thread',
+      description: 'Get details of a notification thread.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Notification thread ID' }
+        },
+        required: ['thread_id']
+      }
+    },
+    {
+      name: 'github_mark_read',
+      description: 'Mark a notification thread as read.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          thread_id: { type: 'string', description: 'Thread ID (omit for mark all)' }
+        }
+      }
+    },
+    {
+      name: 'github_list_workflow_runs',
+      description: 'List recent CI/CD workflow runs for a repository.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          repo: { type: 'string', description: 'Repository (owner/name)' },
+          limit: { type: 'number', description: 'Max results (default: 10)' },
+          branch: { type: 'string', description: 'Filter by branch' },
+          workflow: { type: 'string', description: 'Filter by workflow name' }
+        },
+        required: ['repo']
+      }
+    },
+    {
+      name: 'github_get_failed_run',
+      description: 'Get details of a failed workflow run including failed steps.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          repo: { type: 'string', description: 'Repository (owner/name)' },
+          run_id: { type: 'string', description: 'Workflow run ID' }
+        },
+        required: ['repo', 'run_id']
+      }
+    },
+    {
+      name: 'github_list_prs',
+      description: 'List pull requests for a repository.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          repo: { type: 'string', description: 'Repository (owner/name)' },
+          state: { type: 'string', description: 'Filter by state (open, closed, merged, all)' },
+          limit: { type: 'number', description: 'Max results' },
+          assignee: { type: 'string', description: 'Filter by assignee (@me for current user)' }
+        },
+        required: ['repo']
+      }
+    },
+    {
+      name: 'github_get_pr_status',
+      description: 'Get review status and mergeability of a pull request.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          repo: { type: 'string', description: 'Repository (owner/name)' },
+          pr_number: { type: 'number', description: 'Pull request number' }
+        },
+        required: ['repo', 'pr_number']
+      }
+    },
+    {
+      name: 'github_list_my_issues',
+      description: 'List issues assigned to current user.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          state: { type: 'string', description: 'Filter by state (open, closed, all)' },
+          limit: { type: 'number', description: 'Max results' }
+        }
+      }
+    },
+    {
+      name: 'github_triage_summary',
+      description: 'Generate a triage summary of current notifications with suggested actions.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
     }
   ];
 
@@ -1672,6 +1797,12 @@ function handleToolCall(id, params) {
   // Handle Gmail operations locally (Build 550 - tokens never sent to browser)
   if (name.startsWith('gmail_')) {
     handleGmailTool(id, name, args || {});
+    return;
+  }
+
+  // Handle GitHub operations locally (Build 750 - uses gh CLI)
+  if (name.startsWith('github_')) {
+    handleGithubTool(id, name, args || {});
     return;
   }
 
@@ -2047,6 +2178,153 @@ async function handleGmailTool(id, name, args) {
           text: JSON.stringify({
             success: false,
             error: 'gmail_error',
+            message: err.message
+          }, null, 2)
+        }]
+      }
+    });
+  }
+}
+
+/**
+ * Handle GitHub tools (Build 750 - Notifications & Triage)
+ * All GitHub operations use gh CLI for authentication
+ */
+async function handleGithubTool(id, name, args) {
+  // Check if GitHub handler is available
+  if (!githubHandler) {
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'github_not_available',
+            message: 'GitHub handler not available. Check that github-handler.js is present.'
+          }, null, 2)
+        }]
+      }
+    });
+    return;
+  }
+
+  let result;
+
+  try {
+    switch (name) {
+      case 'github_check_auth':
+        result = await githubHandler.checkAuthStatus();
+        break;
+
+      case 'github_list_notifications':
+        result = await githubHandler.listNotifications({
+          participating: args.participating,
+          all: args.all,
+          per_page: args.per_page,
+          repo: args.repo
+        });
+        break;
+
+      case 'github_get_thread':
+        if (!args.thread_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: thread_id');
+          return;
+        }
+        result = await githubHandler.getThread(args.thread_id);
+        break;
+
+      case 'github_mark_read':
+        if (args.thread_id) {
+          result = await githubHandler.markThreadRead(args.thread_id);
+        } else {
+          result = await githubHandler.markAllRead(args.last_read_at);
+        }
+        break;
+
+      case 'github_list_workflow_runs':
+        if (!args.repo) {
+          sendMCPError(id, -32602, 'Missing required parameter: repo');
+          return;
+        }
+        result = await githubHandler.listWorkflowRuns(args.repo, {
+          limit: args.limit,
+          branch: args.branch,
+          workflow: args.workflow
+        });
+        break;
+
+      case 'github_get_failed_run':
+        if (!args.repo || !args.run_id) {
+          sendMCPError(id, -32602, 'Missing required parameters: repo, run_id');
+          return;
+        }
+        result = await githubHandler.getFailedRunDetails(args.repo, args.run_id);
+        break;
+
+      case 'github_list_prs':
+        if (!args.repo) {
+          sendMCPError(id, -32602, 'Missing required parameter: repo');
+          return;
+        }
+        result = await githubHandler.listPullRequests(args.repo, {
+          state: args.state,
+          limit: args.limit,
+          assignee: args.assignee
+        });
+        break;
+
+      case 'github_get_pr_status':
+        if (!args.repo || !args.pr_number) {
+          sendMCPError(id, -32602, 'Missing required parameters: repo, pr_number');
+          return;
+        }
+        result = await githubHandler.getPRReviewStatus(args.repo, args.pr_number);
+        break;
+
+      case 'github_list_my_issues':
+        result = await githubHandler.listMyIssues({
+          state: args.state,
+          limit: args.limit
+        });
+        break;
+
+      case 'github_triage_summary':
+        result = await githubHandler.generateTriageSummary();
+        break;
+
+      default:
+        sendMCPError(id, -32601, `Unknown GitHub tool: ${name}`);
+        return;
+    }
+
+    // Log the action
+    log('info', `GitHub ${name}: ${result.success ? 'success' : 'failed'}`);
+
+    // Send result
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }]
+      }
+    });
+
+  } catch (err) {
+    log('error', `GitHub tool error: ${err.message}`);
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'github_error',
             message: err.message
           }, null, 2)
         }]
