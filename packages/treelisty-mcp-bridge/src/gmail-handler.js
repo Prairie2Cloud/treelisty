@@ -491,6 +491,57 @@ async function listLabels() {
   }
 }
 
+/**
+ * Create a new label (Build 752)
+ * @param {string} name - Label name (can include / for nesting, e.g., "Priority/VIP")
+ * @param {string} labelListVisibility - 'labelShow' | 'labelShowIfUnread' | 'labelHide'
+ * @param {string} messageListVisibility - 'show' | 'hide'
+ */
+async function createLabel(name, options = {}) {
+  const gmail = await getGmailClient();
+  if (gmail.error) return gmail;
+
+  try {
+    const response = await gmail.users.labels.create({
+      userId: 'me',
+      requestBody: {
+        name: name,
+        labelListVisibility: options.labelListVisibility || 'labelShow',
+        messageListVisibility: options.messageListVisibility || 'show'
+      }
+    });
+
+    return {
+      success: true,
+      label: {
+        id: response.data.id,
+        name: response.data.name,
+        type: response.data.type
+      }
+    };
+  } catch (err) {
+    // Check if label already exists
+    if (err.message.includes('already exists')) {
+      // Find and return existing label
+      const labels = await listLabels();
+      if (labels.success) {
+        const existing = labels.labels.find(l => l.name === name);
+        if (existing) {
+          return {
+            success: true,
+            label: existing,
+            existed: true
+          };
+        }
+      }
+    }
+    return {
+      success: false,
+      error: err.message
+    };
+  }
+}
+
 // =============================================================================
 // Draft Operations (Build 551)
 // =============================================================================
@@ -818,6 +869,7 @@ module.exports = {
   addLabel,
   removeLabel,
   listLabels,
+  createLabel,
   // Draft operations (Build 551)
   createDraft,
   updateDraft,

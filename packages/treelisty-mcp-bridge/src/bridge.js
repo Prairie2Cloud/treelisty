@@ -1558,6 +1558,18 @@ function handleToolsList(id) {
         properties: {}
       }
     },
+    {
+      name: 'gmail_create_label',
+      description: 'Create a new Gmail label. Returns existing label if it already exists.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Label name (use / for nesting, e.g., "Priority/VIP")' },
+          show_if_unread: { type: 'boolean', description: 'Only show label when there are unread messages (default: false)' }
+        },
+        required: ['name']
+      }
+    },
     // Draft tools (Build 551)
     {
       name: 'gmail_create_draft',
@@ -2152,6 +2164,17 @@ async function handleGmailTool(id, name, args) {
         result = await gmailHandler.listLabels();
         break;
 
+      case 'gmail_create_label':
+        if (!args.name) {
+          sendMCPError(id, -32602, 'Missing required parameter: name');
+          return;
+        }
+        result = await gmailHandler.createLabel(args.name, {
+          labelListVisibility: args.show_if_unread ? 'labelShowIfUnread' : 'labelShow',
+          messageListVisibility: 'show'
+        });
+        break;
+
       // Draft handlers (Build 551)
       case 'gmail_create_draft':
         if (!args.to || !args.subject || !args.body) {
@@ -2667,6 +2690,17 @@ async function handleGmailFromBrowser(tabId, requestId, method, params) {
 
       case 'gmail_list_labels':
         result = await gmailHandler.listLabels();
+        break;
+
+      case 'gmail_create_label':
+        if (!params.name) {
+          sendError('Missing required parameter: name');
+          return;
+        }
+        result = await gmailHandler.createLabel(params.name, {
+          labelListVisibility: params.show_if_unread ? 'labelShowIfUnread' : 'labelShow',
+          messageListVisibility: 'show'
+        });
         break;
 
       case 'gmail_create_draft':
