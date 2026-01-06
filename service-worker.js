@@ -4,7 +4,7 @@
  */
 
 // BUILD 753: Update cache version to force PWA refresh
-const CACHE_NAME = 'treelisty-v2.101.60-b753';
+const CACHE_NAME = 'treelisty-v2.101.61-b754';
 const urlsToCache = [
   '/treeplexity.html',
   '/manifest.json'

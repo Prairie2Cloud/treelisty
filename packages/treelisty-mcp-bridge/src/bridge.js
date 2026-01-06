@@ -195,6 +195,155 @@ function receiveFromTB(message, context = {}) {
   return { success: true, messageId: msg.id };
 }
 
+// =============================================================================
+// CC Capability Registry (Build 754 - Capability Discovery)
+// =============================================================================
+
+/**
+ * Claude Code capabilities that can be delegated from TreeBeard
+ * Each capability includes: description, action type, and whether it's available
+ */
+const CC_CAPABILITIES = {
+  // Gmail capabilities (require authentication)
+  gmail: {
+    description: 'Gmail management - archive, trash, star, label, draft emails',
+    category: 'email',
+    actions: {
+      archive: { description: 'Archive email threads (remove from inbox)', tool: 'gmail_archive' },
+      trash: { description: 'Move email threads to trash', tool: 'gmail_trash' },
+      star: { description: 'Star/unstar email threads', tool: 'gmail_star' },
+      mark_read: { description: 'Mark emails as read/unread', tool: 'gmail_mark_read' },
+      label: { description: 'Add/remove labels from emails', tool: 'gmail_add_label' },
+      create_label: { description: 'Create new Gmail labels', tool: 'gmail_create_label' },
+      draft: { description: 'Create, update, send email drafts', tool: 'gmail_create_draft' },
+      cleanup: { description: 'Batch archive/delete emails by criteria', custom: true }
+    },
+    checkAvailable: async () => {
+      const status = await gmailHandler.checkAuthStatus();
+      return status.authenticated;
+    }
+  },
+
+  // GitHub capabilities (require gh CLI)
+  github: {
+    description: 'GitHub management - notifications, PRs, issues, CI status',
+    category: 'development',
+    actions: {
+      notifications: { description: 'List and manage GitHub notifications', tool: 'github_list_notifications' },
+      mark_read: { description: 'Mark notifications as read', tool: 'github_mark_read' },
+      prs: { description: 'List and check PR status', tool: 'github_list_prs' },
+      issues: { description: 'List assigned issues', tool: 'github_list_my_issues' },
+      ci_status: { description: 'Check CI/CD workflow status', tool: 'github_list_workflow_runs' },
+      triage: { description: 'Get triage summary of notifications', tool: 'github_triage_summary' }
+    },
+    checkAvailable: async () => {
+      const status = await githubHandler.checkAuthStatus();
+      return status.authenticated;
+    }
+  },
+
+  // Chrome Extension capabilities
+  chrome: {
+    description: 'Chrome browser automation - screenshots, DOM, tabs',
+    category: 'browser',
+    actions: {
+      screenshot: { description: 'Capture screenshots of browser tabs', tool: 'ext_capture_screen' },
+      dom: { description: 'Extract DOM/HTML from pages', tool: 'ext_extract_dom' },
+      tabs: { description: 'List open browser tabs', tool: 'ext_list_tabs' }
+    },
+    checkAvailable: () => extensionSocket !== null
+  },
+
+  // File operations
+  files: {
+    description: 'Local file operations - read, write, search codebase',
+    category: 'filesystem',
+    actions: {
+      read: { description: 'Read local files', custom: true },
+      write: { description: 'Write/edit local files', custom: true },
+      search: { description: 'Search codebase with grep/glob', custom: true },
+      git: { description: 'Git operations (status, commit, push)', custom: true }
+    },
+    checkAvailable: () => true // Always available in CC
+  },
+
+  // Tree operations (via MCP)
+  tree: {
+    description: 'TreeListy tree manipulation - CRUD, bulk ops, views',
+    category: 'treelisty',
+    actions: {
+      read: { description: 'Read tree/node data', tool: 'get_tree' },
+      create: { description: 'Create nodes', tool: 'create_node' },
+      update: { description: 'Update nodes', tool: 'update_node' },
+      delete: { description: 'Delete nodes', tool: 'delete_node' },
+      bulk: { description: 'Bulk operations on multiple nodes', tool: 'bulk_update' },
+      search: { description: 'Search nodes', tool: 'search_nodes' }
+    },
+    checkAvailable: () => connections.size > 0
+  }
+};
+
+/**
+ * Get all CC capabilities with availability status
+ */
+async function getCCCapabilities() {
+  const result = {};
+
+  for (const [key, cap] of Object.entries(CC_CAPABILITIES)) {
+    let available = false;
+    try {
+      if (typeof cap.checkAvailable === 'function') {
+        available = await cap.checkAvailable();
+      }
+    } catch (e) {
+      available = false;
+    }
+
+    result[key] = {
+      description: cap.description,
+      category: cap.category,
+      available,
+      actions: Object.keys(cap.actions).map(action => ({
+        name: action,
+        description: cap.actions[action].description
+      }))
+    };
+  }
+
+  return result;
+}
+
+/**
+ * Check if a specific capability/action is available
+ */
+async function checkCCCapability(capability, action = null) {
+  const cap = CC_CAPABILITIES[capability];
+  if (!cap) {
+    return { available: false, error: `Unknown capability: ${capability}` };
+  }
+
+  let available = false;
+  try {
+    if (typeof cap.checkAvailable === 'function') {
+      available = await cap.checkAvailable();
+    }
+  } catch (e) {
+    return { available: false, error: e.message };
+  }
+
+  if (action && !cap.actions[action]) {
+    return { available: false, error: `Unknown action: ${action}` };
+  }
+
+  return {
+    available,
+    capability,
+    action,
+    description: action ? cap.actions[action].description : cap.description,
+    tool: action ? cap.actions[action].tool : null
+  };
+}
+
 /**
  * Generate unique task ID
  */
@@ -1918,6 +2067,41 @@ function handleToolsList(id) {
         type: 'object',
         properties: {}
       }
+    },
+    // CC Capability Discovery tools (Build 754)
+    {
+      name: 'cc_get_capabilities',
+      description: 'Get all Claude Code capabilities available for TB delegation. Returns what CC can do (gmail, github, files, etc.) with availability status.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'cc_check_capability',
+      description: 'Check if a specific CC capability/action is available.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          capability: { type: 'string', description: 'Capability name: gmail, github, chrome, files, tree' },
+          action: { type: 'string', description: 'Optional specific action to check (e.g., archive, cleanup)' }
+        },
+        required: ['capability']
+      }
+    },
+    {
+      name: 'cc_request_action',
+      description: 'Request Claude Code to perform an action on behalf of TreeBeard. Returns a task ID for tracking.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          capability: { type: 'string', description: 'Capability to use: gmail, github, chrome, files, tree' },
+          action: { type: 'string', description: 'Action to perform (e.g., cleanup, archive, screenshot)' },
+          params: { type: 'object', description: 'Parameters for the action' },
+          description: { type: 'string', description: 'Human-readable description of what to do' }
+        },
+        required: ['capability', 'action', 'description']
+      }
     }
   ];
 
@@ -2676,6 +2860,47 @@ function handleCCTool(id, name, args) {
         };
         break;
 
+      // Build 754: Capability Discovery handlers
+      case 'cc_get_capabilities':
+        result = await getCCCapabilities();
+        break;
+
+      case 'cc_check_capability':
+        if (!args.capability) {
+          sendMCPError(id, -32602, 'Missing required parameter: capability');
+          return;
+        }
+        result = await checkCCCapability(args.capability, args.action);
+        break;
+
+      case 'cc_request_action':
+        if (!args.capability || !args.action || !args.description) {
+          sendMCPError(id, -32602, 'Missing required parameters: capability, action, description');
+          return;
+        }
+        // Queue as a task for CC to handle
+        const taskId = generateTaskId();
+        const task = {
+          id: taskId,
+          type: 'cc_action_request',
+          capability: args.capability,
+          action: args.action,
+          params: args.params || {},
+          description: args.description,
+          requestedAt: Date.now(),
+          status: 'pending'
+        };
+        // Add to task queue
+        taskQueue.push(task);
+        log('info', `[CC Action Request] ${taskId}: ${args.capability}.${args.action} - ${args.description}`);
+        // Notify browser about the action request
+        broadcastToBrowser({
+          type: 'cc_action_request',
+          ...task
+        });
+        result = { success: true, taskId, message: 'Action request queued for Claude Code' };
+        break;
+
       default:
         sendMCPError(id, -32601, `Unknown CC tool: ${name}`);
         return;
@@ -3152,6 +3377,56 @@ function handleBrowserMessage(tabId, message) {
       ws.send(JSON.stringify({
         type: 'tb_message_received',
         ...msgResult
+      }));
+    }
+    return;
+  }
+
+  // Handle CC capability request from browser (Build 754 - Capability Discovery)
+  if (type === 'get_cc_capabilities') {
+    log('info', '[CC Capabilities] Browser requested capabilities');
+    getCCCapabilities().then(capabilities => {
+      const ws = connections.get(tabId);
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(JSON.stringify({
+          type: 'cc_capabilities_response',
+          requestId: message.requestId,
+          capabilities: capabilities
+        }));
+        log('info', `[CC Capabilities] Sent ${Object.keys(capabilities).length} capabilities to browser`);
+      }
+    }).catch(err => {
+      log('error', `[CC Capabilities] Error: ${err.message}`);
+    });
+    return;
+  }
+
+  // Handle CC action request from browser (Build 754)
+  if (type === 'cc_action_request') {
+    log('info', `[CC Action Request] ${message.capability}.${message.action}: ${message.description}`);
+    // Queue the action request for CC to pick up
+    const taskId = generateTaskId();
+    const task = {
+      id: taskId,
+      type: 'cc_action_request',
+      capability: message.capability,
+      action: message.action,
+      params: message.params || {},
+      description: message.description,
+      requestedAt: Date.now(),
+      requestedBy: 'browser',
+      status: 'pending'
+    };
+    taskQueue.push(task);
+
+    // Confirm to browser
+    const ws = connections.get(tabId);
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify({
+        type: 'cc_action_queued',
+        taskId: taskId,
+        capability: message.capability,
+        action: message.action
       }));
     }
     return;
