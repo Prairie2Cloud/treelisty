@@ -42,6 +42,16 @@ try {
   // Will return helpful error when GitHub tools are called
 }
 
+// Triage Agent for autonomous monitoring (Build 751)
+let TriageAgent = null;
+let triageAgent = null;
+try {
+  TriageAgent = require('./triage-agent');
+} catch (err) {
+  // Triage agent not available
+  console.log('[Bridge] Triage agent not available:', err.message);
+}
+
 // =============================================================================
 // Configuration
 // =============================================================================
@@ -1739,6 +1749,56 @@ function handleToolsList(id) {
         type: 'object',
         properties: {}
       }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // Triage Agent Operations (Build 751 - Autonomous Monitoring)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'triage_start',
+      description: 'Start the autonomous triage agent for continuous monitoring.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          poll_interval: { type: 'number', description: 'Polling interval in seconds (default: 300 = 5 min)' },
+          auto_approve: { type: 'boolean', description: 'Auto-approve low-risk actions (default: false)' }
+        }
+      }
+    },
+    {
+      name: 'triage_stop',
+      description: 'Stop the autonomous triage agent.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'triage_status',
+      description: 'Get the current status of the triage agent.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'triage_now',
+      description: 'Trigger an immediate triage cycle (manual).',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'triage_config',
+      description: 'Update triage agent configuration.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          poll_interval: { type: 'number', description: 'Polling interval in seconds' },
+          auto_approve: { type: 'boolean', description: 'Auto-approve low-risk actions' },
+          monitors: { type: 'object', description: 'Enable/disable specific monitors (github, etc.)' }
+        }
+      }
     }
   ];
 
@@ -1803,6 +1863,12 @@ function handleToolCall(id, params) {
   // Handle GitHub operations locally (Build 750 - uses gh CLI)
   if (name.startsWith('github_')) {
     handleGithubTool(id, name, args || {});
+    return;
+  }
+
+  // Handle Triage Agent operations (Build 751)
+  if (name.startsWith('triage_')) {
+    handleTriageTool(id, name, args || {});
     return;
   }
 
@@ -2331,6 +2397,138 @@ async function handleGithubTool(id, name, args) {
       }
     });
   }
+}
+
+/**
+ * Handle Triage Agent tools (Build 751 - Autonomous Monitoring)
+ */
+async function handleTriageTool(id, name, args) {
+  // Initialize triage agent if needed
+  if (!triageAgent && TriageAgent) {
+    triageAgent = new TriageAgent({
+      broadcastToBrowser: broadcastToAllBrowsers
+    });
+    log('info', 'Triage agent initialized');
+  }
+
+  if (!triageAgent) {
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'triage_not_available',
+            message: 'Triage agent not available. Check that triage-agent.js is present.'
+          }, null, 2)
+        }]
+      }
+    });
+    return;
+  }
+
+  let result;
+
+  try {
+    switch (name) {
+      case 'triage_start':
+        const startOptions = {};
+        if (args.poll_interval) {
+          startOptions.pollInterval = args.poll_interval * 1000; // Convert seconds to ms
+        }
+        if (typeof args.auto_approve === 'boolean') {
+          startOptions.autoApprove = args.auto_approve;
+        }
+        result = triageAgent.start(startOptions);
+        break;
+
+      case 'triage_stop':
+        result = triageAgent.stop();
+        break;
+
+      case 'triage_status':
+        result = triageAgent.getStatus();
+        break;
+
+      case 'triage_now':
+        result = await triageAgent.triggerNow();
+        break;
+
+      case 'triage_config':
+        const configOptions = {};
+        if (args.poll_interval) {
+          configOptions.pollInterval = args.poll_interval * 1000;
+        }
+        if (typeof args.auto_approve === 'boolean') {
+          configOptions.autoApprove = args.auto_approve;
+        }
+        if (args.monitors) {
+          configOptions.monitors = args.monitors;
+        }
+        result = triageAgent.updateConfig(configOptions);
+        break;
+
+      default:
+        sendMCPError(id, -32601, `Unknown triage tool: ${name}`);
+        return;
+    }
+
+    // Log the action
+    log('info', `Triage ${name}: ${result.success !== false ? 'success' : 'failed'}`);
+
+    // Send result
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }]
+      }
+    });
+
+  } catch (err) {
+    log('error', `Triage tool error: ${err.message}`);
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'triage_error',
+            message: err.message
+          }, null, 2)
+        }]
+      }
+    });
+  }
+}
+
+/**
+ * Broadcast message to all connected browsers
+ * Used by triage agent to send updates
+ */
+function broadcastToAllBrowsers(data) {
+  const message = JSON.stringify({
+    jsonrpc: '2.0',
+    method: 'notification',
+    params: data
+  });
+
+  let sent = 0;
+  for (const [tabId, ws] of connections.entries()) {
+    if (ws.readyState === WebSocket.OPEN) {
+      ws.send(message);
+      sent++;
+    }
+  }
+
+  log('info', `Broadcast to ${sent} browser(s): ${data.type || 'unknown'}`);
 }
 
 /**
