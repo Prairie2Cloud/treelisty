@@ -1,12 +1,12 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.85 (Build 778)
+Current Version: v2.101.88 (Build 781)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build778.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build781.json`
 
 The self-tree contains:
 - **Measured Signals**: 4.8 MB, 100,000+ lines, 496 tests, 9 views, 44 keyboard shortcuts
@@ -38,7 +38,10 @@ Key files:
 - `netlify/functions/claude-proxy.js` - Server proxy for Claude API
 - `.claude/skills/treelisty/SKILL.md` - Skill definition for Claude Code
 - `packages/treelisty-mcp-bridge/` - MCP server for Claude Code integration
+- `packages/treelisty-mcp-bridge/src/drive-handler.js` - GDrive MCP handler
 - `packages/treelisty-chrome-extension/` - Chrome extension for screen capture
+- `export_google_drive_to_treelisty.py` - GDrive metadata export
+- `export_gdrive_content_to_treelisty.py` - GDrive content extraction for RAG
 
 ## Build Versioning
 
@@ -113,7 +116,42 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Recent Features (Builds 769-778)
+## Recent Features (Builds 769-781)
+
+### GDrive RAG Integration (Builds 770-781)
+
+Complete Google Drive integration with content extraction, semantic search, and AI organization:
+
+**Phase 1-3: Content & Search (Builds 770-772)**
+- `export_gdrive_content_to_treelisty.py` - Extract text from Docs, PDFs, Word, Excel
+- `drive-handler.js` - MCP tools for Claude Code to browse/search Drive
+- `RetrievalEngine` - Hybrid search (text + semantic) with embeddings
+
+**Phase 4: File Actions (Build 779)**
+- Context menu: "Open in Drive", "Copy Link", "View Content"
+- Info panel shows file metadata (size, modified, owner)
+- TB commands: `copy_file_link`, `view_file_content`
+
+**Phase 5: UI/UX (Build 780)**
+- Breadcrumb navigation with clickable folder ancestors
+- Content preview (first 250 chars of extracted text)
+- Source badges: Extracted/Pending/Error/Not Extracted
+- File type filter bar: All, Folders, Docs, Sheets, Slides, PDF
+
+**Phase 6: AI Organization (Build 781)**
+- `findDuplicateFiles()` - Detect same name/size duplicates
+- `findEmptyFolders()` - Find folders with no content
+- `findOldFiles()` - Find files not modified in X days
+- `analyzeGDriveOrganization()` - Full analysis with suggestions modal
+- `exportOrganizationReport()` - Export findings as Markdown
+- TB commands: `analyze_drive`, `find_duplicates`, `find_empty_folders`, `find_old_files`
+
+**Key Functions:**
+- `isGDriveTree()` - Detect if current tree is from GDrive
+- `buildBreadcrumbPath(node)` - Build folder path from root
+- `getContentPreview(node)` - Extract text preview from RAG chunks
+- `getGDriveSourceBadge(node)` - Extraction status badge
+- `applyGDriveFilter(filter)` - Filter tree by file type
 
 ### TreeBeard Natural Language Command System (Builds 773-778)
 Complete overhaul of TB's natural language command interpretation:
@@ -327,6 +365,8 @@ TreeBeard is the AI assistant with 100+ commands organized by category:
 
 **Gmail**: `list_emails`, `read_email`, `archive_email`, `star_email`, `draft_reply`
 
+**GDrive**: `analyze_drive`, `find_duplicates`, `find_empty_folders`, `find_old_files`, `copy_file_link`, `view_file_content`, `export_organization_report`
+
 **Image**: `analyze_image`, `capture_screen`, `image_to_tree`
 
 ### MCP Bridge
@@ -339,7 +379,18 @@ TreeListy UI → MCP Bridge → Claude Code CLI
 
 - Location: `packages/treelisty-mcp-bridge/`
 - Start: `node packages/treelisty-mcp-bridge/src/bridge.js`
-- Tools: Tree CRUD, task queue, Gmail actions, Chrome extension relay
+- Tools: Tree CRUD, task queue, Gmail actions, GDrive operations, Chrome extension relay
+
+**GDrive MCP Tools** (Build 771):
+- `gdrive_check_auth` - Check Drive authentication status
+- `gdrive_list_files` - List files in a folder
+- `gdrive_get_file_info` - Get file metadata
+- `gdrive_search` - Search files by name
+- `gdrive_extract_content` - Trigger Python extraction script
+- `gdrive_open_file` - Open file in browser
+
+**RAG MCP Tools** (Build 772):
+- `retrieve_context` - Hybrid search over extracted content
 
 ### Chrome Extension
 
@@ -347,6 +398,37 @@ Screen capture and DOM extraction:
 - Location: `packages/treelisty-chrome-extension/`
 - Load via `chrome://extensions` (Developer mode)
 - MCP tools: `ext_capture_screen`, `ext_extract_dom`, `ext_list_tabs`
+
+### GDrive Integration (Builds 770-781)
+
+Complete Google Drive integration for RAG and organization analysis.
+
+**Setup:**
+1. Enable Drive API: https://console.cloud.google.com/apis/library/drive.googleapis.com
+2. Create OAuth credentials (Desktop app) → download as `credentials.json`
+3. Run: `python export_gdrive_content_to_treelisty.py` (authenticates, creates `token-drive.json`)
+4. Import resulting JSON into TreeListy
+
+**Workflow:**
+```
+GDrive → Python Script → JSON with RAG chunks → TreeListy
+                                                    ↓
+                                          RetrievalEngine (hybrid search)
+                                                    ↓
+                                          Organization Analysis
+```
+
+**Key Variables:**
+- `gdriveOrganizationState` - Analysis state (analyzing, lastAnalysis, suggestions)
+- `_rag.chunks` - Extracted text chunks on file nodes
+- `fileUrl`, `fileSize`, `dateModified` - GDrive metadata on nodes
+
+**Natural Language Triggers:**
+- "analyze my drive" → `analyze_drive`
+- "find duplicates" → `find_duplicates`
+- "find empty folders" → `find_empty_folders`
+- "find old files" → `find_old_files`
+- "cleanup suggestions" → `analyze_drive`
 
 ### Collaboration System
 
