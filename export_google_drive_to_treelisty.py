@@ -27,13 +27,14 @@ from googleapiclient.discovery import build
 
 # Google Drive API scope (read-only)
 SCOPES = ['https://www.googleapis.com/auth/drive.readonly']
+TOKEN_FILE = 'token-drive.json'  # Separate from Gmail token
 
 def authenticate():
     """Authenticate with Google Drive API"""
     creds = None
 
-    if os.path.exists('token.json'):
-        creds = Credentials.from_authorized_user_file('token.json', SCOPES)
+    if os.path.exists(TOKEN_FILE):
+        creds = Credentials.from_authorized_user_file(TOKEN_FILE, SCOPES)
 
     if not creds or not creds.valid:
         if creds and creds.expired and creds.refresh_token:
@@ -53,7 +54,7 @@ def authenticate():
             flow = InstalledAppFlow.from_client_secrets_file('credentials.json', SCOPES)
             creds = flow.run_local_server(port=0)
 
-        with open('token.json', 'w') as token:
+        with open(TOKEN_FILE, 'w') as token:
             token.write(creds.to_json())
 
     return build('drive', 'v3', credentials=creds)
