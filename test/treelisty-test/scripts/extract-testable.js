@@ -26,6 +26,10 @@ const FUNCTIONS_TO_EXTRACT = [
     // Migration system
     'normalizeNode',
     'migrateTree',
+    'migrateTreeIdentity',
+    'migrateNodeIdentity',
+    'generateTreeId',
+    'generateNodeGuid',
 
     // Tree operations
     // 'getNodeById', // Extracted below as wrapper with tree parameter

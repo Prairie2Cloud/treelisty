@@ -6,6 +6,8 @@
 
 **Version**: 2.10.0 (Build 165) | [Web App](./treeplexity.html) | [Examples](./examples/)
 
+[![E2E Tests](https://github.com/Prairie2Cloud/treelisty/actions/workflows/e2e-tests.yml/badge.svg)](https://github.com/Prairie2Cloud/treelisty/actions/workflows/e2e-tests.yml)
+
 ---
 
 ## What is TreeListy?
