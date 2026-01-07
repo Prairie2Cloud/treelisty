@@ -514,8 +514,8 @@ test.describe('TreeBeard Natural Language Commands', () => {
             expect(node).not.toBeNull();
         });
 
-        // Skip: Redo functionality has known issues with undo stack restoration
-        test.skip('META-02: "redo" should reapply undone action', async ({ page }) => {
+        // BUILD 778: Redo functionality fixed with proper redoStack
+        test('META-02: "redo" should reapply undone action', async ({ page }) => {
             test.setTimeout(60000); // Increase timeout for multi-step test
 
             // Make a change
