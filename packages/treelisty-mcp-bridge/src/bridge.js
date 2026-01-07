@@ -52,6 +52,15 @@ try {
   console.log('[Bridge] Triage agent not available:', err.message);
 }
 
+// Google Drive handler for RAG integration (Build 771)
+let driveHandler = null;
+try {
+  driveHandler = require('./drive-handler');
+} catch (err) {
+  // Drive handler not available
+  console.log('[Bridge] Drive handler not available:', err.message);
+}
+
 // =============================================================================
 // Configuration
 // =============================================================================
@@ -2037,6 +2046,88 @@ function handleToolsList(id) {
         }
       }
     },
+    // ═══════════════════════════════════════════════════════════════
+    // Google Drive Operations (Build 771 - RAG Integration)
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'gdrive_check_auth',
+      description: 'Check Google Drive authentication status.',
+      inputSchema: {
+        type: 'object',
+        properties: {}
+      }
+    },
+    {
+      name: 'gdrive_list_files',
+      description: 'List files in a Google Drive folder.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          folder_id: { type: 'string', description: 'Folder ID (default: root = My Drive)' },
+          page_size: { type: 'number', description: 'Results per page (default: 50)' },
+          page_token: { type: 'string', description: 'Token for next page of results' }
+        }
+      }
+    },
+    {
+      name: 'gdrive_get_file_info',
+      description: 'Get metadata for a specific file.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          file_id: { type: 'string', description: 'Google Drive file ID' }
+        },
+        required: ['file_id']
+      }
+    },
+    {
+      name: 'gdrive_search',
+      description: 'Search for files by name.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query (file name)' },
+          folder_id: { type: 'string', description: 'Limit search to folder' },
+          mime_type: { type: 'string', description: 'Filter by MIME type' },
+          limit: { type: 'number', description: 'Max results (default: 20)' }
+        },
+        required: ['query']
+      }
+    },
+    {
+      name: 'gdrive_extract_content',
+      description: 'Extract text content from files in a folder for RAG. Downloads and parses Google Docs, PDFs, Word, Excel.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          folder_id: { type: 'string', description: 'Folder ID to extract (default: root)' },
+          max_depth: { type: 'number', description: 'Max folder depth (default: 5)' },
+          chunk_size: { type: 'number', description: 'Text chunk size in chars (default: 1500)' }
+        }
+      }
+    },
+    {
+      name: 'gdrive_open_file',
+      description: 'Open a file in the browser.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          file_id: { type: 'string', description: 'Google Drive file ID' }
+        },
+        required: ['file_id']
+      }
+    },
+    {
+      name: 'gdrive_get_download_link',
+      description: 'Get download or export link for a file.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          file_id: { type: 'string', description: 'Google Drive file ID' }
+        },
+        required: ['file_id']
+      }
+    },
     // CC ↔ TB Communication tools (Build 753)
     {
       name: 'cc_send_to_tb',
@@ -2172,6 +2263,12 @@ function handleToolCall(id, params) {
   // Handle Triage Agent operations (Build 751)
   if (name.startsWith('triage_')) {
     handleTriageTool(id, name, args || {});
+    return;
+  }
+
+  // Handle Google Drive operations (Build 771)
+  if (name.startsWith('gdrive_')) {
+    handleDriveTool(id, name, args || {});
     return;
   }
 
@@ -2821,6 +2918,132 @@ async function handleTriageTool(id, name, args) {
           text: JSON.stringify({
             success: false,
             error: 'triage_error',
+            message: err.message
+          }, null, 2)
+        }]
+      }
+    });
+  }
+}
+
+/**
+ * Handle Google Drive tools (Build 771 - RAG Integration)
+ */
+async function handleDriveTool(id, name, args) {
+  // Check if handler is available
+  if (!driveHandler) {
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'handler_not_available',
+            message: 'Drive handler not available. Check that drive-handler.js is present.'
+          }, null, 2)
+        }]
+      }
+    });
+    return;
+  }
+
+  let result;
+
+  try {
+    switch (name) {
+      case 'gdrive_check_auth':
+        result = await driveHandler.checkAuthStatus();
+        break;
+
+      case 'gdrive_list_files':
+        result = await driveHandler.listFiles(
+          args.folder_id || 'root',
+          {
+            pageSize: args.page_size,
+            pageToken: args.page_token
+          }
+        );
+        break;
+
+      case 'gdrive_get_file_info':
+        if (!args.file_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: file_id');
+          return;
+        }
+        result = await driveHandler.getFileInfo(args.file_id);
+        break;
+
+      case 'gdrive_search':
+        if (!args.query) {
+          sendMCPError(id, -32602, 'Missing required parameter: query');
+          return;
+        }
+        result = await driveHandler.searchFiles(args.query, {
+          folderId: args.folder_id,
+          mimeType: args.mime_type,
+          limit: args.limit
+        });
+        break;
+
+      case 'gdrive_extract_content':
+        result = await driveHandler.extractContent(
+          args.folder_id || 'root',
+          {
+            maxDepth: args.max_depth,
+            chunkSize: args.chunk_size
+          }
+        );
+        break;
+
+      case 'gdrive_open_file':
+        if (!args.file_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: file_id');
+          return;
+        }
+        result = await driveHandler.openFile(args.file_id);
+        break;
+
+      case 'gdrive_get_download_link':
+        if (!args.file_id) {
+          sendMCPError(id, -32602, 'Missing required parameter: file_id');
+          return;
+        }
+        result = await driveHandler.getDownloadLink(args.file_id);
+        break;
+
+      default:
+        sendMCPError(id, -32601, `Unknown Drive tool: ${name}`);
+        return;
+    }
+
+    // Log the action
+    log('info', `Drive ${name}: ${result.success !== false && !result.error ? 'success' : 'failed'}`);
+
+    // Send result
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }]
+      }
+    });
+
+  } catch (err) {
+    log('error', `Drive tool error: ${err.message}`);
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'drive_error',
             message: err.message
           }, null, 2)
         }]
