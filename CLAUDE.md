@@ -1,15 +1,15 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.76 (Build 769)
+Current Version: v2.101.85 (Build 778)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build769.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build778.json`
 
 The self-tree contains:
-- **Measured Signals**: 4.73 MB, 99,432 lines, 469 tests, 9 views, 44 keyboard shortcuts
+- **Measured Signals**: 4.8 MB, 100,000+ lines, 496 tests, 9 views, 44 keyboard shortcuts
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
@@ -58,7 +58,15 @@ cd test/treelisty-test
 npm run test:unit
 ```
 
-All 469+ tests should pass.
+All 469+ unit tests should pass.
+
+Run TB Natural Language E2E tests:
+```bash
+cd test/treelisty-test
+npm run test:tb-nl
+```
+
+All 27 TB NL tests should pass (tests against live site).
 
 ## Architecture
 
@@ -86,6 +94,9 @@ treeplexity.html (single file ~1.3MB)
 - `mcpBridgeState` - MCP bridge connection state
 - `TreeRegistry` - Atlas cross-tree registry
 - `tbState` - TreeBeard session state
+- `historyStack` - undo history (max 50 states)
+- `redoStack` - redo history (Build 778)
+- `directMappings` - TB fast-path command patterns with paramGroup support
 
 ### Key Functions
 - `render()` - re-render tree view
@@ -93,13 +104,67 @@ treeplexity.html (single file ~1.3MB)
 - `render3D()` - re-render 3D view
 - `renderGantt()` - re-render Gantt view
 - `renderCalendar()` - re-render Calendar view
-- `saveState(description)` - save undo state
+- `saveState(description)` - save undo state (clears redoStack)
+- `undo()` - restore previous state (saves current to redoStack)
+- `redo()` - restore undone state (Build 778)
 - `showToast(message, type)` - show notification
 - `normalizeTreeStructure(tree)` - ensure consistent tree format
+- `preflightCapabilityCheck(message)` - fast-path NL command routing
 
 ---
 
-## Recent Features (Builds 666-700)
+## Recent Features (Builds 769-778)
+
+### TreeBeard Natural Language Command System (Builds 773-778)
+Complete overhaul of TB's natural language command interpretation:
+
+- **778**: Redo Functionality
+  - Added `redoStack` for storing undone states
+  - `undo()` now saves current state to redoStack before restoring
+  - New `redo()` function pops from redoStack and restores
+  - `redoStack` cleared when `saveState()` called (new actions invalidate redo)
+  - `updateRedoButton()` updates redo button state
+  - All 27 TB NL tests now pass
+
+- **777**: Parameter Case Preservation
+  - Fixed `preflightCapabilityCheck` lowercasing parameters
+  - Parameters like "Security Review" now preserved (was "security review")
+  - Extracts params from original message while matching against lowercase
+
+- **776**: Focus Commands + selectedNodeId
+  - `focus_node` and `focus_root` now set `window.selectedNodeId`
+  - Required for test compatibility with node selection verification
+
+- **775**: Enhanced TB Natural Language Patterns
+  - Added 30+ new patterns to `directMappings` array:
+    - Navigation: "navigate to root", "go to root" → `focus_root`
+    - Expand/Collapse: "expand everything", "collapse everything" → `expand_all`/`collapse_all`
+    - Node-specific: "expand Phase 4" → `expand_node` with param
+    - Undo/Redo: "undo that", "take it back" → `undo`
+    - Add child: "add a new task called X" → `add_child` with param extraction
+    - Rename: "rename this to X" → `rename_node` with param
+    - Delete: "delete the X node" → `delete_node` with param
+    - Set description: "set description to X" → `set_description` with param
+  - `expand_node`, `collapse_node`, `delete_node` now accept name parameter
+  - `paramGroup` in directMappings specifies which regex capture group is the parameter
+
+- **774**: TB View Switching NL Fix
+  - Added "display" as verb prefix ("display gantt chart")
+  - Added "mode" as suffix ("open 3D mode")
+  - Added `switch_to_gantt` alias to `view_gantt`
+  - Improved fast-path for "switch to tree" variations
+
+### RAG & GDrive Integration (Builds 770-772)
+- **772**: RAG Retrieval Engine with hybrid search (text + semantic)
+- **771**: MCP Drive Handler - Claude Code can browse/search Drive
+- **770**: GDrive Content Extraction - Python script for RAG indexing
+
+### Other Recent Builds (769)
+- **769**: Schema Version 2 Fix - SCHEMA_VERSION updated to match Atlas Identity migration
+
+---
+
+## Previous Features (Builds 666-700)
 
 ### Gallery of Trees (Builds 696-700)
 Public tree discovery and sharing system:
