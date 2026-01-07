@@ -2128,6 +2128,22 @@ function handleToolsList(id) {
         required: ['file_id']
       }
     },
+    // RAG Retrieval tools (Build 772)
+    {
+      name: 'retrieve_context',
+      description: 'Search TreeListy nodes for relevant content. Returns matching nodes with their hierarchical context. Use this to find information in knowledge bases.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search query (keywords or phrase)' },
+          max_results: { type: 'number', description: 'Maximum results to return (default: 10)' },
+          pattern_filter: { type: 'string', description: 'Only search nodes with this pattern (e.g., "knowledge-base")' },
+          source_filter: { type: 'string', description: 'Only search nodes from this source (e.g., filename or URL)' },
+          include_context: { type: 'boolean', description: 'Include parent hierarchy for context (default: true)' }
+        },
+        required: ['query']
+      }
+    },
     // CC ↔ TB Communication tools (Build 753)
     {
       name: 'cc_send_to_tb',
