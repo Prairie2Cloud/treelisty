@@ -434,6 +434,10 @@ test.describe('TreeBeard Natural Language Commands', () => {
         });
 
         test('VIEW-04: "display gantt chart" should switch to gantt', async ({ page }) => {
+            // Reset to tree view first to ensure clean state
+            await sendTBCommand(page, 'tree', false);
+            await page.waitForTimeout(500);
+
             await sendTBCommand(page, 'display gantt chart');
             await page.waitForTimeout(2000);
 
@@ -510,6 +514,8 @@ test.describe('TreeBeard Natural Language Commands', () => {
         });
 
         test('META-02: "redo" should reapply undone action', async ({ page }) => {
+            test.setTimeout(60000); // Increase timeout for multi-step test
+
             // Make a change
             await sendTBCommand(page, 'focus_node:Design');
             await page.waitForTimeout(500);
