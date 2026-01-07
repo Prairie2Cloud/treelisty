@@ -33,8 +33,8 @@ describe('Migration System', () => {
             expect(SCHEMA_VERSION).toBeGreaterThan(0);
         });
 
-        it('should be version 1 for current implementation', () => {
-            expect(SCHEMA_VERSION).toBe(1);
+        it('should be version 2 for current implementation', () => {
+            expect(SCHEMA_VERSION).toBe(2);
         });
     });
 
