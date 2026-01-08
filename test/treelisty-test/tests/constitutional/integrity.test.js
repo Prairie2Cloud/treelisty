@@ -59,7 +59,7 @@ describe('ARTICLE III: Structural Integrity', () => {
   describe('Consent for Destruction', () => {
     
     test('delete node requires confirmation', () => {
-      const confirmCalled = jest.fn(() => true);
+      const confirmCalled = vi.fn(() => true);
       global.confirm = confirmCalled;
       
       const tree = createTestTree();

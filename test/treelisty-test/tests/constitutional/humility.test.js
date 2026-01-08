@@ -182,7 +182,7 @@ describe('ARTICLE IV: Epistemic Humility', () => {
   describe('Action Mode Behavior', () => {
     
     test('silent mode executes without UI interruption', async () => {
-      const toastShown = jest.fn();
+      const toastShown = vi.fn();
       global.showToast = toastShown;
       
       await executeWithConfidence({
@@ -196,7 +196,7 @@ describe('ARTICLE IV: Epistemic Humility', () => {
     });
     
     test('narrate mode shows toast with action description', async () => {
-      const toastShown = jest.fn();
+      const toastShown = vi.fn();
       global.showToast = toastShown;
       
       await executeWithConfidence({
@@ -210,7 +210,7 @@ describe('ARTICLE IV: Epistemic Humility', () => {
     });
     
     test('ask mode waits for user selection', async () => {
-      const userPrompt = jest.fn(() => Promise.resolve('option_1'));
+      const userPrompt = vi.fn(() => Promise.resolve('option_1'));
       global.promptUser = userPrompt;
       
       const result = await executeWithConfidence({
@@ -224,7 +224,7 @@ describe('ARTICLE IV: Epistemic Humility', () => {
     });
     
     test('ask mode allows cancellation', async () => {
-      global.promptUser = jest.fn(() => Promise.resolve(null));
+      global.promptUser = vi.fn(() => Promise.resolve(null));
       
       const result = await executeWithConfidence({
         action: 'ambiguous',

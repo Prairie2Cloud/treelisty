@@ -12,7 +12,10 @@ export default defineConfig({
         include: [
             'test/unit/**/*.test.js',
             'test/integration/**/*.test.js',
-            'test/scenarios/**/*.scenario.js'
+            'test/scenarios/**/*.scenario.js',
+            'tests/constitutional/**/*.test.js',
+            'tests/red-team/**/*.test.js',
+            'tests/mvs/**/*.test.js'
         ],
         
         // Exclude patterns
