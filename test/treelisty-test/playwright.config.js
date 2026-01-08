@@ -8,9 +8,9 @@ const webServerCommand = process.env.WEB_SERVER_CMD || 'npx serve -p 3000 ../..'
 const webServerUrl = process.env.WEB_SERVER_URL || 'http://localhost:3000';
 
 export default defineConfig({
-    // Test directory
-    testDir: './test/e2e',
-    
+    // Test directory - includes e2e and smoke subdirectories
+    testDir: './test',
+
     // Test file pattern
     testMatch: '**/*.{spec,test}.js',
     

@@ -131,21 +131,22 @@ test.describe('SMOKE 2: Tree Import Flow', () => {
 
         try {
             // Find the file input (may be hidden)
-            const fileInput = page.locator('#load-json-input');
+            const fileInput = page.locator('#json-upload-input');
 
             // Upload the file
             await fileInput.setInputFiles(tempFile);
             await page.waitForTimeout(2000);
 
             // CRITICAL: Verify tree NAME is visible in UI, not just in memory
-            const treeNameVisible = await page.locator('text="Smoke Test Project"').isVisible();
+            // Use specific selector to avoid strict mode violation (tree name appears in multiple places)
+            const treeNameVisible = await page.locator('#tree-root .node-title:has-text("Smoke Test Project")').first().isVisible();
             const treeInMemory = await page.evaluate(() => window.capexTree?.name);
 
             expect(treeInMemory, 'Tree not loaded into capexTree').toBe('Smoke Test Project');
             expect(treeNameVisible, 'Tree loaded but NOT VISIBLE in UI').toBe(true);
 
-            // Verify child nodes are visible
-            const phaseVisible = await page.locator('text="Phase 1: Planning"').isVisible();
+            // Verify child nodes are visible (use first() for safety)
+            const phaseVisible = await page.locator('.node-title:has-text("Phase 1: Planning")').first().isVisible();
             expect(phaseVisible, 'Child nodes not rendered').toBe(true);
 
         } finally {
@@ -299,24 +300,24 @@ test.describe('SMOKE 5: Undo/Redo System', () => {
         // Get original tree name
         const originalName = await page.evaluate(() => window.capexTree?.name);
 
-        // Make a change
+        // Make a change - saveState() BEFORE change to save current state for undo
         await page.evaluate(() => {
+            if (typeof saveState === 'function') saveState('Before test change');
             window.capexTree.name = 'CHANGED BY TEST';
-            if (typeof saveState === 'function') saveState('Test change');
             if (typeof render === 'function') render();
         });
 
         await page.waitForTimeout(500);
 
-        // Verify change
+        // Verify change was made
         const changedName = await page.evaluate(() => window.capexTree?.name);
         expect(changedName).toBe('CHANGED BY TEST');
 
-        // Undo
+        // Undo via keyboard
         await page.keyboard.press('Control+z');
         await page.waitForTimeout(500);
 
-        // Verify undo
+        // Verify undo reverted to original
         const afterUndo = await page.evaluate(() => window.capexTree?.name);
         expect(afterUndo, 'Undo did not revert change').toBe(originalName);
     });

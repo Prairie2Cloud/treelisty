@@ -11,6 +11,13 @@
  *   ]
  */
 
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 class ClaudeFeedbackReporter {
   constructor(options = {}) {
     this.options = options;
@@ -34,8 +41,6 @@ class ClaudeFeedbackReporter {
   extractBuildNumber() {
     // Try to extract build number from environment or package
     try {
-      const fs = require('fs');
-      const path = require('path');
       const htmlPath = path.resolve(__dirname, '../../../../treeplexity.html');
       if (fs.existsSync(htmlPath)) {
         const content = fs.readFileSync(htmlPath, 'utf8').slice(0, 1000);
@@ -316,8 +321,6 @@ class ClaudeFeedbackReporter {
 
     // Write JSON to file for CI/CD artifacts
     try {
-      const fs = require('fs');
-      const path = require('path');
       const outputDir = path.resolve(__dirname, '../../test-results');
       fs.mkdirSync(outputDir, { recursive: true });
       fs.writeFileSync(
@@ -335,4 +338,4 @@ class ClaudeFeedbackReporter {
   }
 }
 
-module.exports = ClaudeFeedbackReporter;
+export default ClaudeFeedbackReporter;
