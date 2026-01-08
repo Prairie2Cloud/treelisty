@@ -7,7 +7,8 @@
 
 // Configuration
 const DEFAULT_BRIDGE_PORT = 3456;
-const RECONNECT_DELAY = 5000;
+const INITIAL_RECONNECT_DELAY = 5000;
+const MAX_RECONNECT_DELAY = 300000; // 5 minutes max
 const HEARTBEAT_INTERVAL = 30000;
 
 // State
@@ -16,6 +17,8 @@ let clientId = null;
 let isConnected = false;
 let reconnectTimer = null;
 let heartbeatTimer = null;
+let reconnectDelay = INITIAL_RECONNECT_DELAY;
+let consecutiveFailures = 0;
 
 // Generate unique client ID
 function generateClientId() {
@@ -46,6 +49,9 @@ async function connectToBridge() {
     ws.onopen = () => {
       console.log('[TreeListy Ext] Connected to bridge');
       isConnected = true;
+      // Reset backoff on successful connection
+      reconnectDelay = INITIAL_RECONNECT_DELAY;
+      consecutiveFailures = 0;
 
       // Send handshake
       ws.send(JSON.stringify({
@@ -105,7 +111,14 @@ async function connectToBridge() {
     };
 
     ws.onerror = (err) => {
-      console.error('[TreeListy Ext] WebSocket error:', err);
+      // Only log first few failures, then stay quiet
+      consecutiveFailures++;
+      if (consecutiveFailures <= 3) {
+        console.warn('[TreeListy Ext] Bridge not available (attempt ' + consecutiveFailures + '). Start bridge with: node packages/treelisty-mcp-bridge/src/bridge.js');
+      } else if (consecutiveFailures === 4) {
+        console.warn('[TreeListy Ext] Bridge still unavailable. Will retry silently every ' + Math.round(reconnectDelay/1000) + 's. Click extension icon to retry now.');
+      }
+      // Don't log after that - reduces console spam
     };
 
   } catch (err) {
@@ -334,19 +347,25 @@ function stopHeartbeat() {
   }
 }
 
-// Reconnection logic
+// Reconnection logic with exponential backoff
 function scheduleReconnect() {
   if (reconnectTimer) return;
 
   reconnectTimer = setTimeout(() => {
     reconnectTimer = null;
     connectToBridge();
-  }, RECONNECT_DELAY);
+  }, reconnectDelay);
+
+  // Exponential backoff: 5s → 10s → 20s → 40s → ... → 5min max
+  reconnectDelay = Math.min(reconnectDelay * 2, MAX_RECONNECT_DELAY);
 }
 
 // Extension icon click handler - manual capture
 chrome.action.onClicked.addListener(async (tab) => {
   if (!isConnected) {
+    // Reset backoff on manual retry
+    reconnectDelay = INITIAL_RECONNECT_DELAY;
+    consecutiveFailures = 0;
     // Try to connect
     await connectToBridge();
     return;
@@ -386,6 +405,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   }
 
   if (message.type === 'reconnect') {
+    // Reset backoff on manual reconnect from options page
+    reconnectDelay = INITIAL_RECONNECT_DELAY;
+    consecutiveFailures = 0;
     connectToBridge();
     sendResponse({ ok: true });
     return true;
