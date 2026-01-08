@@ -3,8 +3,8 @@
  * Enables offline PWA functionality and .treelisty file handling
  */
 
-// BUILD 753: Update cache version to force PWA refresh
-const CACHE_NAME = 'treelisty-v2.101.61-b754';
+// BUILD 793: Update cache version to force PWA refresh
+const CACHE_NAME = 'treelisty-v2.101.100-b793';
 const urlsToCache = [
   '/treeplexity.html',
   '/manifest.json'
@@ -48,6 +48,11 @@ self.addEventListener('fetch', event => {
     return;
   }
 
+  // BUILD 793: Skip POST requests - Cache API only supports GET
+  if (event.request.method !== 'GET') {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then(response => {
@@ -68,7 +73,7 @@ self.addEventListener('fetch', event => {
           // Clone the response
           const responseToCache = response.clone();
 
-          // Cache the fetched response for future use (only http/https)
+          // Cache the fetched response for future use (only GET requests)
           caches.open(CACHE_NAME)
             .then(cache => {
               cache.put(event.request, responseToCache);
