@@ -42,6 +42,109 @@ Key files:
 - `packages/treelisty-chrome-extension/` - Chrome extension for screen capture
 - `export_google_drive_to_treelisty.py` - GDrive metadata export
 - `export_gdrive_content_to_treelisty.py` - GDrive content extraction for RAG
+- `guides/` - Constitutional framework and engineering guides
+
+## Constitutional Framework
+
+**TreeListy development is governed by constitutional constraints.**
+
+Before implementing ANY feature, verify compliance with the 6 Articles:
+
+### Quick Constitutional Check (Memorize These)
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│  BEFORE CODING, ASK:                                        │
+│                                                             │
+│  1. Does this work offline?           [SOVEREIGNTY]         │
+│  2. Is AI content marked?             [PROVENANCE]          │
+│  3. Can the user undo this?           [INTEGRITY]           │
+│  4. Does AI admit uncertainty?        [HUMILITY]            │
+│  5. Am I revealing or optimizing?     [ANTI-ENFRAMING]      │
+│                                                             │
+│  If ANY answer is NO → justify in ADR or redesign           │
+└─────────────────────────────────────────────────────────────┘
+```
+
+### The 6 Articles (Summary)
+
+| Article | Requirement | Test |
+|---------|-------------|------|
+| **I. Sovereignty** | User is not a cognitive tenant | Works offline? Data exportable? No account required? |
+| **II. Provenance** | Owned thought ≠ generated thought | AI content has 🤖 badge? Provenance survives export? |
+| **III. Integrity** | The skeleton is sacred | Structure visible? Destructive ops need consent? Reversible? |
+| **IV. Humility** | Confidence determines action | >85% silent, 50-85% narrate, <50% ask? |
+| **V. Anti-Enframing** | Reveal, don't optimize | No engagement metrics? No algorithmic ranking? |
+| **VI. Federation** | Connection without extraction | Cross-tree preserves sovereignty? No central registry? |
+
+### Constitutional Prohibitions (Never Do These)
+
+```
+❌ "Sign up to sync" → Violates Sovereignty
+❌ "Trending trees" → Violates Anti-Enframing  
+❌ Silent AI injection without 🤖 badge → Violates Provenance
+❌ Delete without confirmation → Violates Integrity
+❌ Cloud-only features → Violates Sovereignty
+❌ AI sounds certain when it isn't → Violates Humility
+```
+
+### Constitutional Mandates (Always Do These)
+
+```
+✓ Every AI-generated node MUST have provenance metadata
+✓ Every destructive action MUST have undo capability
+✓ Every feature MUST work offline (or graceful degradation)
+✓ Every AI suggestion MUST route by confidence level
+✓ Every export MUST include complete provenance
+```
+
+### Provenance Metadata Standard
+
+When creating AI-generated nodes, always include:
+
+```javascript
+{
+  provenance: {
+    source: 'ai_generated',  // or 'human', 'imported', 'atlas_link'
+    model: 'claude-opus-4-5-20251101',  // which model
+    confidence: 0.85,  // 0-1 scale
+    timestamp: new Date().toISOString(),
+    claimed: false  // true after user edits/approves
+  }
+}
+```
+
+### Confidence Routing
+
+```javascript
+// In TreeBeard/AI response handling
+if (confidence > 0.85) {
+  // Act silently - low friction
+  executeAction();
+} else if (confidence > 0.50) {
+  // Act but narrate - preserve agency
+  showToast(`I've drafted this structure - review?`);
+  executeAction();
+} else {
+  // Ask first - avoid hallucinated authority
+  presentOptions();
+}
+```
+
+### Full Documentation
+
+- `guides/TreeListy-Constitutional-Framework-v1.md` - The law (6 Articles, MVS, MCP spec)
+- `guides/TreeListy-Engineering-Integration-Guide.md` - Enforcement (tests, CI/CD, PR template)
+- `guides/TreeListy-Philosophical-Principles-Analysis.md` - Rationale (philosophy, debate points)
+
+### When to Load Full Guides
+
+| Situation | Load This |
+|-----------|-----------|
+| Planning new features | Constitutional Framework |
+| Writing tests | Engineering Integration Guide |
+| Debating architecture | Philosophical Principles |
+| Code review | Check PR against constitutional checklist |
 
 ## Build Versioning
 
@@ -70,6 +173,20 @@ npm run test:tb-nl
 ```
 
 All 27 TB NL tests should pass (tests against live site).
+
+### Constitutional Tests (NEW)
+
+Run constitutional compliance tests:
+```bash
+cd test/treelisty-test
+npm run test:constitutional
+```
+
+These tests verify:
+- Sovereignty: Offline capability, export completeness
+- Provenance: AI attribution, survival through operations
+- Integrity: Undo capability, consent flows
+- Humility: Confidence routing behavior
 
 ## Architecture
 
@@ -650,4 +767,4 @@ TreeListy supports 21 patterns including:
 
 ---
 
-*Last updated: 2026-01-07 (Build 769)*
+*Last updated: 2026-01-07 (Build 778)*
