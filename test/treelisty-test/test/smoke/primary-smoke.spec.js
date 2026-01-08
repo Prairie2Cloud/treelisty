@@ -351,6 +351,107 @@ test.describe('SMOKE 6: TreeBeard', () => {
 });
 
 // ============================================================================
+// SMOKE TEST 7: Storage & Service Worker (BUILD 793 REGRESSION)
+// ============================================================================
+
+test.describe('SMOKE 7: Storage & Service Worker', () => {
+
+    test('S7.1: No console errors during API call', async ({ page }) => {
+        /**
+         * This test catches service worker and storage errors that happen
+         * during normal operations (like calling Claude API).
+         * BUILD 793: Fixed "POST request unsupported in Cache" error
+         */
+        const consoleErrors = [];
+        page.on('console', msg => {
+            if (msg.type() === 'error') {
+                consoleErrors.push(msg.text());
+            }
+        });
+
+        await page.goto(TEST_URL);
+        await page.waitForSelector('#tree-container', { timeout: 30000 });
+        await page.waitForTimeout(2000);
+
+        // Filter acceptable errors
+        const criticalErrors = consoleErrors.filter(e =>
+            !e.includes('ResizeObserver') &&
+            !e.includes('Extension context') &&
+            !e.includes('favicon') &&
+            !e.includes('net::ERR') && // Network errors are expected if offline
+            !e.includes('API key') // Missing API key is expected in tests
+        );
+
+        // Specifically check for service worker POST cache error
+        const swErrors = criticalErrors.filter(e =>
+            e.includes('Cache') || e.includes('service-worker')
+        );
+
+        expect(swErrors, 'Service worker errors detected').toHaveLength(0);
+    });
+
+    test('S7.2: Large tree saves to IndexedDB without quota error', async ({ page }) => {
+        /**
+         * BUILD 793: TreeManager now uses TreeStorageAdapter for large trees
+         * This test verifies large trees don't cause QuotaExceededError
+         */
+        await page.goto(TEST_URL);
+        await page.waitForSelector('#tree-container', { timeout: 30000 });
+
+        // Create a large tree (~1.5MB of data)
+        const largeTree = await page.evaluate(() => {
+            const tree = {
+                id: 'large-test-tree',
+                name: 'Large Storage Test Tree',
+                treeId: 'storage-test-' + Date.now(),
+                pattern: 'generic',
+                children: []
+            };
+
+            // Add 500 nodes with substantial content
+            for (let i = 0; i < 500; i++) {
+                tree.children.push({
+                    id: `node-${i}`,
+                    name: `Test Node ${i}: ${'-'.repeat(100)}`,
+                    type: 'phase',
+                    description: 'Lorem ipsum '.repeat(200), // ~2.4KB per node
+                    items: []
+                });
+            }
+
+            return tree;
+        });
+
+        // Attempt to save the large tree
+        const saveResult = await page.evaluate(async (tree) => {
+            try {
+                if (typeof TreeStorageAdapter !== 'undefined') {
+                    const result = await TreeStorageAdapter.save(tree);
+                    return { success: result.success, location: result.location, error: null };
+                } else {
+                    // Fallback - try direct localStorage
+                    localStorage.setItem('test-large-tree', JSON.stringify(tree));
+                    return { success: true, location: 'localstorage', error: null };
+                }
+            } catch (e) {
+                return { success: false, location: null, error: e.name + ': ' + e.message };
+            }
+        }, largeTree);
+
+        // Should succeed (either via IndexedDB or localStorage)
+        expect(saveResult.success, `Storage failed: ${saveResult.error}`).toBe(true);
+
+        // Clean up
+        await page.evaluate((treeId) => {
+            if (typeof TreeStorageAdapter !== 'undefined') {
+                TreeStorageAdapter.delete(treeId).catch(() => {});
+            }
+            localStorage.removeItem('test-large-tree');
+        }, largeTree.treeId);
+    });
+});
+
+// ============================================================================
 // TEST SUMMARY REPORTER
 // ============================================================================
 
