@@ -302,10 +302,21 @@ function renderMainUI() {
 }
 
 function findElement(ui, selector) {
-  if (ui.includes(selector.replace('[', '').replace(']', '').replace('data-testid=', '').replace(/"/g, ''))) {
+  // Parse selector like [data-action="claim"] or [data-testid="download-tree"]
+  const attrMatch = selector.match(/\[([^\]=]+)(?:="([^"]+)")?\]/);
+  if (attrMatch) {
+    const [, attr, value] = attrMatch;
+    // Check if the HTML contains this attribute
+    const searchPattern = value ? `${attr}="${value}"` : attr;
+    if (ui.includes(searchPattern)) {
+      return { exists: true };
+    }
+  }
+  // Fallback for download button
+  if (ui.includes('download-tree') || (selector.includes('download') && ui.includes('Download'))) {
     return { exists: true };
   }
-  return ui.includes('download') ? { exists: true } : null;
+  return null;
 }
 
 function isVisible(el) {

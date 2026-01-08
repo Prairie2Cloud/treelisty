@@ -396,7 +396,22 @@ function clearTree(tree) {
 function moveNode(tree, nodeId, newParentId) {
   currentTree = tree;
   saveState();
-  // Simplified move logic
+  // Find and remove node from current parent
+  let movedNode = null;
+  tree.phases.forEach(phase => {
+    const idx = phase.items?.findIndex(item => item.id === nodeId);
+    if (idx >= 0) {
+      movedNode = phase.items.splice(idx, 1)[0];
+    }
+  });
+  // Add to new parent
+  if (movedNode) {
+    const newParent = findNode(tree, newParentId);
+    if (newParent) {
+      newParent.items = newParent.items || [];
+      newParent.items.push(movedNode);
+    }
+  }
 }
 
 function renameNode(tree, nodeId, newName) {
