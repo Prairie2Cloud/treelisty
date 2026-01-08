@@ -39,10 +39,12 @@ export default defineConfig({
     workers: process.env.CI ? 1 : undefined,
     
     // Reporter configuration
+    // Claude Feedback Reporter provides structured output for automated iteration
     reporter: [
         ['list'],
         ['html', { outputFolder: 'playwright-report' }],
-        ['json', { outputFile: 'test-results/results.json' }]
+        ['json', { outputFile: 'test-results/results.json' }],
+        ['./test/reporters/claude-feedback-reporter.js', { verbose: false }]
     ],
     
     // Shared settings for all projects

@@ -9,10 +9,99 @@ on:
   workflow_dispatch:
 
 jobs:
+  # PRIMARY SMOKE TESTS - Must pass before other tests
+  # These catch critical bugs like Build 790 (import doesn't display)
+  smoke-tests:
+    name: Primary Smoke Tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: test/treelisty-test/package-lock.json
+
+      - name: Install dependencies
+        working-directory: test/treelisty-test
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: test/treelisty-test
+        run: npx playwright install chromium --with-deps
+
+      - name: Run Primary Smoke Tests
+        working-directory: test/treelisty-test
+        run: npm run test:smoke:primary
+        env:
+          TEST_URL: https://treelisty.netlify.app
+
+      - name: Upload smoke test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: smoke-test-report
+          path: test/treelisty-test/playwright-report/
+          retention-days: 7
+
+      - name: Upload failure screenshots
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: smoke-test-failures
+          path: test/treelisty-test/test-results/
+          retention-days: 7
+
+  # TreeBeard Capabilities Tests
+  tb-capabilities:
+    name: TreeBeard Capabilities
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: smoke-tests  # Only run if smoke passes
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: test/treelisty-test/package-lock.json
+
+      - name: Install dependencies
+        working-directory: test/treelisty-test
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: test/treelisty-test
+        run: npx playwright install chromium --with-deps
+
+      - name: Run TB Capabilities Tests
+        working-directory: test/treelisty-test
+        run: npm run test:tb-caps
+        env:
+          TEST_URL: https://treelisty.netlify.app
+
+      - name: Upload TB test results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: tb-capabilities-report
+          path: test/treelisty-test/playwright-report/
+          retention-days: 7
+
   e2e-live-site:
     name: E2E Tests (Live Site)
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    needs: smoke-tests  # Only run if smoke passes
 
     steps:
       - name: Checkout

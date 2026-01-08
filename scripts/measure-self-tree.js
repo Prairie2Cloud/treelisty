@@ -10,16 +10,20 @@ const path = require('path');
 const { execSync } = require('child_process');
 
 const TREEPLEXITY_PATH = path.join(__dirname, '..', 'treeplexity.html');
-const SELF_TREE_PATH = path.join(__dirname, '..', 'self-trees', 'treelisty-self-tree-v14-trust-cognitive.json');
+const SELF_TREES_DIR = path.join(__dirname, '..', 'self-trees');
+
+// Read source first to get build number for dynamic header
+const source = fs.readFileSync(TREEPLEXITY_PATH, 'utf-8');
+const buildMatch = source.match(/TREELISTY_VERSION\s*=\s*\{[\s\S]*?build:\s*(\d+)/);
+const currentBuild = buildMatch ? buildMatch[1] : 'unknown';
 
 console.log('=' .repeat(70));
-console.log('SELF-TREE LIVE WIRE - Build 700 Measurements');
+console.log(`SELF-TREE LIVE WIRE - Build ${currentBuild} Measurements`);
 console.log('=' .repeat(70));
 console.log(`Date: ${new Date().toISOString().split('T')[0]}`);
 console.log();
 
-// Read the source file
-const source = fs.readFileSync(TREEPLEXITY_PATH, 'utf-8');
+// Source already read above for build number
 const lines = source.split('\n');
 
 // ============================================================
@@ -83,19 +87,22 @@ if (registryStartMatch && registryEndMatch) {
     const commandSection = source.substring(startIdx, endIdx);
 
     // Count command entries: 'command_name': () => or 'command_name': async () =>
-    // Pattern: quoted string followed by colon, optional async, arrow function
-    const commands = commandSection.match(/^\s+'[a-z_]+'\s*:\s*(?:async\s*)?\(/gm) || [];
+    // Pattern: quoted string + colon + optional whitespace + (async )? + () + =>
+    // Matches: "'switch_to_canvas': () =>" or "'fetch_gmail': async () =>"
+    const commands = commandSection.match(/'\w+'\s*:\s*(?:async\s*)?\(\)\s*=>/g) || [];
     commandCount = commands.length;
 }
 
-// Also count TB command handlers (handlers['name'] or handlers["name"])
-const tbHandlerMatches = source.match(/handlers\[['"]([a-z_]+)['"]\]/g) || [];
-const tbCommandCount = new Set(tbHandlerMatches.map(m => m.match(/['"]([a-z_]+)['"]/)[1])).size;
+// Count TB commands from directMappings array (command: 'xxx' entries)
+// This is the modern way TB commands are defined (since Build 775+)
+const directMappingMatches = source.match(/command:\s*'([a-z_]+)'/g) || [];
+const tbCommands = [...new Set(directMappingMatches.map(m => m.match(/'([a-z_]+)'/)[1]))];
+const tbCommandCount = tbCommands.length;
 
 console.log();
 console.log('🎮 COMMANDS');
 console.log(`   COMMAND_REGISTRY entries: ${commandCount}`);
-console.log(`   TB handler references: ${tbCommandCount}`);
+console.log(`   TB directMappings commands: ${tbCommandCount}`);
 
 // ============================================================
 // SIGNAL 4: Views
@@ -149,8 +156,8 @@ console.log(`   Total: ${totalKeyHandlers}`);
 // ============================================================
 // SIGNAL 7: Build Version
 // ============================================================
-const versionMatch = source.match(/TREELISTY_VERSION\s*=\s*\{[\s\S]*?build:\s*(\d+)/);
-const build = versionMatch ? versionMatch[1] : 'unknown';
+// Build number already extracted at top for dynamic header
+const build = currentBuild;
 
 const headerMatch = source.match(/TreeListy\s+v([\d.]+)\s*\|\s*Build\s*(\d+)/);
 const version = headerMatch ? headerMatch[1] : 'unknown';
