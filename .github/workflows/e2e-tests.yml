@@ -9,9 +9,42 @@ on:
   workflow_dispatch:
 
 jobs:
+  # PERFORMANCE BUDGET CHECK - Fast fail if file too large
+  # Build 804: Prevent creeping file size (max 5MB)
+  size-check:
+    name: File Size Budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check treeplexity.html size
+        run: |
+          SIZE=$(stat -c%s treeplexity.html)
+          SIZE_MB=$(echo "scale=2; $SIZE / 1048576" | bc)
+          echo "📏 treeplexity.html: ${SIZE_MB} MB (${SIZE} bytes)"
+
+          MAX_SIZE=5242880  # 5 MB
+          if [ $SIZE -gt $MAX_SIZE ]; then
+            echo "❌ File exceeds 5MB budget!"
+            echo "   Consider code splitting or removing unused features."
+            exit 1
+          fi
+
+          # Warn if approaching limit (>4.5MB)
+          WARN_SIZE=4718592  # 4.5 MB
+          if [ $SIZE -gt $WARN_SIZE ]; then
+            echo "⚠️ Warning: File is approaching 5MB limit"
+          else
+            echo "✅ File size within budget"
+          fi
+
   # PRIMARY SMOKE TESTS - Must pass before other tests
   # These catch critical bugs like Build 790 (import doesn't display)
   smoke-tests:
+    needs: size-check  # Run after size check passes
     name: Primary Smoke Tests
     runs-on: ubuntu-latest
     timeout-minutes: 10

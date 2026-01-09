@@ -118,7 +118,7 @@ console.log(`   Types: ${Array.from(views).join(', ')}`);
 // ============================================================
 // SIGNAL 5: Patterns
 // ============================================================
-// Pattern names are unquoted identifiers like: generic: {, sales: {, thesis: {
+// Pattern names can be unquoted (generic: {) or quoted ('knowledge-base': {)
 // Find the PATTERNS block and count top-level pattern definitions (4-space indent)
 const patternsStartMatch = source.match(/const PATTERNS\s*=\s*\{/);
 let patternCount = 0;
@@ -128,10 +128,17 @@ if (patternsStartMatch) {
     const startIdx = patternsStartMatch.index;
     const patternSection = source.substring(startIdx, startIdx + 100000);
 
-    // Match pattern definitions: 4 spaces + identifier + colon + space + {
-    // This catches: "    generic: {", "    sales: {", etc.
-    const patterns = patternSection.match(/^    [a-z_-]+:\s*\{/gm) || [];
-    patternNames = patterns.map(p => p.match(/([a-z_-]+):/)[1]);
+    // Match pattern definitions: 4 spaces + identifier/quoted string + colon + space + {
+    // This catches: "    generic: {", "    'knowledge-base': {", etc.
+    // Excludes 'defaults' which is config, not a pattern
+    const unquotedPatterns = patternSection.match(/^    [a-z_]+:\s*\{/gm) || [];
+    const quotedPatterns = patternSection.match(/^    '[a-z_-]+'\s*:\s*\{/gm) || [];
+
+    const unquotedNames = unquotedPatterns.map(p => p.match(/([a-z_]+):/)[1])
+        .filter(name => name !== 'defaults');
+    const quotedNames = quotedPatterns.map(p => p.match(/'([a-z_-]+)'/)[1]);
+
+    patternNames = [...unquotedNames, ...quotedNames];
     patternCount = patternNames.length;
 }
 
