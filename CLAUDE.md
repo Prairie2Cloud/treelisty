@@ -1,15 +1,15 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.97 (Build 790)
+Current Version: v2.101.122 (Build 816)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build790.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build816.json`
 
 The self-tree contains:
-- **Measured Signals**: 4.88 MB, 102,442 lines, 469 tests, 9 views, 47 keyboard shortcuts
+- **Measured Signals**: 5.03 MB, 105,897 lines, 469 tests, 9 views, 49 keyboard shortcuts
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
@@ -767,4 +767,4 @@ TreeListy supports 21 patterns including:
 
 ---
 
-*Last updated: 2026-01-08 (Build 790)*
+*Last updated: 2026-01-09 (Build 816)*
