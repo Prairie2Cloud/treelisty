@@ -1,20 +1,38 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.128 (Build 822)
+Current Version: v2.101.129 (Build 823)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build822.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build823.json`
 
 The self-tree contains:
-- **Measured Signals**: 5.09 MB, 107,584 lines, 494 tests, 9 views, 52 keyboard shortcuts
+- **Measured Signals**: 5.11 MB, 108,095 lines, 494 tests, 10 views, 52 keyboard shortcuts
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
 
 Use the self-tree to understand capabilities, priorities, and architecture before making changes.
+
+## ACTIVE PLAN: Mobile Checklist Lifecycle (Builds 823-826)
+
+**Plan file:** `.claude/plans/wobbly-shimmying-wigderson.md`
+
+| Phase | Build | Feature | Status |
+|-------|-------|---------|--------|
+| 1 | 823 | Checklist View | ✅ DONE |
+| 2 | 824 | Mobile Tree Picker | Pending |
+| 3 | 825 | Auto-Archive on 100% | Pending |
+| 4 | 826 | Recurring Detection | Pending |
+
+**Build 823 added:**
+- 10th view mode: View → ☑️ Checklist
+- `flattenTreeToItems()` - extracts leaf nodes
+- `renderChecklist()` - progress header + items + quick-add
+- `toggleChecklistItem()` - checkbox toggle with animation
+- CSS: `#view-checklist`, `.checklist-item`, `.checklist-checkbox`
 
 ## CRITICAL: Deployment Process
 
@@ -30,7 +48,7 @@ Netlify auto-deploys within 1-2 minutes of push to main.
 
 ## Project Overview
 
-TreeListy is a single-file HTML application (~1.3MB) for hierarchical project decomposition with AI integration. It supports 6 view modes, 21 patterns, real-time collaboration, and bidirectional communication with Claude Code via MCP.
+TreeListy is a single-file HTML application (~5MB) for hierarchical project decomposition with AI integration. It supports 10 view modes, 21 patterns, real-time collaboration, and bidirectional communication with Claude Code via MCP.
 
 Key files:
 - `treeplexity.html` - Main production file (edit this)
