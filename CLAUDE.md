@@ -6,10 +6,10 @@ Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build823.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build824.json`
 
 The self-tree contains:
-- **Measured Signals**: 5.11 MB, 108,095 lines, 494 tests, 10 views, 52 keyboard shortcuts
+- **Measured Signals**: 5.11 MB, 108,114 lines, 469 tests, 10 views, 52 keyboard shortcuts
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions

@@ -9,8 +9,15 @@
 const fs = require('fs');
 const path = require('path');
 
-// Load latest measurements
-const measurementsPath = path.join(__dirname, '..', 'self-trees', 'measurements-build700.json');
+// Load latest measurements - find the newest measurements file
+const selfTreesDir = path.join(__dirname, '..', 'self-trees');
+const measurementFiles = fs.readdirSync(selfTreesDir)
+    .filter(f => f.startsWith('measurements-build') && f.endsWith('.json'))
+    .sort()
+    .reverse();
+const latestMeasurements = measurementFiles[0] || 'measurements-build736.json';
+const measurementsPath = path.join(selfTreesDir, latestMeasurements);
+console.log(`Reading measurements from: ${latestMeasurements}`);
 const measurements = JSON.parse(fs.readFileSync(measurementsPath, 'utf-8'));
 
 const today = new Date().toISOString().split('T')[0];
@@ -80,7 +87,7 @@ Last run: ${measurements.date}
 | Patterns | 21 | ✅ Pass |
 
 **Coverage:** ~60% of critical paths
-**Gap:** No e2e Playwright tests in CI yet
+**CI:** ✅ E2E Playwright tests in GitHub Actions (smoke, TB caps, live site)
 **Run:** \`cd test/treelisty-test && npm run test:unit\``
                 },
                 {
@@ -97,10 +104,11 @@ Last run: ${measurements.date}
 | Calendar | ✅ Core | FullCalendar |
 | Mind Map | ✅ New | Vanilla JS |
 | Treemap | ✅ Viz | D3.js |
+| Checklist | ✅ New | Vanilla JS |
 | Embed | ✅ Mode | - |
 | Readonly | ✅ Mode | - |
 
-**Gap:** No Kanban view yet (user requested)`
+**Want:** Kanban view (user requested, not yet implemented)`
                 },
                 {
                     id: "signal-keyboard",
@@ -115,7 +123,7 @@ Last run: ${measurements.date}
 | TreeBeard | 5 | Ctrl+/, Ctrl+Enter |
 | Misc | 6 | Esc, F2, etc |
 
-**Gap:** No shortcut help overlay (Shift+?)`
+**Discoverability:** ✅ Press ? for shortcut overlay (Build 742), searchable (Build 810)`
                 },
                 {
                     id: "signal-window",
@@ -170,56 +178,50 @@ Feature detection via regex pattern matching.
                     subtasks: [
                         {
                             id: "now-1",
-                            name: "1. E2E Test Coverage in CI",
-                            description: `**Status:** ✅ Complete
-**Acceptance Test:** 15 critical paths have Playwright e2e tests in GitHub Actions.
+                            name: "1. Gmail Tree UX Polish",
+                            description: `**Status:** ✅ Complete (Builds 732-736)
+**Acceptance Test:** Gmail trees open cleanly in tree view with email pattern.
 
-| Path | Status |
-|------|--------|
-| App loading (3 tests) | ✅ Complete |
-| Tree import (2 tests) | ✅ Complete |
-| View switching (3 tests) | ✅ Complete |
-| TreeBeard commands (3 tests) | ✅ Complete |
-| Export (2 tests) | ✅ Complete |
-| Mobile viewport (2 tests) | ✅ Complete |
+| Fix | Build | Status |
+|-----|-------|--------|
+| Modal dismiss (X + click outside) | 732 | ✅ |
+| Gmail auto-pattern detection | 733 | ✅ |
+| Tree load view reset | 734 | ✅ |
+| restoreViewState TO tree | 735 | ✅ |
+| Gantt close hides all elements | 736 | ✅ |
 
-**Completed:** 2026-01-03. GitHub Actions workflow at \`.github/workflows/e2e-tests.yml\`.`
+**Completed:** 2026-01-05. No more mixed Gantt/Tree UI when loading Gmail.`
                         },
                         {
                             id: "now-2",
-                            name: "2. Keyboard Shortcut Overlay",
-                            description: `**Status:** ⏳ Ready to Implement
-**Acceptance Test:** Shift+? shows categorized shortcut reference.
+                            name: "2. Zoom Centering Fixes",
+                            description: `**Status:** ✅ Complete (Builds 724-731)
+**Acceptance Test:** Focused node stays centered when zooming.
 
-| Task | Status |
-|------|--------|
-| Create overlay HTML | ⏳ Pending |
-| Populate from handlers | ⏳ Pending |
-| Add Shift+? trigger | ⏳ Pending |
-| Style like GitHub | ⏳ Pending |
+| Fix | Build | Status |
+|-----|-------|--------|
+| Zoom to focused node | 724 | ✅ |
+| Node ID on email items | 728 | ✅ |
+| Container rect reference | 729 | ✅ |
+| Cursor fallback | 730 | ✅ |
+| MIN_ZOOM 50% | 731 | ✅ |
 
-**Why Now:** 44 shortcuts exist but no discoverability.`
+**Test Result:** Y-drift +1px, X-drift -3px (acceptable).`
                         },
                         {
                             id: "now-3",
-                            name: "3. CLAUDE.md Documentation Audit",
-                            description: `**Status:** ✅ Complete
-**Acceptance Test:** All major features documented in CLAUDE.md.
+                            name: "3. Mobile Checklist Lifecycle",
+                            description: `**Status:** 🚧 In Progress (Builds 823-826)
+**Acceptance Test:** Checklists work end-to-end on mobile.
 
-| Feature | Status |
-|---------|--------|
-| Jitsi Voice Chat (322-325) | ✅ Documented |
-| Voice & Audio System | ✅ Documented |
-| Whisper API (691) | ✅ Documented |
-| TTS Read Aloud | ✅ Documented |
-| Telemetry System (542) | ✅ Documented |
-| AI Configuration | ✅ Documented |
-| View State System | ✅ Documented |
-| Mobile UX | ✅ Documented |
-| Treemap View | ✅ Documented |
-| URL Parameter API | ✅ Documented |
+| Phase | Build | Feature | Status |
+|-------|-------|---------|--------|
+| 1 | 823 | Checklist View | ✅ Done |
+| 2 | 824 | Mobile Tree Picker | ⏳ Pending |
+| 3 | 825 | Auto-Archive on 100% | ⏳ Pending |
+| 4 | 826 | Recurring Detection | ⏳ Pending |
 
-**Completed:** 2026-01-03. Self-eval identified 17 missing features, all now documented.`
+**Plan file:** \`.claude/plans/wobbly-shimmying-wigderson.md\``
                         }
                     ]
                 },
@@ -252,19 +254,19 @@ on:
                         },
                         {
                             id: "next-3",
-                            name: "3. Shortcut Help Overlay",
-                            description: `**Gap Identified:** ${measurements.metrics.keyboardHandlers} keyboard shortcuts but no discoverability.
-**Effort:** Low-Medium
-**Pattern:** Shift+? shows overlay (like GitHub)
-**Validation:** User can discover shortcuts without docs.`
+                            name: "3. Kanban View",
+                            description: `**User Request:** Board view for project management.
+**Effort:** Medium
+**Dependencies:** View system already supports ${measurements.metrics.viewCount} views.
+**Validation:** Tasks can be dragged between columns.`
                         },
                         {
                             id: "next-4",
-                            name: "4. Kanban View",
-                            description: `**User Request:** Board view for project management.
-**Effort:** Medium
-**Dependencies:** View system already supports 9 views.
-**Validation:** Tasks can be dragged between columns.`
+                            name: "4. Self-Tree Auto-Refresh",
+                            description: `**Goal:** Keep self-tree current without manual regeneration.
+**Effort:** Low
+**Approach:** CI job on schedule or post-deploy hook.
+**Validation:** Self-tree stays within 10 builds of current.`
                         }
                     ]
                 },
@@ -311,11 +313,11 @@ on:
                 {
                     id: "meta-freshness",
                     name: "Freshness",
-                    description: `**v1.4 was 157 builds stale** [MEASURED]
+                    description: `**Current Build: ${measurements.build}** [MEASURED]
 
-Gap: Build 543 → Build 700 = 157 builds undocumented.
-Root cause: Manual update process.
-Fix: Automated measurement script (implemented).`
+Last measurement: ${measurements.date}
+Auto-detection: generate-self-tree.js now finds latest measurements file.
+Fix applied: Dynamic file discovery prevents staleness.`
                 },
                 {
                     id: "meta-actionability",
@@ -363,71 +365,50 @@ When Claude Code reads self-tree:
             name: "Improvement Suggestions",
             description: `Architecture wins identified by TreeBeard analysis.
 **Source:** bootstrap-self-tree.py runs
-**Purpose:** Track actionable improvements to TreeListy itself.`,
+**Purpose:** Track actionable improvements to TreeListy itself.
+**Last Updated:** ${today}`,
             items: [
                 {
                     id: "improve-1",
-                    name: "Add Keyboard Shortcut Discoverability",
-                    description: `**Gap:** ${measurements.metrics.keyboardHandlers} shortcuts exist but users can't discover them.
-**Solution:** Shift+? overlay showing all shortcuts by category.
-**Effort:** Low-Medium (2-4 hours)
-**Impact:** High - reduces learning curve
-
-\`\`\`javascript
-// Example implementation
-document.addEventListener('keydown', (e) => {
-    if (e.key === '?' && e.shiftKey) showShortcutOverlay();
-});
-\`\`\``
+                    name: "✅ DONE: Keyboard Shortcut Overlay",
+                    description: `**Completed:** Build 742 (overlay) + Build 810 (search + tooltips)
+**What shipped:**
+- Press ? to open shortcut modal
+- Search input filters shortcuts in real-time
+- CSS tooltips on toolbar buttons
+- Both ? and Shift+? work`
                 },
                 {
                     id: "improve-2",
-                    name: "Add E2E Tests to CI",
-                    description: `**Gap:** 469 unit tests but zero e2e Playwright tests in CI.
-**Solution:** Add GitHub Action running 10 critical path tests.
-**Effort:** Medium (4-8 hours)
-**Impact:** High - catches regressions unit tests miss
-
-**Critical Paths to Cover:**
-1. Tree import/export (JSON, Excel)
-2. View switching (tree → canvas → 3d)
-3. TreeBeard command execution
-4. Firebase sync (mock)
-5. Mobile viewport rendering`
+                    name: "✅ DONE: E2E Tests in CI",
+                    description: `**Completed:** e2e-tests.yml workflow
+**What shipped:**
+- Size budget check (5MB warn, 5.5MB fail)
+- Primary smoke tests
+- Gmail local search smoke test
+- TreeBeard capabilities tests
+- E2E tests against live site
+- Unit tests (469 passing)`
                 },
                 {
                     id: "improve-3",
-                    name: "Improve Command Count Measurement",
-                    description: `**Gap:** measure-self-tree.js only finds 1 command (regex issue).
-**Root Cause:** COMMAND_REGISTRY is complex object, not simple array.
-**Solution:** Parse COMMAND_REGISTRY object keys properly.
-**Effort:** Low (1-2 hours)
-**Impact:** Medium - accurate self-tree metrics
-
-\`\`\`javascript
-// Current (broken)
-const commands = content.match(/COMMAND_REGISTRY/g);
-
-// Fixed
-const commandMatch = content.match(/COMMAND_REGISTRY\\s*=\\s*\\{([^}]+)\\}/s);
-const commandCount = (commandMatch[1].match(/\\w+:/g) || []).length;
-\`\`\``
+                    name: "✅ DONE: Command Count Measurement",
+                    description: `**Completed:** measure-self-tree.js fixed
+**What shipped:**
+- COMMAND_REGISTRY entries: ${measurements.metrics.commandCount}
+- TB directMappings commands: ${measurements.metrics.tbCommandCount}
+- Regex properly parses complex object structure`
                 },
                 {
                     id: "improve-4",
-                    name: "Add Performance Budget Monitoring",
-                    description: `**Gap:** File is 4.4MB but no alerting if it grows too large.
-**Solution:** CI check that fails if file > 5MB.
-**Effort:** Low (1 hour)
-**Impact:** Medium - prevents creeping performance issues
-
-\`\`\`yaml
-# .github/workflows/size-check.yml
-- name: Check file size
-  run: |
-    SIZE=$(stat -f%z treeplexity.html)
-    if [ $SIZE -gt 5242880 ]; then exit 1; fi
-\`\`\``
+                    name: "✅ DONE: Performance Budget CI",
+                    description: `**Completed:** size-budget.yml workflow
+**What shipped:**
+- 5.0 MB warning threshold
+- 5.5 MB hard fail threshold
+- Summary report with progress bar
+- Recommendations when over budget
+**Current:** ${measurements.metrics.fileSizeMB} MB (${Math.round((measurements.metrics.fileSizeMB / 5.5) * 100)}% of limit)`
                 }
             ]
         },
