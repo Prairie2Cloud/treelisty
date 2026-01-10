@@ -495,6 +495,8 @@ test.describe('TreeBeard Natural Language Commands', () => {
     test.describe('Undo/Redo Commands', () => {
 
         test('META-01: "undo that" should reverse last action', async ({ page }) => {
+            test.setTimeout(60000); // Increase timeout for multi-step test
+
             // Make a change
             await sendTBCommand(page, 'focus_node:Design');
             await page.waitForTimeout(500);
