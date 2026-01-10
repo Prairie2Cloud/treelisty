@@ -368,4 +368,159 @@ describe('Calendar View', () => {
             expect(htmlContent).toContain('Add Start Dates, Due Dates, or Events');
         });
     });
+
+    // =========================================================================
+    // Todo Lens Functions (Phase 2 - Build 818+)
+    // =========================================================================
+
+    describe('Todo Lens Functions', () => {
+        describe('flattenTree', () => {
+            it('should have flattenTree function defined', () => {
+                expect(htmlContent).toContain('function flattenTree(tree)');
+            });
+
+            it('should expose flattenTree to window', () => {
+                expect(htmlContent).toContain('window.flattenTree = flattenTree');
+            });
+
+            it('should traverse all child array types', () => {
+                const functionCode = extractFunction('flattenTree');
+                expect(functionCode).toContain("'children'");
+                expect(functionCode).toContain("'items'");
+                expect(functionCode).toContain("'subItems'");
+                expect(functionCode).toContain("'subtasks'");
+                expect(functionCode).toContain("'phases'");
+            });
+
+            it('should handle null tree gracefully', () => {
+                const functionCode = extractFunction('flattenTree');
+                expect(functionCode).toContain('if (!tree) return nodes');
+            });
+        });
+
+        describe('Date Helper Functions', () => {
+            it('should have isToday function', () => {
+                expect(htmlContent).toContain('function isToday(dateStr)');
+                expect(htmlContent).toContain('window.isToday = isToday');
+            });
+
+            it('should have isTomorrow function', () => {
+                expect(htmlContent).toContain('function isTomorrow(dateStr)');
+                expect(htmlContent).toContain('window.isTomorrow = isTomorrow');
+            });
+
+            it('should have isThisWeek function', () => {
+                expect(htmlContent).toContain('function isThisWeek(dateStr)');
+                expect(htmlContent).toContain('window.isThisWeek = isThisWeek');
+            });
+
+            it('should have isFuture function', () => {
+                expect(htmlContent).toContain('function isFuture(dateStr)');
+                expect(htmlContent).toContain('window.isFuture = isFuture');
+            });
+
+            it('isToday should use parseLocalDate', () => {
+                const functionCode = extractFunction('isToday');
+                expect(functionCode).toContain('parseLocalDate(dateStr)');
+                expect(functionCode).toContain('getTodayLocal()');
+            });
+
+            it('isTomorrow should calculate tomorrow correctly', () => {
+                const functionCode = extractFunction('isTomorrow');
+                expect(functionCode).toContain('tomorrow.setDate(tomorrow.getDate() + 1)');
+            });
+
+            it('isThisWeek should calculate Monday start of week', () => {
+                const functionCode = extractFunction('isThisWeek');
+                expect(functionCode).toContain('mondayOffset');
+                expect(functionCode).toContain('startOfWeek');
+                expect(functionCode).toContain('endOfWeek');
+            });
+
+            it('date helpers should handle null gracefully', () => {
+                const isTodayCode = extractFunction('isToday');
+                const isTomorrowCode = extractFunction('isTomorrow');
+                const isThisWeekCode = extractFunction('isThisWeek');
+                const isFutureCode = extractFunction('isFuture');
+
+                expect(isTodayCode).toContain('if (!dateStr) return false');
+                expect(isTomorrowCode).toContain('if (!dateStr) return false');
+                expect(isThisWeekCode).toContain('if (!dateStr) return false');
+                expect(isFutureCode).toContain('if (!dateStr) return false');
+            });
+        });
+
+        describe('getTodoLensGroups', () => {
+            it('should have getTodoLensGroups function', () => {
+                expect(htmlContent).toContain('function getTodoLensGroups(tree)');
+            });
+
+            it('should expose getTodoLensGroups to window', () => {
+                expect(htmlContent).toContain('window.getTodoLensGroups = getTodoLensGroups');
+            });
+
+            it('should return all six groups', () => {
+                const functionCode = extractFunction('getTodoLensGroups');
+                expect(functionCode).toContain('overdue:');
+                expect(functionCode).toContain('today:');
+                expect(functionCode).toContain('tomorrow:');
+                expect(functionCode).toContain('thisWeek:');
+                expect(functionCode).toContain('upcoming:');
+                expect(functionCode).toContain('someday:');
+            });
+
+            it('should use getNodeSchedule for overdue detection', () => {
+                const functionCode = extractFunction('getTodoLensGroups');
+                expect(functionCode).toContain('getNodeSchedule(n)');
+                expect(functionCode).toContain('schedule.isOverdue');
+            });
+
+            it('should filter schedulable nodes by pmDueDate or pmStartDate', () => {
+                const functionCode = extractFunction('getTodoLensGroups');
+                expect(functionCode).toContain('n.pmDueDate || n.pmStartDate');
+            });
+
+            it('should exclude completed tasks from active groups', () => {
+                const functionCode = extractFunction('getTodoLensGroups');
+                expect(functionCode).toContain('!schedule.isComplete');
+            });
+
+            it('should handle null tree with empty groups', () => {
+                const functionCode = extractFunction('getTodoLensGroups');
+                expect(functionCode).toContain('if (!targetTree)');
+                expect(functionCode).toContain('overdue: []');
+            });
+
+            it('someday group should include undated incomplete tasks', () => {
+                const functionCode = extractFunction('getTodoLensGroups');
+                expect(functionCode).toContain('!n.pmDueDate && !isComplete');
+            });
+        });
+
+        describe('getTodoLensSummary', () => {
+            it('should have getTodoLensSummary function', () => {
+                expect(htmlContent).toContain('function getTodoLensSummary(groups)');
+            });
+
+            it('should expose getTodoLensSummary to window', () => {
+                expect(htmlContent).toContain('window.getTodoLensSummary = getTodoLensSummary');
+            });
+
+            it('should calculate totalScheduled correctly', () => {
+                const functionCode = extractFunction('getTodoLensSummary');
+                expect(functionCode).toContain('totalScheduled:');
+                expect(functionCode).toContain('groups.overdue.length + groups.today.length');
+            });
+
+            it('should provide hasOverdue boolean', () => {
+                const functionCode = extractFunction('getTodoLensSummary');
+                expect(functionCode).toContain('hasOverdue: groups.overdue.length > 0');
+            });
+
+            it('should provide hasTodayTasks boolean', () => {
+                const functionCode = extractFunction('getTodoLensSummary');
+                expect(functionCode).toContain('hasTodayTasks: groups.today.length > 0');
+            });
+        });
+    });
 });
