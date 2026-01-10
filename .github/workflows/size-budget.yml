@@ -1,0 +1,99 @@
+name: Performance Budget
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'treeplexity.html'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'treeplexity.html'
+  # Allow manual trigger
+  workflow_dispatch:
+
+jobs:
+  check-size:
+    name: Check File Size Budget
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check treeplexity.html size
+        id: size-check
+        run: |
+          # Get file size in bytes
+          SIZE_BYTES=$(stat -c%s treeplexity.html)
+          SIZE_MB=$(echo "scale=2; $SIZE_BYTES / 1048576" | bc)
+          SIZE_KB=$(echo "scale=0; $SIZE_BYTES / 1024" | bc)
+
+          # Thresholds
+          WARN_THRESHOLD=5242880    # 5.0 MB - warning
+          FAIL_THRESHOLD=5767168    # 5.5 MB - hard fail
+
+          echo "size_bytes=$SIZE_BYTES" >> $GITHUB_OUTPUT
+          echo "size_mb=$SIZE_MB" >> $GITHUB_OUTPUT
+          echo "size_kb=$SIZE_KB" >> $GITHUB_OUTPUT
+
+          # Determine status
+          if [ $SIZE_BYTES -gt $FAIL_THRESHOLD ]; then
+            echo "status=fail" >> $GITHUB_OUTPUT
+            echo "::error::treeplexity.html exceeds 5.5 MB budget ($SIZE_MB MB)"
+            exit 1
+          elif [ $SIZE_BYTES -gt $WARN_THRESHOLD ]; then
+            echo "status=warn" >> $GITHUB_OUTPUT
+            echo "::warning::treeplexity.html is over 5.0 MB ($SIZE_MB MB) - consider code splitting"
+          else
+            echo "status=ok" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Get line count
+        id: lines
+        run: |
+          LINES=$(wc -l < treeplexity.html)
+          echo "count=$LINES" >> $GITHUB_OUTPUT
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Performance Budget Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          SIZE_MB="${{ steps.size-check.outputs.size_mb }}"
+          SIZE_KB="${{ steps.size-check.outputs.size_kb }}"
+          LINES="${{ steps.lines.outputs.count }}"
+          STATUS="${{ steps.size-check.outputs.status }}"
+
+          # Status emoji
+          if [ "$STATUS" == "fail" ]; then
+            EMOJI="❌"
+            STATUS_TEXT="**OVER BUDGET**"
+          elif [ "$STATUS" == "warn" ]; then
+            EMOJI="⚠️"
+            STATUS_TEXT="Warning"
+          else
+            EMOJI="✅"
+            STATUS_TEXT="Within budget"
+          fi
+
+          echo "| Metric | Value | Budget | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-------|--------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| File Size | ${SIZE_MB} MB | 5.5 MB | ${EMOJI} ${STATUS_TEXT} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Lines | ${LINES} | - | - |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Progress bar (visual)
+          PERCENT=$(echo "scale=0; (${{ steps.size-check.outputs.size_bytes }} * 100) / 5767168" | bc)
+          echo "**Budget Usage:** ${PERCENT}% of 5.5 MB limit" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Recommendations
+          if [ "$STATUS" == "warn" ] || [ "$STATUS" == "fail" ]; then
+            echo "### Recommendations" >> $GITHUB_STEP_SUMMARY
+            echo "- Consider code splitting if file continues to grow" >> $GITHUB_STEP_SUMMARY
+            echo "- Review recent additions for optimization opportunities" >> $GITHUB_STEP_SUMMARY
+            echo "- Check for duplicate code or unused functions" >> $GITHUB_STEP_SUMMARY
+          fi
