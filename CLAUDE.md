@@ -1,38 +1,38 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.129 (Build 823)
+Current Version: v2.101.135 (Build 829)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build824.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build829.json`
 
 The self-tree contains:
-- **Measured Signals**: 5.11 MB, 108,114 lines, 469 tests, 10 views, 52 keyboard shortcuts
+- **Measured Signals**: 5.12 MB, 108,300+ lines, 469 tests, 10 views, 52 keyboard shortcuts
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
 
 Use the self-tree to understand capabilities, priorities, and architecture before making changes.
 
-## ACTIVE PLAN: Mobile Checklist Lifecycle (Builds 823-826)
+## COMPLETED: Mobile Checklist Lifecycle (Builds 823-829)
 
-**Plan file:** `.claude/plans/wobbly-shimmying-wigderson.md`
+| Build | Feature | Status |
+|-------|---------|--------|
+| 823 | Checklist View | ✅ DONE |
+| 826 | Mobile Tree Picker | ✅ DONE |
+| 827 | Auto-Archive Completed | ✅ DONE |
+| 828 | Recurring Detection | ✅ DONE |
+| 829 | Hide Node Checkboxes | ✅ DONE |
 
-| Phase | Build | Feature | Status |
-|-------|-------|---------|--------|
-| 1 | 823 | Checklist View | ✅ DONE |
-| 2 | 824 | Mobile Tree Picker | Pending |
-| 3 | 825 | Auto-Archive on 100% | Pending |
-| 4 | 826 | Recurring Detection | Pending |
-
-**Build 823 added:**
-- 10th view mode: View → ☑️ Checklist
-- `flattenTreeToItems()` - extracts leaf nodes
-- `renderChecklist()` - progress header + items + quick-add
-- `toggleChecklistItem()` - checkbox toggle with animation
-- CSS: `#view-checklist`, `.checklist-item`, `.checklist-checkbox`
+**Build 823-829 added:**
+- 10th view mode: View → ☑️ Checklist with progress tracking
+- `showMobileTreePicker()` - Bottom sheet for mobile tree selection
+- `toggleShowArchived()` - Show/hide completed items in checklist
+- `detectRecurringPattern()` - Detect weekly/monthly/etc patterns
+- `createNextRecurrence()` - Auto-create next occurrence on completion
+- `applyNodeCheckboxVisibility()` - Hide node checkboxes for cleaner UI
 
 ## CRITICAL: Deployment Process
 
@@ -251,7 +251,45 @@ treeplexity.html (single file ~1.3MB)
 
 ---
 
-## Recent Features (Builds 769-781)
+## Recent Features (Builds 823-829)
+
+### Mobile Checklist Lifecycle
+
+Complete checklist workflow for task management:
+
+**Build 823: Checklist View**
+- 10th view mode: View → ☑️ Checklist
+- `flattenTreeToItems()` - extracts leaf nodes as tasks
+- `renderChecklist()` - progress header + items + quick-add
+- `toggleChecklistItem()` - checkbox toggle with animation
+- CSS: `#view-checklist`, `.checklist-item`, `.checklist-checkbox`
+
+**Build 826: Mobile Tree Picker**
+- `showMobileTreePicker()` - Bottom sheet UI for tree selection on mobile
+- Uses Bottom Sheet pattern (Build 813) for native-feeling interaction
+- Quick access to recent trees and tree browser
+
+**Build 827: Auto-Archive Completed**
+- "Auto-Archive Completed Items" checkbox in AI Settings
+- `toggleShowArchived()` - Toggle visibility of completed items
+- "Show Archived" button appears when items hidden
+- "All done!" celebration when 100% complete
+
+**Build 828: Recurring Detection**
+- `RECURRING_PATTERNS` - Regex patterns for daily/weekly/biweekly/monthly/quarterly/annual
+- `detectRecurringPattern(name)` - Returns frequency and days interval
+- `createNextRecurrence(node)` - Creates next occurrence on completion
+- 🔄 badge on recurring items in checklist view
+
+**Build 829: Hide Node Checkboxes**
+- "Hide Node Checkboxes" option in AI Settings
+- `applyNodeCheckboxVisibility()` - Toggle body class
+- CSS: `body.hide-node-checkboxes` hides `.tree-node-checkbox` and `.canvas-node-checkbox`
+- Persists in localStorage as 'hideNodeCheckboxes'
+
+---
+
+## Previous Features (Builds 769-781)
 
 ### GDrive RAG Integration (Builds 770-781)
 
@@ -785,4 +823,4 @@ TreeListy supports 21 patterns including:
 
 ---
 
-*Last updated: 2026-01-10 (Build 822)*
+*Last updated: 2026-01-10 (Build 829)*
