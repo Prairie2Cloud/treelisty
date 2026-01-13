@@ -1,20 +1,32 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.135 (Build 829)
+Current Version: v2.101.144 (Build 838)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build829.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build838.json`
 
 The self-tree contains:
-- **Measured Signals**: 5.12 MB, 108,300+ lines, 469 tests, 10 views, 52 keyboard shortcuts
+- **Measured Signals**: 5.14 MB, 108,766 lines, 469 tests, 10 views, 52 keyboard shortcuts
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
 
 Use the self-tree to understand capabilities, priorities, and architecture before making changes.
+
+### Auto-Update Hook (Build 838+)
+
+The self-tree auto-updates after git commits via Claude Code hook:
+- **Hook**: `.claude/hooks/post-commit-self-tree.ps1`
+- **Trigger**: `PostToolUse` on Bash commands containing "git commit"
+- **Action**: Runs `measure-self-tree.js` → `generate-self-tree.js`
+
+This keeps the self-tree fresh without manual regeneration. The hook:
+- Only fires on actual git commits (not other Bash commands)
+- Uses a lockfile to prevent double-triggering
+- Outputs measurement summary to console
 
 ## COMPLETED: Mobile Checklist Lifecycle (Builds 823-829)
 
