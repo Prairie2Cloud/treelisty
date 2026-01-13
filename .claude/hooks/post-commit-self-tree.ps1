@@ -77,16 +77,17 @@ Set-Location $repoPath
 # Run measurement script
 Write-Host "[1/2] Measuring codebase..."
 try {
-    $measureOutput = node "$repoPath\scripts\measure-self-tree.js" 2>&1
+    $measureOutput = & node "$repoPath\scripts\measure-self-tree.js" 2>&1
+    $measureText = $measureOutput -join "`n"
 
-    # Extract key metrics
-    if ($measureOutput -match "Size:\s+([\d.]+\s*MB)") {
-        Write-Host "   Size: $($Matches[1])"
+    # Extract key metrics from joined output
+    if ($measureText -match "Size:\s+([\d.]+)\s*MB") {
+        Write-Host "   Size: $($Matches[1]) MB"
     }
-    if ($measureOutput -match "Lines:\s+([\d,]+)") {
+    if ($measureText -match "Lines:\s+([\d,]+)") {
         Write-Host "   Lines: $($Matches[1])"
     }
-    if ($measureOutput -match "Build:\s+(\d+)") {
+    if ($measureText -match "Build\s+(\d+)") {
         Write-Host "   Build: $($Matches[1])"
     }
 } catch {
@@ -97,14 +98,15 @@ try {
 Write-Host ""
 Write-Host "[2/2] Generating self-tree..."
 try {
-    $generateOutput = node "$repoPath\scripts\generate-self-tree.js" 2>&1
+    $generateOutput = & node "$repoPath\scripts\generate-self-tree.js" 2>&1
+    $generateText = $generateOutput -join "`n"
 
-    if ($generateOutput -match "Output:\s+(.+\.json)") {
+    if ($generateText -match "Output:\s+(.+\.json)") {
         $outputFile = $Matches[1]
         $fileName = Split-Path $outputFile -Leaf
         Write-Host "   Created: $fileName"
     }
-    if ($generateOutput -match "Nodes:\s+(\d+)") {
+    if ($generateText -match "Nodes:\s+(\d+)") {
         Write-Host "   Nodes: $($Matches[1])"
     }
 } catch {
