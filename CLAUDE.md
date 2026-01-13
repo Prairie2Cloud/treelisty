@@ -206,6 +206,63 @@ These tests verify:
 - Integrity: Undo capability, consent flows
 - Humility: Confidence routing behavior
 
+### Visual Regression Tests (NEW - Build 837)
+
+Run `/regression-check` in Claude Code to capture and compare view screenshots:
+
+```
+/regression-check         # Capture all views, compare to baselines
+/regression-check update  # Update baselines after intentional changes
+```
+
+**When to run**:
+- After view-related code changes (tree, canvas, 3D, gantt, etc.)
+- After CSS changes
+- Before release commits
+
+**Requirements**:
+- TreeListy open in Chrome
+- Chrome extension connected
+- Test tree loaded (use welcome-to-treelisty.json)
+
+**Hotspot areas** (from historical analysis - highest bug counts):
+| Area | Fix Count | What to Check |
+|------|-----------|---------------|
+| View switching | 44 | Artifacts after switch |
+| Canvas | 15 | Node positions, connections |
+| Zoom | 15 | Center point preserved |
+
+Baselines stored in: `test/regression-baselines/baselines/`
+
+### Mobile Audit (NEW - Build 837)
+
+Run `/mobile-audit` for systematic mobile testing checklist:
+
+```
+/mobile-audit        # Full 8-category checklist
+/mobile-audit quick  # Quick smoke test (5 items)
+```
+
+**When to run**:
+- After touch/gesture code changes
+- After CSS responsive changes
+- Before major releases
+
+**Quick smoke test** (catches 80% of bugs):
+1. Page loads
+2. Tree renders
+3. Touch expand works
+4. Pinch zoom works
+5. Chat opens with keyboard
+
+**Historical hotspots** (19 mobile fixes total):
+| Area | Bug Count | Common Issues |
+|------|-----------|---------------|
+| iOS Safari | 6 | Touch events, keyboard, clipboard |
+| PWA limitations | 4 | Speech API blocked, clipboard |
+| Pinch-zoom | 3 | Wrong element scales |
+| Keyboard | 3 | Input hidden behind keyboard |
+
 ## Architecture
 
 ```

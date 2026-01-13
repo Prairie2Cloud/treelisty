@@ -7,7 +7,7 @@ Read the TreeListy self-tree and provide a session context summary.
 1. Find and read the latest self-tree file in `self-trees/` directory:
    - Look for files matching `treelisty-self-tree-v*.json`
    - Use the most recent one (highest build number)
-   - Current: `self-trees/treelisty-self-tree-v17-build742.json`
+   - Current: `self-trees/treelisty-self-tree-v17-build836.json`
 
 2. Extract and summarize:
    - **Current Metrics**: File size, line count, test count, view count
