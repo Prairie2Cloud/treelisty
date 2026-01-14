@@ -1,15 +1,15 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.144 (Build 838)
+Current Version: v2.101.162 (Build 856)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build838.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build856.json`
 
 The self-tree contains:
-- **Measured Signals**: 5.14 MB, 108,766 lines, 469 tests, 10 views, 52 keyboard shortcuts
+- **Measured Signals**: 5.23 MB, 110,946 lines, 494 tests, 11 views, 52 keyboard shortcuts
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
@@ -60,7 +60,7 @@ Netlify auto-deploys within 1-2 minutes of push to main.
 
 ## Project Overview
 
-TreeListy is a single-file HTML application (~5MB) for hierarchical project decomposition with AI integration. It supports 10 view modes, 21 patterns, real-time collaboration, and bidirectional communication with Claude Code via MCP.
+TreeListy is a single-file HTML application (~5.2MB) for hierarchical project decomposition with AI integration. It supports 11 view modes, 21 patterns, real-time collaboration, and bidirectional communication with Claude Code via MCP.
 
 Key files:
 - `treeplexity.html` - Main production file (edit this)
@@ -194,7 +194,7 @@ cd test/treelisty-test
 npm run test:unit
 ```
 
-All 469+ unit tests should pass.
+All 494 unit tests should pass.
 
 Run TB Natural Language E2E tests:
 ```bash
@@ -317,10 +317,51 @@ treeplexity.html (single file ~1.3MB)
 - `showToast(message, type)` - show notification
 - `normalizeTreeStructure(tree)` - ensure consistent tree format
 - `preflightCapabilityCheck(message)` - fast-path NL command routing
+- `parseDateFromNaturalLanguage(text)` - NL date parsing with confidence (Build 856)
+- `handleQuickTask(rawText)` - Constitutional confidence routing for tasks (Build 856)
 
 ---
 
-## Recent Features (Builds 823-829)
+## Recent Features (Builds 850-856)
+
+### Calendar Todo Lens Phase 3 (Build 856)
+
+Natural language date parsing with Constitutional confidence routing:
+
+**Key Functions:**
+- `parseDateFromNaturalLanguage(text)` - Parse dates from natural language with 30+ patterns
+  - Patterns: "today", "tomorrow", "next Monday", "in 5 days", "by Friday", "eod", "weekly"
+  - Returns: `{ date, time, confidence, extracted, recurrence }`
+- `handleQuickTask(rawText)` - Create tasks with Constitutional Article IV routing
+  - `>= 0.85 confidence`: Act silently
+  - `0.50-0.85 confidence`: Show toast with "Change" button
+  - `< 0.50 confidence`: Create task without date
+- Calendar drag-drop reschedule with "Also shift subtasks?" affordance
+- Canvas deadline coloring: overdue=red glow, high=amber, medium=yellow, low=blue
+
+**TB Commands:**
+- `quick_task` - Create task with NL date: "remind me to call mom tomorrow"
+- NL triggers: "task: X", "remind me to X", "need to X", "have to X"
+
+### Mobile Voice & View Fixes (Builds 850-855)
+
+| Build | Feature |
+|-------|---------|
+| 855 | Quick Capture for mobile voice button (full-screen pattern selection) |
+| 854 | Mobile voice capture button in header (red mic icon) |
+| 853 | Mobile view menu fix (Gantt, Calendar, Treemap, Mindmap) |
+| 852 | Mobile canvas view fix (wrong function name) |
+| 851 | Mobile landscape fix v2 (simplified detection + CSS fallback) |
+| 850 | Flexible email archive patterns ("archive linkedin", etc.) |
+
+### Mobile UI Bug Fixes (Build 856)
+
+- Fullscreen button: CSS-drawn icon replaces Unicode ⛶ (didn't render on mobile)
+- Hamburger menu: No longer truncated at screen edge (`margin-right: 4px`, reduced flex gap)
+
+---
+
+## Previous Features (Builds 823-829)
 
 ### Mobile Checklist Lifecycle
 
@@ -595,7 +636,7 @@ TreeBeard is the AI assistant with 100+ commands organized by category:
 
 **Navigation**: `focus_node`, `focus_root`, `focus_parent`, `focus_first_child`, `expand_all`, `collapse_all`, `focus_branch`
 
-**Tree Building**: `add_child`, `add_sibling`, `create_tree`, `build_tree_from_topic`, `start_tree_building`, `continue_tree_building`
+**Tree Building**: `add_child`, `add_sibling`, `create_tree`, `build_tree_from_topic`, `start_tree_building`, `continue_tree_building`, `quick_task`
 
 **Editing**: `rename_node`, `set_description`, `move_node`, `delete_node`, `duplicate_node`
 
@@ -892,4 +933,4 @@ TreeListy supports 21 patterns including:
 
 ---
 
-*Last updated: 2026-01-10 (Build 829)*
+*Last updated: 2026-01-14 (Build 856)*
