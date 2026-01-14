@@ -50,17 +50,26 @@ try {
         timeout: 60000
     });
 
-    // Parse test count from output
-    const match = result.match(/(\d+) passing/);
+    // Strip ANSI escape codes for parsing
+    const cleanResult = result.replace(/\x1b\[[0-9;]*m/g, '');
+
+    // Parse test count from output - supports both Mocha and Vitest formats
+    // Mocha: "X passing", Vitest: "Tests  X passed (X)"
+    // Vitest shows "Test Files  X passed" then "Tests  X passed" - we want the second
+    const vitestMatch = cleanResult.match(/Tests\s+(\d+) passed/);
+    const mochaMatch = cleanResult.match(/(\d+) passing/);
+    const match = vitestMatch || mochaMatch;
     if (match) {
         testCount = parseInt(match[1]);
         testStatus = 'passing';
     }
 } catch (e) {
     // Check if tests ran but some failed
-    const output = e.stdout || e.message;
-    const passMatch = output.match(/(\d+) passing/);
-    const failMatch = output.match(/(\d+) failing/);
+    const output = (e.stdout || e.message || '').replace(/\x1b\[[0-9;]*m/g, '');
+    const vitestPassMatch = output.match(/Tests\s+(\d+) passed/);
+    const mochaPassMatch = output.match(/(\d+) passing/);
+    const passMatch = vitestPassMatch || mochaPassMatch;
+    const failMatch = output.match(/(\d+) fail(?:ing|ed)/);
     if (passMatch) {
         testCount = parseInt(passMatch[1]);
         testStatus = failMatch ? `${passMatch[1]} passing, ${failMatch[1]} failing` : 'passing';

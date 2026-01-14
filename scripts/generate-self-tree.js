@@ -55,8 +55,8 @@ Last run: ${measurements.date}
 |--------|-------|-------|
 | File Size | ${measurements.metrics.fileSizeMB} MB | +32% since B543 |
 | Lines | ${measurements.metrics.lineCount.toLocaleString()} | +44% since B543 |
-| Tests | 469 passing | Stable |
-| Views | ${measurements.metrics.viewCount} | +4 new |
+| Tests | ${measurements.metrics.testCount} ${measurements.metrics.testStatus} | Stable |
+| Views | ${measurements.metrics.viewCount} | All core views |
 | Features | 15/15 | All implemented |`,
             items: [
                 {
@@ -76,7 +76,7 @@ Last run: ${measurements.date}
                 {
                     id: "signal-tests",
                     name: "Unit Tests",
-                    description: `**469 tests passing** ✅ [MEASURED]
+                    description: `**${measurements.metrics.testCount} tests ${measurements.metrics.testStatus}** ✅ [MEASURED]
 
 | Suite | Tests | Status |
 |-------|-------|--------|
@@ -105,10 +105,11 @@ Last run: ${measurements.date}
 | Mind Map | ✅ New | Vanilla JS |
 | Treemap | ✅ Viz | D3.js |
 | Checklist | ✅ New | Vanilla JS |
+| Kanban | ✅ New | Vanilla JS |
 | Embed | ✅ Mode | - |
 | Readonly | ✅ Mode | - |
 
-**Want:** Kanban view (user requested, not yet implemented)`
+**Detected views:** ${measurements.metrics.views ? measurements.metrics.views.join(', ') : 'N/A'}`
                 },
                 {
                     id: "signal-keyboard",
@@ -178,50 +179,48 @@ Feature detection via regex pattern matching.
                     subtasks: [
                         {
                             id: "now-1",
-                            name: "1. Gmail Tree UX Polish",
-                            description: `**Status:** ✅ Complete (Builds 732-736)
-**Acceptance Test:** Gmail trees open cleanly in tree view with email pattern.
-
-| Fix | Build | Status |
-|-----|-------|--------|
-| Modal dismiss (X + click outside) | 732 | ✅ |
-| Gmail auto-pattern detection | 733 | ✅ |
-| Tree load view reset | 734 | ✅ |
-| restoreViewState TO tree | 735 | ✅ |
-| Gantt close hides all elements | 736 | ✅ |
-
-**Completed:** 2026-01-05. No more mixed Gantt/Tree UI when loading Gmail.`
-                        },
-                        {
-                            id: "now-2",
-                            name: "2. Zoom Centering Fixes",
-                            description: `**Status:** ✅ Complete (Builds 724-731)
-**Acceptance Test:** Focused node stays centered when zooming.
-
-| Fix | Build | Status |
-|-----|-------|--------|
-| Zoom to focused node | 724 | ✅ |
-| Node ID on email items | 728 | ✅ |
-| Container rect reference | 729 | ✅ |
-| Cursor fallback | 730 | ✅ |
-| MIN_ZOOM 50% | 731 | ✅ |
-
-**Test Result:** Y-drift +1px, X-drift -3px (acceptable).`
-                        },
-                        {
-                            id: "now-3",
-                            name: "3. Mobile Checklist Lifecycle",
-                            description: `**Status:** 🚧 In Progress (Builds 823-826)
+                            name: "1. Mobile Checklist Lifecycle",
+                            description: `**Status:** ✅ Complete (Builds 823-829)
 **Acceptance Test:** Checklists work end-to-end on mobile.
 
 | Phase | Build | Feature | Status |
 |-------|-------|---------|--------|
 | 1 | 823 | Checklist View | ✅ Done |
-| 2 | 824 | Mobile Tree Picker | ⏳ Pending |
-| 3 | 825 | Auto-Archive on 100% | ⏳ Pending |
-| 4 | 826 | Recurring Detection | ⏳ Pending |
+| 2 | 826 | Mobile Tree Picker | ✅ Done |
+| 3 | 827 | Auto-Archive on 100% | ✅ Done |
+| 4 | 828 | Recurring Detection | ✅ Done |
+| 5 | 829 | Hide Node Checkboxes | ✅ Done |
 
-**Plan file:** \`.claude/plans/wobbly-shimmying-wigderson.md\``
+**Completed:** 2026-01-12. Full checklist lifecycle with recurrence.`
+                        },
+                        {
+                            id: "now-2",
+                            name: "2. Kanban View",
+                            description: `**Status:** ✅ Complete (Builds 839-846)
+**Acceptance Test:** Drag tasks between columns, status updates.
+
+| Phase | Build | Feature | Status |
+|-------|-------|---------|--------|
+| 1 | 839 | Kanban View (11th view) | ✅ Done |
+| 2 | 844 | Sidebar offset fix | ✅ Done |
+| 3 | 846 | View switching + descriptions | ✅ Done |
+
+**Completed:** 2026-01-13. 4-column board with drag-drop and depth selector.`
+                        },
+                        {
+                            id: "now-3",
+                            name: "3. Calendar Todo Lens",
+                            description: `**Status:** ✅ Complete (Builds 817-856)
+**Acceptance Test:** NL date parsing, drag-drop reschedule.
+
+| Phase | Build | Feature | Status |
+|-------|-------|---------|--------|
+| 1 | 817 | Foundation (getNodeSchedule) | ✅ Done |
+| 2 | 818-820 | Daily Cockpit (Today Panel) | ✅ Done |
+| 3 | 856 | NL Date Parser + Confidence | ✅ Done |
+| 4 | 856 | Drag-drop reschedule | ✅ Done |
+
+**Completed:** 2026-01-14. Constitutional Article IV routing implemented.`
                         }
                     ]
                 },
@@ -232,7 +231,31 @@ Feature detection via regex pattern matching.
                     subtasks: [
                         {
                             id: "next-1",
-                            name: "1. Self-Tree Auto-Update CI Job",
+                            name: "1. Dashboard Trees (Morning Dashboard)",
+                            description: `**Goal:** Unified view of Gmail/GDrive/Calendar with AI summary.
+**Effort:** High (multi-build feature)
+**Design Doc:** \`docs/plans/2026-01-05-dashboard-trees-design.md\`
+**Key Features:**
+- DashboardConnector abstraction for data sources
+- Stable external IDs across refreshes
+- Agentic workflows (monitor → wait → act)
+- Auto-draft with approval flow`
+                        },
+                        {
+                            id: "next-2",
+                            name: "2. TB Awareness System",
+                            description: `**Goal:** TreeBeard becomes self-aware and proactive.
+**Effort:** Medium (phased implementation)
+**Design Doc:** \`docs/plans/2026-01-03-tb-awareness-system-design.md\`
+**Key Features:**
+- Session stats, tree health monitoring
+- Frustration detection
+- Proactive suggestions based on context
+- App-side decision engine (minimal prompt injection)`
+                        },
+                        {
+                            id: "next-3",
+                            name: "3. Self-Tree Auto-Update CI Job",
                             description: `**Hypothesis:** Weekly automated measurement updates will keep self-tree fresh.
 **Effort:** Low (GitHub Action + cron)
 **Validation:** Run for 4 weeks, check accuracy.
@@ -245,28 +268,12 @@ on:
 \`\`\``
                         },
                         {
-                            id: "next-2",
-                            name: "2. TreeBeard Telemetry Dashboard",
+                            id: "next-4",
+                            name: "4. TreeBeard Telemetry Dashboard",
                             description: `**Hypothesis:** Command usage data will inform priority decisions.
 **Effort:** Medium
 **Prerequisite:** getToolUseTelemetry() already implemented.
 **Validation:** Track for 2 weeks, identify top 10 commands.`
-                        },
-                        {
-                            id: "next-3",
-                            name: "3. Kanban View",
-                            description: `**User Request:** Board view for project management.
-**Effort:** Medium
-**Dependencies:** View system already supports ${measurements.metrics.viewCount} views.
-**Validation:** Tasks can be dragged between columns.`
-                        },
-                        {
-                            id: "next-4",
-                            name: "4. Self-Tree Auto-Refresh",
-                            description: `**Goal:** Keep self-tree current without manual regeneration.
-**Effort:** Low
-**Approach:** CI job on schedule or post-deploy hook.
-**Validation:** Self-tree stays within 10 builds of current.`
                         }
                     ]
                 },
@@ -388,7 +395,7 @@ When Claude Code reads self-tree:
 - Gmail local search smoke test
 - TreeBeard capabilities tests
 - E2E tests against live site
-- Unit tests (469 passing)`
+- Unit tests (${measurements.metrics.testCount} passing)`
                 },
                 {
                     id: "improve-3",
@@ -529,7 +536,7 @@ npx serve .
 \`\`\`bash
 cd test/treelisty-test
 npm install
-npm run test:unit    # 469 Mocha tests
+npm run test:unit    # ${measurements.metrics.testCount}+ Vitest tests
 \`\`\`
 
 **Deployment:**
@@ -582,7 +589,7 @@ node packages/treelisty-mcp-bridge/src/bridge.js
 - \`generate-self-tree.js\` - Create self-tree from measurements
 
 **test/**
-- \`treelisty-test/\` - Mocha unit tests (469)
+- \`treelisty-test/\` - Vitest unit tests (${measurements.metrics.testCount}+)
 - \`*.py\` - Playwright e2e tests`
                 }
             ]
