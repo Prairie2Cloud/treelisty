@@ -155,7 +155,8 @@ describe('Debate Mode (Builds 427-431)', () => {
         });
 
         it('has startDebate function', () => {
-            expect(htmlContent).toContain('function startDebate()');
+            // Build 859: startDebate now takes parameters (node, opponentType, persona)
+            expect(htmlContent).toContain('async function startDebate(node');
         });
 
         it('has getNextDebateTurn function', () => {
