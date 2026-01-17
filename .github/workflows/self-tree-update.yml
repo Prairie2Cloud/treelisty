@@ -11,7 +11,7 @@ jobs:
   update-self-tree:
     name: Update Self-Tree Measurements
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    timeout-minutes: 10
 
     steps:
       - name: Checkout
@@ -23,6 +23,16 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: test/treelisty-test/package-lock.json
+
+      - name: Install test dependencies
+        working-directory: test/treelisty-test
+        run: npm ci
+
+      - name: Extract testable code
+        working-directory: test/treelisty-test
+        run: npm run extract
 
       - name: Run measurements
         run: node scripts/measure-self-tree.js
@@ -63,5 +73,15 @@ jobs:
             echo "ℹ️ No changes detected - self-tree is current" >> $GITHUB_STEP_SUMMARY
           fi
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Latest measurements:**" >> $GITHUB_STEP_SUMMARY
-          ls -la self-trees/measurements-*.json | tail -1 >> $GITHUB_STEP_SUMMARY
+
+          # Show key metrics from measurements
+          MEASUREMENTS_FILE=$(ls -t self-trees/measurements-build*.json 2>/dev/null | head -1)
+          if [ -f "$MEASUREMENTS_FILE" ]; then
+            echo "**Metrics (Build $(node -e "console.log(require('./${MEASUREMENTS_FILE}').build)")):**" >> $GITHUB_STEP_SUMMARY
+            echo "| Metric | Value |" >> $GITHUB_STEP_SUMMARY
+            echo "|--------|-------|" >> $GITHUB_STEP_SUMMARY
+            echo "| File Size | $(node -e "console.log(require('./${MEASUREMENTS_FILE}').metrics.fileSizeMB)") MB |" >> $GITHUB_STEP_SUMMARY
+            echo "| Lines | $(node -e "console.log(require('./${MEASUREMENTS_FILE}').metrics.lineCount.toLocaleString())") |" >> $GITHUB_STEP_SUMMARY
+            echo "| Tests | $(node -e "console.log(require('./${MEASUREMENTS_FILE}').metrics.testCount)") |" >> $GITHUB_STEP_SUMMARY
+            echo "| Views | $(node -e "console.log(require('./${MEASUREMENTS_FILE}').metrics.viewCount)") |" >> $GITHUB_STEP_SUMMARY
+          fi

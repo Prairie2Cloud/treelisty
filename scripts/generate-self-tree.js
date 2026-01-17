@@ -256,16 +256,18 @@ Feature detection via regex pattern matching.
                         {
                             id: "next-3",
                             name: "3. Self-Tree Auto-Update CI Job",
-                            description: `**Hypothesis:** Weekly automated measurement updates will keep self-tree fresh.
-**Effort:** Low (GitHub Action + cron)
+                            description: `**Status:** ✅ Implemented (Build 872)
+**Hypothesis:** Weekly automated measurement updates will keep self-tree fresh.
 **Validation:** Run for 4 weeks, check accuracy.
 
-\`\`\`yaml
-# .github/workflows/self-tree-update.yml
-on:
-  schedule:
-    - cron: '0 0 * * 0'  # Weekly Sunday
-\`\`\``
+**What shipped:**
+- \`.github/workflows/self-tree-update.yml\`
+- Runs every Sunday at midnight UTC
+- Installs test deps for accurate test count
+- Auto-commits if changes detected
+- Summary shows key metrics table
+
+**Manual trigger:** Actions → Self-Tree Auto-Update → Run workflow`
                         },
                         {
                             id: "next-4",
@@ -416,6 +418,18 @@ When Claude Code reads self-tree:
 - Summary report with progress bar
 - Recommendations when over budget
 **Current:** ${measurements.metrics.fileSizeMB} MB (${Math.round((measurements.metrics.fileSizeMB / 5.5) * 100)}% of limit)`
+                },
+                {
+                    id: "improve-5",
+                    name: "✅ DONE: Self-Tree Auto-Update CI",
+                    description: `**Completed:** self-tree-update.yml workflow
+**What shipped:**
+- Weekly cron job (Sundays at midnight UTC)
+- Runs measure-self-tree.js + generate-self-tree.js
+- Installs test dependencies for accurate test count
+- Auto-commits changes with build number
+- Summary table shows key metrics
+- Manual trigger via workflow_dispatch`
                 }
             ]
         },
