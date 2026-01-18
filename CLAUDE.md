@@ -176,15 +176,75 @@ if (confidence > 0.85) {
 | Debating architecture | Philosophical Principles |
 | Code review | Check PR against constitutional checklist |
 
-## Build Versioning
+## Development Patterns
+
+### Session Handoff (Pause/Resume)
+
+When ending a session mid-work:
+```
+/pause    # Saves context to .claude/session.local.md
+```
+
+When starting a new session:
+```
+/resume   # Restores context from paused session
+```
+
+### Verified Todos
+
+When creating TodoWrite tasks for implementation, include verification:
+```
+content: "Task description | VERIFY: verification command"
+```
+
+Examples:
+- `"Fix zoom bug | VERIFY: npm run test:unit"`
+- `"Add voice button | VERIFY: python test/test-mobile-voice.py passes"`
+- `"Update docs | VERIFY: Build numbers match in 4 locations"`
+
+Before marking a todo complete, run the verification. Only complete if it passes.
+
+### Fresh Context Spawning
+
+For complex work, spawn focused sub-agents to avoid context bloat:
+
+| Scenario | Model | Command |
+|----------|-------|---------|
+| Research/lookup | haiku | `Task({ subagent_type: "Explore", model: "haiku" })` |
+| Feature implementation | sonnet | `Task({ subagent_type: "code-implementer" })` |
+| 3+ independent bugs | multiple | Spawn parallel agents |
+
+The `code-implementer` agent takes a plan and implements precisely without over-exploring.
+
+## Build Versioning & Commits
+
+### WIP Commits (checkpoints during development)
+```
+/wip voice button handler
+# Creates: "WIP: voice button handler"
+```
+
+WIP commits save progress locally. Multiple WIPs can accumulate.
+
+### Release Commits (deployable builds)
+```
+/release Feature description
+# Creates: "Build XXX: Feature description"
+# Updates version in 4 locations automatically
+```
+
+### Workflow
+```
+Work → /wip checkpoint → Work → /wip another → /release → git push
+```
+
+### Manual Version Locations (if not using /release)
 
 When making changes, update these 4 locations:
 1. Header comment (line ~9): `TreeListy v2.X.Y | Build XXX | YYYY-MM-DD`
 2. Changelog in header (lines ~21-28)
 3. TREELISTY_VERSION object (line ~740): `build: XXX`
 4. KNOWN_LATEST (search for `const KNOWN_LATEST`): update to match
-
-Use the `treelisty-release` skill to automate this.
 
 ## Testing
 
