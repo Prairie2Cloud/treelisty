@@ -1,8 +1,34 @@
 # TB Awareness System Design
 
-**Build:** 713+
+**Build:** 713-717
+**Status:** ✅ COMPLETE (All 5 phases shipped)
 **Effort:** Medium (phased implementation)
 **Priority:** A (Proactive Helper) → B (Self-Debugging) → C (Personalization)
+
+---
+
+## Implementation Status (Build 872)
+
+**All phases from this design have been implemented:**
+
+| Phase | Build | Status | What Shipped |
+|-------|-------|--------|--------------|
+| 1. Foundation | 713 | ✅ Done | `tbAwareness` object, monitors (updateSession, updateIntegrations, detectDevice), core status injection (~50 tokens), awareness status bar, config with quietMode, localStorage persistence |
+| 2. Proactive Helper | 714 | ✅ Done | Tree health monitoring with dirty Set + requestIdleCallback, predictNextAction pattern detection, getUndiscoveredFeatures, conditional system prompt injection (tree health if <80%, tips if not quiet mode) |
+| 3. Self-Debugging | 715 | ✅ Done | Tool-grounded confidence (toolsRun, toolsSucceeded, citedSources), recordToolFailure with sliding window, assessHallucinationRisk, confidence guidance injection when <50% |
+| 4. Personalization | 716 | ✅ Done | detectUserState with frustration detection (explicit patterns + repetition), Levenshtein similarity, expertise level detection, communication style, frustration injection when >= 2 triggers |
+| 5. Polish | 717 | ✅ Done | Expandable awareness bar (click to toggle), collapsed/expanded states, health indicator colors (green/yellow/red), integration badges, session cost tracking |
+
+**Code Location:** `treeplexity.html` lines ~1098-1600 (search for `window.tbAwareness`)
+
+**Key Functions (all window-exposed):**
+- `tbAwareness` - Central awareness object
+- `updateSession()` - Track messages, tokens, cost
+- `updateTreeHealth()` - Tree completeness with sampling
+- `predictNextAction()` - Pattern-based prediction
+- `assessConfidence()` - Tool-grounded confidence
+- `detectUserState()` - Frustration and expertise detection
+- `AwarenessInjector.buildAwarenessContext()` - Selective prompt injection
 
 ---
 
@@ -519,39 +545,39 @@ Optional status bar below TB input showing awareness state.
 
 ## Implementation Phases
 
-### Phase 1: Foundation (Build 713)
-- [ ] Create `tbAwareness` object structure
-- [ ] Implement `updateSession` monitor
-- [ ] Implement `updateIntegrations` monitor
-- [ ] Implement `detectDevice` monitor
-- [ ] Inject core status into system prompt
-- [ ] Add basic UI status bar (collapsed only)
+### Phase 1: Foundation (Build 713) ✅ COMPLETE
+- [x] Create `tbAwareness` object structure
+- [x] Implement `updateSession` monitor
+- [x] Implement `updateIntegrations` monitor
+- [x] Implement `detectDevice` monitor
+- [x] Inject core status into system prompt
+- [x] Add basic UI status bar (collapsed only)
 
-### Phase 2: Proactive Helper (Build 714)
-- [ ] Implement `updateTreeHealth` monitor
-- [ ] Implement `predictNextAction` with simple pattern matching
-- [ ] Implement `getUndiscoveredFeatures`
-- [ ] Add tree health injection
-- [ ] Add proactive suggestions injection
+### Phase 2: Proactive Helper (Build 714) ✅ COMPLETE
+- [x] Implement `updateTreeHealth` monitor
+- [x] Implement `predictNextAction` with simple pattern matching
+- [x] Implement `getUndiscoveredFeatures`
+- [x] Add tree health injection
+- [x] Add proactive suggestions injection
 
-### Phase 3: Self-Debugging (Build 715)
-- [ ] Implement `assessConfidence` monitor
-- [ ] Track tool failures
-- [ ] Implement hallucination risk assessment
-- [ ] Add confidence guidance injection
-- [ ] Surface confidence in UI
+### Phase 3: Self-Debugging (Build 715) ✅ COMPLETE
+- [x] Implement `assessConfidence` monitor
+- [x] Track tool failures
+- [x] Implement hallucination risk assessment
+- [x] Add confidence guidance injection
+- [x] Surface confidence in UI
 
-### Phase 4: Personalization (Build 716)
-- [ ] Implement `detectUserState` with frustration detection
-- [ ] Add expertise level detection
-- [ ] Add frustration response injection
-- [ ] Persist user preferences to localStorage
+### Phase 4: Personalization (Build 716) ✅ COMPLETE
+- [x] Implement `detectUserState` with frustration detection
+- [x] Add expertise level detection
+- [x] Add frustration response injection
+- [x] Persist user preferences to localStorage
 
-### Phase 5: Polish (Build 717)
-- [ ] Expandable UI with full stats
-- [ ] Cost tracking and display
-- [ ] Performance tuning
-- [ ] Documentation
+### Phase 5: Polish (Build 717) ✅ COMPLETE
+- [x] Expandable UI with full stats
+- [x] Cost tracking and display
+- [x] Performance tuning
+- [x] Documentation
 
 ---
 
@@ -635,6 +661,25 @@ AFTER:  tbAwareness → App-side decisions (UI, routing, tool selection)
 
 ## References
 
-- Build 712: Capability Orchestrator + Model Awareness
+### Prior Art (Pre-Awareness)
 - Build 707: Confidence Scoring in Preflight Check
 - Build 711: Action Memory & Multi-step Execution
+- Build 712: Capability Orchestrator + Model Awareness
+
+### Awareness System Implementation
+- Build 713: Foundation - tbAwareness object, monitors, core injection
+- Build 714: Proactive Helper - Tree health, predictions, undiscovered features
+- Build 715: Self-Debugging - Confidence assessment, failure tracking, hallucination risk
+- Build 716: Personalization - Frustration detection, expertise, communication style
+- Build 717: Polish - Expandable UI, cost tracking, health indicators
+
+### Related Features (Post-Awareness)
+- Build 747: TB Task Orchestration Protocol (uses awareness for capability routing)
+- Build 751: Triage Agent (extends awareness patterns for background monitoring)
+- Build 754: CC Capability Discovery (integrates with tbAwareness.integrations)
+
+---
+
+*Design completed: 2026-01-03*
+*Implementation completed: Builds 713-717*
+*Last reviewed: 2026-01-18 (Build 872)*

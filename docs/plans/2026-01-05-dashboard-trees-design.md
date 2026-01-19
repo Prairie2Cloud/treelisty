@@ -1,10 +1,83 @@
 # Dashboard Trees: Cross-Tree Agentic Workflows
 
-**Date:** 2026-01-05
+**Date:** 2026-01-05 (Updated 2026-01-18)
 **Status:** Approved Design (Revised with GPT Feedback)
 **Priority:** Strategic Feature
 **Extends:** Atlas Cross-Tree Intelligence
-**Revision:** v3 - Incorporates GPT + Gemini architectural feedback
+**Revision:** v5 - Build 873 Phase 3 complete
+
+---
+
+## Current State Assessment (Build 873)
+
+**Added 2026-01-18:** Review of what exists vs. what's needed.
+
+### Implementation Progress
+
+| Phase | Status | Builds | Notes |
+|-------|--------|--------|-------|
+| Phase 0: Storage Layer | ✅ Complete | 745, 787, 793-794 | TreeStorageAdapter, AtlasDB v2 |
+| Phase 1: Dashboard Foundation | ✅ Complete | 783-784 | detectDashboardRole, getDashboardTrees |
+| Phase 2: Morning Dashboard UI | ✅ Complete | 785-790 | 3-column modal, import/fetch UX |
+| Phase 3: External IDs + Merge | ✅ Complete | 873 | getExternalId, mergeDashboardRefresh |
+| Phase 4: AI Summary | 🔲 Not Started | - | **NEXT: Start here** |
+| Phase 5: Agent Infrastructure | ⚠️ Partial | 751, 795 | Triage Agent exists, different purpose |
+| Phase 6: Draft & Approval | 🔲 Not Started | - | |
+| Phase 7: Workflow Creation | 🔲 Not Started | - | |
+
+### Existing Infrastructure
+
+| Component | Status | Build | Notes |
+|-----------|--------|-------|-------|
+| NodeIndex (IndexedDB) | ✅ Exists | 698 | Used for Gallery/Clone |
+| TreeStorageAdapter | ✅ Exists | 745 | Routes large trees to IndexedDB |
+| GDrive RAG | ✅ Exists | 770-781 | Content extraction, hybrid search |
+| Gmail MCP tools | ✅ Exists | 795 | `gmail_*` tools for triage, archive, star, draft |
+| GDrive MCP tools | ✅ Exists | 771 | `gdrive_*` tools for list, search, open |
+| Triage Agent | ✅ Exists | 795 | `triage_*` tools - background monitoring |
+| External ID standard | ✅ Complete | 873 | getExternalId() handles threadId, external.id, fileId |
+| Merge refresh | ✅ Complete | 873 | mergeDashboardRefresh() preserves nodeGuid |
+
+### External ID Implementation (Build 873)
+
+**Decision:** Use existing patterns as canonical, accessed via `getExternalId(node, role)`:
+
+| Role | External ID Source | Fallback |
+|------|-------------------|----------|
+| gmail | `node.threadId` | - |
+| drive | `node.external.id` | `node._rag.source.fileId` or extract from `node.fileUrl` |
+| calendar | `node.eventId` | - |
+
+**Key Functions Added:**
+- `getExternalId(node, role)` - Extract external identity from node
+- `buildExternalIdMap(tree, role)` - Index all nodes by external ID
+- `mergeDashboardRefresh(role, existing, fresh)` - Merge preserving nodeGuid
+
+**Merge Behavior:**
+- Matched external ID → preserve nodeGuid + hyperedges + user modifications
+- New external ID → new node with fresh ID
+- Orphaned external ID → marked `_stale: true` with timestamp
+
+### Triage Agent Integration
+
+Build 795 added `triage_*` MCP tools that overlap with "agentic workflows":
+- `triage_start` / `triage_stop` - background monitoring
+- `triage_now` - immediate triage cycle
+- `triage_config` - polling interval, auto-approve settings
+
+**Recommendation:** Dashboard Trees agents should integrate with or extend Triage Agent, not duplicate it.
+
+### Updated Build Ranges
+
+Original doc referenced Builds 745-805 (speculative). Current build is 872. Updated phases:
+- Phase 0: Builds 873-876
+- Phase 1: Builds 877-882
+- Phase 2: Builds 883-890
+- Phase 3: Builds 891-898
+- Phase 4: Builds 899-906
+- Phase 5: Builds 907-916
+- Phase 6: Builds 917-924
+- Phase 7: Builds 925-933
 
 ---
 
@@ -575,54 +648,77 @@ Dashboard trees store their refresh command:
 
 ## Section 8: Implementation Phases
 
-### Phase 0: Storage Layer Prerequisite (Builds 745-748)
+### Phase 0: Storage Layer Prerequisite ✅ COMPLETE (Build 745)
 
-**CRITICAL: Must complete before dashboard trees**
+**CRITICAL: Must complete before dashboard trees** → Done!
 
-- Implement `TreeStorageAdapter` interface:
+**Implemented in Build 745:**
+- ✅ `TreeStorageAdapter` interface (lines ~33541-33801)
   - Routes small trees (<1MB) → localStorage
   - Routes large/dashboard trees → IndexedDB
-- Extend `AtlasDB` to store full tree payloads (not just NodeIndex)
-- Update `TreeRegistry.getDashboardTrees()` to return metadata without loading content
-- Add `NodeIndex.getTopNodes(role, options)` for lightweight preview queries
+  - Auto-fallback between storage types
+- ✅ `AtlasDB` v2 with `tree_payloads` store (line ~33238)
+- ✅ `TreeRegistry.getDashboardTrees()` for metadata queries
+- ✅ `NodeIndex.getTopNodes(treeId, options)` for lightweight preview (line ~34155)
 
-*Deliverable: Storage infrastructure that won't hit quota limits*
+**Bug fixes applied:**
+- Build 787: QuotaExceededError on import now uses TreeStorageAdapter
+- Build 793: TreeManager.saveToLocalStorage() uses TreeStorageAdapter
+- Build 794: Better error reporting from TreeStorageAdapter.save()
 
-**Acceptance test:** Import 10MB Gmail tree → no QuotaExceededError, tree loads correctly.
+*Deliverable: Storage infrastructure that won't hit quota limits* ✅
 
-### Phase 1: Dashboard Foundation (Builds 749-754)
+**Acceptance test:** Import 10MB Gmail tree → no QuotaExceededError, tree loads correctly. ✅ Verified
 
-- `dashboardRole` property on trees
-- Auto-detect on import (Gmail, Drive, Calendar)
-- `TreeRegistry.getDashboardTrees()` API (metadata only)
-- `DashboardConnector` abstraction (MCP-first)
-- Dashboard button in header → modal launcher
-- Storage: `treelisty:dashboard:{role}` → treeId reference only
-- `Ctrl+D` shortcut (verify no conflicts)
+### Phase 1: Dashboard Foundation ✅ COMPLETE (Builds 783-784)
 
-*Deliverable: Role-based Quick Access, dashboard modal shows each tree*
+**Implemented:**
+- ✅ `dashboardRole` property on trees
+- ✅ `detectDashboardRole()` auto-detection on import (lines ~32506-32593)
+- ✅ `TreeRegistry.getDashboardTrees()` API (line ~32817)
+- ✅ `TreeRegistry.setDashboardTree()`, `clearDashboardTree()` methods
+- ✅ Dashboard button in header with badge
+- ✅ `Ctrl+D` shortcut
+- ✅ Storage: `treelisty:dashboard:{role}` → treeId reference
 
-**Acceptance test:** Import Gmail/Drive trees → Dashboard modal shows each role + counts + "Open" jumps to correct tree.
+**Additional fixes:**
+- Build 784: Migration for existing trees (_migrateDashboardRoles)
 
-### Phase 2: Morning Dashboard UI (Builds 755-762)
+*Deliverable: Role-based Quick Access, dashboard modal shows each tree* ✅
 
-- Dashboard modal with 3-column layout (not a new view mode)
-- Preview cards via `NodeIndex.getTopNodes()` (**not full tree hydration**)
-- Auto-refresh on open via MCP Bridge
-- Unread/recent counts from `dashboardMeta`
-- Agent badge placeholder (even if workflows not live)
-- Handle "MCP Disconnected" gracefully ("Last updated: 3 days ago")
+**Acceptance test:** Import Gmail/Drive trees → Dashboard modal shows each role + counts + "Open" jumps to correct tree. ✅ Verified
 
-*Deliverable: Unified morning view of all dashboard trees*
+### Phase 2: Morning Dashboard UI ✅ COMPLETE (Builds 785-790)
 
-**Acceptance test:** Dashboard shows counts and previews without loading full trees into memory.
+**Implemented:**
+- ✅ Dashboard modal with 3-column layout (line ~14758)
+- ✅ Preview cards with unread counts
+- ✅ Import buttons for one-time setup (Build 785)
+- ✅ MCP-aware Fetch buttons when CC connected (Build 786)
+- ✅ Auto-load after import (Build 790)
+- ✅ QuotaExceededError handling (Build 787)
 
-### Phase 3: External IDs + Merge Refresh (Builds 763-770)
+*Deliverable: Unified morning view of all dashboard trees* ✅
+
+**Acceptance test:** Dashboard shows counts and previews without loading full trees into memory. ✅ Verified
+
+### Phase 3: External IDs + Merge Refresh (Builds 891-898)
 
 **CRITICAL: Must complete before workflows**
 
-- Add `external: { type, id }` to dashboard nodes
-- Export scripts emit external IDs (threadId, fileId, eventId)
+**What exists (Build 872):**
+- ✅ Gmail nodes have `threadId` at top level
+- ✅ GDrive nodes have `fileId`, `mimeType`, `fileSize` at top level
+- ✅ Export scripts already emit these IDs
+- ❌ Standardized `external: { type, id }` wrapper - not implemented
+- ❌ Merge refresh - current imports replace entire tree
+
+**Decision: Wrap vs. Document?**
+Option A: Wrap existing fields in `external: { type: "gmail:thread", id: threadId }`
+Option B: Document existing `threadId`/`fileId` as canonical and match on those directly
+
+**Work needed:**
+- Standardize external ID format (choose Option A or B)
 - Implement merge refresh (not replace):
   - Match by external identity → preserve nodeGuid
   - New external ID → insert new node
@@ -634,7 +730,7 @@ Dashboard trees store their refresh command:
 
 **Acceptance test:** Refresh Gmail twice → same threads keep same nodeGuids.
 
-### Phase 4: AI Summary (Builds 771-778)
+### Phase 4: AI Summary (Builds 899-906)
 
 - Cross-tree context gathering (via NodeIndex, not full trees)
 - AI prompt for daily summary generation
@@ -643,8 +739,17 @@ Dashboard trees store their refresh command:
 
 *Deliverable: "Good morning" AI briefing*
 
-### Phase 5: Agent Infrastructure (Builds 779-788)
+### Phase 5: Agent Infrastructure (Builds 907-916)
 
+**What exists (Build 872):**
+- ✅ Triage Agent (`triage_*` MCP tools) - background monitoring pattern
+- ✅ TreeBeard Tool Call JSON format (Build 658)
+- ❌ `AgentManager` - not implemented
+- ❌ Workflow data model
+
+**Integration opportunity:** Extend Triage Agent rather than building parallel infrastructure.
+
+**Work needed:**
 - Workflow data model (reuse TreeBeard Tool Call JSON for actions)
 - AgentManager core (register, cancel, checkTriggers)
 - Trigger matching uses `sourceRole` + `externalType` (not raw nodeId)
@@ -657,8 +762,14 @@ Dashboard trees store their refresh command:
 
 **Acceptance test:** Simulate drive update → matching workflow flips to `triggered`.
 
-### Phase 6: Draft & Approval (Builds 789-796)
+### Phase 6: Draft & Approval (Builds 917-924)
 
+**What exists (Build 872):**
+- ✅ Gmail draft creation via MCP (`gmail_create_draft`)
+- ✅ Gmail draft update/send via MCP
+- ❌ Approval UI in dashboard
+
+**Work needed:**
 - Draft creation from workflow actions
 - Approval UI in dashboard
 - **Approve & Create Draft** (not "Send")
@@ -668,7 +779,7 @@ Dashboard trees store their refresh command:
 
 **Acceptance test:** Workflow produces draft → user can edit and approve → draft created in Gmail.
 
-### Phase 7: Workflow Creation (Builds 797-805)
+### Phase 7: Workflow Creation (Builds 925-933)
 
 - TreeBeard natural language parsing
 - Workflow builder UI (power users)
@@ -756,10 +867,13 @@ Dashboard Trees is the **first major consumer** of the Atlas infrastructure, pro
 
 1. **Calendar tree**: Export script TBD - Google Calendar API integration
 2. **Polling frequency**: 15 min default while tab active, configurable?
+   - *Note:* Triage Agent (Build 795) uses 5-minute default, configurable via `triage_config`
 3. **Workflow limits**: Max active workflows? localStorage size limits?
 4. **Offline behavior**: What happens when dashboard refresh fails? (See Risk 4)
 5. **MCP Bridge required?**: Can dashboard work at all without MCP, or is it MCP-required?
+   - *Clarification:* Dashboard can show stale data without MCP. Refresh requires MCP.
+6. **External ID format**: Wrap in `external: {}` or use existing `threadId`/`fileId` directly? (See Phase 3)
 
 ---
 
-*Last updated: 2026-01-05 (v3 - GPT + Gemini feedback incorporated)*
+*Last updated: 2026-01-18 (v4 - Build 872 current state assessment)*
