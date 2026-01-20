@@ -1,0 +1,57 @@
+name: Lighthouse CI
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'treeplexity.html'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'treeplexity.html'
+  workflow_dispatch:
+
+jobs:
+  lighthouse:
+    name: Lighthouse Performance Audit
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Start local server
+        run: |
+          npm install -g serve
+          serve -l 8080 . &
+          sleep 3
+
+      - name: Run Lighthouse CI
+        uses: treosh/lighthouse-ci-action@v10
+        with:
+          urls: http://localhost:8080/treeplexity.html
+          configPath: ./lighthouserc.json
+          uploadArtifacts: true
+          temporaryPublicStorage: true
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Lighthouse Performance Report" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "View full Lighthouse report in the workflow artifacts." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Thresholds:**" >> $GITHUB_STEP_SUMMARY
+          echo "| Metric | Error Threshold | Warn Threshold |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|-----------------|----------------|" >> $GITHUB_STEP_SUMMARY
+          echo "| First Contentful Paint | 3000ms | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Largest Contentful Paint | 4000ms | - |" >> $GITHUB_STEP_SUMMARY
+          echo "| Cumulative Layout Shift | - | 0.1 |" >> $GITHUB_STEP_SUMMARY
+          echo "| Total Blocking Time | - | 300ms |" >> $GITHUB_STEP_SUMMARY
+          echo "| Performance Score | - | 70% |" >> $GITHUB_STEP_SUMMARY

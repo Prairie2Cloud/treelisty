@@ -16,7 +16,7 @@ jobs:
   check-size:
     name: Check File Size Budget
     runs-on: ubuntu-latest
-    timeout-minutes: 2
+    timeout-minutes: 5
 
     steps:
       - name: Checkout
@@ -56,6 +56,77 @@ jobs:
           LINES=$(wc -l < treeplexity.html)
           echo "count=$LINES" >> $GITHUB_OUTPUT
 
+      - name: Download previous size metrics
+        id: prev-size
+        continue-on-error: true
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          name: size-metrics
+          workflow: size-budget.yml
+          branch: main
+          path: .prev-metrics
+          if_no_artifact_found: ignore
+
+      - name: Compare to previous size
+        id: compare
+        run: |
+          SIZE_BYTES=${{ steps.size-check.outputs.size_bytes }}
+
+          # Check if previous metrics exist
+          if [ -f ".prev-metrics/size-metrics.json" ]; then
+            PREV_BYTES=$(cat .prev-metrics/size-metrics.json | jq -r '.size_bytes')
+            PREV_MB=$(cat .prev-metrics/size-metrics.json | jq -r '.size_mb')
+
+            if [ "$PREV_BYTES" != "null" ] && [ -n "$PREV_BYTES" ]; then
+              # Calculate delta
+              DELTA=$((SIZE_BYTES - PREV_BYTES))
+              DELTA_KB=$((DELTA / 1024))
+
+              # Calculate percentage change (avoid division by zero)
+              if [ $PREV_BYTES -gt 0 ]; then
+                DELTA_PCT=$(echo "scale=2; ($DELTA * 100) / $PREV_BYTES" | bc)
+              else
+                DELTA_PCT="0"
+              fi
+
+              echo "has_prev=true" >> $GITHUB_OUTPUT
+              echo "prev_bytes=$PREV_BYTES" >> $GITHUB_OUTPUT
+              echo "prev_mb=$PREV_MB" >> $GITHUB_OUTPUT
+              echo "delta_bytes=$DELTA" >> $GITHUB_OUTPUT
+              echo "delta_kb=$DELTA_KB" >> $GITHUB_OUTPUT
+              echo "delta_pct=$DELTA_PCT" >> $GITHUB_OUTPUT
+
+              # Warn if >5% increase
+              if [ $(echo "$DELTA_PCT > 5" | bc) -eq 1 ]; then
+                echo "::warning::Size increased by ${DELTA_PCT}% (+${DELTA_KB} KB) since last build"
+              fi
+            else
+              echo "has_prev=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "has_prev=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Save size metrics
+        run: |
+          cat > size-metrics.json << EOF
+          {
+            "size_bytes": ${{ steps.size-check.outputs.size_bytes }},
+            "size_mb": "${{ steps.size-check.outputs.size_mb }}",
+            "size_kb": "${{ steps.size-check.outputs.size_kb }}",
+            "lines": "${{ steps.lines.outputs.count }}",
+            "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
+            "commit": "${{ github.sha }}"
+          }
+          EOF
+
+      - name: Upload size metrics artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: size-metrics
+          path: size-metrics.json
+          retention-days: 30
+
       - name: Summary
         if: always()
         run: |
@@ -84,6 +155,27 @@ jobs:
           echo "| File Size | ${SIZE_MB} MB | 5.5 MB | ${EMOJI} ${STATUS_TEXT} |" >> $GITHUB_STEP_SUMMARY
           echo "| Lines | ${LINES} | - | - |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
+
+          # Size change comparison
+          if [ "${{ steps.compare.outputs.has_prev }}" == "true" ]; then
+            PREV_MB="${{ steps.compare.outputs.prev_mb }}"
+            DELTA_KB="${{ steps.compare.outputs.delta_kb }}"
+            DELTA_PCT="${{ steps.compare.outputs.delta_pct }}"
+
+            # Format delta with sign
+            if [ ${{ steps.compare.outputs.delta_bytes }} -ge 0 ]; then
+              DELTA_SIGN="+"
+            else
+              DELTA_SIGN=""
+            fi
+
+            echo "### Size Change" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "| This Build | Previous | Change |" >> $GITHUB_STEP_SUMMARY
+            echo "|------------|----------|--------|" >> $GITHUB_STEP_SUMMARY
+            echo "| ${SIZE_MB} MB | ${PREV_MB} MB | ${DELTA_SIGN}${DELTA_KB} KB (${DELTA_SIGN}${DELTA_PCT}%) |" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
 
           # Progress bar (visual)
           PERCENT=$(echo "scale=0; (${{ steps.size-check.outputs.size_bytes }} * 100) / 5767168" | bc)
