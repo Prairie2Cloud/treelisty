@@ -10,12 +10,15 @@
 
 ## Executive Summary
 
-Integrate NotebookLM (NBLM) as the intelligence backbone for TreeListy, enabling:
+Integrate NotebookLM (NBLM) as an **evidence engine** (not intelligence backbone) for TreeListy:
+
 1. **Morning Dashboard** - AI-synthesized daily briefing from Gmail/GDrive/Calendar
 2. **Research Amplification** - Grounded, citation-backed TB responses
 3. **Content Transformation** - Generate podcasts, briefings, flashcards from trees
 
-This design leverages NBLM's zero-hallucination guarantees while respecting TreeListy's Constitutional framework.
+**Architectural Principle:** TreeListy is the brain (structure/decisions). NBLM is the citation clerk (search/synthesis with receipts). Grounded ≠ infallible.
+
+**Default Posture:** Local-first. Capture locally, send to NBLM only on-demand for synthesis. User controls what leaves the device.
 
 ---
 
@@ -192,6 +195,103 @@ async function digDeeper(clusterId) {
   openTBChat({
     systemPrompt: `You are researching: ${cluster.name}. Use ONLY the linked notebook for answers.`,
     agentId: agent.id
+  });
+}
+```
+
+---
+
+## Local-First Architecture (GPT Review Addition)
+
+*Feedback from GPT architectural review: "Default should be local capture → on-demand send to NBLM for synthesis."*
+
+### Consent Gates
+
+Dashboard Settings toggle with three levels:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ Dashboard Privacy Level                                  │
+├─────────────────────────────────────────────────────────┤
+│ ○ Local-only (default)                                  │
+│   Items captured locally. No NBLM sync.                 │
+│   Clustering uses local heuristics (sender, subject).   │
+│                                                         │
+│ ○ Snippets to NBLM                                      │
+│   Subject lines + first 100 chars sent for clustering.  │
+│   Full bodies stay local.                               │
+│                                                         │
+│ ○ Full sync to NBLM                                     │
+│   Complete email/doc bodies synced to Daily Triage.     │
+│   Richest synthesis but most data leaves device.        │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Triage Bundle (On-Demand Sync)
+
+Instead of auto-pushing everything to NBLM, watchers capture locally. Only at `/morning` time (or pull-to-refresh) is a **compact triage bundle** sent:
+
+```javascript
+// Local capture (continuous)
+window.localTriageStore = {
+  emails: [],    // Full content, never auto-sent
+  docs: [],
+  events: []
+};
+
+// On-demand synthesis (user-triggered)
+async function triggerMorningSynthesis() {
+  const privacyLevel = getSetting('dashboardPrivacyLevel');
+
+  let bundle;
+  if (privacyLevel === 'local-only') {
+    // Cluster locally using heuristics
+    return localCluster(localTriageStore);
+  } else if (privacyLevel === 'snippets') {
+    bundle = buildSnippetBundle(localTriageStore);  // subject + 100 chars
+  } else {
+    bundle = buildFullBundle(localTriageStore);     // complete content
+  }
+
+  // Send compact bundle to NBLM for synthesis
+  return await synthesizer.clusterItems(bundle);
+}
+```
+
+### Suggested Links (Not Auto-Links)
+
+Replace auto-linking with explicit user confirmation:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 💡 Suggested Links                                      │
+├─────────────────────────────────────────────────────────┤
+│ This email cluster might belong to:                     │
+│                                                         │
+│ ☐ P2C ISED Notebook (3 keyword matches)                │
+│ ☐ TreeListy Dev Notebook (1 keyword match)             │
+│ ☐ None / Keep in Daily Triage                          │
+│                                                         │
+│ ☐ Always link emails from thomas@... to P2C ISED       │
+│                                                         │
+│ [Confirm]  [Skip]                                       │
+└─────────────────────────────────────────────────────────┘
+```
+
+This prevents noise contamination into project notebooks while allowing user-defined automation ("Always link this sender").
+
+### Watcher Optimization (Revised)
+
+Watchers only run when Dashboard is enabled:
+
+```javascript
+// Only start watchers if dashboard feature is on
+if (getSetting('dashboardEnabled')) {
+  startWatchers({
+    incrementalSync: true,      // Only fetch deltas, not full inbox
+    backoffOnError: true,       // Exponential backoff on API errors
+    pauseWhenIdle: true,        // Stop polling when user inactive
+    quotaAware: true            // Track API usage, warn at 80%
   });
 }
 ```
@@ -452,11 +552,23 @@ Right-click on "P2C ISED Application" node
 
 ### Graceful Degradation
 
+**Explicit Boundaries** (not aspirational):
+
 ```
 NBLM available    → Full synthesis, citations, generation
-NBLM unavailable  → Raw items in Dashboard, TB works without grounding
-Offline           → Cached last sync, local-only TB responses
+                    (Requires: internet + valid NBLM auth)
+
+NBLM unavailable  → Local clustering (heuristic), raw items in Dashboard
+                    TB works without grounding (uses LLM Fallback)
+                    (Requires: internet for fallback LLM)
+
+Offline           → Last synced cache displayed read-only
+                    Local-only TB responses (no external calls)
+                    Dashboard shows "Last updated: X hours ago"
+                    (No new synthesis, no new API calls)
 ```
+
+**What "offline" does NOT mean:** Same behavior as online. It means gracefully frozen state with clear staleness indicators.
 
 ---
 
@@ -502,10 +614,16 @@ Offline           → Cached last sync, local-only TB responses
 
 **Milestone:** Morning dashboard shows clustered items with AI summaries. Sensitive emails filtered. Dashboard content doesn't bloat tree JSON.
 
-**Acceptance Test:**
-1. Run `/morning`, see 2+ clusters with briefing cards
-2. Password reset email NOT in dashboard (PII filter)
-3. Close tab, reopen → dashboard cache is empty (sessionStorage)
+**Acceptance Tests (Upgraded):**
+
+| Test | Criteria | Latency Budget |
+|------|----------|----------------|
+| Basic clustering | `/morning` → 2+ clusters with briefings | <2s local, <8s with NBLM |
+| PII filter | Password reset email NOT in dashboard | N/A |
+| Cache isolation | Close tab, reopen → cache empty | N/A |
+| Citation correctness | Q answered by 1 source → cites correct file/page | <3s |
+| Conflict surfacing | 2 sources disagree → shows both, doesn't blend | <5s |
+| Privacy level | "Local-only" mode → zero NBLM API calls | N/A |
 
 ---
 
@@ -531,20 +649,23 @@ Offline           → Cached last sync, local-only TB responses
 
 ### Phase 4: Content Generation (2 builds)
 
-**Goal:** Export tree branches as rich media
+**Goal:** Export tree branches as rich media via **pluggable backends**
+
+> **Note:** NBLM Enterprise API for podcast generation is speculative. Design the export interface now, implement generation via pluggable backends that can swap between NBLM, ElevenLabs, or local TTS.
 
 **Tasks:**
 - [ ] Branch export context menu (right-click)
 - [ ] Smart boundary dialog with TB suggestions
 - [ ] Preview selection tree with checkboxes
-- [ ] Podcast generation trigger
-- [ ] Briefing doc generation trigger
+- [ ] **NEW:** `ContentGenerator` interface (pluggable backends)
+- [ ] Podcast generation trigger (backend: NBLM or ElevenLabs or local TTS)
+- [ ] Briefing doc generation trigger (backend: Gemini or Claude)
 - [ ] Flashcard generation trigger
 - [ ] Output handling (download, play in TreeListy)
 
-**Milestone:** Right-click → Generate Podcast works end-to-end.
+**Milestone:** Right-click → Generate Podcast works end-to-end (with at least one working backend).
 
-**Acceptance Test:** Generate 5-min podcast from project tree branch.
+**Acceptance Test:** Generate 5-min podcast from project tree branch using available backend.
 
 ---
 
@@ -571,7 +692,13 @@ Offline           → Cached last sync, local-only TB responses
 ### Optional
 
 - Google Calendar API access (new OAuth scope)
-- NBLM Enterprise API (for podcast generation API access)
+- NBLM Enterprise API (for podcast generation) - **SPECULATIVE, not confirmed**
+
+### Fallback Options (for resilience)
+
+- Gemini 1.5 Pro API (clustering fallback)
+- ElevenLabs API (podcast generation fallback)
+- Local TTS (offline podcast fallback)
 
 ---
 
@@ -594,6 +721,58 @@ Offline           → Cached last sync, local-only TB responses
 
 ---
 
+## Pre-Mortem: Top Failure Path
+
+*"Auto-sync floods NBLM, rate limits hit, cookies expire, dashboard becomes flaky, user loses trust."*
+
+### Designed Mitigations
+
+| Failure Mode | Mitigation |
+|--------------|------------|
+| **Rate limit hit** | Quota-aware watchers warn at 80%. Local-only default prevents waste. |
+| **Cookie expiration** | Health check detects within 30min. Clean "Re-auth needed" state with fallback. |
+| **Auto-sync floods** | Local-first by default. User must opt-in to full sync. |
+| **Dashboard flaky** | Latency budgets in acceptance tests. If >8s, show cached + "refresh" prompt. |
+| **NBLM API changes** | Synthesizer abstraction allows swap to fallback without UI changes. |
+| **User loses trust** | Consent gates make data flow explicit. No silent cloud sends. |
+
+### Circuit Breaker Pattern
+
+```javascript
+const circuitBreaker = {
+  failures: 0,
+  lastFailure: null,
+  state: 'closed',  // closed | open | half-open
+
+  async call(fn) {
+    if (this.state === 'open') {
+      if (Date.now() - this.lastFailure > 5 * 60 * 1000) {
+        this.state = 'half-open';  // Try one request
+      } else {
+        throw new Error('Circuit open - using fallback');
+      }
+    }
+
+    try {
+      const result = await fn();
+      this.failures = 0;
+      this.state = 'closed';
+      return result;
+    } catch (e) {
+      this.failures++;
+      this.lastFailure = Date.now();
+      if (this.failures >= 3) {
+        this.state = 'open';
+        showToast('NBLM unavailable - switching to local mode', 'warning');
+      }
+      throw e;
+    }
+  }
+};
+```
+
+---
+
 ## References
 
 - [PleasePrompto/notebooklm-mcp](https://github.com/PleasePrompto/notebooklm-mcp)
@@ -603,4 +782,4 @@ Offline           → Cached last sync, local-only TB responses
 
 ---
 
-*Last updated: 2026-01-25 (Architectural review incorporated)*
+*Last updated: 2026-01-25 (Gemini + GPT architectural reviews incorporated)*
