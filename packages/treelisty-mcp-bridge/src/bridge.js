@@ -1447,7 +1447,7 @@ function handleToolsList(id) {
           view: {
             type: 'string',
             description: 'View to switch to',
-            enum: ['tree', 'canvas', '3d', 'gantt', 'calendar']
+            enum: ['tree', 'canvas', '3d', 'gantt', 'calendar', 'mindmap', 'treemap', 'checklist']
           }
         },
         required: ['view']
@@ -2208,6 +2208,48 @@ function handleToolsList(id) {
           description: { type: 'string', description: 'Human-readable description of what to do' }
         },
         required: ['capability', 'action', 'description']
+      }
+    },
+    // BUILD 877: Dashboard tools for briefing card updates
+    {
+      name: 'dashboard_update_briefing',
+      description: 'Send synthesized briefing cards to TreeListy dashboard. Call this after generating a morning briefing.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          briefingCards: {
+            type: 'array',
+            description: 'Array of briefing cards with title, summary, priority, items, suggestedAction',
+            items: {
+              type: 'object',
+              properties: {
+                title: { type: 'string' },
+                summary: { type: 'string' },
+                priority: { type: 'string', enum: ['high', 'medium', 'low'] },
+                type: { type: 'string' },
+                items: { type: 'array' },
+                suggestedAction: { type: 'string' }
+              }
+            }
+          },
+          clusters: {
+            type: 'array',
+            description: 'Raw clusters before card synthesis (optional)'
+          },
+          rawItems: {
+            type: 'object',
+            description: 'Raw items from watchers: { emails: [], events: [], documents: [] }'
+          }
+        },
+        required: ['briefingCards']
+      }
+    },
+    {
+      name: 'dashboard_get_status',
+      description: 'Get current dashboard watcher status (Gmail, Calendar, GDrive polling state).',
+      inputSchema: {
+        type: 'object',
+        properties: {}
       }
     }
   ];
@@ -3141,6 +3183,45 @@ async function handleCCTool(id, name, args) {
           ...task
         });
         result = { success: true, taskId, message: 'Action request queued for Claude Code' };
+        break;
+
+      // BUILD 877: Dashboard tools
+      case 'dashboard_update_briefing':
+        if (!args.briefingCards) {
+          sendMCPError(id, -32602, 'Missing required parameter: briefingCards');
+          return;
+        }
+        // Send briefing data to browser for cache update
+        broadcastToBrowser({
+          type: 'dashboard_briefing_update',
+          briefingCards: args.briefingCards,
+          clusters: args.clusters || [],
+          rawItems: args.rawItems || {},
+          timestamp: new Date().toISOString()
+        });
+        log('info', `[Dashboard] Sent ${args.briefingCards.length} briefing cards to browser`);
+        result = {
+          success: true,
+          cardsCount: args.briefingCards.length,
+          message: 'Briefing cards sent to TreeListy dashboard'
+        };
+        break;
+
+      case 'dashboard_get_status':
+        // Return watcher status - import watchers module if available
+        let watcherStatus = { available: false, message: 'Watchers not initialized' };
+        try {
+          const { DashboardWatcherManager } = require('./watchers');
+          // If we have a global watcher instance, get its status
+          if (global.dashboardWatcher) {
+            watcherStatus = global.dashboardWatcher.getStatus();
+          } else {
+            watcherStatus = { available: true, initialized: false, message: 'Watchers module available but not started' };
+          }
+        } catch (err) {
+          watcherStatus = { available: false, error: err.message };
+        }
+        result = watcherStatus;
         break;
 
       default:
