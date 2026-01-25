@@ -18,7 +18,12 @@ Integrate NotebookLM (NBLM) as an **evidence engine** (not intelligence backbone
 
 **Architectural Principle:** TreeListy is the brain (structure/decisions). NBLM is the citation clerk (search/synthesis with receipts). Grounded ≠ infallible.
 
-**Default Posture:** Local-first. Capture locally, send to NBLM only on-demand for synthesis. User controls what leaves the device.
+**Default Posture:** Full sync to NBLM (user's own Google account). Maximum intelligence, minimum friction.
+
+**No Hard Dependencies:** NBLM enhances but is never required. If NBLM breaks:
+- Clustering falls back to Gemini 1.5 Pro (standard API)
+- If that fails, local heuristics (sender/subject grouping)
+- Dashboard always works, just with progressively less "magic"
 
 ---
 
@@ -201,100 +206,55 @@ async function digDeeper(clusterId) {
 
 ---
 
-## Local-First Architecture (GPT Review Addition)
+## Sync Architecture
 
-*Feedback from GPT architectural review: "Default should be local capture → on-demand send to NBLM for synthesis."*
+### Privacy Controls (Available, Not Default)
 
-### Consent Gates
-
-Dashboard Settings toggle with three levels:
+For users with sensitive data, privacy controls are available but **not the default**:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ Dashboard Privacy Level                                  │
+│ Dashboard Sync Level                                     │
 ├─────────────────────────────────────────────────────────┤
-│ ○ Local-only (default)                                  │
-│   Items captured locally. No NBLM sync.                 │
-│   Clustering uses local heuristics (sender, subject).   │
+│ ○ Local-only                                            │
+│   Clustering uses local heuristics only.                │
 │                                                         │
 │ ○ Snippets to NBLM                                      │
-│   Subject lines + first 100 chars sent for clustering.  │
-│   Full bodies stay local.                               │
+│   Subject lines + first 100 chars for clustering.       │
 │                                                         │
-│ ○ Full sync to NBLM                                     │
-│   Complete email/doc bodies synced to Daily Triage.     │
-│   Richest synthesis but most data leaves device.        │
+│ ● Full sync to NBLM (default)                           │
+│   Complete content synced. Maximum intelligence.        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-### Triage Bundle (On-Demand Sync)
+### Continuous Sync (Default Behavior)
 
-Instead of auto-pushing everything to NBLM, watchers capture locally. Only at `/morning` time (or pull-to-refresh) is a **compact triage bundle** sent:
+Watchers push to NBLM continuously for maximum freshness:
 
 ```javascript
-// Local capture (continuous)
-window.localTriageStore = {
-  emails: [],    // Full content, never auto-sent
-  docs: [],
-  events: []
-};
-
-// On-demand synthesis (user-triggered)
-async function triggerMorningSynthesis() {
-  const privacyLevel = getSetting('dashboardPrivacyLevel');
-
-  let bundle;
-  if (privacyLevel === 'local-only') {
-    // Cluster locally using heuristics
-    return localCluster(localTriageStore);
-  } else if (privacyLevel === 'snippets') {
-    bundle = buildSnippetBundle(localTriageStore);  // subject + 100 chars
-  } else {
-    bundle = buildFullBundle(localTriageStore);     // complete content
-  }
-
-  // Send compact bundle to NBLM for synthesis
-  return await synthesizer.clusterItems(bundle);
-}
+// Watchers auto-start when dashboard enabled (default: on)
+startWatchers({
+  autoSync: true,             // Push to NBLM as items arrive
+  incrementalSync: true,      // Only fetch deltas
+  backoffOnError: true,       // Exponential backoff on API errors
+  quotaAware: true            // Track API usage, warn at 80%
+});
 ```
 
-### Suggested Links (Not Auto-Links)
+### Auto-Linking (Default Behavior)
 
-Replace auto-linking with explicit user confirmation:
+Clusters auto-link to project notebooks by keyword. User can review/undo:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ 💡 Suggested Links                                      │
-├─────────────────────────────────────────────────────────┤
-│ This email cluster might belong to:                     │
+│ ✓ Auto-linked to P2C ISED Notebook                      │
+│   (matched: "ISED", "Thomas", "SaskPower")              │
 │                                                         │
-│ ☐ P2C ISED Notebook (3 keyword matches)                │
-│ ☐ TreeListy Dev Notebook (1 keyword match)             │
-│ ☐ None / Keep in Daily Triage                          │
-│                                                         │
-│ ☐ Always link emails from thomas@... to P2C ISED       │
-│                                                         │
-│ [Confirm]  [Skip]                                       │
+│ [Undo]  [Never link this sender]                        │
 └─────────────────────────────────────────────────────────┘
 ```
 
-This prevents noise contamination into project notebooks while allowing user-defined automation ("Always link this sender").
-
-### Watcher Optimization (Revised)
-
-Watchers only run when Dashboard is enabled:
-
-```javascript
-// Only start watchers if dashboard feature is on
-if (getSetting('dashboardEnabled')) {
-  startWatchers({
-    incrementalSync: true,      // Only fetch deltas, not full inbox
-    backoffOnError: true,       // Exponential backoff on API errors
-    pauseWhenIdle: true,        // Stop polling when user inactive
-    quotaAware: true            // Track API usage, warn at 80%
-  });
-}
-```
+Auto-link learns from undo actions to avoid repeat mistakes.
 
 ---
 
@@ -550,25 +510,41 @@ Right-click on "P2C ISED Application" node
 | **V. Anti-Enframing** | Reveal, don't optimize | Clusters show ALL items grouped by context, not algorithmic "top picks". User sees full picture. |
 | **VI. Federation** | Connection without extraction | Project notebooks stay user-owned. No central registry. Cross-notebook linking is explicit. |
 
-### Graceful Degradation
+### Graceful Degradation (No Hard Dependencies)
 
-**Explicit Boundaries** (not aspirational):
+**The dashboard always works.** Quality degrades gracefully:
 
 ```
-NBLM available    → Full synthesis, citations, generation
-                    (Requires: internet + valid NBLM auth)
-
-NBLM unavailable  → Local clustering (heuristic), raw items in Dashboard
-                    TB works without grounding (uses LLM Fallback)
-                    (Requires: internet for fallback LLM)
-
-Offline           → Last synced cache displayed read-only
-                    Local-only TB responses (no external calls)
-                    Dashboard shows "Last updated: X hours ago"
-                    (No new synthesis, no new API calls)
+┌─────────────────────────────────────────────────────────────────┐
+│ Level 1: NBLM Available                                         │
+│ ─────────────────────────────────────────────────────────────── │
+│ • AI clustering with deep context understanding                 │
+│ • Citation-backed briefings from notebook sources               │
+│ • Podcast/content generation available                          │
+│ • Project notebook auto-linking                                 │
+├─────────────────────────────────────────────────────────────────┤
+│ Level 2: NBLM Down → Gemini 1.5 Pro Fallback                   │
+│ ─────────────────────────────────────────────────────────────── │
+│ • AI clustering via direct LLM (context injection)              │
+│ • Briefings generated, but no persistent notebook state         │
+│ • No podcast generation                                         │
+│ • Auto-switching is automatic (health check detects)            │
+├─────────────────────────────────────────────────────────────────┤
+│ Level 3: Both Down → Local Heuristics                          │
+│ ─────────────────────────────────────────────────────────────── │
+│ • Clustering by sender domain, subject keywords                 │
+│ • Raw items displayed (no AI briefings)                         │
+│ • Still functional, just less "magic"                           │
+├─────────────────────────────────────────────────────────────────┤
+│ Level 4: Offline                                                │
+│ ─────────────────────────────────────────────────────────────── │
+│ • Last synced cache displayed read-only                         │
+│ • "Last updated: X hours ago" indicator                         │
+│ • No new synthesis until reconnected                            │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-**What "offline" does NOT mean:** Same behavior as online. It means gracefully frozen state with clear staleness indicators.
+**Key guarantee:** User is never blocked. Dashboard shows *something* at every level.
 
 ---
 
@@ -618,12 +594,12 @@ Offline           → Last synced cache displayed read-only
 
 | Test | Criteria | Latency Budget |
 |------|----------|----------------|
-| Basic clustering | `/morning` → 2+ clusters with briefings | <2s local, <8s with NBLM |
-| PII filter | Password reset email NOT in dashboard | N/A |
-| Cache isolation | Close tab, reopen → cache empty | N/A |
+| Basic clustering | `/morning` → 2+ clusters with AI briefings | <8s |
+| Auto-linking | ISED-related emails auto-linked to P2C ISED notebook | N/A |
+| Cache isolation | Close tab, reopen → dashboard cache empty | N/A |
 | Citation correctness | Q answered by 1 source → cites correct file/page | <3s |
 | Conflict surfacing | 2 sources disagree → shows both, doesn't blend | <5s |
-| Privacy level | "Local-only" mode → zero NBLM API calls | N/A |
+| Undo flow | Auto-link undo → item unlinked, pattern learned | N/A |
 
 ---
 
@@ -723,18 +699,17 @@ Offline           → Last synced cache displayed read-only
 
 ## Pre-Mortem: Top Failure Path
 
-*"Auto-sync floods NBLM, rate limits hit, cookies expire, dashboard becomes flaky, user loses trust."*
+*"Rate limits hit, cookies expire, dashboard becomes flaky."*
 
 ### Designed Mitigations
 
 | Failure Mode | Mitigation |
 |--------------|------------|
-| **Rate limit hit** | Quota-aware watchers warn at 80%. Local-only default prevents waste. |
-| **Cookie expiration** | Health check detects within 30min. Clean "Re-auth needed" state with fallback. |
-| **Auto-sync floods** | Local-first by default. User must opt-in to full sync. |
-| **Dashboard flaky** | Latency budgets in acceptance tests. If >8s, show cached + "refresh" prompt. |
+| **Rate limit hit** | Quota-aware watchers warn at 80%. Incremental sync (deltas only). |
+| **Cookie expiration** | Health check detects within 30min. Clean "Re-auth needed" state with LLM fallback. |
+| **Dashboard slow** | Latency budgets in acceptance tests. If >8s, show cached + "refresh" prompt. |
 | **NBLM API changes** | Synthesizer abstraction allows swap to fallback without UI changes. |
-| **User loses trust** | Consent gates make data flow explicit. No silent cloud sends. |
+| **Notebook bloat** | 48h auto-cleanup with verified deletion. |
 
 ### Circuit Breaker Pattern
 
