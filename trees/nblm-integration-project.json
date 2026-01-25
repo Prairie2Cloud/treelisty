@@ -1,0 +1,197 @@
+{
+  "name": "NBLM Integration Project",
+  "description": "NotebookLM integration for TreeListy - Morning Dashboard, Research Amplification, Content Generation",
+  "pattern": "generic",
+  "subItems": [
+    {
+      "name": "Phase 1: Foundation",
+      "description": "Basic NBLM connectivity with resilient abstraction layer (2-3 builds)",
+      "subItems": [
+        {
+          "name": "Install notebooklm-mcp package",
+          "description": "Add PleasePrompto or jacob-bd notebooklm-mcp alongside TreeListy bridge",
+          "checked": false
+        },
+        {
+          "name": "Create synthesizer abstraction layer",
+          "description": "abstract-synthesizer.js base class with clusterItems(), queryContext(), generatePodcast(), healthCheck() methods",
+          "checked": false
+        },
+        {
+          "name": "Implement NBLMProvider",
+          "description": "Primary provider using notebooklm-mcp with healthCheck() for auth detection",
+          "checked": false
+        },
+        {
+          "name": "Implement LLMFallbackProvider",
+          "description": "Fallback using Gemini 1.5 Pro direct API for clustering when NBLM unavailable",
+          "checked": false
+        },
+        {
+          "name": "Add notebooklm/ bridge module",
+          "description": "sync.js (push sources, verified cleanup) and query.js (ask questions)",
+          "checked": false
+        },
+        {
+          "name": "Add TB commands for NBLM",
+          "description": "nblm_query, nblm_list_notebooks, nblm_select commands in TreeBeard",
+          "checked": false
+        },
+        {
+          "name": "Test manual workflow",
+          "description": "Verify: 'TB, ask my ISED notebook about power requirements' returns citation-backed answer",
+          "checked": false
+        },
+        {
+          "name": "Test fallback switching",
+          "description": "Verify: Disconnect NBLM auth → fallback provider activates with notification",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "name": "Phase 2: Dashboard MVP",
+      "description": "Morning dashboard with AI-synthesized clusters (3-4 builds)",
+      "subItems": [
+        {
+          "name": "Gmail watcher with PII filter",
+          "description": "Polls Gmail (5 min), filters password resets/2FA codes before sync",
+          "checked": false
+        },
+        {
+          "name": "GDrive watcher",
+          "description": "Polls Drive (15 min) for modified docs in watched folders",
+          "checked": false
+        },
+        {
+          "name": "Calendar watcher",
+          "description": "Polls Calendar (30 min) for events in next 7 days",
+          "checked": false
+        },
+        {
+          "name": "Activity tracker for smart polling",
+          "description": "Active user = frequent polling, idle = back off to conserve resources",
+          "checked": false
+        },
+        {
+          "name": "Daily Triage notebook sync",
+          "description": "Auto-populate with verified 48h cleanup (confirm deletion succeeded)",
+          "checked": false
+        },
+        {
+          "name": "dailyBriefingCache object",
+          "description": "sessionStorage-based cache separate from capexTree to avoid bloat",
+          "checked": false
+        },
+        {
+          "name": "Dashboard view with clusters",
+          "description": "Basic cluster display without smart linking, collapsed by default",
+          "checked": false
+        },
+        {
+          "name": "Briefing card generation",
+          "description": "/morning command triggers NBLM synthesis into briefing cards",
+          "checked": false
+        },
+        {
+          "name": "Action item checkboxes",
+          "description": "Checkbox completion archives item from Daily Triage",
+          "checked": false
+        },
+        {
+          "name": "Add to Project migration",
+          "description": "Button to migrate action item from cache to capexTree with provenance",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "name": "Phase 3: Smart Integration",
+      "description": "Contextual intelligence throughout TreeListy (2-3 builds)",
+      "subItems": [
+        {
+          "name": "Auto-link clusters to notebooks",
+          "description": "Match clusters to project notebooks by keyword, with undo/review",
+          "checked": false
+        },
+        {
+          "name": "Contextual suggestions on selection",
+          "description": "When user selects node, show relevant items from linked notebook",
+          "checked": false
+        },
+        {
+          "name": "Inline citations in TB responses",
+          "description": "Citation badges link to original local files (not NBLM viewer)",
+          "checked": false
+        },
+        {
+          "name": "Dig Deeper sub-agent spawning",
+          "description": "Button spawns Sub-Agent (Build 620-622) scoped to cluster's notebook",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "name": "Phase 4: Content Generation",
+      "description": "Export tree branches as rich media via pluggable backends (2 builds)",
+      "subItems": [
+        {
+          "name": "Branch export context menu",
+          "description": "Right-click menu: Generate Podcast, Briefing Doc, Flashcards, Slide Deck",
+          "checked": false
+        },
+        {
+          "name": "Smart boundary dialog",
+          "description": "TB suggests what to include/exclude, user confirms. DO NOT SIMPLIFY.",
+          "checked": false
+        },
+        {
+          "name": "Preview selection tree",
+          "description": "Checkboxes for manual override of context boundaries",
+          "checked": false
+        },
+        {
+          "name": "ContentGenerator interface",
+          "description": "Pluggable backends: NBLM, ElevenLabs, local TTS",
+          "checked": false
+        },
+        {
+          "name": "Podcast generation",
+          "description": "Trigger generation via available backend, handle output",
+          "checked": false
+        },
+        {
+          "name": "Briefing doc generation",
+          "description": "Generate doc via Gemini or Claude backend",
+          "checked": false
+        }
+      ]
+    },
+    {
+      "name": "Resilience & Testing",
+      "description": "Cross-cutting quality requirements",
+      "subItems": [
+        {
+          "name": "Circuit breaker pattern",
+          "description": "3 failures → open circuit → use fallback → auto-retry after 5 min",
+          "checked": false
+        },
+        {
+          "name": "4-level graceful degradation",
+          "description": "NBLM → Gemini → Local heuristics → Offline cache",
+          "checked": false
+        },
+        {
+          "name": "Latency budget tests",
+          "description": "Local <2s, NBLM <8s, citations <3s, conflicts <5s",
+          "checked": false
+        },
+        {
+          "name": "Conflict surfacing test",
+          "description": "Two sources disagree → shows both, doesn't blend",
+          "checked": false
+        }
+      ]
+    }
+  ]
+}
