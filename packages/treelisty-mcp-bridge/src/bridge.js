@@ -2251,6 +2251,32 @@ function handleToolsList(id) {
         type: 'object',
         properties: {}
       }
+    },
+    // ═══════════════════════════════════════════════════════════════
+    // BUILD 882: Agent-Authored Macros
+    // ═══════════════════════════════════════════════════════════════
+    {
+      name: 'suggest_macro',
+      description: 'Analyze recent command patterns and suggest macros for repeated sequences. Returns proposed macros via task queue for user approval.',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          min_occurrences: { type: 'number', description: 'Minimum times a sequence must occur (default: 3)', default: 3 }
+        }
+      }
+    },
+    {
+      name: 'create_macro',
+      description: 'Create a macro from a list of commands. Goes through Inbox approval (Article IV).',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'Macro name' },
+          icon: { type: 'string', description: 'Emoji icon for the macro' },
+          commands: { type: 'array', items: { type: 'string' }, description: 'List of TB commands to execute in sequence' }
+        },
+        required: ['name', 'commands']
+      }
     }
   ];
 
@@ -2339,6 +2365,12 @@ function handleToolCall(id, params) {
   // Handle Chrome extension tools (Build 564)
   if (name.startsWith('ext_')) {
     handleExtensionTool(id, name, args || {});
+    return;
+  }
+
+  // Handle Agent-Authored Macros (Build 882)
+  if (name === 'suggest_macro' || name === 'create_macro') {
+    handleMacroTool(id, name, args || {});
     return;
   }
 
@@ -3252,6 +3284,144 @@ async function handleCCTool(id, name, args) {
           text: JSON.stringify({
             success: false,
             error: 'cc_error',
+            message: err.message
+          }, null, 2)
+        }]
+      }
+    });
+  }
+}
+
+/**
+ * Handle Agent-Authored Macro tools (Build 882)
+ */
+async function handleMacroTool(id, name, args) {
+  let result;
+
+  try {
+    switch (name) {
+      case 'suggest_macro':
+        // Get CommandTelemetry from browser
+        const browserHealth = checkBrowserHealth();
+        if (!browserHealth.healthy) {
+          sendMCPError(id, -32000, browserHealth.reason);
+          return;
+        }
+
+        // Request telemetry data from browser
+        const ws = connections.values().next().value;
+        if (!ws || ws.readyState !== WebSocket.OPEN) {
+          sendMCPError(id, -32000, 'No browser connected');
+          return;
+        }
+
+        // Send request for telemetry
+        const telemetryRequestId = crypto.randomBytes(8).toString('hex');
+        ws.send(JSON.stringify({
+          jsonrpc: '2.0',
+          id: telemetryRequestId,
+          method: 'get_command_telemetry',
+          params: { min_occurrences: args.min_occurrences || 3 }
+        }));
+
+        // Wait for response (with timeout)
+        const telemetryData = await new Promise((resolve, reject) => {
+          const timeout = setTimeout(() => {
+            reject(new Error('Timeout waiting for telemetry data'));
+          }, 5000);
+
+          const handler = (message) => {
+            try {
+              const msg = JSON.parse(message);
+              if (msg.id === telemetryRequestId) {
+                clearTimeout(timeout);
+                ws.removeListener('message', handler);
+                resolve(msg.result);
+              }
+            } catch (e) { /* ignore parsing errors */ }
+          };
+
+          ws.on('message', handler);
+        });
+
+        // Analyze sequences and propose macros
+        const sequences = telemetryData.sequences || [];
+        if (sequences.length === 0) {
+          result = { success: true, message: 'No repeated command patterns found', macros: [] };
+        } else {
+          // Create proposed macro operations
+          const proposedOps = sequences.slice(0, 3).map(seq => ({
+            op: 'create_macro',
+            data: {
+              name: `Workflow: ${seq.commands.slice(0, 2).join(' → ')}`,
+              icon: '🤖',
+              commands: seq.commands,
+              provenance: { source: 'ai_generated', timestamp: new Date().toISOString() }
+            },
+            metadata: { count: seq.count, sequence: seq.sequence }
+          }));
+
+          result = {
+            success: true,
+            message: `Found ${sequences.length} repeated patterns`,
+            sequences: sequences.slice(0, 5),
+            proposed_ops: proposedOps
+          };
+        }
+        break;
+
+      case 'create_macro':
+        if (!args.name || !args.commands) {
+          sendMCPError(id, -32602, 'Missing required parameters: name, commands');
+          return;
+        }
+
+        // Create proposed operation for Inbox approval (Article IV)
+        const proposedOps = [{
+          op: 'create_macro',
+          data: {
+            name: args.name,
+            icon: args.icon || '🤖',
+            commands: args.commands,
+            provenance: { source: 'ai_generated', timestamp: new Date().toISOString() }
+          }
+        }];
+
+        result = {
+          success: true,
+          message: `Macro "${args.name}" ready for approval`,
+          proposed_ops: proposedOps
+        };
+        break;
+
+      default:
+        sendMCPError(id, -32601, `Unknown macro tool: ${name}`);
+        return;
+    }
+
+    // Send result
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify(result, null, 2)
+        }]
+      }
+    });
+
+  } catch (err) {
+    log('error', `Macro tool error: ${err.message}`);
+    sendMCPResponse({
+      jsonrpc: '2.0',
+      id: id,
+      result: {
+        content: [{
+          type: 'text',
+          text: JSON.stringify({
+            success: false,
+            error: 'macro_error',
             message: err.message
           }, null, 2)
         }]
