@@ -1,15 +1,15 @@
 # TreeListy - Claude Code Instructions
 
-Current Version: v2.101.162 (Build 856)
+Current Version: v2.101.190 (Build 882)
 Repository: https://github.com/Prairie2Cloud/treelisty
 Live Site: https://treelisty.netlify.app
 
 ## Self-Tree Bootstrap
 
-**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build856.json`
+**Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build882.json`
 
 The self-tree contains:
-- **Measured Signals**: 5.23 MB, 110,946 lines, 494 tests, 11 views, 52 keyboard shortcuts
+- **Measured Signals**: ~5.3 MB, ~111,000 lines, 529 unit tests + 192 E2E tests (721 total), 11 views
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
@@ -254,7 +254,7 @@ cd test/treelisty-test
 npm run test:unit
 ```
 
-All 494 unit tests should pass.
+All 529 unit tests should pass.
 
 Run TB Natural Language E2E tests:
 ```bash
@@ -277,6 +277,33 @@ These tests verify:
 - Provenance: AI attribution, survival through operations
 - Integrity: Undo capability, consent flows
 - Humility: Confidence routing behavior
+
+### Playwright E2E Tests (Build 882)
+
+Run Playwright E2E tests against live site:
+```bash
+cd test/treelisty-test
+npx playwright test test/e2e/
+```
+
+Or against local:
+```bash
+TEST_URL=http://localhost:3000 npx playwright test test/e2e/
+```
+
+**192 E2E tests** across 4 browser profiles (Desktop Chrome, Mobile Chrome, Mobile Safari, iPad):
+
+| Spec File | Tests | Feature |
+|-----------|-------|---------|
+| `block-references.spec.js` | 15 | Block Refs + Cross-Tree (879) |
+| `clone-views.spec.js` | 15 | Clone Views + Cloning (881) |
+| `html-export.spec.js` | 13 | HTML Export with Refs (880) |
+| `macros-telemetry.spec.js` | 15 | Macros + Telemetry (882) |
+| `webhooks-patterns.spec.js` | 14 | Webhooks + Patterns (878) |
+| `cross-feature-combos.spec.js` | 5 | Cross-feature compositions |
+| `critical-paths.spec.js` | — | Core navigation flows |
+| `tb-capabilities.spec.js` | — | TreeBeard commands |
+| `console-errors.spec.js` | — | Zero console errors |
 
 ### Visual Regression Tests (NEW - Build 837)
 
@@ -364,6 +391,9 @@ treeplexity.html (single file ~1.3MB)
 - `historyStack` - undo history (max 50 states)
 - `redoStack` - redo history (Build 778)
 - `directMappings` - TB fast-path command patterns with paramGroup support
+- `CloneRegistry` - clone tracking and propagation
+- `CommandTelemetry` - in-memory command buffer (max 100)
+- `MacroManager` - user and AI macro management
 
 ### Key Functions
 - `render()` - re-render tree view
@@ -379,10 +409,66 @@ treeplexity.html (single file ~1.3MB)
 - `preflightCapabilityCheck(message)` - fast-path NL command routing
 - `parseDateFromNaturalLanguage(text)` - NL date parsing with confidence (Build 856)
 - `handleQuickTask(rawText)` - Constitutional confidence routing for tasks (Build 856)
+- `resolveBlockRef(refId)` - resolve local or cross-tree block reference
+- `renderBlockRefs(text)` - convert ((ref)) syntax to interactive chips
+- `navigateToBlockRef(refId)` - navigate to block ref target with consent
+- `resolveBlockRefsForExport(text)` - convert refs for HTML export
+- `exportAsStandaloneHTML()` - generate self-contained HTML export
+- `createViewTree(source, nodeIds, pattern)` - create clone-based view tree
+- `showCreateViewModal()` - UI for creating view trees
 
 ---
 
-## Recent Features (Builds 850-856)
+## Recent Features (Builds 878-882)
+
+### Build 878: Composition Foundation (7 Features)
+
+| Feature | Key Functions | Description |
+|---------|--------------|-------------|
+| MCP Registry Publication | `MCPRegistry.publish()` | Publish patterns to MCP registry |
+| Pattern Library | `PatternLibrary.import/export()` | Import/export pattern definitions |
+| Node Cloning | `CloneRegistry.createClone()` | Clone nodes with lineage tracking |
+| Standalone HTML Export | `exportAsStandaloneHTML()` | Self-contained HTML tree export |
+| Block References | `renderBlockRefs()`, `resolveBlockRef()` | `((nodeId))` inline references |
+| Webhook Notifications | Webhook event system | Event-driven notifications |
+| User Macros | `MacroManager` | Record and replay command sequences |
+
+### Build 879: Cross-Tree Block References
+
+- `resolveBlockRef(refId)` — resolves local vs cross-tree refs
+- `((treeId:nodeGuid))` syntax for cross-tree references
+- `.block-ref-external` CSS class (teal color scheme)
+- `navigateToBlockRef()` with consent dialog for tree switching (Article III)
+- Block ref autocomplete with cross-tree search (`#block-ref-autocomplete`)
+
+### Build 880: HTML Export with Block Refs
+
+- `resolveBlockRefsForExport(text)` — converts refs for standalone HTML
+- Local refs → `<a href="#node-{id}" class="tl-block-ref">` anchor links
+- Cross-tree refs → `<span class="tl-block-ref-ext">` styled text
+- Broken refs → `<span class="tl-block-ref-broken">` warning text
+- Exported nodes have `id="node-{id}"` anchors
+
+### Build 881: Clone Views
+
+- `createViewTree(sourceTree, selectedNodeIds, targetPattern)` — creates view tree
+- `showCreateViewModal()` — UI for creating views (`#create-view-modal`)
+- View trees have `origin: { kind: 'view', sourceId, sourceVersion }`
+- Right-click root → "Create View" context menu option
+- `.view-tree-badge` CSS for view tree indicator
+
+### Build 882: Agent-Authored Macros
+
+- `CommandTelemetry` — in-memory command buffer (max 100, NOT persisted per Article V)
+  - `.record(command, params)`, `.getRecent(n)`, `.getSequences()`, `.clear()`
+- `MacroManager.createFromCommands(name, icon, commands, provenance)` — AI macro creation
+- Provenance metadata: `{ source: 'ai_generated', timestamp }` with 🤖 badge
+- `.ai-provenance-badge` CSS class
+- MCP tools: `suggest_macro`, `create_macro` in bridge.js
+
+---
+
+## Previous Features (Builds 850-856)
 
 ### Calendar Todo Lens Phase 3 (Build 856)
 
@@ -993,4 +1079,4 @@ TreeListy supports 21 patterns including:
 
 ---
 
-*Last updated: 2026-01-14 (Build 856)*
+*Last updated: 2026-01-28 (Build 882)*
