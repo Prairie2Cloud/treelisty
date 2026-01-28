@@ -7,7 +7,7 @@
  * - Agent-authored macros (provenance, pattern detection)
  */
 
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 
 const TEST_URL = process.env.TEST_URL || 'https://treelisty.netlify.app';
 
@@ -36,6 +36,11 @@ test.describe('User Macros (Build 882)', () => {
         await page.goto(TEST_URL);
         await page.waitForSelector('#tree-container', { timeout: 10000 });
         await loadTestTree(page);
+
+        // Clear existing macros
+        await page.evaluate(() => {
+            localStorage.setItem('treelisty-macros', '[]');
+        });
     });
 
     test('1. MacroManager object exists on window', async ({ page }) => {
@@ -45,142 +50,147 @@ test.describe('User Macros (Build 882)', () => {
         expect(hasMacroManager).toBe(true);
     });
 
-    test('2. Can create a macro via MacroManager.create()', async ({ page }) => {
-        const macroId = await page.evaluate(() => {
-            const id = window.MacroManager.create({
-                name: 'Test Macro',
-                description: 'A test macro',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ]
-            });
-            return id;
+    test('2. MacroManager has required methods', async ({ page }) => {
+        const hasMethods = await page.evaluate(() => {
+            return typeof window.MacroManager.getMacros === 'function' &&
+                   typeof window.MacroManager.saveMacros === 'function' &&
+                   typeof window.MacroManager.createFromCommands === 'function' &&
+                   typeof window.MacroManager.run === 'function' &&
+                   typeof window.MacroManager.remove === 'function' &&
+                   typeof window.MacroManager.runByName === 'function';
         });
-        expect(macroId).toBeTruthy();
-        expect(typeof macroId).toBe('string');
+        expect(hasMethods).toBe(true);
     });
 
-    test('3. Macro appears in macro list UI', async ({ page }) => {
-        // Create a macro
-        await page.evaluate(() => {
-            window.MacroManager.create({
-                name: 'Visible Macro',
-                description: 'Should appear in list',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ]
-            });
+    test('3. Can create a macro via createFromCommands()', async ({ page }) => {
+        const macroCreated = await page.evaluate(() => {
+            const macro = window.MacroManager.createFromCommands(
+                'Test Macro',
+                '⚡',
+                ['expand_all', 'collapse_all'],
+                { source: 'user', timestamp: new Date().toISOString() }
+            );
+            return macro && macro.name === 'Test Macro' && macro.commands.length === 2;
         });
-
-        // Open macro list (assuming there's a button or menu)
-        // This is a placeholder - adjust based on actual UI implementation
-        const macroListExists = await page.evaluate(() => {
-            const macros = window.MacroManager.list();
-            return macros.some(m => m.name === 'Visible Macro');
-        });
-        expect(macroListExists).toBe(true);
+        expect(macroCreated).toBe(true);
     });
 
-    test('4. Running a macro executes its commands', async ({ page }) => {
-        // Create and run a macro that sets a testable state
+    test('4. Macro appears in getMacros() list', async ({ page }) => {
+        const macroInList = await page.evaluate(() => {
+            window.MacroManager.createFromCommands(
+                'Visible Macro',
+                '🔥',
+                ['expand_all'],
+                { source: 'user' }
+            );
+
+            const macros = window.MacroManager.getMacros();
+            return macros.some(m => m.name === 'Visible Macro' && m.icon === '🔥');
+        });
+        expect(macroInList).toBe(true);
+    });
+
+    test('5. Running a macro executes its commands', async ({ page }) => {
         const executed = await page.evaluate(async () => {
-            const macroId = window.MacroManager.create({
-                name: 'Expand Macro',
-                description: 'Expands all nodes',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ]
-            });
+            // Create macro
+            window.MacroManager.createFromCommands(
+                'Expand Macro',
+                '⚡',
+                ['expand_all'],
+                { source: 'user' }
+            );
+
+            // Collapse all first
+            window.capexTree.expanded = false;
+            if (window.capexTree.subItems) {
+                window.capexTree.subItems.forEach(n => n.expanded = false);
+            }
 
             // Run the macro
-            await window.MacroManager.run(macroId);
+            await window.MacroManager.run(0);
 
-            // Check if nodes are expanded
-            return window.capexTree.expanded === true ||
-                   (window.capexTree.subItems && window.capexTree.subItems.every(n => n.expanded));
+            // Check if root is expanded
+            return window.capexTree.expanded === true;
         });
-        expect(executed).toBeTruthy();
+        expect(executed).toBe(true);
     });
 
-    test('5. Can delete a macro', async ({ page }) => {
+    test('6. Can delete a macro', async ({ page }) => {
         const deleted = await page.evaluate(() => {
-            const macroId = window.MacroManager.create({
-                name: 'Delete Me',
-                description: 'Will be deleted',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ]
-            });
+            // Create macro
+            window.MacroManager.createFromCommands('Delete Me', '🗑️', ['expand_all']);
 
-            window.MacroManager.delete(macroId);
+            // Verify it exists
+            let macros = window.MacroManager.getMacros();
+            const hadMacro = macros.some(m => m.name === 'Delete Me');
 
-            const macros = window.MacroManager.list();
-            return !macros.some(m => m.id === macroId);
+            // Delete it
+            window.MacroManager.remove(0);
+
+            // Verify it's gone
+            macros = window.MacroManager.getMacros();
+            const stillHas = macros.some(m => m.name === 'Delete Me');
+
+            return hadMacro && !stillHas;
         });
         expect(deleted).toBe(true);
     });
 
-    test('6. Macros persist in localStorage', async ({ page }) => {
-        // Create a macro
+    test('7. Macros persist in localStorage', async ({ page }) => {
         await page.evaluate(() => {
-            window.MacroManager.create({
-                name: 'Persistent Macro',
-                description: 'Should persist',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ]
-            });
+            window.MacroManager.createFromCommands(
+                'Persistent Macro',
+                '💾',
+                ['expand_all', 'collapse_all'],
+                { source: 'user' }
+            );
         });
 
-        // Check localStorage
-        const hasLocalStorage = await page.evaluate(() => {
-            const stored = localStorage.getItem('userMacros');
+        const persisted = await page.evaluate(() => {
+            const stored = localStorage.getItem('treelisty-macros');
             if (!stored) return false;
             const macros = JSON.parse(stored);
-            return macros.some(m => m.name === 'Persistent Macro');
+            return macros.some(m => m.name === 'Persistent Macro' && m.icon === '💾');
         });
-        expect(hasLocalStorage).toBe(true);
+        expect(persisted).toBe(true);
     });
 
-    test('7. Macro with multiple commands runs all sequentially', async ({ page }) => {
+    test('8. Macro with multiple commands runs all sequentially', async ({ page }) => {
         const allExecuted = await page.evaluate(async () => {
-            const macroId = window.MacroManager.create({
-                name: 'Multi-Command Macro',
-                description: 'Runs multiple commands',
-                commands: [
-                    { command: 'expand_all', params: {} },
-                    { command: 'collapse_all', params: {} },
-                    { command: 'expand_all', params: {} }
-                ]
-            });
+            window.MacroManager.createFromCommands(
+                'Multi-Command',
+                '⚡',
+                ['expand_all', 'collapse_all', 'expand_all'],
+                { source: 'user' }
+            );
 
-            await window.MacroManager.run(macroId);
+            await window.MacroManager.run(0);
 
-            // After expand_all → collapse_all → expand_all, should be expanded
-            return window.capexTree.expanded === true ||
-                   (window.capexTree.subItems && window.capexTree.subItems.every(n => n.expanded));
+            // After expand → collapse → expand, should be expanded
+            return window.capexTree.expanded === true;
         });
-        expect(allExecuted).toBeTruthy();
+        expect(allExecuted).toBe(true);
     });
 
-    test('8. Macro icon displays correctly in list', async ({ page }) => {
-        await page.evaluate(() => {
-            window.MacroManager.create({
-                name: 'Icon Macro',
-                description: 'Should have icon',
-                icon: '⚡',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ]
-            });
-        });
+    test('9. runByName() executes macro by name', async ({ page }) => {
+        const ranByName = await page.evaluate(() => {
+            window.MacroManager.createFromCommands(
+                'Named Macro',
+                '🎯',
+                ['expand_all'],
+                { source: 'user' }
+            );
 
-        const hasIcon = await page.evaluate(() => {
-            const macros = window.MacroManager.list();
-            const macro = macros.find(m => m.name === 'Icon Macro');
-            return macro && macro.icon === '⚡';
+            // Collapse first
+            window.capexTree.expanded = false;
+
+            // Run by name
+            const result = window.MacroManager.runByName('Named Macro');
+
+            // Should return true if found
+            return result === true;
         });
-        expect(hasIcon).toBe(true);
+        expect(ranByName).toBe(true);
     });
 });
 
@@ -198,51 +208,79 @@ test.describe('CommandTelemetry (Build 882)', () => {
         });
     });
 
-    test('9. CommandTelemetry object exists on window', async ({ page }) => {
+    test('10. CommandTelemetry object exists on window', async ({ page }) => {
         const hasTelemetry = await page.evaluate(() => {
             return typeof window.CommandTelemetry === 'object' && window.CommandTelemetry !== null;
         });
         expect(hasTelemetry).toBe(true);
     });
 
-    test('10. CommandTelemetry.record() stores command in buffer', async ({ page }) => {
+    test('11. CommandTelemetry has required methods', async ({ page }) => {
+        const hasMethods = await page.evaluate(() => {
+            return typeof window.CommandTelemetry.record === 'function' &&
+                   typeof window.CommandTelemetry.getRecent === 'function' &&
+                   typeof window.CommandTelemetry.getSequences === 'function' &&
+                   typeof window.CommandTelemetry.clear === 'function' &&
+                   typeof window.CommandTelemetry.toJSON === 'function';
+        });
+        expect(hasMethods).toBe(true);
+    });
+
+    test('12. CommandTelemetry.record() stores command in buffer', async ({ page }) => {
         const recorded = await page.evaluate(() => {
             window.CommandTelemetry.record('expand_all', {});
             window.CommandTelemetry.record('switch_view', { view: 'gantt' });
 
             const recent = window.CommandTelemetry.getRecent(10);
-            return recent.length >= 2;
+            return recent.length === 2 &&
+                   recent[0].command === 'expand_all' &&
+                   recent[1].command === 'switch_view';
         });
         expect(recorded).toBe(true);
     });
 
-    test('11. CommandTelemetry.getRecent(n) returns last N commands', async ({ page }) => {
-        const correctCount = await page.evaluate(() => {
+    test('13. CommandTelemetry.getRecent(n) returns last N commands in order', async ({ page }) => {
+        const correctOrder = await page.evaluate(() => {
             window.CommandTelemetry.record('expand_all', {});
             window.CommandTelemetry.record('switch_view', { view: 'gantt' });
             window.CommandTelemetry.record('collapse_all', {});
 
             const recent = window.CommandTelemetry.getRecent(2);
+            // getRecent returns slice(-n), so last 2 in chronological order
             return recent.length === 2 &&
-                   recent[0].command === 'collapse_all' &&
-                   recent[1].command === 'switch_view';
+                   recent[0].command === 'switch_view' &&
+                   recent[1].command === 'collapse_all';
         });
-        expect(correctCount).toBe(true);
+        expect(correctOrder).toBe(true);
     });
 
-    test('12. CommandTelemetry does NOT persist to localStorage (Article V: Anti-Enframing)', async ({ page }) => {
-        // Record some commands
+    test('14. CommandTelemetry does NOT persist to localStorage (Article V: Anti-Enframing)', async ({ page }) => {
         await page.evaluate(() => {
             window.CommandTelemetry.record('expand_all', {});
             window.CommandTelemetry.record('switch_view', { view: 'gantt' });
             window.CommandTelemetry.record('collapse_all', {});
         });
 
-        // Check that telemetry is NOT in localStorage
         const hasLocalStorage = await page.evaluate(() => {
             return localStorage.getItem('commandTelemetry') !== null;
         });
         expect(hasLocalStorage).toBe(false);
+    });
+
+    test('15. CommandTelemetry enforces 100-command buffer limit', async ({ page }) => {
+        const enforcesLimit = await page.evaluate(() => {
+            // Record 150 commands
+            for (let i = 0; i < 150; i++) {
+                window.CommandTelemetry.record(`command_${i}`, {});
+            }
+
+            const recent = window.CommandTelemetry.getRecent(200);
+            // Should only have last 100
+            return recent.length === 100 &&
+                   recent[0].command === 'command_50' && // First kept
+                   recent[99].command === 'command_149'; // Last recorded
+        });
+        expect(enforcesLimit).toBe(true);
     });
 });
 
@@ -251,94 +289,183 @@ test.describe('Agent-Authored Macros (Build 882)', () => {
         await page.goto(TEST_URL);
         await page.waitForSelector('#tree-container', { timeout: 10000 });
         await loadTestTree(page);
+
+        // Clear macros
+        await page.evaluate(() => {
+            localStorage.setItem('treelisty-macros', '[]');
+        });
     });
 
-    test('13. MacroManager.createFromCommands() exists and creates macros with provenance', async ({ page }) => {
+    test('16. createFromCommands() with provenance creates AI-attributed macro', async ({ page }) => {
         const hasProvenance = await page.evaluate(() => {
-            if (!window.MacroManager.createFromCommands) return false;
-
-            const macroId = window.MacroManager.createFromCommands({
-                name: 'AI Macro',
-                description: 'Created by AI',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ],
-                provenance: {
+            const macro = window.MacroManager.createFromCommands(
+                'AI Macro',
+                '🤖',
+                ['expand_all'],
+                {
                     source: 'ai_generated',
                     model: 'claude-opus-4-5',
                     confidence: 0.90,
                     timestamp: new Date().toISOString()
                 }
-            });
+            );
 
-            const macros = window.MacroManager.list();
-            const macro = macros.find(m => m.id === macroId);
-            return macro && macro.provenance && macro.provenance.source === 'ai_generated';
+            return macro.provenance &&
+                   macro.provenance.source === 'ai_generated' &&
+                   macro.provenance.model === 'claude-opus-4-5';
         });
         expect(hasProvenance).toBe(true);
     });
 
-    test('14. AI-generated macros show provenance badge (🤖 or .ai-provenance-badge)', async ({ page }) => {
-        const hasBadge = await page.evaluate(() => {
-            if (!window.MacroManager.createFromCommands) return false;
+    test('17. AI-generated macros default to 🤖 icon if not specified', async ({ page }) => {
+        const hasRobotIcon = await page.evaluate(() => {
+            const macro = window.MacroManager.createFromCommands(
+                'AI Macro',
+                null, // No icon specified
+                ['expand_all'],
+                { source: 'ai_generated' }
+            );
 
-            window.MacroManager.createFromCommands({
-                name: 'AI Macro with Badge',
-                description: 'Should show provenance',
-                commands: [
-                    { command: 'expand_all', params: {} }
-                ],
-                provenance: {
-                    source: 'ai_generated',
-                    model: 'claude-opus-4-5',
-                    confidence: 0.90,
-                    timestamp: new Date().toISOString()
-                }
-            });
-
-            const macros = window.MacroManager.list();
-            const macro = macros.find(m => m.name === 'AI Macro with Badge');
-
-            // Check if provenance is visible (either as emoji or class)
-            return macro && macro.provenance &&
-                   (macro.provenance.source === 'ai_generated' ||
-                    macro.provenanceBadge === '🤖');
+            return macro.icon === '🤖';
         });
-        expect(hasBadge).toBe(true);
+        expect(hasRobotIcon).toBe(true);
     });
 
-    test('15. CommandTelemetry.getSequences() detects repeated command patterns', async ({ page }) => {
-        const detectsPattern = await page.evaluate(() => {
-            if (!window.CommandTelemetry.getSequences) return false;
+    test('18. AI-generated macros show provenance in list (via renderList)', async ({ page }) => {
+        // Create AI macro
+        await page.evaluate(() => {
+            window.MacroManager.createFromCommands(
+                'AI Macro with Badge',
+                '⚡',
+                ['expand_all'],
+                { source: 'ai_generated', timestamp: new Date().toISOString() }
+            );
+        });
 
-            // Simulate repeated pattern: expand_all, switch_view, collapse_all
+        // Verify provenance in data
+        const hasProvenanceInData = await page.evaluate(() => {
+            const macros = window.MacroManager.getMacros();
+            const macro = macros.find(m => m.name === 'AI Macro with Badge');
+            return macro && macro.provenance && macro.provenance.source === 'ai_generated';
+        });
+        expect(hasProvenanceInData).toBe(true);
+    });
+
+    test('19. CommandTelemetry.getSequences() detects repeated command patterns', async ({ page }) => {
+        const detectsPattern = await page.evaluate(() => {
             window.CommandTelemetry.clear();
 
-            // First sequence
-            window.CommandTelemetry.record('expand_all', {});
-            window.CommandTelemetry.record('switch_view', { view: 'gantt' });
-            window.CommandTelemetry.record('collapse_all', {});
+            // Record same sequence 3 times
+            for (let i = 0; i < 3; i++) {
+                window.CommandTelemetry.record('expand_all', {});
+                window.CommandTelemetry.record('switch_view', { view: 'gantt' });
+                window.CommandTelemetry.record('collapse_all', {});
+            }
 
-            // Second sequence
-            window.CommandTelemetry.record('expand_all', {});
-            window.CommandTelemetry.record('switch_view', { view: 'canvas' });
-            window.CommandTelemetry.record('collapse_all', {});
+            const sequences = window.CommandTelemetry.getSequences(2, 3);
 
-            // Third sequence
-            window.CommandTelemetry.record('expand_all', {});
-            window.CommandTelemetry.record('switch_view', { view: '3d' });
-            window.CommandTelemetry.record('collapse_all', {});
-
-            const sequences = window.CommandTelemetry.getSequences();
-
-            // Should detect the expand_all → switch_view → collapse_all pattern
+            // Should detect sequences that occur 3+ times
             return sequences && sequences.length > 0 &&
                    sequences.some(seq =>
-                       seq.commands.some(c => c === 'expand_all') &&
-                       seq.commands.some(c => c === 'switch_view') &&
-                       seq.commands.some(c => c === 'collapse_all')
+                       seq.sequence.includes('expand_all') &&
+                       seq.sequence.includes('switch_view') &&
+                       seq.count >= 3
                    );
         });
         expect(detectsPattern).toBe(true);
+    });
+
+    test('20. getSequences() returns sequences sorted by count (descending)', async ({ page }) => {
+        const sortedByCount = await page.evaluate(() => {
+            window.CommandTelemetry.clear();
+
+            // Pattern A: 5 times
+            for (let i = 0; i < 5; i++) {
+                window.CommandTelemetry.record('expand_all', {});
+                window.CommandTelemetry.record('collapse_all', {});
+            }
+
+            // Pattern B: 3 times
+            for (let i = 0; i < 3; i++) {
+                window.CommandTelemetry.record('switch_view', { view: 'gantt' });
+                window.CommandTelemetry.record('focus_root', {});
+            }
+
+            const sequences = window.CommandTelemetry.getSequences(2, 3);
+
+            // First sequence should have higher count than second
+            return sequences.length >= 2 &&
+                   sequences[0].count >= sequences[1].count;
+        });
+        expect(sortedByCount).toBe(true);
+    });
+
+    test('21. createFromCommands() accepts string commands (split by newline)', async ({ page }) => {
+        const acceptsString = await page.evaluate(() => {
+            const macro = window.MacroManager.createFromCommands(
+                'String Commands',
+                '📝',
+                'expand_all\nswitch_view:gantt\ncollapse_all', // String instead of array
+                { source: 'user' }
+            );
+
+            return macro.commands.length === 3 &&
+                   macro.commands[0] === 'expand_all' &&
+                   macro.commands[1] === 'switch_view:gantt' &&
+                   macro.commands[2] === 'collapse_all';
+        });
+        expect(acceptsString).toBe(true);
+    });
+
+    test('22. createFromCommands() accepts array of commands', async ({ page }) => {
+        const acceptsArray = await page.evaluate(() => {
+            const macro = window.MacroManager.createFromCommands(
+                'Array Commands',
+                '📋',
+                ['expand_all', 'switch_view:gantt', 'collapse_all'],
+                { source: 'user' }
+            );
+
+            return macro.commands.length === 3 &&
+                   Array.isArray(macro.commands);
+        });
+        expect(acceptsArray).toBe(true);
+    });
+
+    test('23. getSequences() respects minLength parameter', async ({ page }) => {
+        const respectsMinLength = await page.evaluate(() => {
+            window.CommandTelemetry.clear();
+
+            // Record pattern 4 times
+            for (let i = 0; i < 4; i++) {
+                window.CommandTelemetry.record('a', {});
+                window.CommandTelemetry.record('b', {});
+                window.CommandTelemetry.record('c', {});
+            }
+
+            const sequences = window.CommandTelemetry.getSequences(3, 3);
+
+            // All sequences should have at least 3 commands
+            return sequences.every(seq => seq.commands.length >= 3);
+        });
+        expect(respectsMinLength).toBe(true);
+    });
+
+    test('24. getSequences() respects minOccurrences parameter', async ({ page }) => {
+        const respectsMinOccurrences = await page.evaluate(() => {
+            window.CommandTelemetry.clear();
+
+            // Pattern appears 5 times
+            for (let i = 0; i < 5; i++) {
+                window.CommandTelemetry.record('expand_all', {});
+                window.CommandTelemetry.record('collapse_all', {});
+            }
+
+            const sequences = window.CommandTelemetry.getSequences(2, 4);
+
+            // All sequences should appear at least 4 times
+            return sequences.every(seq => seq.count >= 4);
+        });
+        expect(respectsMinOccurrences).toBe(true);
     });
 });

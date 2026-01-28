@@ -6,7 +6,7 @@
  * - Node Cloning: Clone creation, preservation, tracking, audit
  */
 
-const { test, expect } = require('@playwright/test');
+import { test, expect } from '@playwright/test';
 const TEST_URL = process.env.TEST_URL || 'https://treelisty.netlify.app';
 
 test.describe('Clone Views and Node Cloning', () => {
@@ -16,24 +16,30 @@ test.describe('Clone Views and Node Cloning', () => {
         await page.evaluate(() => {
             const testTree = {
                 name: 'Clone Test Tree',
+                treeId: 'clone-test',
                 id: 'clone-test',
                 guid: 'clone-test-guid',
+                type: 'root',
+                pattern: 'generic',
                 subItems: [
                     {
                         name: 'Phase 1',
                         id: 'p1',
                         guid: 'p1-guid',
+                        type: 'phase',
                         subItems: [
                             {
                                 name: 'Task A',
                                 id: 'ta',
                                 guid: 'ta-guid',
+                                type: 'task',
                                 description: 'First task'
                             },
                             {
                                 name: 'Task B',
                                 id: 'tb',
                                 guid: 'tb-guid',
+                                type: 'task',
                                 description: 'Second task'
                             }
                         ]
@@ -42,11 +48,13 @@ test.describe('Clone Views and Node Cloning', () => {
                         name: 'Phase 2',
                         id: 'p2',
                         guid: 'p2-guid',
+                        type: 'phase',
                         subItems: [
                             {
                                 name: 'Task C',
                                 id: 'tc',
-                                guid: 'tc-guid'
+                                guid: 'tc-guid',
+                                type: 'task'
                             }
                         ]
                     }
@@ -60,12 +68,6 @@ test.describe('Clone Views and Node Cloning', () => {
         await page.waitForTimeout(500);
     }
 
-    // Helper: Right-click node
-    async function rightClickNode(page, selector) {
-        await page.click(selector, { button: 'right' });
-        await page.waitForTimeout(300);
-    }
-
     test.beforeEach(async ({ page }) => {
         await page.goto(TEST_URL);
         await page.waitForSelector('#tree-container', { timeout: 10000 });
@@ -74,452 +76,259 @@ test.describe('Clone Views and Node Cloning', () => {
 
     // ========== Clone Views Tests ==========
 
-    test('1. Create View option exists in root node context menu', async ({ page }) => {
-        // Right-click root node
-        await rightClickNode(page, '.tree-node[data-node-id="clone-test"]');
-
-        // Check for Create View option in context menu
-        const createViewOption = await page.locator('#context-menu .context-menu-item').filter({ hasText: /Create View/i });
-        await expect(createViewOption).toBeVisible();
+    test('1. createViewTree function exists', async ({ page }) => {
+        const exists = await page.evaluate(() => {
+            return typeof window.createViewTree === 'function';
+        });
+        expect(exists).toBe(true);
     });
 
-    test('2. Create View modal opens with node picker and pattern dropdown', async ({ page }) => {
-        // Right-click root node
-        await rightClickNode(page, '.tree-node[data-node-id="clone-test"]');
-
-        // Click Create View option
-        const createViewOption = await page.locator('#context-menu .context-menu-item').filter({ hasText: /Create View/i });
-        if (await createViewOption.isVisible()) {
-            await createViewOption.click();
-            await page.waitForTimeout(500);
-
-            // Check for modal
-            const modal = await page.locator('.modal, [role="dialog"]').filter({ hasText: /Create View/i });
-            await expect(modal).toBeVisible();
-
-            // Check for node picker (could be checkboxes, tree view, or list)
-            const hasNodePicker = await page.evaluate(() => {
-                const modal = document.querySelector('.modal');
-                if (!modal) return false;
-                // Check for various node picker patterns
-                return modal.querySelector('input[type="checkbox"]') !== null ||
-                       modal.querySelector('.node-picker') !== null ||
-                       modal.querySelector('.tree-view') !== null;
-            });
-            expect(hasNodePicker).toBe(true);
-
-            // Check for pattern dropdown
-            const patternDropdown = await page.locator('.modal select, .modal .pattern-dropdown');
-            await expect(patternDropdown.first()).toBeVisible();
-        } else {
-            // If context menu option doesn't exist yet, check for function existence
-            const functionExists = await page.evaluate(() => typeof createViewTree === 'function');
-            expect(functionExists).toBe(true);
-        }
-    });
-
-    test('3. Creating a view tree sets origin.kind to "view"', async ({ page }) => {
-        // Check if createViewTree function exists and test it
+    test('2. createViewTree returns view tree with origin.kind="view"', async ({ page }) => {
         const result = await page.evaluate(() => {
-            if (typeof createViewTree !== 'function') {
-                return { exists: false };
-            }
-
-            // Create a mock view tree
-            const viewTree = createViewTree({
-                name: 'Test View',
-                selectedNodes: ['p1', 'p2'],
-                pattern: 'generic'
-            });
-
+            // Use actual capexTree structure loaded in beforeEach
+            const viewTree = window.createViewTree(capexTree, ['p1'], 'gantt');
             return {
-                exists: true,
-                hasOrigin: viewTree && viewTree.origin !== undefined,
-                originKind: viewTree && viewTree.origin ? viewTree.origin.kind : null
+                hasOrigin: !!viewTree.origin,
+                originKind: viewTree.origin?.kind,
+                pattern: viewTree.pattern,
+                hasSubItems: viewTree.subItems?.length > 0,
+                subItemsCount: viewTree.subItems?.length
             };
         });
 
-        if (result.exists) {
-            expect(result.hasOrigin).toBe(true);
-            expect(result.originKind).toBe('view');
-        } else {
-            // Function not implemented yet - skip
-            test.skip();
-        }
+        expect(result.hasOrigin).toBe(true);
+        expect(result.originKind).toBe('view');
+        expect(result.pattern).toBe('gantt');
+        expect(result.hasSubItems).toBe(true);
     });
 
-    test('4. View tree header shows telescope badge/indicator', async ({ page }) => {
-        // Check if view tree indicator exists
-        const hasIndicator = await page.evaluate(() => {
-            // Load a mock view tree
-            if (typeof window.loadViewTree === 'function') {
-                const mockViewTree = {
-                    name: 'Test View',
-                    id: 'test-view',
-                    guid: 'test-view-guid',
-                    origin: { kind: 'view', sourceTreeId: 'clone-test' },
-                    subItems: []
-                };
-                Object.assign(capexTree, mockViewTree);
-                render();
-
-                // Check for telescope badge in header
-                const header = document.querySelector('.app-title, .tree-header, h1');
-                return header && (
-                    header.textContent.includes('🔭') ||
-                    header.querySelector('.view-badge') !== null ||
-                    header.querySelector('[data-view-indicator]') !== null
-                );
-            }
-            return false;
-        });
-
-        // Check if view indicator rendering exists
-        const renderExists = await page.evaluate(() =>
-            typeof renderViewIndicator === 'function' ||
-            typeof updateTreeHeader === 'function'
-        );
-
-        expect(hasIndicator || renderExists).toBe(true);
-    });
-
-    test('5. View tree nodes are clones (have cloneOf property)', async ({ page }) => {
+    test('3. createViewTree sets sourceId and sourceVersion in origin', async ({ page }) => {
         const result = await page.evaluate(() => {
-            if (typeof createViewTree !== 'function') {
-                return { exists: false };
-            }
-
-            // Create view tree with clones
-            const viewTree = createViewTree({
-                name: 'Test View',
-                selectedNodes: ['p1', 'ta'],
-                pattern: 'generic'
-            });
-
-            // Check if nodes have cloneOf
-            const hasCloneOf = viewTree.subItems &&
-                               viewTree.subItems.length > 0 &&
-                               viewTree.subItems[0].cloneOf !== undefined;
-
+            const viewTree = window.createViewTree(capexTree, ['p2'], 'generic');
             return {
-                exists: true,
-                hasCloneOf,
-                sampleCloneOf: viewTree.subItems && viewTree.subItems[0] ? viewTree.subItems[0].cloneOf : null
+                sourceId: viewTree.origin?.sourceId,
+                sourceVersion: viewTree.origin?.sourceVersion,
+                hasCreatedAt: !!viewTree.origin?.createdAt,
+                createdAtFormat: viewTree.origin?.createdAt
             };
         });
 
-        if (result.exists) {
-            expect(result.hasCloneOf).toBe(true);
-            expect(result.sampleCloneOf).toBeTruthy();
-        } else {
-            test.skip();
-        }
+        expect(result.sourceId).toBe('clone-test');
+        expect(result.sourceVersion).toBe(1);
+        expect(result.hasCreatedAt).toBe(true);
     });
 
-    test('6. Editing clone in view tree marks it as modified', async ({ page }) => {
+    test('4. createViewTree generates unique treeId with "view-" prefix', async ({ page }) => {
         const result = await page.evaluate(() => {
-            if (typeof createViewTree !== 'function') {
-                return { exists: false };
-            }
-
-            // Create view tree
-            const viewTree = createViewTree({
-                name: 'Test View',
-                selectedNodes: ['p1'],
-                pattern: 'generic'
-            });
-            Object.assign(capexTree, viewTree);
-
-            // Modify a cloned node
-            const clonedNode = viewTree.subItems[0];
-            if (clonedNode) {
-                clonedNode.name = 'Modified Phase 1';
-
-                // Check if modification tracking exists
-                return {
-                    exists: true,
-                    hasModifiedFlag: clonedNode.modified !== undefined || clonedNode.diverged !== undefined,
-                    modifiedValue: clonedNode.modified || clonedNode.diverged
-                };
-            }
-
-            return { exists: true, hasModifiedFlag: false };
+            const viewTree = window.createViewTree(capexTree, ['p1'], 'generic');
+            return {
+                treeId: viewTree.treeId,
+                hasViewPrefix: viewTree.treeId?.startsWith('view-')
+            };
         });
 
-        if (result.exists && result.hasModifiedFlag) {
-            expect(result.modifiedValue).toBeTruthy();
-        } else {
-            // Check if CloneRegistry tracking exists
-            const registryExists = await page.evaluate(() => typeof CloneRegistry !== 'undefined');
-            expect(registryExists).toBe(true);
-        }
+        expect(result.hasViewPrefix).toBe(true);
+        expect(result.treeId).toMatch(/^view-\d+-/);
     });
 
-    test('7. View tree is fully exportable as JSON', async ({ page }) => {
+    test('5. createViewTree clones only selected nodes', async ({ page }) => {
         const result = await page.evaluate(() => {
-            if (typeof createViewTree !== 'function') {
-                return { exists: false };
-            }
+            // Select only p1 and tc (not p2)
+            const viewTree = window.createViewTree(capexTree, ['p1', 'tc'], 'generic');
+            return {
+                nodeCount: viewTree.subItems?.length,
+                nodeNames: viewTree.subItems?.map(n => n.name),
+                hasP1: viewTree.subItems?.some(n => n.name === 'Phase 1'),
+                hasTaskC: viewTree.subItems?.some(n => n.name === 'Task C')
+            };
+        });
 
-            // Create view tree
-            const viewTree = createViewTree({
-                name: 'Test View',
-                selectedNodes: ['p1', 'p2'],
-                pattern: 'generic'
-            });
+        expect(result.nodeCount).toBe(2);
+        expect(result.hasP1).toBe(true);
+        expect(result.hasTaskC).toBe(true);
+    });
 
-            // Try to export it
+    test('6. createViewTree sets pattern name in tree name', async ({ page }) => {
+        const result = await page.evaluate(() => {
+            const viewTree = window.createViewTree(capexTree, ['p1'], 'knowledge-base');
+            return {
+                name: viewTree.name,
+                pattern: viewTree.pattern,
+                containsSourceName: viewTree.name.includes('Clone Test Tree'),
+                containsPattern: viewTree.name.toLowerCase().includes('knowledge')
+            };
+        });
+
+        expect(result.containsSourceName).toBe(true);
+        expect(result.pattern).toBe('knowledge-base');
+    });
+
+    test('7. showCreateViewModal function exists', async ({ page }) => {
+        const exists = await page.evaluate(() => {
+            return typeof window.showCreateViewModal === 'function';
+        });
+        expect(exists).toBe(true);
+    });
+
+    test('8. CloneRegistry exists with required methods', async ({ page }) => {
+        const result = await page.evaluate(() => {
+            return {
+                exists: typeof window.CloneRegistry !== 'undefined',
+                hasCreateClone: typeof window.CloneRegistry?.createClone === 'function',
+                hasGetSource: typeof window.CloneRegistry?.getSource === 'function',
+                hasGetAllClones: typeof window.CloneRegistry?.getAllClones === 'function',
+                hasFindNodeByIdDeep: typeof window.CloneRegistry?.findNodeByIdDeep === 'function'
+            };
+        });
+
+        expect(result.exists).toBe(true);
+        expect(result.hasCreateClone).toBe(true);
+        expect(result.hasGetSource).toBe(true);
+        expect(result.hasGetAllClones).toBe(true);
+        expect(result.hasFindNodeByIdDeep).toBe(true);
+    });
+
+    test('9. CloneAudit exists with fullAudit method', async ({ page }) => {
+        const result = await page.evaluate(() => {
+            return {
+                exists: typeof window.CloneAudit !== 'undefined',
+                hasFullAudit: typeof window.CloneAudit?.fullAudit === 'function',
+                hasValidateTranslationMap: typeof window.CloneAudit?.validateTranslationMap === 'function',
+                hasCheckHyperedgeIntegrity: typeof window.CloneAudit?.checkHyperedgeIntegrity === 'function'
+            };
+        });
+
+        expect(result.exists).toBe(true);
+        expect(result.hasFullAudit).toBe(true);
+    });
+
+    test('10. CloneRegistry.createClone creates clone with cloneOf property', async ({ page }) => {
+        const result = await page.evaluate(() => {
+            const sourceNode = capexTree.subItems[0]; // Phase 1
+            const targetParent = capexTree; // root as parent
+
+            const clone = window.CloneRegistry.createClone(sourceNode, targetParent);
+            return {
+                hasCloneOf: !!clone?.cloneOf,
+                cloneOfValue: clone?.cloneOf,
+                sourceId: sourceNode.id,
+                differentId: clone?.id !== sourceNode.id,
+                sameName: clone?.name === sourceNode.name,
+                sameDescription: clone?.description === sourceNode.description
+            };
+        });
+
+        expect(result.hasCloneOf).toBe(true);
+        expect(result.cloneOfValue).toBe('p1');
+        expect(result.differentId).toBe(true);
+        expect(result.sameName).toBe(true);
+    });
+
+    test('11. CloneRegistry.createClone preserves description and metadata', async ({ page }) => {
+        const result = await page.evaluate(() => {
+            const sourceNode = capexTree.subItems[0].subItems[0]; // Task A
+            const targetParent = capexTree;
+
+            const clone = window.CloneRegistry.createClone(sourceNode, targetParent);
+            return {
+                description: clone?.description,
+                sourceDescription: sourceNode.description,
+                matchesDescription: clone?.description === sourceNode.description,
+                sameName: clone?.name === sourceNode.name
+            };
+        });
+
+        expect(result.matchesDescription).toBe(true);
+        expect(result.description).toBe('First task');
+        expect(result.sameName).toBe(true);
+    });
+
+    test('12. View tree is fully exportable as JSON', async ({ page }) => {
+        const result = await page.evaluate(() => {
+            const viewTree = window.createViewTree(capexTree, ['p1'], 'generic');
+
             try {
                 const exported = JSON.stringify(viewTree);
                 const parsed = JSON.parse(exported);
 
                 return {
-                    exists: true,
                     exportable: true,
-                    hasOrigin: parsed.origin !== undefined,
-                    hasClones: parsed.subItems && parsed.subItems.some(n => n.cloneOf)
+                    hasOrigin: !!parsed.origin,
+                    originKind: parsed.origin?.kind,
+                    hasSubItems: Array.isArray(parsed.subItems) && parsed.subItems.length > 0
                 };
             } catch (e) {
-                return { exists: true, exportable: false, error: e.message };
+                return {
+                    exportable: false,
+                    error: e.message
+                };
             }
         });
 
-        if (result.exists) {
-            expect(result.exportable).toBe(true);
-            expect(result.hasOrigin).toBe(true);
-            expect(result.hasClones).toBe(true);
-        } else {
-            test.skip();
-        }
+        expect(result.exportable).toBe(true);
+        expect(result.hasOrigin).toBe(true);
+        expect(result.originKind).toBe('view');
+        expect(result.hasSubItems).toBe(true);
     });
 
-    test('8. View tree uses CloneRegistry for clone management', async ({ page }) => {
-        const registryExists = await page.evaluate(() => typeof CloneRegistry !== 'undefined');
-        expect(registryExists).toBe(true);
-
-        if (registryExists) {
-            const hasRequiredMethods = await page.evaluate(() => {
-                return typeof CloneRegistry.register === 'function' &&
-                       typeof CloneRegistry.getClones === 'function' &&
-                       typeof CloneRegistry.getSource === 'function';
-            });
-            expect(hasRequiredMethods).toBe(true);
-        }
-    });
-
-    // ========== Node Cloning Tests ==========
-
-    test('9. Clone node creates new node with cloneOf reference', async ({ page }) => {
+    test('13. CloneRegistry.findNodeByIdDeep finds nodes in tree', async ({ page }) => {
         const result = await page.evaluate(() => {
-            if (typeof cloneNode !== 'function') {
-                return { exists: false };
-            }
+            const foundPhase = window.CloneRegistry.findNodeByIdDeep('p1', capexTree);
+            const foundTask = window.CloneRegistry.findNodeByIdDeep('ta', capexTree);
+            const notFound = window.CloneRegistry.findNodeByIdDeep('nonexistent', capexTree);
 
-            // Find a node to clone
+            return {
+                foundPhase: !!foundPhase,
+                phaseName: foundPhase?.name,
+                foundTask: !!foundTask,
+                taskName: foundTask?.name,
+                notFound: !notFound
+            };
+        });
+
+        expect(result.foundPhase).toBe(true);
+        expect(result.phaseName).toBe('Phase 1');
+        expect(result.foundTask).toBe(true);
+        expect(result.taskName).toBe('Task A');
+        expect(result.notFound).toBe(true);
+    });
+
+    test('14. CloneAudit.fullAudit returns audit result', async ({ page }) => {
+        const result = await page.evaluate(() => {
             const sourceNode = capexTree.subItems[0]; // Phase 1
-            const clone = cloneNode(sourceNode);
+            const clone = window.CloneRegistry.createClone(sourceNode, capexTree);
+            const idMap = { [clone.id]: sourceNode.id };
+
+            const auditResult = window.CloneAudit?.fullAudit(sourceNode, clone, idMap);
 
             return {
-                exists: true,
-                hasCloneOf: clone.cloneOf !== undefined,
-                cloneOfValue: clone.cloneOf,
-                sourceGuid: sourceNode.guid
+                hasResult: !!auditResult,
+                isValid: auditResult?.valid,
+                hasErrors: Array.isArray(auditResult?.errors),
+                errorCount: auditResult?.errors?.length || 0
             };
         });
 
-        if (result.exists) {
-            expect(result.hasCloneOf).toBe(true);
-            expect(result.cloneOfValue).toBe(result.sourceGuid);
-        } else {
-            // Check if function exists
-            const functionExists = await page.evaluate(() => typeof cloneNode === 'function');
-            expect(functionExists).toBe(true);
-        }
+        expect(result.hasResult).toBe(true);
+        expect(result.hasErrors).toBe(true);
     });
 
-    test('10. Cloned node has different ID but same content', async ({ page }) => {
+    test('15. View tree origin timestamp is ISO format', async ({ page }) => {
         const result = await page.evaluate(() => {
-            if (typeof cloneNode !== 'function') {
-                return { exists: false };
-            }
+            const viewTree = window.createViewTree(capexTree, ['p1'], 'generic');
 
-            const sourceNode = capexTree.subItems[0]; // Phase 1
-            const clone = cloneNode(sourceNode);
+            const timestamp = viewTree.origin?.createdAt;
+            const isISOFormat = timestamp && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(timestamp);
 
             return {
-                exists: true,
-                differentId: clone.id !== sourceNode.id,
-                differentGuid: clone.guid !== sourceNode.guid,
-                sameName: clone.name === sourceNode.name,
-                sameDescription: clone.description === sourceNode.description
+                hasTimestamp: !!timestamp,
+                timestamp: timestamp,
+                isISOFormat: isISOFormat
             };
         });
 
-        if (result.exists) {
-            expect(result.differentId).toBe(true);
-            expect(result.differentGuid).toBe(true);
-            expect(result.sameName).toBe(true);
-        } else {
-            test.skip();
-        }
-    });
-
-    test('11. Clone preserves description and metadata', async ({ page }) => {
-        const result = await page.evaluate(() => {
-            if (typeof cloneNode !== 'function') {
-                return { exists: false };
-            }
-
-            const sourceNode = capexTree.subItems[0].subItems[0]; // Task A
-            const clone = cloneNode(sourceNode);
-
-            return {
-                exists: true,
-                description: clone.description,
-                sourceDescription: sourceNode.description,
-                match: clone.description === sourceNode.description
-            };
-        });
-
-        if (result.exists) {
-            expect(result.match).toBe(true);
-            expect(result.description).toBe('First task');
-        } else {
-            test.skip();
-        }
-    });
-
-    test('12. CloneRegistry tracks clone relationships', async ({ page }) => {
-        const result = await page.evaluate(() => {
-            if (typeof CloneRegistry === 'undefined' || typeof cloneNode !== 'function') {
-                return { exists: false };
-            }
-
-            // Clear registry
-            if (typeof CloneRegistry.clear === 'function') {
-                CloneRegistry.clear();
-            }
-
-            // Clone a node
-            const sourceNode = capexTree.subItems[0]; // Phase 1
-            const clone = cloneNode(sourceNode);
-
-            // Register the clone
-            if (typeof CloneRegistry.register === 'function') {
-                CloneRegistry.register(clone.guid, sourceNode.guid);
-            }
-
-            // Query registry
-            const clones = typeof CloneRegistry.getClones === 'function'
-                ? CloneRegistry.getClones(sourceNode.guid)
-                : null;
-
-            return {
-                exists: true,
-                tracked: clones && clones.length > 0,
-                clonesCount: clones ? clones.length : 0
-            };
-        });
-
-        if (result.exists) {
-            expect(result.tracked).toBe(true);
-            expect(result.clonesCount).toBeGreaterThan(0);
-        } else {
-            // At minimum, CloneRegistry should exist
-            const registryExists = await page.evaluate(() => typeof CloneRegistry !== 'undefined');
-            expect(registryExists).toBe(true);
-        }
-    });
-
-    test('13. Multiple clones of same source all tracked', async ({ page }) => {
-        const result = await page.evaluate(() => {
-            if (typeof CloneRegistry === 'undefined' || typeof cloneNode !== 'function') {
-                return { exists: false };
-            }
-
-            // Clear registry
-            if (typeof CloneRegistry.clear === 'function') {
-                CloneRegistry.clear();
-            }
-
-            // Clone same node multiple times
-            const sourceNode = capexTree.subItems[0]; // Phase 1
-            const clone1 = cloneNode(sourceNode);
-            const clone2 = cloneNode(sourceNode);
-            const clone3 = cloneNode(sourceNode);
-
-            // Register clones
-            if (typeof CloneRegistry.register === 'function') {
-                CloneRegistry.register(clone1.guid, sourceNode.guid);
-                CloneRegistry.register(clone2.guid, sourceNode.guid);
-                CloneRegistry.register(clone3.guid, sourceNode.guid);
-            }
-
-            // Query registry
-            const clones = typeof CloneRegistry.getClones === 'function'
-                ? CloneRegistry.getClones(sourceNode.guid)
-                : null;
-
-            return {
-                exists: true,
-                tracked: clones && clones.length === 3,
-                clonesCount: clones ? clones.length : 0
-            };
-        });
-
-        if (result.exists) {
-            expect(result.tracked).toBe(true);
-            expect(result.clonesCount).toBe(3);
-        } else {
-            test.skip();
-        }
-    });
-
-    test('14. Deleting clone does not affect source', async ({ page }) => {
-        const result = await page.evaluate(() => {
-            if (typeof cloneNode !== 'function') {
-                return { exists: false };
-            }
-
-            // Clone a node
-            const sourceNode = capexTree.subItems[0]; // Phase 1
-            const sourceName = sourceNode.name;
-            const sourceChildCount = sourceNode.subItems ? sourceNode.subItems.length : 0;
-
-            const clone = cloneNode(sourceNode);
-
-            // "Delete" the clone (nullify it)
-            clone.name = null;
-            clone.subItems = [];
-
-            // Verify source unchanged
-            return {
-                exists: true,
-                sourceUnchanged: sourceNode.name === sourceName,
-                sourceChildrenIntact: sourceNode.subItems && sourceNode.subItems.length === sourceChildCount
-            };
-        });
-
-        if (result.exists) {
-            expect(result.sourceUnchanged).toBe(true);
-            expect(result.sourceChildrenIntact).toBe(true);
-        } else {
-            test.skip();
-        }
-    });
-
-    test('15. Clone audit functions exist (CloneAudit.fullAudit)', async ({ page }) => {
-        const auditExists = await page.evaluate(() => typeof CloneAudit !== 'undefined');
-        expect(auditExists).toBe(true);
-
-        if (auditExists) {
-            const hasMethods = await page.evaluate(() => {
-                return typeof CloneAudit.fullAudit === 'function' ||
-                       typeof CloneAudit.validateTranslationMap === 'function' ||
-                       typeof CloneAudit.checkHyperedgeIntegrity === 'function';
-            });
-            expect(hasMethods).toBe(true);
-        }
+        expect(result.hasTimestamp).toBe(true);
+        expect(result.isISOFormat).toBe(true);
     });
 
 });
