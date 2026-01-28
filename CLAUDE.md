@@ -9,7 +9,7 @@ Live Site: https://treelisty.netlify.app
 **Read the self-tree for full context:** `self-trees/treelisty-self-tree-v17-build882.json`
 
 The self-tree contains:
-- **Measured Signals**: ~5.3 MB, ~111,000 lines, 529 unit tests + 192 E2E tests (721 total), 11 views
+- **Measured Signals**: ~5.3 MB, ~111,000 lines, 529 unit tests + 192 E2E tests (721 total), 12 views
 - **Now/Next/Later**: Current priorities with task tables
 - **Architecture Reference**: Code locations, entry points, data flow
 - **Improvement Suggestions**: TB-identified gaps and solutions
@@ -60,7 +60,7 @@ Netlify auto-deploys within 1-2 minutes of push to main.
 
 ## Project Overview
 
-TreeListy is a single-file HTML application (~5.2MB) for hierarchical project decomposition with AI integration. It supports 11 view modes, 21 patterns, real-time collaboration, and bidirectional communication with Claude Code via MCP.
+TreeListy is a single-file HTML application (~5.2MB) for hierarchical project decomposition with AI integration. It supports 12 view modes (Tree, Canvas, 3D, Gantt, Calendar, Treemap, Mind Map, Checklist, Kanban, Dashboard), 21 patterns, real-time collaboration, and bidirectional communication with Claude Code via MCP.
 
 Key files:
 - `treeplexity.html` - Main production file (edit this)
@@ -370,7 +370,7 @@ treeplexity.html (single file ~1.3MB)
 ├── CSS styles (~8000 lines)
 └── JavaScript (~68000+ lines)
     ├── Data model (capexTree object)
-    ├── Rendering (Tree, Canvas, 3D, Gantt, Calendar, Mind Map views)
+    ├── Rendering (Tree, Canvas, 3D, Gantt, Calendar, Treemap, Mind Map, Checklist, Kanban, Dashboard)
     ├── AI integration (Claude, Gemini, ChatGPT)
     ├── TreeBeard assistant with 100+ commands
     ├── Pattern system (21 patterns)
@@ -381,7 +381,7 @@ treeplexity.html (single file ~1.3MB)
 ```
 
 ### Key Variables
-- `viewMode` - current view state (tree/canvas/3d/gantt/calendar/mindmap)
+- `viewMode` - current view state (tree/canvas/3d/gantt/calendar/treemap/mindmap/checklist/kanban/dashboard)
 - `capexTree` - main tree data structure
 - `PATTERNS` - pattern definitions object
 - `firebaseSyncState` - collaboration session state
@@ -401,6 +401,9 @@ treeplexity.html (single file ~1.3MB)
 - `render3D()` - re-render 3D view
 - `renderGantt()` - re-render Gantt view
 - `renderCalendar()` - re-render Calendar view
+- `renderChecklist()` - re-render Checklist view
+- `renderKanban()` - re-render Kanban view
+- `renderDashboard()` - re-render Dashboard view
 - `saveState(description)` - save undo state (clears redoStack)
 - `undo()` - restore previous state (saves current to redoStack)
 - `redo()` - restore undone state (Build 778)
@@ -786,7 +789,7 @@ TreeBeard is the AI assistant with 100+ commands organized by category:
 
 **Editing**: `rename_node`, `set_description`, `move_node`, `delete_node`, `duplicate_node`
 
-**Views**: `switch_view:canvas`, `switch_view:3d`, `switch_view:gantt`, `switch_view:mindmap`
+**Views**: `switch_view:canvas`, `switch_view:3d`, `switch_view:gantt`, `switch_view:calendar`, `switch_view:treemap`, `switch_view:mindmap`, `switch_view:checklist`, `switch_view:kanban`, `switch_view:dashboard`
 
 **Hyperedges**: `create_hyperedge`, `list_hyperedges`, `narrate_hyperedge`, `delete_hyperedge`
 
@@ -1065,7 +1068,7 @@ TreeListy supports 21 patterns including:
 
 | Task | Command/Action |
 |------|----------------|
-| Switch view | `switch_view:canvas`, toolbar buttons |
+| Switch view | `switch_view:canvas`, `switch_view:kanban`, `switch_view:dashboard`, etc. |
 | Build tree | `build_tree_from_topic:Philosophy of Mind` |
 | Focus branch | `focus_branch:NodeName` or Canvas right-click |
 | Cross-tree link | `link_cross_tree:treeId:nodeGuid` |
